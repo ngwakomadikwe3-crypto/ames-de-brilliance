@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "requestId required" }, { status: 400 });
     }
 
-    const req = getRequestById(requestId);
+    const req = await getRequestById(requestId);
     if (!req) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join("\n");
 
     // Get available stones
-    const stones = getAvailableStones();
+    const stones = await getAvailableStones();
 
     if (stones.length === 0) {
       // No stones in inventory at all — draft sourcing acknowledgement

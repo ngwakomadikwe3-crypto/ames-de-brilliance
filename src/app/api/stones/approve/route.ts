@@ -6,14 +6,14 @@ export async function POST(request: NextRequest) {
     const { id, edits, action, reason } = await request.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-    const stone = getStoneById(id);
+    const stone = await getStoneById(id);
     if (!stone) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     if (action === "approve") {
-      const updated = approveStone(id, edits || {});
+      const updated = await approveStone(id, edits || {});
       return NextResponse.json(updated);
     } else if (action === "reject") {
-      const updated = rejectStone(id, reason || "");
+      const updated = await rejectStone(id, reason || "");
       return NextResponse.json(updated);
     }
 

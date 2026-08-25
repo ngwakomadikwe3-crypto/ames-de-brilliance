@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureUploadsDir } from "@/lib/db";
-import path from "path";
-import fs from "fs";
+import { getStorage, getMediaUrl, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
+import { ID } from "node-appwrite";
+import { InputFile } from "node-appwrite/file";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,15 +27,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const dir = ensureUploadsDir();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const finalName = `video_${Date.now()}_${safeName}`;
     const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(path.join(dir, finalName), buffer);
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const inputFile = InputFile.fromBuffer(buffer, `video_${Date.now()}_${safeName}`);
+    const res = await getStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file: inputFile });
 
     return NextResponse.json({
-      url: `/api/stones/photo/${finalName}`,
-      filename: finalName,
+      url: getMediaUrl(res.$id),
+      filename: res.$id,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

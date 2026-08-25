@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTraderByPortalCode, getTraderStones, addStone, getStoneStatusLog, savePhoto } from "@/lib/db";
 
 async function authenticate(code: string) {
-  const trader = getTraderByPortalCode(code);
+  const trader = await getTraderByPortalCode(code);
   if (!trader) return null;
   return trader;
 }
@@ -12,12 +12,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const trader = await authenticate(code);
   if (!trader) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const stones = getTraderStones(trader.id);
+  const stones = await getTraderStones(trader.id);
   // Attach status logs
-  const stonesWithLog = stones.map((s: any) => ({
+  const stonesWithLog = await Promise.all(stones.map(async (s: any) => ({
     ...s,
-    status_log: getStoneStatusLog(s.id),
-  }));
+    status_log: await getStoneStatusLog(s.id),
+  })));
   return NextResponse.json(stonesWithLog);
 }
 
@@ -40,13 +40,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const file = formData.get("photo") as File | null;
       if (file && file.size > 0) {
         const buffer = Buffer.from(await file.arrayBuffer());
-        data.photo = savePhoto(file.name, buffer);
+        data.photo = await savePhoto(file.name, buffer);
       }
     } else {
       data = await request.json();
     }
 
-    const saved = addStone({
+    const saved = await addStone({
       stone_type: data.stone_type || "polished",
       shape: data.shape || "",
       carat: parseFloat(data.carat) || 0,

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const d = (k: string) => (formData.get(k) as string) || "";
     const consent = formData.get("consent") === "on" || formData.get("consent") === "true";
     const declaration = formData.get("declaration") === "on" || formData.get("declaration") === "true";
-    const saved = addRequest({
+    const saved = await addRequest({
       buyer_name: d("name"), company: d("company"), country: d("country"),
       contact: d("contact"), type: d("type"), shape: d("shape"),
       carat_min: d("caratMin"), carat_max: d("caratMax"), color: d("color"),

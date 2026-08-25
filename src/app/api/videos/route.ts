@@ -14,15 +14,14 @@ export async function GET(req: NextRequest) {
   try {
     const published = req.nextUrl.searchParams.get("published");
     if (published === "1") {
-      return NextResponse.json(getPublishedVideos());
+      return NextResponse.json(await getPublishedVideos());
     }
     const pending = req.nextUrl.searchParams.get("pending");
     if (pending === "1") {
-      // Return pending model videos for dashboard
-      const all = getAllVideos();
+      const all = await getAllVideos();
       return NextResponse.json(all.filter((v: any) => v.status === "Pending"));
     }
-    return NextResponse.json(getAllVideos());
+    return NextResponse.json(await getAllVideos());
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
@@ -36,10 +35,10 @@ export async function POST(req: NextRequest) {
     }
     // Model videos go through a separate path with Pending status
     if (model_id) {
-      const video = addModelVideo(model_id, video_url, caption || "", stone_id || null);
+      const video = await addModelVideo(String(model_id), video_url, caption || "", stone_id || null);
       return NextResponse.json(video);
     }
-    const video = addVideo(video_url, caption || "", stone_id || null);
+    const video = await addVideo(video_url, caption || "", stone_id || null);
     return NextResponse.json(video);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -54,16 +53,16 @@ export async function PATCH(req: NextRequest) {
     }
     // Approve/decline model videos
     if (action === "approve") {
-      const video = approveModelVideo(id);
+      const video = await approveModelVideo(String(id));
       if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
       return NextResponse.json(video);
     }
     if (action === "decline") {
-      const ok = declineModelVideo(id);
+      const ok = await declineModelVideo(String(id));
       if (!ok) return NextResponse.json({ error: "Video not found" }, { status: 404 });
       return NextResponse.json({ ok: true });
     }
-    const video = updateVideo(id, updates);
+    const video = await updateVideo(String(id), updates);
     if (!video) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }
@@ -75,11 +74,11 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const id = Number(req.nextUrl.searchParams.get("id"));
+    const id = req.nextUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "id required" }, { status: 400 });
     }
-    const ok = deleteVideo(id);
+    const ok = await deleteVideo(id);
     if (!ok) {
       return NextResponse.json({ error: "Video not found" }, { status: 404 });
     }

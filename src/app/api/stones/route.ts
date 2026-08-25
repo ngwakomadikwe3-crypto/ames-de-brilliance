@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { addStone, updateStone, getAllStones, getOrCreateTrader, savePhoto } from "@/lib/db";
 
 export async function GET() {
-  return NextResponse.json(getAllStones());
+  return NextResponse.json(await getAllStones());
 }
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       const file = formData.get("photoFile") as File | null;
       if (file && file.size > 0) {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const photoUrl = savePhoto(file.name, buffer);
+        const photoUrl = await savePhoto(file.name, buffer);
         data.photo = photoUrl;
       }
     } else {
@@ -27,13 +27,13 @@ export async function POST(request: NextRequest) {
     }
 
     const source = (data.source || "Own stock") as "Own stock" | "Consigned";
-    let traderId: number | null = null;
+    let traderId: string | null = null;
 
     if (source === "Consigned" && data.traderName) {
-      traderId = getOrCreateTrader(data.traderName, data.traderWhatsapp || "", data.traderLicence || "");
+      traderId = await getOrCreateTrader(data.traderName, data.traderWhatsapp || "", data.traderLicence || "");
     }
 
-    const saved = addStone({
+    const saved = await addStone({
       stone_type: data.stone_type || "polished",
       shape: data.shape || "Round Brilliant",
       carat: parseFloat(data.carat) || 0,
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { id, status, salePrice } = await request.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-    const updated = updateStone(id, { status, sale_price: salePrice });
+    const updated = await updateStone(id, { status, sale_price: salePrice });
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(updated);
   } catch { return NextResponse.json({ error: "Failed" }, { status: 500 }); }

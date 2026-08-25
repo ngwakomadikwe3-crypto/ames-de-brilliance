@@ -1,21 +1,9 @@
-import Database from "better-sqlite3";
-import path from "path";
-import fs from "fs";
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const DB_PATH = path.join(DATA_DIR, "ames.db");
-
-let _db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (_db) return _db;
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  _db = new Database(DB_PATH);
-  _db.pragma("journal_mode = WAL");
-  _db.pragma("foreign_keys = ON");
-  initTables(_db);
-  return _db;
-}
+import {
+  ensureReady, getDb as getDbSvc, getStorage, getMediaUrl,
+  doc, nowISO, DB_ID, MEDIA_BUCKET,
+} from "./appwrite";
+import { ID, Query } from "node-appwrite";
+import { InputFile } from "node-appwrite/file";
 
 /* ── Interfaces ── */
 
@@ -30,52 +18,49 @@ export interface DbRequest {
 }
 
 export interface DbTrader {
-  id: number; name: string; whatsapp: string; licence: string;
+  id: string; name: string; whatsapp: string; licence: string;
   portal_code: string; email: string; status: "Pending" | "Active" | "Declined";
   company: string; country: string; licence_photo: string;
   created_at: string;
 }
 
 export interface DbReport {
-  id: number; trader_id: number; period_start: string; period_end: string;
+  id: string; trader_id: string; period_start: string; period_end: string;
   report_date: string; summary: string; data: string; created_at: string;
 }
 
 export interface DbStoneStatusLog {
-  id: number; stone_id: string; status: string; reason: string; changed_at: string;
+  id: string; stone_id: string; status: string; reason: string; changed_at: string;
 }
 
 export interface DbStone {
-  id: string; ref: string;
-  stone_type: "rough" | "polished";
+  id: string; ref: string; stone_type: "rough" | "polished";
   shape: string; carat: number; color: string;
   clarity: string; cut: string; certification: string;
   category: string; crystal_form: string; clarity_notes: string;
-  kp_status: boolean;
-  price: number | null;
+  kp_status: boolean; price: number | null;
   status: "Available" | "Reserved" | "Sold"; photo: string;
-  source: "Own stock" | "Consigned"; trader_id: number | null;
+  source: "Own stock" | "Consigned"; trader_id: string | null;
   commission: number; sale_price: number | null; photo_path: string | null;
-  listing_category: "Rough" | "Polished" | "Jewelry";
-  created_at: string;
+  listing_category: "Rough" | "Polished" | "Jewelry"; created_at: string;
 }
 
 export interface DbOrder {
-  id: number; stone_id: string; stone_ref: string;
+  id: string; stone_id: string; stone_ref: string;
   buyer_name: string; buyer_whatsapp: string; price: number | null;
   status: string; created_at: string;
 }
 
 export interface DbVideo {
-  id: number; video_url: string; caption: string;
-  stone_id: string | null; published: number;
-  model_id: number | null; status: string; tap_count: number;
+  id: string; video_url: string; caption: string;
+  stone_id: string | null; published: boolean;
+  model_id: string | null; status: string; tap_count: number;
   reserve_count: number; sales_count: number; sales_value: number; commission_earned: number;
-  created_at: string;
+  likes_count: number; created_at: string;
 }
 
 export interface DbModel {
-  id: number; name: string; whatsapp: string; instagram: string;
+  id: string; name: string; whatsapp: string; instagram: string;
   portal_code: string; status: string; created_at: string;
   monthly_video_quota: number; monthly_base_fee: number; commission_rate: number;
   payment_method: string; payment_details: string; total_paid: number;
@@ -83,368 +68,11 @@ export interface DbModel {
 
 /* ── Placeholder ── */
 
-const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
+export const STONE_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="#e5e7eb" width="400" height="400"/><text x="200" y="195" font-family="system-ui,sans-serif" font-size="13" fill="#9ca3af" text-anchor="middle">Photo of actual stone</text><text x="200" y="215" font-family="system-ui,sans-serif" font-size="13" fill="#9ca3af" text-anchor="middle">on request</text></svg>'
 );
 
-/* ── Init ── */
-
-function initTables(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS requests (
-      id TEXT PRIMARY KEY, date TEXT NOT NULL, buyer_name TEXT NOT NULL DEFAULT '',
-      company TEXT NOT NULL, country TEXT NOT NULL DEFAULT '', contact TEXT NOT NULL,
-      type TEXT NOT NULL, shape TEXT NOT NULL, carat_min TEXT NOT NULL DEFAULT '',
-      carat_max TEXT NOT NULL DEFAULT '', color TEXT NOT NULL, clarity TEXT NOT NULL,
-      certification TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '',
-      kp_licence TEXT NOT NULL DEFAULT '', kp_country TEXT NOT NULL DEFAULT '',
-      consent INTEGER NOT NULL DEFAULT 0, declaration INTEGER NOT NULL DEFAULT 0,
-      consent_timestamp TEXT NOT NULL DEFAULT '',
-      mandate TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'New',
-      created_at TEXT NOT NULL,
-      offer_text TEXT NOT NULL DEFAULT '', offer_timestamp TEXT NOT NULL DEFAULT ''
-    );
-    CREATE TABLE IF NOT EXISTS traders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-      whatsapp TEXT NOT NULL DEFAULT '', licence TEXT NOT NULL DEFAULT '',
-      portal_code TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'Pending',
-      company TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '',
-      licence_photo TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      trader_id INTEGER NOT NULL,
-      period_start TEXT NOT NULL, period_end TEXT NOT NULL,
-      report_date TEXT NOT NULL,
-      summary TEXT NOT NULL DEFAULT '',
-      data TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (trader_id) REFERENCES traders(id)
-    );
-    CREATE TABLE IF NOT EXISTS stone_status_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      stone_id TEXT NOT NULL,
-      status TEXT NOT NULL,
-      reason TEXT NOT NULL DEFAULT '',
-      changed_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS stones (
-      id TEXT PRIMARY KEY, ref TEXT NOT NULL,
-      stone_type TEXT NOT NULL DEFAULT 'polished',
-      shape TEXT NOT NULL, carat REAL NOT NULL, color TEXT NOT NULL,
-      clarity TEXT NOT NULL DEFAULT '', cut TEXT NOT NULL DEFAULT '',
-      certification TEXT NOT NULL DEFAULT '',
-      category TEXT NOT NULL DEFAULT '', crystal_form TEXT NOT NULL DEFAULT '',
-      clarity_notes TEXT NOT NULL DEFAULT '',
-      kp_status INTEGER NOT NULL DEFAULT 0,
-      price REAL, status TEXT NOT NULL DEFAULT 'Available',      photo TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'Own stock', trader_id INTEGER, commission REAL NOT NULL DEFAULT 0, sale_price REAL,
-      photo_path TEXT, listing_category TEXT NOT NULL DEFAULT 'Polished', created_at TEXT NOT NULL,
-      FOREIGN KEY (trader_id) REFERENCES traders(id)
-    );
-    CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      stone_id TEXT NOT NULL,
-      stone_ref TEXT NOT NULL,
-      buyer_name TEXT NOT NULL DEFAULT '',
-      buyer_whatsapp TEXT NOT NULL DEFAULT '',
-      price REAL,
-      status TEXT NOT NULL DEFAULT 'Reserved',
-      created_at TEXT NOT NULL
-    );
-  `);
-  // Migrate: add listing_category column if missing
-  const cols = db.prepare("PRAGMA table_info(stones)").all() as { name: string }[];
-  if (!cols.some(c => c.name === "listing_category")) {
-    db.exec("ALTER TABLE stones ADD COLUMN listing_category TEXT NOT NULL DEFAULT 'Polished'");
-    // Backfill rough stones
-    db.exec("UPDATE stones SET listing_category = 'Rough' WHERE stone_type = 'rough'");
-  }
-  // Migrate: add buyer/price columns to orders if missing
-  const orderCols = db.prepare("PRAGMA table_info(orders)").all() as { name: string }[];
-  if (!orderCols.some(c => c.name === "buyer_name")) {
-    db.exec("ALTER TABLE orders ADD COLUMN buyer_name TEXT NOT NULL DEFAULT ''");
-  }
-  if (!orderCols.some(c => c.name === "buyer_whatsapp")) {
-    db.exec("ALTER TABLE orders ADD COLUMN buyer_whatsapp TEXT NOT NULL DEFAULT ''");
-  }
-  if (!orderCols.some(c => c.name === "price")) {
-    db.exec("ALTER TABLE orders ADD COLUMN price REAL");
-  }
-  // Migrate: add portal_code/email to traders if missing
-  const traderCols = db.prepare("PRAGMA table_info(traders)").all() as { name: string }[];
-  if (!traderCols.some(c => c.name === "portal_code")) {
-    db.exec("ALTER TABLE traders ADD COLUMN portal_code TEXT NOT NULL DEFAULT ''");
-    // Backfill existing traders with random codes
-    const traders = db.prepare("SELECT id FROM traders WHERE portal_code = ''").all() as { id: number }[];
-    for (const t of traders) {
-      db.prepare("UPDATE traders SET portal_code = ? WHERE id = ?").run(genPortalCode(), t.id);
-    }
-  }
-  if (!traderCols.some(c => c.name === "email")) {
-    db.exec("ALTER TABLE traders ADD COLUMN email TEXT NOT NULL DEFAULT ''");
-  }
-  if (!traderCols.some(c => c.name === "status")) {
-    db.exec("ALTER TABLE traders ADD COLUMN status TEXT NOT NULL DEFAULT 'Pending'");
-    // Backfill existing traders with portal codes as Active
-    db.exec("UPDATE traders SET status = 'Active' WHERE portal_code != ''");
-  }
-  if (!traderCols.some(c => c.name === "company")) {
-    db.exec("ALTER TABLE traders ADD COLUMN company TEXT NOT NULL DEFAULT ''");
-  }
-  if (!traderCols.some(c => c.name === "country")) {
-    db.exec("ALTER TABLE traders ADD COLUMN country TEXT NOT NULL DEFAULT ''");
-  }
-  if (!traderCols.some(c => c.name === "licence_photo")) {
-    db.exec("ALTER TABLE traders ADD COLUMN licence_photo TEXT NOT NULL DEFAULT ''");
-  }
-  // Migrate: create reports table if missing
-  const reportTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='reports'").all();
-  if (reportTables.length === 0) {
-    db.exec(`CREATE TABLE IF NOT EXISTS reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      trader_id INTEGER NOT NULL,
-      period_start TEXT NOT NULL, period_end TEXT NOT NULL,
-      report_date TEXT NOT NULL,
-      summary TEXT NOT NULL DEFAULT '',
-      data TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (trader_id) REFERENCES traders(id)
-    )`);
-  }
-  // Migrate: create videos table if missing
-  const videoTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='videos'").all();
-  if (videoTables.length === 0) {
-    db.exec(`CREATE TABLE IF NOT EXISTS videos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      video_url TEXT NOT NULL,
-      caption TEXT NOT NULL DEFAULT '',
-      stone_id TEXT,
-      published INTEGER NOT NULL DEFAULT 0,
-      model_id INTEGER,
-      status TEXT NOT NULL DEFAULT 'Live',
-      tap_count INTEGER NOT NULL DEFAULT 0,
-      reserve_count INTEGER NOT NULL DEFAULT 0,
-      sales_count INTEGER NOT NULL DEFAULT 0,
-      sales_value REAL NOT NULL DEFAULT 0,
-      commission_earned REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (stone_id) REFERENCES stones(id),
-      FOREIGN KEY (model_id) REFERENCES models(id)
-    )`);
-  } else {
-    // Migrate: add model_id, status, tap_count to videos if missing
-    const vCols = db.prepare("PRAGMA table_info(videos)").all() as { name: string }[];
-    if (!vCols.some(c => c.name === "model_id")) db.exec("ALTER TABLE videos ADD COLUMN model_id INTEGER");
-    if (!vCols.some(c => c.name === "status")) db.exec("ALTER TABLE videos ADD COLUMN status TEXT NOT NULL DEFAULT 'Live'");
-    if (!vCols.some(c => c.name === "tap_count")) db.exec("ALTER TABLE videos ADD COLUMN tap_count INTEGER NOT NULL DEFAULT 0");
-    if (!vCols.some(c => c.name === "reserve_count")) db.exec("ALTER TABLE videos ADD COLUMN reserve_count INTEGER NOT NULL DEFAULT 0");
-    if (!vCols.some(c => c.name === "sales_count")) db.exec("ALTER TABLE videos ADD COLUMN sales_count INTEGER NOT NULL DEFAULT 0");
-    if (!vCols.some(c => c.name === "sales_value")) db.exec("ALTER TABLE videos ADD COLUMN sales_value REAL NOT NULL DEFAULT 0");
-    if (!vCols.some(c => c.name === "commission_earned")) db.exec("ALTER TABLE videos ADD COLUMN commission_earned REAL NOT NULL DEFAULT 0");
-  }
-  // Migrate: create models table if missing
-  const modelTables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='models'").all();
-  if (modelTables.length === 0) {
-    db.exec(`CREATE TABLE IF NOT EXISTS models (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      whatsapp TEXT NOT NULL DEFAULT '',
-      instagram TEXT NOT NULL DEFAULT '',
-      portal_code TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'Active',
-      monthly_video_quota INTEGER NOT NULL DEFAULT 30,
-      monthly_base_fee REAL NOT NULL DEFAULT 200,
-      commission_rate REAL NOT NULL DEFAULT 0.005,
-      payment_method TEXT NOT NULL DEFAULT '',
-      payment_details TEXT NOT NULL DEFAULT '',
-      total_paid REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
-    )`);
-  } else {
-    const mCols = db.prepare("PRAGMA table_info(models)").all() as { name: string }[];
-    if (!mCols.some(c => c.name === "monthly_video_quota")) db.exec("ALTER TABLE models ADD COLUMN monthly_video_quota INTEGER NOT NULL DEFAULT 30");
-    if (!mCols.some(c => c.name === "monthly_base_fee")) db.exec("ALTER TABLE models ADD COLUMN monthly_base_fee REAL NOT NULL DEFAULT 200");
-    if (!mCols.some(c => c.name === "commission_rate")) db.exec("ALTER TABLE models ADD COLUMN commission_rate REAL NOT NULL DEFAULT 0.005");
-    if (!mCols.some(c => c.name === "payment_method")) db.exec("ALTER TABLE models ADD COLUMN payment_method TEXT NOT NULL DEFAULT ''");
-    if (!mCols.some(c => c.name === "payment_details")) db.exec("ALTER TABLE models ADD COLUMN payment_details TEXT NOT NULL DEFAULT ''");
-    if (!mCols.some(c => c.name === "total_paid")) db.exec("ALTER TABLE models ADD COLUMN total_paid REAL NOT NULL DEFAULT 0");
-  }
-  const count = db.prepare("SELECT COUNT(*) as c FROM stones").get() as { c: number };
-  if (count.c === 0) seedData(db);
-}
-
-function seedData(db: Database.Database) {
-  const now = new Date().toISOString();
-  const insertTrader = db.prepare("INSERT INTO traders (name, whatsapp, licence, portal_code, status, created_at) VALUES (?, ?, ?, ?, 'Active', ?)");
-  const insertStone = db.prepare(
-    `INSERT INTO stones (id, ref, stone_type, shape, carat, color, clarity, cut, certification,
-     category, crystal_form, clarity_notes, kp_status, price, status, photo, source,
-     trader_id, commission, sale_price, photo_path, listing_category, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  );
-
-  const seed = [
-    // ── Rough stones ──
-    {
-      id: "1", ref: "ADB-001", stone_type: "rough", shape: "Octahedron", carat: 12.45,
-      color: "Near colourless", clarity: "", cut: "", cert: "",
-      category: "Sawable", crystal_form: "Octahedron", clarity_notes: "Clean octahedron, minimal inclusions visible under 10x",
-      kp: 1, price: null, photo: "", source: "Own stock", comm: 0, lc: "Rough",
-    },
-    {
-      id: "2", ref: "ADB-002", stone_type: "rough", shape: "Macle", carat: 8.30,
-      color: "Light brown", clarity: "", cut: "", cert: "",
-      category: "Near-gem", crystal_form: "Macle", clarity_notes: "Twinned crystal, some feather inclusions along twin plane",
-      kp: 1, price: null, photo: "", source: "Consigned", comm: 5, lc: "Rough",
-      tn: "Kgosi Molefe", tw: "+267 71 555 0101", tl: "BDMR-089",
-    },
-    {
-      id: "3", ref: "ADB-003", stone_type: "rough", shape: "Irregular", carat: 3.20,
-      color: "Greyish", clarity: "", cut: "", cert: "",
-      category: "Industrial", crystal_form: "Irregular", clarity_notes: "Fractured surface, suitable for industrial cutting only",
-      kp: 0, price: null, photo: "", source: "Own stock", comm: 0, lc: "Rough",
-    },
-    // ── Polished stones ──
-    {
-      id: "4", ref: "ADB-004", stone_type: "polished", shape: "Round Brilliant", carat: 1.05,
-      color: "G", clarity: "VS1", cut: "Excellent", cert: "GIA",
-      category: "", crystal_form: "", clarity_notes: "",
-      kp: 0, price: 8900, photo: "", source: "Own stock", comm: 0, lc: "Polished",
-    },
-    {
-      id: "5", ref: "ADB-005", stone_type: "polished", shape: "Oval", carat: 1.72,
-      color: "D", clarity: "IF", cut: "Excellent", cert: "GIA",
-      category: "", crystal_form: "", clarity_notes: "",
-      kp: 0, price: 24500, photo: "", source: "Consigned", comm: 8, lc: "Polished",
-      tn: "Ravi Patel", tw: "+91 98765 43210", tl: "GJEPC-4421",
-    },
-  ];
-
-  const tx = db.transaction(() => {
-    for (const s of seed) {
-      let traderId: number | null = null;
-      if (s.source === "Consigned" && (s as any).tn) {
-        const info = insertTrader.run((s as any).tn, (s as any).tw || "", (s as any).tl || "", genPortalCode(), now);
-        traderId = info.lastInsertRowid as number;
-      }
-      insertStone.run(
-        s.id, s.ref, s.stone_type, s.shape, s.carat, s.color, s.clarity, s.cut, s.cert,
-        s.category, s.crystal_form, s.clarity_notes, s.kp,
-        s.price, "Available", s.photo, s.source,
-        traderId, s.comm, null, null, (s as any).lc || "Polished", now
-      );
-    }
-  });
-  tx();
-
-  // Always seed test requests if table is empty
-  const reqCount = (db.prepare("SELECT COUNT(*) as c FROM requests").get() as { c: number }).c;
-  if (reqCount === 0) {
-    const ins = db.prepare(
-      "INSERT INTO requests (id, date, buyer_name, company, country, contact, type, shape, carat_min, carat_max, color, clarity, certification, notes, kp_licence, kp_country, consent, declaration, consent_timestamp, mandate, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-    const testRequests = [
-      {
-        id: "SR-2026-0001", date: "2026-08-22", buyer_name: "James Mokgosi", company: "Kalahari Diamonds Pty", country: "Botswana",
-        contact: "+267 71 234 567", type: "Polished", shape: "Round Brilliant", carat_min: "1.00", carat_max: "3.00",
-        color: "G", clarity: "VS1", certification: "GIA", notes: "Need by end of Q3. Prefer triple-excellent cut.",
-        status: "New",
-        mandate: "SOURCING REQUEST\n\nBuyer: Kalahari Diamonds Pty (Botswana)\nContact: +267 71 234 567\nType: Polished\n\nRequirement: Round Brilliant 1.00\u20133.00ct G VS1 GIA\n\nNotes: Need by end of Q3. Prefer triple-excellent cut.",
-      },
-      {
-        id: "SR-2026-0002", date: "2026-08-21", buyer_name: "Priya Sharma", company: "Surat Diamonds Ltd", country: "India",
-        contact: "+91 98765 43210", type: "Polished", shape: "Oval", carat_min: "0.50", carat_max: "1.00",
-        color: "D", clarity: "IF", certification: "GIA", notes: "Certified stones only. Minimum VS2 clarity.",
-        status: "Sourcing",
-        mandate: "SOURCING REQUEST\n\nBuyer: Surat Diamonds Ltd (India)\nContact: +91 98765 43210\nType: Polished\n\nRequirement: Oval 0.50\u20131.00ct D IF GIA\n\nNotes: Certified stones only. Minimum VS2 clarity.",
-      },
-      {
-        id: "SR-2026-0003", date: "2026-08-20", buyer_name: "David Van Houten", company: "Antwerp Rough Trading NV", country: "Belgium",
-        contact: "+32 471 234 567", type: "Rough", shape: "", carat_min: "5.00", carat_max: "15.00",
-        color: "Near colourless", clarity: "", certification: "None", notes: "Sawable to Near-gem. KP licence on file.",
-        kp_licence: "KP-BE-2026-0142", kp_country: "Belgium",
-        status: "Quoted",
-        mandate: "SOURCING REQUEST\n\nBuyer: Antwerp Rough Trading NV (Belgium)\nContact: +32 471 234 567\nType: Rough\n\nRequirement: 5.00\u201315.00ct Near colourless\n\nNotes: Sawable to Near-gem. KP licence on file.\n\nKP Licence: KP-BE-2026-0142 (Belgium)",
-      },
-    ];
-    for (const r of testRequests) {
-      ins.run(r.id, r.date, r.buyer_name, r.company, r.country, r.contact, r.type, r.shape,
-        r.carat_min, r.carat_max, r.color, r.clarity, r.certification, r.notes,
-        r.kp_licence || "", r.kp_country || "", 1, 0, now, r.mandate, r.status, now);
-    }
-  }
-}
-
-/* ── Exports ── */
-
-export const STONE_PLACEHOLDER = PLACEHOLDER;
-
-/* ── Request Queries ── */
-
-export function getAllRequests(): DbRequest[] {
-  return getDb().prepare("SELECT * FROM requests ORDER BY created_at DESC").all() as DbRequest[];
-}
-
-export function getRequestById(id: string): DbRequest | undefined {
-  return getDb().prepare("SELECT * FROM requests WHERE id = ?").get(id) as DbRequest | undefined;
-}
-
-export function addRequest(data: {
-  buyer_name: string; company: string; country: string; contact: string;
-  type: string; shape: string; carat_min: string; carat_max: string;
-  color: string; clarity: string; certification: string; notes: string;
-  kp_licence?: string; kp_country?: string; consent?: boolean; declaration?: boolean; consent_timestamp?: string;
-}): DbRequest {
-  const db = getDb();
-  const now = new Date();
-  const count = (db.prepare("SELECT COUNT(*) as c FROM requests").get() as { c: number }).c;
-  const id = `SR-${now.getFullYear()}-${String(count + 1).padStart(4, "0")}`;
-  const date = now.toISOString().split("T")[0];
-  const cr = data.carat_min === data.carat_max ? `${data.carat_min}ct` : `${data.carat_min}\u2013${data.carat_max}ct`;
-  const cert = data.certification === "None" ? "" : ` ${data.certification}`;
-  const lines = [
-    "SOURCING REQUEST", "",
-    `Buyer: ${data.company}${data.country ? ` (${data.country})` : ""}`,
-    `Contact: ${data.contact}`, `Type: ${data.type}`, "",
-    `Requirement: ${data.shape} ${cr} ${data.color} ${data.clarity}${cert}`,
-  ];
-  if (data.notes) lines.push("", `Notes: ${data.notes}`);
-  if (data.kp_licence) lines.push("", `KP Licence: ${data.kp_licence} (${data.kp_country})`);
-
-  db.prepare(
-    "INSERT INTO requests (id, date, buyer_name, company, country, contact, type, shape, carat_min, carat_max, color, clarity, certification, notes, kp_licence, kp_country, consent, declaration, consent_timestamp, mandate, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'New', ?)"
-  ).run(id, date, data.buyer_name, data.company, data.country, data.contact, data.type, data.shape, data.carat_min, data.carat_max, data.color, data.clarity, data.certification, data.notes, data.kp_licence || "", data.kp_country || "", data.consent ? 1 : 0, data.declaration ? 1 : 0, data.consent_timestamp || now.toISOString(), lines.join("\n"), now.toISOString());
-
-  return getRequestById(id)!;
-}
-
-export function updateRequest(id: string, updates: Partial<Pick<DbRequest, "status" | "notes" | "mandate">>): DbRequest | null {
-  const db = getDb();
-  const existing = getRequestById(id);
-  if (!existing) return null;
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  if (updates.status !== undefined) { fields.push("status = ?"); values.push(updates.status); }
-  if (updates.notes !== undefined) { fields.push("notes = ?"); values.push(updates.notes); }
-  if (updates.mandate !== undefined) { fields.push("mandate = ?"); values.push(updates.mandate); }
-  if (fields.length === 0) return existing;
-  values.push(id);
-  db.prepare(`UPDATE requests SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-  return getRequestById(id)!;
-}
-
-export function updateRequestOffer(id: string, offerText: string): DbRequest | null {
-  const db = getDb();
-  const existing = getRequestById(id);
-  if (!existing) return null;
-  db.prepare("UPDATE requests SET offer_text = ?, offer_timestamp = ?, status = 'Quoted' WHERE id = ?")
-    .run(offerText, new Date().toISOString(), id);
-  return getRequestById(id)!;
-}
-
-/* ── Trader Queries ── */
+/* ── Helpers ── */
 
 function genPortalCode(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -453,478 +81,426 @@ function genPortalCode(): string {
   return code;
 }
 
-export function getAllTraders(): DbTrader[] {
-  return getDb().prepare("SELECT * FROM traders ORDER BY CASE status WHEN 'Pending' THEN 0 WHEN 'Active' THEN 1 ELSE 2 END, name").all() as DbTrader[];
+function normPrice(v: any): number | null {
+  return v ? Number(v) : null;
 }
 
-export function getTraderByPortalCode(code: string): DbTrader | undefined {
-  return getDb().prepare("SELECT * FROM traders WHERE portal_code = ?").get(code) as DbTrader | undefined;
+/* ── Seed data ── */
+
+async function seedIfEmpty(): Promise<void> {
+  const db = getDbSvc();
+  const existing = await db.listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.limit(1)] });
+  if (existing.total > 0) return;
+  const now = nowISO();
+  const t1 = await db.createDocument({ databaseId: DB_ID, collectionId: "traders", documentId: ID.unique(),
+    data: { name: "Kgosi Molefe", whatsapp: "+267 71 555 0101", licence: "BDMR-089", portal_code: genPortalCode(), status: "Active", email: "", company: "", country: "", licence_photo: "", created_at: now } });
+  const t2 = await db.createDocument({ databaseId: DB_ID, collectionId: "traders", documentId: ID.unique(),
+    data: { name: "Ravi Patel", whatsapp: "+91 98765 43210", licence: "GJEPC-4421", portal_code: genPortalCode(), status: "Active", email: "", company: "", country: "", licence_photo: "", created_at: now } });
+  const stones = [
+    { id: "1", ref: "ADB-001", stone_type: "rough", shape: "Octahedron", carat: 12.45, color: "Near colourless", clarity: "", cut: "", certification: "", category: "Sawable", crystal_form: "Octahedron", clarity_notes: "Clean octahedron, minimal inclusions visible under 10x", kp_status: true, price: 0, status: "Available", photo: "", source: "Own stock", trader_id: "", commission: 0, sale_price: 0, photo_path: "", listing_category: "Rough" },
+    { id: "2", ref: "ADB-002", stone_type: "rough", shape: "Macle", carat: 8.30, color: "Light brown", clarity: "", cut: "", certification: "", category: "Near-gem", crystal_form: "Macle", clarity_notes: "Twinned crystal", kp_status: true, price: 0, status: "Available", photo: "", source: "Consigned", trader_id: t1.$id, commission: 5, sale_price: 0, photo_path: "", listing_category: "Rough" },
+    { id: "3", ref: "ADB-003", stone_type: "rough", shape: "Irregular", carat: 3.20, color: "Greyish", clarity: "", cut: "", certification: "", category: "Industrial", crystal_form: "Irregular", clarity_notes: "Fractured surface", kp_status: false, price: 0, status: "Available", photo: "", source: "Own stock", trader_id: "", commission: 0, sale_price: 0, photo_path: "", listing_category: "Rough" },
+    { id: "4", ref: "ADB-004", stone_type: "polished", shape: "Round Brilliant", carat: 1.05, color: "G", clarity: "VS1", cut: "Excellent", certification: "GIA", category: "", crystal_form: "", clarity_notes: "", kp_status: false, price: 8900, status: "Available", photo: "", source: "Own stock", trader_id: "", commission: 0, sale_price: 0, photo_path: "", listing_category: "Polished" },
+    { id: "5", ref: "ADB-005", stone_type: "polished", shape: "Oval", carat: 1.72, color: "D", clarity: "IF", cut: "Excellent", certification: "GIA", category: "", crystal_form: "", clarity_notes: "", kp_status: false, price: 24500, status: "Available", photo: "", source: "Consigned", trader_id: t2.$id, commission: 8, sale_price: 0, photo_path: "", listing_category: "Polished" },
+  ];
+  for (const s of stones) await db.createDocument({ databaseId: DB_ID, collectionId: "stones", documentId: s.id, data: { ...s, created_at: now } });
+  const requests = [
+    { id: "SR-2026-0001", date: "2026-08-22", buyer_name: "James Mokgosi", company: "Kalahari Diamonds Pty", country: "Botswana", contact: "+267 71 234 567", type: "Polished", shape: "Round Brilliant", carat_min: "1.00", carat_max: "3.00", color: "G", clarity: "VS1", certification: "GIA", notes: "Need by end of Q3.", status: "New", mandate: "SOURCING REQUEST" },
+    { id: "SR-2026-0002", date: "2026-08-21", buyer_name: "Priya Sharma", company: "Surat Diamonds Ltd", country: "India", contact: "+91 98765 43210", type: "Polished", shape: "Oval", carat_min: "0.50", carat_max: "1.00", color: "D", clarity: "IF", certification: "GIA", notes: "Certified stones only.", status: "Sourcing", mandate: "SOURCING REQUEST" },
+    { id: "SR-2026-0003", date: "2026-08-20", buyer_name: "David Van Houten", company: "Antwerp Rough Trading NV", country: "Belgium", contact: "+32 471 234 567", type: "Rough", shape: "", carat_min: "5.00", carat_max: "15.00", color: "Near colourless", clarity: "", certification: "None", notes: "Sawable to Near-gem.", kp_licence: "KP-BE-2026-0142", kp_country: "Belgium", status: "Quoted", mandate: "SOURCING REQUEST" },
+  ];
+  for (const r of requests) await db.createDocument({ databaseId: DB_ID, collectionId: "requests", documentId: r.id, data: { ...r, kp_licence: r.kp_licence || "", kp_country: r.kp_country || "", consent: true, declaration: false, consent_timestamp: now, offer_text: "", offer_timestamp: "", created_at: now } });
 }
 
-export function getOrCreateTrader(name: string, whatsapp: string, licence: string): number {
-  const db = getDb();
-  const existing = db.prepare("SELECT id FROM traders WHERE name = ?").get(name) as { id: number } | undefined;
-  if (existing) return existing.id;
-  return db.prepare("INSERT INTO traders (name, whatsapp, licence, portal_code, email, status, created_at) VALUES (?, ?, ?, ?, '', 'Active', ?)")
-    .run(name, whatsapp, licence, genPortalCode(), new Date().toISOString()).lastInsertRowid as number;
+/* ── Request Queries ── */
+
+export async function getAllRequests(): Promise<DbRequest[]> {
+  await ensureReady();
+  const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "requests", queries: [Query.orderDesc("created_at")] });
+  return res.documents.map(d => doc<DbRequest>(d));
 }
 
-export function getTraderById(id: number): DbTrader | undefined {
-  return getDb().prepare("SELECT * FROM traders WHERE id = ?").get(id) as DbTrader | undefined;
+export async function getRequestById(id: string): Promise<DbRequest | undefined> {
+  await ensureReady();
+  try { return doc<DbRequest>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "requests", documentId: id })); } catch { return undefined; }
 }
 
-export function addTraderApplication(data: { name: string; company: string; country: string; whatsapp: string; email: string; licence: string; licence_photo: string }): DbTrader {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const info = db.prepare(
-    `INSERT INTO traders (name, company, country, whatsapp, email, licence, licence_photo, portal_code, status, created_at) VALUES (?, ?, ?, ?, ?, ?, '', '', 'Pending', ?)`
-  ).run(data.name, data.company, data.country, data.whatsapp, data.email, data.licence, data.licence_photo, now);
-  return db.prepare("SELECT * FROM traders WHERE id = ?").get(info.lastInsertRowid) as DbTrader;
+export async function addRequest(data: { buyer_name: string; company: string; country: string; contact: string; type: string; shape: string; carat_min: string; carat_max: string; color: string; clarity: string; certification: string; notes: string; kp_licence?: string; kp_country?: string; consent?: boolean; declaration?: boolean; consent_timestamp?: string; }): Promise<DbRequest> {
+  await ensureReady();
+  const db = getDbSvc(); const now = nowISO();
+  const count = (await db.listDocuments({ databaseId: DB_ID, collectionId: "requests", queries: [Query.limit(0)] })).total;
+  const id = `SR-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
+  const date = now.split("T")[0];
+  const cr = data.carat_min === data.carat_max ? `${data.carat_min}ct` : `${data.carat_min}\u2013${data.carat_max}ct`;
+  const cert = data.certification === "None" ? "" : ` ${data.certification}`;
+  const lines = ["SOURCING REQUEST", "", `Buyer: ${data.company}${data.country ? ` (${data.country})` : ""}`, `Contact: ${data.contact}`, `Type: ${data.type}`, "", `Requirement: ${data.shape} ${cr} ${data.color} ${data.clarity}${cert}`];
+  if (data.notes) lines.push("", `Notes: ${data.notes}`);
+  if (data.kp_licence) lines.push("", `KP Licence: ${data.kp_licence} (${data.kp_country})`);
+  await db.createDocument({ databaseId: DB_ID, collectionId: "requests", documentId: id, data: { date, buyer_name: data.buyer_name, company: data.company, country: data.country, contact: data.contact, type: data.type, shape: data.shape, carat_min: data.carat_min, carat_max: data.carat_max, color: data.color, clarity: data.clarity, certification: data.certification, notes: data.notes, kp_licence: data.kp_licence || "", kp_country: data.kp_country || "", consent: data.consent || false, declaration: data.declaration || false, consent_timestamp: data.consent_timestamp || now, mandate: lines.join("\n"), status: "New", offer_text: "", offer_timestamp: "", created_at: now } });
+  return (await getRequestById(id))!;
 }
 
-export function approveTrader(id: number): DbTrader | null {
-  const db = getDb();
-  const existing = getTraderById(id);
-  if (!existing) return null;
-  const code = existing.portal_code || genPortalCode();
-  db.prepare("UPDATE traders SET status = 'Active', portal_code = ? WHERE id = ?").run(code, id);
-  return getTraderById(id)!;
+export async function updateRequest(id: string, updates: Partial<Pick<DbRequest, "status" | "notes" | "mandate">>): Promise<DbRequest | null> {
+  await ensureReady();
+  if (!(await getRequestById(id))) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "requests", documentId: id, data: updates });
+  return (await getRequestById(id)) || null;
 }
 
-export function declineTrader(id: number): DbTrader | null {
-  const db = getDb();
-  const existing = getTraderById(id);
-  if (!existing) return null;
-  db.prepare("UPDATE traders SET status = 'Declined' WHERE id = ?").run(id);
-  return getTraderById(id)!;
+export async function updateRequestOffer(id: string, offerText: string): Promise<DbRequest | null> {
+  await ensureReady();
+  if (!(await getRequestById(id))) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "requests", documentId: id, data: { offer_text: offerText, offer_timestamp: nowISO(), status: "Quoted" } });
+  return (await getRequestById(id)) || null;
+}
+
+/* ── Trader Queries ── */
+
+export async function getAllTraders(): Promise<DbTrader[]> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "traders" });
+  const traders = res.documents.map(d => doc<DbTrader>(d));
+  const order: Record<string, number> = { Pending: 0, Active: 1, Declined: 2 };
+  return traders.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3) || a.name.localeCompare(b.name));
+}
+
+export async function getTraderByPortalCode(code: string): Promise<DbTrader | undefined> {
+  await ensureReady();
+  try { const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "traders", queries: [Query.equal("portal_code", code), Query.limit(1)] }); return res.documents.length ? doc<DbTrader>(res.documents[0]) : undefined; } catch { return undefined; }
+}
+
+export async function getOrCreateTrader(name: string, whatsapp: string, licence: string): Promise<string> {
+  await ensureReady();
+  const db = getDbSvc();
+  const existing = await db.listDocuments({ databaseId: DB_ID, collectionId: "traders", queries: [Query.equal("name", name), Query.limit(1)] });
+  if (existing.documents.length) return existing.documents[0].$id;
+  const res = await db.createDocument({ databaseId: DB_ID, collectionId: "traders", documentId: ID.unique(), data: { name, whatsapp, licence, portal_code: genPortalCode(), email: "", status: "Active", company: "", country: "", licence_photo: "", created_at: nowISO() } });
+  return res.$id;
+}
+
+export async function getTraderById(id: string): Promise<DbTrader | undefined> {
+  await ensureReady();
+  try { return doc<DbTrader>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id })); } catch { return undefined; }
+}
+
+export async function addTraderApplication(data: { name: string; company: string; country: string; whatsapp: string; email: string; licence: string; licence_photo: string }): Promise<DbTrader> {
+  await ensureReady();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "traders", documentId: ID.unique(), data: { name: data.name, company: data.company, country: data.country, whatsapp: data.whatsapp, email: data.email, licence: data.licence, licence_photo: data.licence_photo, portal_code: "", status: "Pending", created_at: nowISO() } });
+  return doc<DbTrader>(res);
+}
+
+export async function approveTrader(id: string): Promise<DbTrader | null> {
+  await ensureReady();
+  const existing = await getTraderById(id); if (!existing) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { status: "Active", portal_code: existing.portal_code || genPortalCode() } });
+  return (await getTraderById(id)) || null;
+}
+
+export async function declineTrader(id: string): Promise<DbTrader | null> {
+  await ensureReady();
+  if (!(await getTraderById(id))) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { status: "Declined" } });
+  return (await getTraderById(id)) || null;
 }
 
 /* ── Report Queries ── */
 
-export function getTraderReports(traderId: number): DbReport[] {
-  return getDb().prepare("SELECT * FROM reports WHERE trader_id = ? ORDER BY report_date DESC").all(traderId) as DbReport[];
+export async function getTraderReports(traderId: string): Promise<DbReport[]> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "reports", queries: [Query.equal("trader_id", traderId), Query.orderDesc("report_date")] });
+  return res.documents.map(d => doc<DbReport>(d));
 }
 
-export function getAllReports(): (DbReport & { trader_name: string })[] {
-  return getDb().prepare(`
-    SELECT r.*, t.name as trader_name
-    FROM reports r LEFT JOIN traders t ON r.trader_id = t.id
-    ORDER BY r.report_date DESC
-  `).all() as any[];
+export async function getAllReports(): Promise<(DbReport & { trader_name: string })[]> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "reports", queries: [Query.orderDesc("report_date")] });
+  const reports = res.documents.map(d => doc<DbReport>(d));
+  const traderIds = [...new Set(reports.map(r => r.trader_id).filter(Boolean))];
+  const traderMap = new Map<string, string>();
+  for (const tid of traderIds) { const t = await getTraderById(tid); if (t) traderMap.set(tid, t.name); }
+  return reports.map(r => ({ ...r, trader_name: traderMap.get(r.trader_id) || "Unknown" }));
 }
 
-export function addReport(traderId: number, periodStart: string, periodEnd: string, summary: string, data: object): DbReport {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const info = db.prepare(
-    `INSERT INTO reports (trader_id, period_start, period_end, report_date, summary, data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run(traderId, periodStart, periodEnd, now, summary, JSON.stringify(data), now);
-  return db.prepare("SELECT * FROM reports WHERE id = ?").get(info.lastInsertRowid) as DbReport;
+export async function addReport(traderId: string, periodStart: string, periodEnd: string, summary: string, data: object): Promise<DbReport> {
+  await ensureReady();
+  const now = nowISO();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "reports", documentId: ID.unique(), data: { trader_id: traderId, period_start: periodStart, period_end: periodEnd, report_date: now, summary, data: JSON.stringify(data), created_at: now } });
+  return doc<DbReport>(res);
 }
 
-export function generateWeeklyReport(traderId: number): DbReport | null {
-  const db = getDb();
-  const trader = getTraderById(traderId);
-  if (!trader) return null;
-
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const periodStart = weekAgo.toISOString();
-  const periodEnd = now.toISOString();
-
-  // Get all trader's stones
-  const allStones = db.prepare(
-    `SELECT s.*, t.name as trader_name FROM stones s LEFT JOIN traders t ON s.trader_id = t.id WHERE s.trader_id = ?`
-  ).all(traderId) as any[];
-
-  // Currently live
-  const live = allStones.filter(s => s.status === "Available");
-  // New reserves this week
-  const reserved = allStones.filter(s => s.status === "Reserved" &&
-    db.prepare("SELECT 1 FROM stone_status_log WHERE stone_id = ? AND status = 'Reserved' AND changed_at >= ?").get(s.id, periodStart));
-  // Sold this week
-  const sold = allStones.filter(s => s.status === "Sold" &&
-    db.prepare("SELECT 1 FROM stone_status_log WHERE stone_id = ? AND status = 'Sold' AND changed_at >= ?").get(s.id, periodStart));
-  // Pending
-  const pending = allStones.filter(s => s.status === "Pending");
-  // Rejected
-  const rejected = allStones.filter(s => s.status === "Rejected");
-
-  // Commission calc
-  const soldWithCommission = sold.map(s => {
-    const commissionPct = s.commission || 0;
-    const salePrice = s.sale_price || 0;
-    const commissionAmount = salePrice * (commissionPct / 100);
-    return { ref: s.ref, shape: s.shape, carat: s.carat, color: s.color, clarity: s.clarity,
-      certification: s.certification, sale_price: salePrice, commission_pct: commissionPct, commission_amount: commissionAmount };
-  });
-  const totalCommission = soldWithCommission.reduce((sum, s) => sum + s.commission_amount, 0);
-  const totalRevenue = soldWithCommission.reduce((sum, s) => sum + s.sale_price, 0);
-
-  const summary = [
-    `Weekly Report for ${trader.name}`,
-    `Period: ${weekAgo.toISOString().split("T")[0]} to ${now.toISOString().split("T")[0]}`,
-    ``,
-    `Live items: ${live.length}`,
-    `New reserves this week: ${reserved.length}`,
-    `Items sold this week: ${sold.length}`,
-    `Total commission earned: $${totalCommission.toLocaleString()}`,
-    ``,
-    `Full status list:`,
-    `  Live: ${live.map(s => s.ref).join(", ") || "none"}`,
-    `  Reserved: ${reserved.map(s => s.ref).join(", ") || "none"}`,
-    `  Sold: ${sold.map(s => s.ref).join(", ") || "none"}`,
-    `  Pending: ${pending.map(s => s.ref).join(", ") || "none"}`,
-  ].join("\n");
-
-  const reportData = {
-    period: { start: weekAgo.toISOString().split("T")[0], end: now.toISOString().split("T")[0] },
-    live: live.map(s => ({ ref: s.ref, shape: s.shape, carat: s.carat, color: s.color, clarity: s.clarity })),
-    reserved: reserved.map(s => ({ ref: s.ref, shape: s.shape, carat: s.carat, color: s.color, clarity: s.clarity })),
-    sold: soldWithCommission,
-    total_commission: totalCommission,
-    total_revenue: totalRevenue,
-    full_status: {
-      live: live.map(s => s.ref),
-      reserved: reserved.map(s => s.ref),
-      sold: sold.map(s => s.ref),
-      pending: pending.map(s => s.ref),
-      rejected: rejected.map(s => s.ref),
-    },
-  };
-
-  return addReport(traderId, periodStart, periodEnd, summary, reportData);
+export async function generateWeeklyReport(traderId: string): Promise<DbReport | null> {
+  await ensureReady();
+  const trader = await getTraderById(traderId); if (!trader) return null;
+  const db = getDbSvc(); const now = new Date(); const weekAgo = new Date(now.getTime() - 7 * 86400000);
+  const periodStart = weekAgo.toISOString(); const periodEnd = now.toISOString();
+  const stonesRes = await db.listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId)] });
+  const allStones = stonesRes.documents.map(d => doc<any>(d));
+  const live = allStones.filter((s: any) => s.status === "Available");
+  const pending = allStones.filter((s: any) => s.status === "Pending");
+  const rejected = allStones.filter((s: any) => s.status === "Rejected");
+  const logRes = await db.listDocuments({ databaseId: DB_ID, collectionId: "stone_status_log", queries: [Query.greaterThanEqual("changed_at", periodStart)] });
+  const recentLog = logRes.documents.map(d => doc<any>(d));
+  const stoneIdSet = new Set(allStones.map((s: any) => s.id));
+  const reservedIds = new Set(recentLog.filter((l: any) => l.status === "Reserved" && stoneIdSet.has(l.stone_id)).map((l: any) => l.stone_id));
+  const soldIds = new Set(recentLog.filter((l: any) => l.status === "Sold" && stoneIdSet.has(l.stone_id)).map((l: any) => l.stone_id));
+  const reserved = allStones.filter((s: any) => reservedIds.has(s.id));
+  const sold = allStones.filter((s: any) => soldIds.has(s.id));
+  const soldWithCommission = sold.map((s: any) => { const cp = s.commission || 0; const sp = s.sale_price || 0; return { ref: s.ref, shape: s.shape, carat: s.carat, color: s.color, clarity: s.clarity, certification: s.certification, sale_price: sp, commission_pct: cp, commission_amount: sp * (cp / 100) }; });
+  const totalCommission = soldWithCommission.reduce((sum: number, s: any) => sum + s.commission_amount, 0);
+  const summary = [`Weekly Report for ${trader.name}`, `Period: ${weekAgo.toISOString().split("T")[0]} to ${now.toISOString().split("T")[0]}`, "", `Live items: ${live.length}`, `New reserves: ${reserved.length}`, `Items sold: ${sold.length}`, `Commission: $${totalCommission.toLocaleString()}`, "", `Live: ${live.map((s: any) => s.ref).join(", ") || "none"}`, `Reserved: ${reserved.map((s: any) => s.ref).join(", ") || "none"}`, `Sold: ${sold.map((s: any) => s.ref).join(", ") || "none"}`, `Pending: ${pending.map((s: any) => s.ref).join(", ") || "none"}`].join("\n");
+  return addReport(traderId, periodStart, periodEnd, summary, { period: { start: weekAgo.toISOString().split("T")[0], end: now.toISOString().split("T")[0] }, live, reserved, sold: soldWithCommission, total_commission: totalCommission, full_status: { live: live.map((s: any) => s.ref), reserved: reserved.map((s: any) => s.ref), sold: sold.map((s: any) => s.ref), pending: pending.map((s: any) => s.ref), rejected: rejected.map((s: any) => s.ref) } });
 }
 
 /* ── Stone Queries ── */
 
-const STONE_COLS = "s.*, t.name as trader_name, t.whatsapp as trader_whatsapp, t.licence as trader_licence";
-
-export function getAllStones() {
-  return getDb().prepare(`SELECT ${STONE_COLS} FROM stones s LEFT JOIN traders t ON s.trader_id = t.id ORDER BY s.created_at DESC`).all() as any[];
+async function enrichStones(stones: any[]): Promise<any[]> {
+  if (!stones.length) return [];
+  const db = getDbSvc();
+  const traderIds = [...new Set(stones.map(s => s.trader_id).filter(Boolean))];
+  const traderMap = new Map<string, any>();
+  for (const tid of traderIds) { try { traderMap.set(tid, await db.getDocument({ databaseId: DB_ID, collectionId: "traders", documentId: tid })); } catch {} }
+  return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null }));
 }
 
-export function getAvailableStones() {
-  return getDb().prepare(`SELECT ${STONE_COLS} FROM stones s LEFT JOIN traders t ON s.trader_id = t.id WHERE s.status = 'Available' ORDER BY s.created_at DESC`).all() as any[];
+export async function getAllStones() { await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
+export async function getAvailableStones() { await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("status", "Available"), Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
+
+export async function getStoneById(id: string) {
+  await ensureReady();
+  try { const enriched = await enrichStones([doc<any>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: id }))]); return enriched[0] || null; } catch { return null; }
 }
 
-export function getStoneById(id: string) {
-  return getDb().prepare(`SELECT ${STONE_COLS} FROM stones s LEFT JOIN traders t ON s.trader_id = t.id WHERE s.id = ?`).get(id) as any;
-}
-
-export function addStone(data: {
-  stone_type: string; shape: string; carat: number; color: string;
-  clarity: string; cut: string; certification: string;
-  category: string; crystal_form: string; clarity_notes: string;
-  kp_status: boolean; price: number | null; status: string; photo: string;
-  source: string; trader_id: number | null; commission: number; photo_path: string | null;
-  listing_category?: string;
-}) {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const count = (db.prepare("SELECT COUNT(*) as c FROM stones").get() as { c: number }).c;
-  const id = String(count + 1);
-  const ref = `ADB-${String(count + 1).padStart(3, "0")}`;
-  // Hard rule: photo only published if it's the actual stone; otherwise use placeholder
-  const photo = data.photo || "";
-  db.prepare(
-    `INSERT INTO stones (id, ref, stone_type, shape, carat, color, clarity, cut, certification,
-     category, crystal_form, clarity_notes, kp_status, price, status, photo, source,
-     trader_id, commission, sale_price, photo_path, listing_category, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)`
-  ).run(id, ref, data.stone_type, data.shape, data.carat, data.color, data.clarity, data.cut,
-    data.certification, data.category, data.crystal_form, data.clarity_notes, data.kp_status ? 1 : 0,
-    data.price, data.status, photo, data.source, data.trader_id, data.commission, data.photo_path, data.listing_category || 'Polished', now);
+export async function addStone(data: { stone_type: string; shape: string; carat: number; color: string; clarity: string; cut: string; certification: string; category: string; crystal_form: string; clarity_notes: string; kp_status: boolean; price: number | null; status: string; photo: string; source: string; trader_id: string | null; commission: number; photo_path: string | null; listing_category?: string; }) {
+  await ensureReady(); const db = getDbSvc(); const now = nowISO();
+  const count = (await db.listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.limit(0)] })).total;
+  const id = String(count + 1); const ref = `ADB-${String(count + 1).padStart(3, "0")}`;
+  await db.createDocument({ databaseId: DB_ID, collectionId: "stones", documentId: id, data: { ref, stone_type: data.stone_type, shape: data.shape, carat: data.carat, color: data.color, clarity: data.clarity, cut: data.cut, certification: data.certification, category: data.category, crystal_form: data.crystal_form, clarity_notes: data.clarity_notes, kp_status: data.kp_status, price: data.price || 0, status: data.status, photo: data.photo || "", source: data.source, trader_id: data.trader_id || "", commission: data.commission, sale_price: 0, photo_path: data.photo_path || "", listing_category: data.listing_category || "Polished", created_at: now } });
   return getStoneById(id);
 }
 
-export function updateStone(id: string, updates: Partial<Pick<DbStone, "status" | "sale_price" | "price" | "photo" | "photo_path" | "shape" | "carat" | "color" | "clarity" | "cut" | "certification" | "listing_category">>) {
-  const db = getDb();
-  const existing = getStoneById(id);
-  if (!existing) return null;
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  if (updates.status !== undefined) { fields.push("status = ?"); values.push(updates.status); }
-  if (updates.sale_price !== undefined) { fields.push("sale_price = ?"); values.push(updates.sale_price); }
-  if (updates.price !== undefined) { fields.push("price = ?"); values.push(updates.price); }
-  if (updates.photo !== undefined) { fields.push("photo = ?"); values.push(updates.photo); }
-  if (updates.photo_path !== undefined) { fields.push("photo_path = ?"); values.push(updates.photo_path); }
-  if (updates.shape !== undefined) { fields.push("shape = ?"); values.push(updates.shape); }
-  if (updates.carat !== undefined) { fields.push("carat = ?"); values.push(updates.carat); }
-  if (updates.color !== undefined) { fields.push("color = ?"); values.push(updates.color); }
-  if (updates.clarity !== undefined) { fields.push("clarity = ?"); values.push(updates.clarity); }
-  if (updates.cut !== undefined) { fields.push("cut = ?"); values.push(updates.cut); }
-  if (updates.certification !== undefined) { fields.push("certification = ?"); values.push(updates.certification); }
-  if (updates.listing_category !== undefined) { fields.push("listing_category = ?"); values.push(updates.listing_category); }
-  if (fields.length === 0) return existing;
-  values.push(id);
-  db.prepare(`UPDATE stones SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-  // Log status change
+export async function updateStone(id: string, updates: Partial<Pick<DbStone, "status" | "sale_price" | "price" | "photo" | "photo_path" | "shape" | "carat" | "color" | "clarity" | "cut" | "certification" | "listing_category">>) {
+  await ensureReady(); const existing = await getStoneById(id); if (!existing) return null;
+  const data: any = {};
+  for (const [k, v] of Object.entries(updates)) { if (v !== undefined) data[k] = k === "sale_price" || k === "price" ? (v ?? 0) : v; }
+  if (Object.keys(data).length === 0) return existing;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "stones", documentId: id, data });
   if (updates.status !== undefined && updates.status !== existing.status) {
-    db.prepare("INSERT INTO stone_status_log (stone_id, status, reason, changed_at) VALUES (?, ?, '', ?)")
-      .run(id, updates.status, new Date().toISOString());
+    await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "stone_status_log", documentId: ID.unique(), data: { stone_id: id, status: updates.status, reason: "", changed_at: nowISO() } });
   }
-  // Track sales on model-sourced videos
   if (updates.status === "Sold" && existing.status !== "Sold") {
     const salePrice = updates.sale_price ?? existing.sale_price ?? 0;
-    db.prepare(`
-      UPDATE videos SET
-        sales_count = sales_count + 1,
-        sales_value = sales_value + ?,
-        commission_earned = commission_earned + ?
-      WHERE stone_id = ? AND model_id IS NOT NULL
-    `).run(salePrice, salePrice * 0.005, id);
+    const videoRes = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("stone_id", id)] });
+    for (const v of videoRes.documents) { if (v.model_id) { await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: v.$id, data: { sales_count: (v.sales_count || 0) + 1, sales_value: (v.sales_value || 0) + (salePrice || 0), commission_earned: (v.commission_earned || 0) + ((salePrice || 0) * 0.005) } }); } }
   }
   return getStoneById(id);
 }
 
-export function approveStone(id: string, edits: Partial<Pick<DbStone, "shape" | "carat" | "color" | "clarity" | "cut" | "certification" | "price" | "listing_category">>) {
-  const db = getDb();
-  const fields: string[] = ["status = ?"];
-  const values: unknown[] = ["Available"];
-  for (const [k, v] of Object.entries(edits)) {
-    if (v !== undefined) { fields.push(`${k} = ?`); values.push(v); }
-  }
-  values.push(id);
-  db.prepare(`UPDATE stones SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-  db.prepare("INSERT INTO stone_status_log (stone_id, status, reason, changed_at) VALUES (?, 'Available', 'Approved', ?)")
-    .run(id, new Date().toISOString());
+export async function approveStone(id: string, edits: Partial<Pick<DbStone, "shape" | "carat" | "color" | "clarity" | "cut" | "certification" | "price" | "listing_category">>) {
+  await ensureReady(); const data: any = { status: "Available" };
+  for (const [k, v] of Object.entries(edits)) { if (v !== undefined) data[k] = v; }
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "stones", documentId: id, data });
+  await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "stone_status_log", documentId: ID.unique(), data: { stone_id: id, status: "Available", reason: "Approved", changed_at: nowISO() } });
   return getStoneById(id);
 }
 
-export function rejectStone(id: string, reason: string) {
-  const db = getDb();
-  db.prepare("UPDATE stones SET status = 'Rejected' WHERE id = ?").run(id);
-  db.prepare("INSERT INTO stone_status_log (stone_id, status, reason, changed_at) VALUES (?, 'Rejected', ?, ?)")
-    .run(id, reason, new Date().toISOString());
+export async function rejectStone(id: string, reason: string) {
+  await ensureReady();
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "stones", documentId: id, data: { status: "Rejected" } });
+  await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "stone_status_log", documentId: ID.unique(), data: { stone_id: id, status: "Rejected", reason, changed_at: nowISO() } });
   return getStoneById(id);
 }
 
-export function getStoneStatusLog(stoneId: string): DbStoneStatusLog[] {
-  return getDb().prepare("SELECT * FROM stone_status_log WHERE stone_id = ? ORDER BY changed_at ASC")
-    .all(stoneId) as DbStoneStatusLog[];
+export async function getStoneStatusLog(stoneId: string): Promise<DbStoneStatusLog[]> {
+  await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stone_status_log", queries: [Query.equal("stone_id", stoneId), Query.orderAsc("changed_at")] });
+  return res.documents.map(d => doc<DbStoneStatusLog>(d));
 }
 
-export function getTraderStones(traderId: number) {
-  return getDb().prepare(`SELECT ${STONE_COLS} FROM stones s LEFT JOIN traders t ON s.trader_id = t.id WHERE s.trader_id = ? ORDER BY s.created_at DESC`).all(traderId) as any[];
+export async function getTraderStones(traderId: string) {
+  await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId), Query.orderDesc("created_at")] });
+  return enrichStones(res.documents.map(d => doc<any>(d)));
 }
 
-/* ── Photo Storage ── */
+/* ── Photo / Media Storage ── */
 
-const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-
-export function ensureUploadsDir() {
-  if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  return UPLOADS_DIR;
+export async function savePhoto(filename: string, buffer: Buffer): Promise<string> {
+  await ensureReady(); const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const file = InputFile.fromBuffer(buffer, `${Date.now()}_${safeName}`);
+  const res = await getStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file });
+  return getMediaUrl(res.$id);
 }
 
-export function savePhoto(filename: string, buffer: Buffer): string {
-  const dir = ensureUploadsDir();
-  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const finalName = `${Date.now()}_${safeName}`;
-  fs.writeFileSync(path.join(dir, finalName), buffer);
-  return `/api/stones/photo/${finalName}`;
-}
+export function getPhotoFile(_filename: string): Buffer | null { return null; }
+export function ensureUploadsDir(): string { return ""; }
 
-export function getPhotoFile(filename: string): Buffer | null {
-  const filePath = path.join(ensureUploadsDir(), filename);
-  if (!fs.existsSync(filePath)) return null;
-  return fs.readFileSync(filePath);
-}
+/* ── Store Queries ── */
 
-/* ── Store Queries (for /app) ── */
-
-export function getStoreStones() {
-  return getDb().prepare(`SELECT ${STONE_COLS} FROM stones s LEFT JOIN traders t ON s.trader_id = t.id WHERE s.status = 'Available' AND s.listing_category IN ('Polished', 'Jewelry') ORDER BY s.created_at DESC`).all() as any[];
+export async function getStoreStones() {
+  await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("status", "Available"), Query.orderDesc("created_at")] });
+  return enrichStones(res.documents.map(d => doc<any>(d)).filter((s: any) => s.listing_category === "Polished" || s.listing_category === "Jewelry"));
 }
 
 /* ── Order Queries ── */
 
-export function createOrder(stoneId: string, stoneRef: string, buyerName: string, buyerWhatsapp: string, price: number | null): DbOrder {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const info = db.prepare("INSERT INTO orders (stone_id, stone_ref, buyer_name, buyer_whatsapp, price, status, created_at) VALUES (?, ?, ?, ?, ?, 'Reserved', ?)").run(stoneId, stoneRef, buyerName, buyerWhatsapp, price, now);
-  db.prepare("UPDATE stones SET status = 'Reserved' WHERE id = ?").run(stoneId);
-  // Increment reserve_count on any video linked to this stone
-  db.prepare("UPDATE videos SET reserve_count = reserve_count + 1 WHERE stone_id = ?").run(stoneId);
-  return db.prepare("SELECT * FROM orders WHERE id = ?").get(info.lastInsertRowid) as DbOrder;
+export async function createOrder(stoneId: string, stoneRef: string, buyerName: string, buyerWhatsapp: string, price: number | null): Promise<DbOrder> {
+  await ensureReady(); const db = getDbSvc(); const now = nowISO();
+  const res = await db.createDocument({ databaseId: DB_ID, collectionId: "orders", documentId: ID.unique(), data: { stone_id: stoneId, stone_ref: stoneRef, buyer_name: buyerName, buyer_whatsapp: buyerWhatsapp, price: price || 0, status: "Reserved", created_at: now } });
+  await db.updateDocument({ databaseId: DB_ID, collectionId: "stones", documentId: stoneId, data: { status: "Reserved" } });
+  await db.createDocument({ databaseId: DB_ID, collectionId: "stone_status_log", documentId: ID.unique(), data: { stone_id: stoneId, status: "Reserved", reason: "", changed_at: now } });
+  const videoRes = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("stone_id", stoneId)] });
+  for (const v of videoRes.documents) { await db.updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: v.$id, data: { reserve_count: (v.reserve_count || 0) + 1 } }); }
+  return doc<DbOrder>(res);
 }
 
-export function getAllOrders(): (DbOrder & { shape: string; carat: number; color: string; clarity: string; certification: string; stone_status: string })[] {
-  return getDb().prepare(
-    `SELECT o.*, s.shape, s.carat, s.color, s.clarity, s.certification, s.status as stone_status
-     FROM orders o LEFT JOIN stones s ON o.stone_id = s.id
-     ORDER BY o.created_at DESC`
-  ).all() as any[];
+export async function getAllOrders() {
+  await ensureReady(); const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "orders", queries: [Query.orderDesc("created_at")] });
+  const orders = res.documents.map(d => doc<any>(d));
+  const stoneIds = [...new Set(orders.map((o: any) => o.stone_id).filter(Boolean))];
+  const stoneMap = new Map<string, any>();
+  for (const sid of stoneIds) { const s = await getStoneById(sid); if (s) stoneMap.set(sid, s); }
+  return orders.map((o: any) => ({ ...o, price: normPrice(o.price), shape: stoneMap.get(o.stone_id)?.shape || "", carat: stoneMap.get(o.stone_id)?.carat || 0, color: stoneMap.get(o.stone_id)?.color || "", clarity: stoneMap.get(o.stone_id)?.clarity || "", certification: stoneMap.get(o.stone_id)?.certification || "", stone_status: stoneMap.get(o.stone_id)?.status || "" }));
 }
 
-export function updateOrderStatus(id: number, status: string): DbOrder | null {
-  const db = getDb();
-  db.prepare("UPDATE orders SET status = ? WHERE id = ?").run(status, id);
-  return db.prepare("SELECT * FROM orders WHERE id = ?").get(id) as DbOrder | undefined || null;
+export async function updateOrderStatus(id: string, status: string): Promise<DbOrder | null> {
+  await ensureReady();
+  try { await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "orders", documentId: id, data: { status } }); return doc<DbOrder>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "orders", documentId: id })); } catch { return null; }
 }
 
 /* ── Video Queries ── */
 
-export function getAllVideos(): (DbVideo & { stone_ref: string | null; model_name: string | null; model_instagram: string | null })[] {
-  return getDb().prepare(
-    `SELECT v.*, s.ref as stone_ref, m.name as model_name, m.instagram as model_instagram
-     FROM videos v LEFT JOIN stones s ON v.stone_id = s.id LEFT JOIN models m ON v.model_id = m.id
-     ORDER BY v.created_at DESC`
-  ).all() as any[];
+export async function getAllVideos() {
+  await ensureReady(); const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.orderDesc("created_at")] });
+  const videos = res.documents.map(d => doc<any>(d));
+  const stoneIds = [...new Set(videos.map((v: any) => v.stone_id).filter(Boolean))];
+  const modelIds = [...new Set(videos.map((v: any) => v.model_id).filter(Boolean))];
+  const stoneMap = new Map<string, any>(); const modelMap = new Map<string, any>();
+  for (const sid of stoneIds) { const s = await getStoneById(sid); if (s) stoneMap.set(sid, s); }
+  for (const mid of modelIds) { try { modelMap.set(mid, await db.getDocument({ databaseId: DB_ID, collectionId: "models", documentId: mid })); } catch {} }
+  return videos.map((v: any) => ({ ...v, published: !!v.published, stone_ref: stoneMap.get(v.stone_id)?.ref || null, model_name: modelMap.get(v.model_id)?.name || null, model_instagram: modelMap.get(v.model_id)?.instagram || null }));
 }
 
-export function getPublishedVideos(): (DbVideo & { stone_ref: string | null; shape: string | null; carat: number | null; color: string | null; clarity: string | null; certification: string | null; price: number | null; stone_status: string | null; model_instagram: string | null })[] {
-  return getDb().prepare(
-    `SELECT v.*, s.ref as stone_ref, s.shape, s.carat, s.color, s.clarity, s.certification, s.price, s.status as stone_status, m.instagram as model_instagram
-     FROM videos v LEFT JOIN stones s ON v.stone_id = s.id LEFT JOIN models m ON v.model_id = m.id
-     WHERE v.published = 1 AND v.status = 'Live' ORDER BY v.created_at DESC`
-  ).all() as any[];
+export async function getPublishedVideos() {
+  await ensureReady(); const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("published", true), Query.equal("status", "Live"), Query.orderDesc("created_at")] });
+  const videos = res.documents.map(d => doc<any>(d));
+  return Promise.all(videos.map(async (v: any) => {
+    let stone = null, model = null;
+    if (v.stone_id) { try { stone = await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id }); } catch {} }
+    if (v.model_id) { try { model = await db.getDocument({ databaseId: DB_ID, collectionId: "models", documentId: v.model_id }); } catch {} }
+    return { ...v, published: true, stone_ref: stone?.ref || null, shape: stone?.shape || null, carat: stone?.carat || null, color: stone?.color || null, clarity: stone?.clarity || null, certification: stone?.certification || null, price: normPrice(stone?.price), stone_status: stone?.status || null, model_instagram: model?.instagram || null };
+  }));
 }
 
-export function addVideo(videoUrl: string, caption: string, stoneId: string | null): DbVideo {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const info = db.prepare(
-    `INSERT INTO videos (video_url, caption, stone_id, published, created_at) VALUES (?, ?, ?, 0, ?)`
-  ).run(videoUrl, caption, stoneId, now);
-  return db.prepare("SELECT * FROM videos WHERE id = ?").get(info.lastInsertRowid) as DbVideo;
+export async function addVideo(videoUrl: string, caption: string, stoneId: string | null): Promise<DbVideo> {
+  await ensureReady(); const now = nowISO();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: "", status: "Live", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, created_at: now } });
+  return doc<DbVideo>(res);
 }
 
-export function updateVideo(id: number, updates: { video_url?: string; caption?: string; stone_id?: string | null; published?: number }): DbVideo | null {
-  const db = getDb();
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  if (updates.video_url !== undefined) { fields.push("video_url = ?"); values.push(updates.video_url); }
-  if (updates.caption !== undefined) { fields.push("caption = ?"); values.push(updates.caption); }
-  if (updates.stone_id !== undefined) { fields.push("stone_id = ?"); values.push(updates.stone_id); }
-  if (updates.published !== undefined) { fields.push("published = ?"); values.push(updates.published); }
-  if (fields.length === 0) return db.prepare("SELECT * FROM videos WHERE id = ?").get(id) as DbVideo || null;
-  values.push(id);
-  db.prepare(`UPDATE videos SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-  return db.prepare("SELECT * FROM videos WHERE id = ?").get(id) as DbVideo || null;
+export async function updateVideo(id: string, updates: { video_url?: string; caption?: string; stone_id?: string | null; published?: number | boolean }): Promise<DbVideo | null> {
+  await ensureReady(); const db = getDbSvc(); const data: any = {};
+  if (updates.video_url !== undefined) data.video_url = updates.video_url;
+  if (updates.caption !== undefined) data.caption = updates.caption;
+  if (updates.stone_id !== undefined) data.stone_id = updates.stone_id || "";
+  if (updates.published !== undefined) data.published = !!updates.published;
+  if (!Object.keys(data).length) { try { return doc<DbVideo>(await db.getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id })); } catch { return null; } }
+  try { await db.updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data }); return doc<DbVideo>(await db.getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id })); } catch { return null; }
 }
 
-export function deleteVideo(id: number): boolean {
-  const db = getDb();
-  const result = db.prepare("DELETE FROM videos WHERE id = ?").run(id);
-  return result.changes > 0;
-}
+export async function deleteVideo(id: string): Promise<boolean> { await ensureReady(); try { await getDbSvc().deleteDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id }); return true; } catch { return false; } }
 
 /* ── Model Queries ── */
 
-export function getAllModels(): (DbModel & { live_count: number; pending_count: number; approved_this_month: number; commission_earnings: number })[] {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  return getDb().prepare(
-    `SELECT m.*,
-      (SELECT COUNT(*) FROM videos WHERE model_id = m.id AND status = 'Live') as live_count,
-      (SELECT COUNT(*) FROM videos WHERE model_id = m.id AND status = 'Pending') as pending_count,
-      (SELECT COUNT(*) FROM videos WHERE model_id = m.id AND status = 'Live' AND created_at >= ?) as approved_this_month,
-      (SELECT COALESCE(SUM(commission_earned), 0) FROM videos WHERE model_id = m.id) as commission_earnings
-     FROM models m ORDER BY m.created_at DESC`
-  ).all(monthStart) as any[];
+export async function getAllModels() {
+  await ensureReady(); const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "models", queries: [Query.orderDesc("created_at")] });
+  const models = res.documents.map(d => doc<any>(d));
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  return Promise.all(models.map(async (m: any) => {
+    const vRes = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("model_id", m.id)] });
+    const videos = vRes.documents;
+    return { ...m, live_count: videos.filter((v: any) => v.status === "Live").length, pending_count: videos.filter((v: any) => v.status === "Pending").length, approved_this_month: videos.filter((v: any) => v.status === "Live" && v.created_at >= monthStart).length, commission_earnings: videos.reduce((s: number, v: any) => s + (v.commission_earned || 0), 0) };
+  }));
 }
 
-export function getActiveModelCount(): number {
-  return (getDb().prepare("SELECT COUNT(*) as c FROM models WHERE status = 'Active'").get() as { c: number }).c;
+export async function getActiveModelCount(): Promise<number> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "models", queries: [Query.equal("status", "Active"), Query.limit(0)] });
+  return res.total;
 }
 
-export function getModelByPortalCode(code: string): DbModel | undefined {
-  return getDb().prepare("SELECT * FROM models WHERE portal_code = ?").get(code) as DbModel | undefined;
+export async function getModelByPortalCode(code: string): Promise<DbModel | undefined> { await ensureReady(); try { const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "models", queries: [Query.equal("portal_code", code), Query.limit(1)] }); return res.documents.length ? doc<DbModel>(res.documents[0]) : undefined; } catch { return undefined; } }
+export async function getModelById(id: string): Promise<DbModel | undefined> { await ensureReady(); try { return doc<DbModel>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "models", documentId: id })); } catch { return undefined; } }
+
+export async function addModel(name: string, whatsapp: string, instagram: string): Promise<DbModel> {
+  await ensureReady();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "models", documentId: ID.unique(), data: { name, whatsapp, instagram, portal_code: genPortalCode(), status: "Active", monthly_video_quota: 30, monthly_base_fee: 200, commission_rate: 0.005, payment_method: "", payment_details: "", total_paid: 0, created_at: nowISO() } });
+  return doc<DbModel>(res);
 }
 
-export function getModelById(id: number): DbModel | undefined {
-  return getDb().prepare("SELECT * FROM models WHERE id = ?").get(id) as DbModel | undefined;
+export async function addModelVideo(modelId: string, videoUrl: string, caption: string, stoneId: string | null): Promise<DbVideo> {
+  await ensureReady();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: modelId, status: "Pending", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, created_at: nowISO() } });
+  return doc<DbVideo>(res);
 }
 
-function genModelPortalCode(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let code = "";
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+export async function getModelVideos(modelId: string) {
+  await ensureReady(); const db = getDbSvc();
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("model_id", modelId), Query.orderDesc("created_at")] });
+  return Promise.all(res.documents.map(async (d) => {
+    const v = doc<any>(d); let stone = null;
+    if (v.stone_id) { try { stone = await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id }); } catch {} }
+    return { ...v, stone_ref: stone?.ref || null, stone_status: stone?.status || null };
+  }));
 }
 
-export function addModel(name: string, whatsapp: string, instagram: string): DbModel {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const code = genModelPortalCode();
-  const info = db.prepare(
-    `INSERT INTO models (name, whatsapp, instagram, portal_code, status, created_at) VALUES (?, ?, ?, ?, 'Active', ?)`
-  ).run(name, whatsapp, instagram, code, now);
-  return db.prepare("SELECT * FROM models WHERE id = ?").get(info.lastInsertRowid) as DbModel;
-}
-
-export function addModelVideo(modelId: number, videoUrl: string, caption: string, stoneId: string | null): DbVideo {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const info = db.prepare(
-    `INSERT INTO videos (video_url, caption, stone_id, published, model_id, status, tap_count, created_at) VALUES (?, ?, ?, 0, ?, 'Pending', 0, ?)`
-  ).run(videoUrl, caption, stoneId, modelId, now);
-  return db.prepare("SELECT * FROM videos WHERE id = ?").get(info.lastInsertRowid) as DbVideo;
-}
-
-export function getModelVideos(modelId: number): (DbVideo & { stone_ref: string | null; stone_status: string | null })[] {
-  return getDb().prepare(
-    `SELECT v.*, s.ref as stone_ref, s.status as stone_status
-     FROM videos v LEFT JOIN stones s ON v.stone_id = s.id
-     WHERE v.model_id = ? ORDER BY v.created_at DESC`
-  ).all(modelId) as any[];
-}
-
-export function getModelMonthlySummary(modelId: number): { approved_this_month: number; base_earned: number; commission_earned: number; total_due: number } {
-  const db = getDb();
-  const model = db.prepare("SELECT * FROM models WHERE id = ?").get(modelId) as DbModel | undefined;
+export async function getModelMonthlySummary(modelId: string) {
+  await ensureReady(); const model = await getModelById(modelId);
   if (!model) return { approved_this_month: 0, base_earned: 0, commission_earned: 0, total_due: 0 };
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const approved = (db.prepare(
-    "SELECT COUNT(*) as c FROM videos WHERE model_id = ? AND status = 'Live' AND created_at >= ?"
-  ).get(modelId, monthStart) as { c: number }).c;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("model_id", modelId), Query.equal("status", "Live")] });
+  const approved = res.documents.filter((v: any) => v.created_at >= monthStart).length;
   const capped = Math.min(approved, model.monthly_video_quota);
   const baseEarned = capped * (model.monthly_base_fee / model.monthly_video_quota);
-  const commission = (db.prepare(
-    "SELECT COALESCE(SUM(commission_earned), 0) as s FROM videos WHERE model_id = ? AND created_at >= ?"
-  ).get(modelId, monthStart) as { s: number }).s;
+  const commission = res.documents.filter((v: any) => v.created_at >= monthStart).reduce((s: number, v: any) => s + (v.commission_earned || 0), 0);
   return { approved_this_month: approved, base_earned: baseEarned, commission_earned: commission, total_due: baseEarned + commission - model.total_paid };
 }
 
-export function getModelPaymentReport(modelId: number): { model: DbModel; month: string; videos: any[]; base_earned: number; commission_total: number; total_due: number } {
-  const db = getDb();
-  const model = db.prepare("SELECT * FROM models WHERE id = ?").get(modelId) as DbModel;
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+export async function getModelPaymentReport(modelId: string) {
+  await ensureReady(); const model = (await getModelById(modelId))!; const db = getDbSvc();
+  const now = new Date(); const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const videos = db.prepare(
-    `SELECT v.id, v.caption, v.created_at, v.sales_count, v.sales_value, v.commission_earned, s.ref as stone_ref
-     FROM videos v LEFT JOIN stones s ON v.stone_id = s.id
-     WHERE v.model_id = ? AND v.status = 'Live' AND v.created_at >= ?
-     ORDER BY v.created_at DESC`
-  ).all(modelId, monthStart) as any[];
-  const approved = videos.length;
-  const capped = Math.min(approved, model.monthly_video_quota);
+  const res = await db.listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("model_id", modelId), Query.equal("status", "Live"), Query.orderDesc("created_at")] });
+  const videosThisMonth = [];
+  for (const d of res.documents) {
+    if (d.created_at >= monthStart) {
+      const v = doc<any>(d); let stoneRef = "";
+      if (v.stone_id) { try { stoneRef = (await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id })).ref; } catch {} }
+      videosThisMonth.push({ id: v.id, caption: v.caption, created_at: v.created_at, sales_count: v.sales_count, sales_value: v.sales_value, commission_earned: v.commission_earned, stone_ref: stoneRef });
+    }
+  }
+  const capped = Math.min(videosThisMonth.length, model.monthly_video_quota);
   const baseEarned = capped * (model.monthly_base_fee / model.monthly_video_quota);
-  const commissionTotal = videos.reduce((sum: number, v: any) => sum + (v.commission_earned || 0), 0);
-  return { model, month, videos, base_earned: baseEarned, commission_total: commissionTotal, total_due: baseEarned + commissionTotal - model.total_paid };
+  const commissionTotal = videosThisMonth.reduce((s: number, v: any) => s + (v.commission_earned || 0), 0);
+  return { model, month, videos: videosThisMonth, base_earned: baseEarned, commission_total: commissionTotal, total_due: baseEarned + commissionTotal - model.total_paid };
 }
 
-export function markModelPaid(modelId: number, amount: number): void {
-  const db = getDb();
-  db.prepare("UPDATE models SET total_paid = total_paid + ? WHERE id = ?").run(amount, modelId);
+export async function markModelPaid(modelId: string, amount: number): Promise<void> {
+  await ensureReady(); const model = await getModelById(modelId); if (!model) return;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "models", documentId: modelId, data: { total_paid: model.total_paid + amount } });
 }
 
-export function approveModelVideo(id: number): DbVideo | null {
-  const db = getDb();
-  db.prepare("UPDATE videos SET status = 'Live', published = 1 WHERE id = ?").run(id);
-  return db.prepare("SELECT * FROM videos WHERE id = ?").get(id) as DbVideo || null;
+export async function approveModelVideo(id: string): Promise<DbVideo | null> {
+  await ensureReady(); try { await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { status: "Live", published: true } }); return doc<DbVideo>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id })); } catch { return null; }
 }
 
-export function declineModelVideo(id: number): boolean {
-  const db = getDb();
-  const result = db.prepare("DELETE FROM videos WHERE id = ? AND status = 'Pending'").run(id);
-  return result.changes > 0;
+export async function declineModelVideo(id: string): Promise<boolean> { await ensureReady(); try { await getDbSvc().deleteDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id }); return true; } catch { return false; } }
+
+export async function incrementTapCount(id: string): Promise<void> {
+  await ensureReady(); try { const v = await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id }); await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { tap_count: (v.tap_count || 0) + 1 } }); } catch {}
 }
 
-export function incrementTapCount(id: number): void {
-  getDb().prepare("UPDATE videos SET tap_count = tap_count + 1 WHERE id = ?").run(id);
-}
+/* ── Seed on import ── */
+seedIfEmpty().catch(() => {});

@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { code } = await params;
-    const model = getModelByPortalCode(code);
+    const model = await getModelByPortalCode(code);
     if (!model || model.status !== "Active") {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }

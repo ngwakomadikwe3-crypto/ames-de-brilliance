@@ -1,45 +1,21 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getAllStones } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-interface SaleRow {
-  id: string;
-  ref: string;
-  stone_type: string;
-  shape: string;
-  carat: number;
-  color: string;
-  clarity: string;
-  certification: string;
-  sale_price: number;
-  commission: number;
-  commission_amount: number;
-  trader_id: number | null;
-  trader_name: string;
-  trader_whatsapp: string;
-  trader_licence: string;
-  source: string;
-  created_at: string;
-}
-
 export async function GET() {
   try {
-    const db = getDb();
-
-    // All sold stones with trader info
-    const rows = db.prepare(`
-      SELECT s.*, t.name as trader_name, t.whatsapp as trader_whatsapp, t.licence as trader_licence
-      FROM stones s
-      LEFT JOIN traders t ON s.trader_id = t.id
-      WHERE s.status = 'Sold' AND s.source = 'Consigned'
-      ORDER BY s.created_at DESC
-    `).all() as SaleRow[];
+    // All sold consigned stones with trader info
+    const allStones = await getAllStones();
+    const rows = allStones.filter((s: any) => s.status === "Sold" && s.source === "Consigned");
 
     // Compute commission amounts
-    const sales = rows.map((r) => ({
+    const sales = rows.map((r: any) => ({
       ...r,
-      commission_amount: r.sale_price * (r.commission / 100),
+      commission_amount: (r.sale_price || 0) * ((r.commission || 0) / 100),
+      trader_name: r.trader_name || "Unknown",
+      trader_whatsapp: r.trader_whatsapp || "",
+      trader_licence: r.trader_licence || "",
     }));
 
     // Summary

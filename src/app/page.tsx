@@ -2,8 +2,8 @@ import { getAvailableStones, STONE_PLACEHOLDER } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
-  const stones = getAvailableStones();
+export default async function Home() {
+  const stones = await getAvailableStones();
 
   return (
     <div className="px-4 md:px-6 py-8 max-w-5xl mx-auto w-full">

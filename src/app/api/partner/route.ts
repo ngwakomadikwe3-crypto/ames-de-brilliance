@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const trader = addTraderApplication({
+    const trader = await addTraderApplication({
       name: data.name,
       company: data.company || "",
       country: data.country || "",

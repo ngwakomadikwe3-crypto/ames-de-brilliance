@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const { requestId, mandate, context } = await request.json();
     let mandateText = mandate;
     if (!mandateText && requestId) {
-      const req = getRequestById(requestId);
+      const req = await getRequestById(requestId);
       if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
       mandateText = req.mandate;
     }
