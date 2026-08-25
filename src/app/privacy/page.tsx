@@ -67,7 +67,7 @@ export default function PrivacyPage() {
         <div>
           <h3 className="font-bold mb-1">8. Contact for Data Requests</h3>
           <p>To exercise any of your rights under this policy, or to make a data-related enquiry, please contact us at:</p>
-          <p className="mt-1 font-medium">Email: privacy@amesdebrilliance.co.bw</p>
+          <p className="mt-1 font-medium">Email: privacy@amesdebrilliane.co.bw</p>
         </div>
 
         <div>

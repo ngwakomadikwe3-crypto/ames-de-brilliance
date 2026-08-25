@@ -14,6 +14,7 @@ const API_KEY = process.env.APPWRITE_API_KEY!;
 
 export const DB_ID = "ames";
 export const MEDIA_BUCKET = "media";
+export const REPORTS_BUCKET = "reports";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -105,6 +106,18 @@ export async function ensureReady(): Promise<void> {
         enabled: true,
         maximumFileSize: 10 * 1024 * 1024,
         allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "gif"],
+      });
+    } catch { /* exists */ }
+
+    // 4. Create reports storage bucket
+    try {
+      await sto.createBucket({
+        bucketId: "reports",
+        name: "Reports",
+        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
+        enabled: true,
+        maximumFileSize: 50 * 1024 * 1024,
+        allowedFileExtensions: ["pdf"],
       });
     } catch { /* exists */ }
 
@@ -312,6 +325,70 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "video_id", type: "string", size: 50, required: true },
       { key: "author", type: "string", size: 255, default: "" },
       { key: "text", type: "string", size: 5000, required: true },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "chats",
+    name: "Chats",
+    attrs: [
+      { key: "title", type: "string", size: 255, default: "New chat" },
+      { key: "created_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "chat_messages",
+    name: "Chat Messages",
+    attrs: [
+      { key: "chat_id", type: "string", size: 50, required: true },
+      { key: "role", type: "string", size: 20, required: true },
+      { key: "text", type: "string", size: 50000, required: true },
+      { key: "thinking", type: "string", size: 50000, default: "" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "report_issues",
+    name: "Report Issues",
+    attrs: [
+      { key: "report_type", type: "string", size: 100, required: true },
+      { key: "tier", type: "string", size: 50, default: "" },
+      { key: "issue_label", type: "string", size: 255, required: true },
+      { key: "pdf_url", type: "string", size: 2000, required: true },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "report_products",
+    name: "Report Products",
+    attrs: [
+      { key: "slug", type: "string", size: 100, required: true },
+      { key: "name", type: "string", size: 255, required: true },
+      { key: "tier", type: "string", size: 50, required: true },
+      { key: "tier_label", type: "string", size: 100, required: true },
+      { key: "price", type: "integer", default: 0 },
+      { key: "price_label", type: "string", size: 100, default: "" },
+      { key: "description", type: "string", size: 1000, default: "" },
+      { key: "active", type: "boolean", default: true },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "report_orders",
+    name: "Report Orders",
+    attrs: [
+      { key: "product_slug", type: "string", size: 100, required: true },
+      { key: "product_name", type: "string", size: 255, required: true },
+      { key: "tier", type: "string", size: 50, required: true },
+      { key: "tier_label", type: "string", size: 100, required: true },
+      { key: "charge", type: "integer", default: 0 },
+      { key: "buyer_name", type: "string", size: 255, default: "" },
+      { key: "buyer_email", type: "string", size: 255, default: "" },
+      { key: "company", type: "string", size: 255, default: "" },
+      { key: "country", type: "string", size: 100, default: "" },
+      { key: "notes", type: "string", size: 5000, default: "" },
+      { key: "status", type: "string", size: 50, default: "Requested" },
       { key: "created_at", type: "datetime" },
     ],
   },

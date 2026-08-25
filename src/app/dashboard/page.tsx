@@ -26,7 +26,7 @@ interface Trader {
   created_at: string;
 }
 
-type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "videos" | "models";
+type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "videos" | "models" | "intelligence";
 
 function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
   const esc = (v: string|number) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -63,7 +63,7 @@ export default function Dashboard() {
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
-            {([["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],["videos","Videos"],["models","Models"]] as [Tab,string,number?][]).map(([t,label,badge]) => (
+            {([["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],["videos","Videos"],["models","Models"],["intelligence","Intelligence"]] as [Tab,string,number?][]).map(([t,label,badge]) => (
               <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b-2 border-black text-black":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-black text-white rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
@@ -79,6 +79,7 @@ export default function Dashboard() {
         {tab==="traders" && <TradersTab />}
         {tab==="videos" && <VideosTab />}
         {tab==="models" && <ModelsTab />}
+        {tab==="intelligence" && <IntelligenceTab />}
       </div>
     </div>
   );
@@ -1307,6 +1308,22 @@ function OrdersTab() {
                     <button onClick={() => handleCopy(o)} title="Copy invoice message" className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
                       {copiedId === o.id ? "Copied" : "Copy"}
                     </button>
+                    {o.status === "Paid" && (
+                      <button onClick={async () => {
+                        try {
+                          const res = await fetch("/api/intelligence/issues");
+                          const issues = await res.json();
+                          const latest = issues[0];
+                          if (latest) {
+                            const link = window.location.origin + latest.pdf_url;
+                            await navigator.clipboard.writeText(link);
+                            setCopiedId(o.id + 0.5); setTimeout(() => setCopiedId(null), 1500);
+                          }
+                        } catch { /* */ }
+                      }} title="Copy latest report download link" className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
+                        {copiedId === o.id + 0.5 ? "Copied" : "Link"}
+                      </button>
+                    )}
                     {buildWaUrl(o) && (
                       <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" title="Send invoice via WhatsApp" className="text-[10px] px-1.5 py-0.5 bg-green-700 text-white hover:bg-green-800 cursor-default whitespace-nowrap inline-block">WA</a>
                     )}
@@ -1336,6 +1353,22 @@ function OrdersTab() {
               <button onClick={() => handleCopy(o)} className="flex-1 py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default">
                 {copiedId === o.id ? "Copied" : "Copy invoice"}
               </button>
+              {o.status === "Paid" && (
+                <button onClick={async () => {
+                  try {
+                    const res = await fetch("/api/intelligence/issues");
+                    const issues = await res.json();
+                    const latest = issues[0];
+                    if (latest) {
+                      const link = window.location.origin + latest.pdf_url;
+                      await navigator.clipboard.writeText(link);
+                      setCopiedId(o.id + 0.5); setTimeout(() => setCopiedId(null), 1500);
+                    }
+                  } catch { /* */ }
+                }} className="flex-1 py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default">
+                  {copiedId === o.id + 0.5 ? "Copied" : "Copy report link"}
+                </button>
+              )}
               {buildWaUrl(o) && (
                 <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" className="flex-1 py-1.5 bg-green-700 text-white text-[10px] font-medium text-center hover:bg-green-800 cursor-default inline-block">Send WhatsApp</a>
               )}
@@ -1785,3 +1818,203 @@ function ModelsTab() {
   );
 }
 
+
+/* ════════ INTELLIGENCE TAB ════════ */
+
+function IntelligenceTab() {
+  const [issues, setIssues] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [iRes, oRes] = await Promise.all([
+        fetch("/api/intelligence/issues"),
+        fetch("/api/intelligence/orders"),
+      ]);
+      if (iRes.ok) setIssues(await iRes.json());
+      if (oRes.ok) setOrders(await oRes.json());
+    } catch { /* */ } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleGenerate(reportType: string) {
+    setGenerating(reportType);
+    setError(null);
+    try {
+      const res = await fetch("/api/intelligence/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportType })
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || "Generation failed"); }
+      await fetchData();
+    } catch (e: any) { setError(e.message); } finally { setGenerating(null); }
+  }
+
+  async function handleCopyLink(url: string) {
+    const full = window.location.origin + url;
+    try { await navigator.clipboard.writeText(full); } catch {
+      const ta = document.createElement("textarea"); ta.value = full;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+  }
+
+  function buildInvoiceMsg(o: any) {
+    const chargeStr = o.charge ? "$" + o.charge.toLocaleString() : "price on request";
+    return "Hello " + (o.buyer_name || "") + ",\n\nThank you for your interest in our " + (o.tier_label || o.tier) + " service.\n\nReport: " + o.product_name + "\nCharge: " + chargeStr + "\n\nBank Details:\nBank: First National Bank Botswana\nAccount Name: AMES DE BRILLIANTE (Pty) Ltd\nAccount Number: 62XXXXXXXXXX\nBranch: 28-XXX-XXX\nSWIFT: FIRNBWGX\n\nPlease use your company name as reference.\nOnce payment is confirmed, your report will be delivered within one business day.\n\nCompiled from licensed dealer data. Not investment advice.";
+  }
+
+  function buildOrderWaUrl(o: any) {
+    const num = (o.buyer_whatsapp || "").replace(/[^0-9]/g, "");
+    if (!num) return null;
+    return "https://wa.me/" + num + "?text=" + encodeURIComponent(buildInvoiceMsg(o));
+  }
+
+  async function handleCopyInvoice(o: any) {
+    const msg = buildInvoiceMsg(o);
+    try { await navigator.clipboard.writeText(msg); } catch {
+      const ta = document.createElement("textarea"); ta.value = msg;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+  }
+
+  async function handleOrderStatus(id: string, status: string) {
+    await fetch("/api/intelligence/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status })
+    });
+    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
+  }
+
+  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
+
+  return (
+    <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
+      {/* Generate */}
+      <div className="mb-6">
+        <h2 className="text-[14px] font-semibold mb-1">Generate Reports</h2>
+        <div className="flex gap-3 mt-2 flex-wrap">
+          <button onClick={() => handleGenerate("ground_report")} disabled={!!generating} className="px-4 py-2 bg-black text-white text-[11px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
+            {generating === "ground_report" ? "Generating..." : "Generate Ground Report"}
+          </button>
+          <button onClick={() => handleGenerate("compliance_briefing")} disabled={!!generating} className="px-4 py-2 border border-border text-[11px] cursor-default disabled:opacity-50 min-h-[40px]">
+            {generating === "compliance_briefing" ? "Generating..." : "Generate Compliance Briefing"}
+          </button>
+          <a href="/api/intelligence/sample" target="_blank" className="px-4 py-2 border border-border text-[11px] cursor-default min-h-[40px] inline-flex items-center">
+            Download Sample PDF
+          </a>
+        </div>
+        {error && <div className="text-[11px] text-red-600 mt-2">Error: {error}</div>}
+      </div>
+
+      {/* Generated Issues */}
+      <div className="mb-6">
+        <h2 className="text-[12px] font-semibold mb-2">Generated Issues</h2>
+        <div className="hidden md:block border border-border">
+          <table className="w-full text-[12px]">
+            <thead><tr className="text-left border-b border-border bg-surface">
+              <th className="px-3 py-1.5 font-semibold text-muted">Issue</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Tier</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Generated</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Actions</th>
+            </tr></thead>
+            <tbody>
+              {issues.map((issue: any) => (
+                <tr key={issue.id} className="border-b border-border/60 hover:bg-surface/60">
+                  <td className="px-3 py-1.5">{issue.issue_label}</td>
+                  <td className="px-3 py-1.5 font-mono text-[10px] text-muted">{issue.tier || "\u2014"}</td>
+                  <td className="px-3 py-1.5 font-mono text-[10px] text-muted">{issue.created_at?.split("T")[0] || ""}</td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex gap-1.5">
+                      <a href={issue.pdf_url} target="_blank" className="text-[9px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default">View PDF</a>
+                      <button onClick={() => handleCopyLink(issue.pdf_url)} className="text-[9px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default">Copy download link</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {issues.length === 0 && <div className="text-[11px] text-muted py-3">No reports generated yet.</div>}
+      </div>
+
+      {/* Report Orders */}
+      <div>
+        <h2 className="text-[12px] font-semibold mb-2">Report Requests</h2>
+        <div className="hidden md:block border border-border">
+          <table className="w-full text-[12px]">
+            <thead><tr className="text-left border-b border-border bg-surface">
+              <th className="px-3 py-1.5 font-semibold text-muted">Date</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Product</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Tier</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Buyer</th>
+              <th className="px-3 py-1.5 font-semibold text-muted text-right">Charge</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Status</th>
+              <th className="px-3 py-1.5 font-semibold text-muted">Actions</th>
+            </tr></thead>
+            <tbody>
+              {orders.map((o: any) => (
+                <tr key={o.id} className="border-b border-border/60 hover:bg-surface/60">
+                  <td className="px-3 py-1.5 font-mono text-[10px] text-muted">{o.created_at?.split("T")[0] || ""}</td>
+                  <td className="px-3 py-1.5">{o.product_name}</td>
+                  <td className="px-3 py-1.5 font-mono text-[10px] text-muted">{o.tier_label}</td>
+                  <td className="px-3 py-1.5">{o.buyer_name || "\u2014"}{o.company ? " (" + o.company + ")" : ""}</td>
+                  <td className="px-3 py-1.5 text-right font-mono">{o.charge ? "$" + o.charge.toLocaleString() : "\u2014"}</td>
+                  <td className="px-3 py-1.5">
+                    <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
+                            className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-gray-400 text-white")}>
+                      <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button onClick={() => handleCopyInvoice(o)} className="text-[9px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default">Copy invoice</button>
+                      {buildOrderWaUrl(o) && (
+                        <a href={buildOrderWaUrl(o)!} target="_blank" className="text-[9px] px-1.5 py-0.5 bg-[#25D366] text-white cursor-default">WA</a>
+                      )}
+                      {o.status === "Paid" && (
+                        <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="text-[9px] px-1.5 py-0.5 bg-black text-white cursor-default">Mark delivered</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="md:hidden space-y-3">
+          {orders.map((o: any) => (
+            <div key={o.id} className="border border-border p-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-mono">{o.tier_label}</span>
+                <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
+                        className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-gray-400 text-white")}>
+                  <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
+                </select>
+              </div>
+              <div className="text-[12px] font-medium">{o.product_name}</div>
+              <div className="flex justify-between items-center mt-1 text-[10px]">
+                <span className="text-muted">{o.buyer_name || "\u2014"}{o.buyer_email ? " \u00b7 " + o.buyer_email : ""}</span>
+                <span className="font-mono font-medium">{o.charge ? "$" + o.charge.toLocaleString() : "\u2014"}</span>
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <button onClick={() => handleCopyInvoice(o)} className="flex-1 py-1.5 border border-border text-[10px] text-muted cursor-default">Copy invoice</button>
+                {buildOrderWaUrl(o) && (
+                  <a href={buildOrderWaUrl(o)!} target="_blank" className="flex-1 py-1.5 bg-[#25D366] text-white text-[10px] font-medium text-center cursor-default">Send WA</a>
+                )}
+                {o.status === "Paid" && (
+                  <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="flex-1 py-1.5 bg-black text-white text-[10px] cursor-default">Mark delivered</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {orders.length === 0 && <div className="text-[11px] text-muted py-3">No report requests yet.</div>}
+      </div>
+    </div>
+  );
+}

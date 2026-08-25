@@ -29,19 +29,9 @@ interface Comment {
   id: string; video_id: string; author: string; text: string; created_at: string;
 }
 
-interface ChatMsg { role: "user" | "assistant"; text: string; }
-
 const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="#f3f4f6" width="400" height="400"/><text x="200" y="200" font-family="system-ui,sans-serif" font-size="13" fill="#9ca3af" text-anchor="middle">No photo</text></svg>'
 );
-
-const GREETING = "Hello, I\u2019m AMES \u2014 the front desk of AMES DE BRILLIANTE. Ask me about stones, certifications, prices or Botswana diamonds.";
-
-const SUGGESTIONS = [
-  "Show me what\u2019s on the ground this week",
-  "How do I verify a licensed dealer?",
-  "I want a custom ring",
-];
 
 /* ═══════════════════════════════════════════
    MAIN PAGE
@@ -125,6 +115,7 @@ export default function AppPage() {
   }, [activePanel]);
 
   const LABELS = ["Boutique", "Chat", "Videos"];
+  const isDesktop = typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches;
 
   return (
     <>
@@ -133,6 +124,27 @@ export default function AppPage() {
           <DiamondHero />
         </div>
       )}
+
+      {/* Slim transparent top bar */}
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(250,248,244,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #EAE4DA" }}>
+        {/* Left: AMES wordmark */}
+        <div className="flex items-center">
+          <span className="text-[12px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</span>
+        </div>
+        {/* Centre: panel labels */}
+        <div className="flex items-center gap-4">
+          {LABELS.map((l, i) => (
+            <button key={i} onClick={() => scrollToPanel(i)} className="relative flex flex-col items-center">
+              <span className="text-[11px] uppercase tracking-[0.12em] transition-colors duration-300" style={{ color: activePanel === i ? "#1A1A1A" : "#9A938A", fontWeight: activePanel === i ? 400 : 300 }}>{l}</span>
+              {activePanel === i && <span className="absolute -bottom-1 w-3 h-[3px] rounded-full" style={{ background: "#C9A227" }} />}
+            </button>
+          ))}
+        </div>
+        {/* Right: WhatsApp icon */}
+        <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="flex items-center">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "#1A1A1A" }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/></svg>
+        </a>
+      </div>
 
       <div ref={containerRef} className="h-[100dvh] w-[100dvw] overflow-x-scroll snap-x snap-mandatory flex" style={{ scrollSnapType: "x mandatory" }}>
         <section data-panel="0" className="relative w-[100dvw] h-full snap-start snap-always flex-shrink-0 flex flex-col">
@@ -148,15 +160,17 @@ export default function AppPage() {
         </section>
       </div>
 
-      {/* Top-centre dot indicator */}
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-black/60 backdrop-blur-md rounded-full px-4 py-2">
-        {LABELS.map((l, i) => (
-          <button key={i} onClick={() => scrollToPanel(i)} className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full transition-all duration-300 ${activePanel === i ? "bg-white scale-125" : "bg-white/30"}`} />
-            <span className={`text-[10px] font-medium transition-colors duration-300 ${activePanel === i ? "text-white" : "text-white/40"}`}>{l}</span>
-          </button>
-        ))}
-      </div>
+      {/* Desktop edge arrows — 40% opacity */}
+      {activePanel > 0 && (
+        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-black/5 backdrop-blur-sm border border-black/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+      )}
+      {activePanel < 2 && (
+        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-black/5 backdrop-blur-sm border border-black/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      )}
     </>
   );
 }
@@ -224,30 +238,106 @@ function DiamondHero() {
    CHAT PANEL — ChatGPT-style front desk
    ═══════════════════════════════════════════ */
 
+interface ChatHistory {
+  id: string; title: string; created_at: string; updated_at: string;
+}
+
+interface ChatMessage {
+  id: string; chat_id: string; role: "user" | "assistant"; text: string; thinking: string; created_at: string;
+}
+
+const NO_AI_NOTICE = "The AMES desk is being configured. Talk to a human now:";
+
+function groupChats(chats: ChatHistory[]): { label: string; items: ChatHistory[] }[] {
+  const now = Date.now();
+  const day = 86400000;
+  const today: ChatHistory[] = [], week: ChatHistory[] = [], older: ChatHistory[] = [];
+  for (const c of chats) {
+    const t = new Date(c.updated_at).getTime();
+    if (now - t < day) today.push(c);
+    else if (now - t < 7 * day) week.push(c);
+    else older.push(c);
+  }
+  const groups: { label: string; items: ChatHistory[] }[] = [];
+  if (today.length) groups.push({ label: "Today", items: today });
+  if (week.length) groups.push({ label: "7 Days", items: week });
+  if (older.length) groups.push({ label: "Older", items: older });
+  return groups;
+}
+
 function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: string; onPrefillConsumed: () => void; onBrowseBoutique: () => void }) {
-  const [messages, setMessages] = useState<ChatMsg[]>([{ role: "assistant", text: GREETING }]);
+  const [chats, setChats] = useState<ChatHistory[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [mode, setMode] = useState<"instant" | "expert">("instant");
+  const [deepThink, setDeepThink] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
 
+  useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
+  // Load chat list
+  useEffect(() => {
+    fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+  }, []);
+
+  // Prefill handling
   useEffect(() => {
     if (!prefill) return;
     handleSend(prefill);
     onPrefillConsumed();
   }, [prefill]);
 
-  function handleSend(text?: string) {
+  async function loadChat(id: string) {
+    setActiveChatId(id);
+    setSidebarOpen(false);
+    setChatLoading(true);
+    try {
+      const res = await fetch(`/api/chats/${id}/messages`);
+      if (res.ok) setMessages(await res.json());
+    } catch {}
+    setChatLoading(false);
+  }
+
+  async function newChat() {
+    setActiveChatId(null);
+    setMessages([]);
+    setSidebarOpen(false);
+  }
+
+  async function ensureChat(): Promise<string> {
+    if (activeChatId) return activeChatId;
+    const res = await fetch("/api/chats", { method: "POST" });
+    const chat: ChatHistory = await res.json();
+    setChats(p => [chat, ...p]);
+    setActiveChatId(chat.id);
+    return chat.id;
+  }
+
+  async function handleSend(text?: string) {
     const msg = (text || input).trim();
     if (!msg) return;
     setInput("");
-    setMessages((m) => [...m, { role: "user", text: msg }]);
+
+    const chatId = await ensureChat();
+
+    // Save user message
+    const userRes = await fetch(`/api/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "user", text: msg }),
+    });
+    const userMsg: ChatMessage = await userRes.json();
+    setMessages(p => [...p, userMsg]);
     setTyping(true);
-    // Simulate AMES reply (in production, this would call the Dify API or AI route)
-    setTimeout(() => {
+
+    // Simulate AMES reply
+    setTimeout(async () => {
       const replies = [
         "That\u2019s a great question. Let me look into our current inventory and sourcing options for you.",
         "We have several stones that may match what you\u2019re looking for. Shall I pull up the latest offerings?",
@@ -255,94 +345,158 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         "Every stone in our collection comes with full certification. I can walk you through the verification process.",
         "That\u2019s a beautiful choice. Botswana diamonds carry a unique story \u2014 would you like to know more about the origin?",
       ];
-      setMessages((m) => [...m, { role: "assistant", text: replies[Math.floor(Math.random() * replies.length)] }]);
+      const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
+      const replyText = replies[Math.floor(Math.random() * replies.length)];
+      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "assistant", text: replyText, thinking }),
+      });
+      const assistantMsg: ChatMessage = await assistantRes.json();
+      setMessages(p => [...p, assistantMsg]);
       setTyping(false);
+      // Refresh chat list to update titles
+      fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
     }, 1200 + Math.random() * 800);
   }
 
-  // If Dify is configured, embed the iframe instead
-  if (DIFY_URL) {
-    return (
-      <div className="flex-1 flex flex-col bg-white min-h-0">
-        <div className="shrink-0 px-4 py-2.5 border-b border-border flex items-center gap-2">
-          <DiamondIcon />
-          <span className="text-[12px] font-bold tracking-tight">AMES</span>
-        </div>
-        <div className="flex-1 min-h-0">
-          <iframe src={DIFY_URL} title="AMES" className="w-full h-full border-0" allow="microphone" />
-        </div>
-      </div>
-    );
+  // If no AI configured, show WhatsApp fallback
+  if (!DIFY_URL && !activeChatId && messages.length === 0) {
+    // Show the full DeepSeek-style UI even without DIFY — AMES responds with built-in replies
   }
 
-  return (
-    <div className="flex-1 flex flex-col bg-white min-h-0">
-      {/* Header */}
-      <div className="shrink-0 px-4 py-2.5 border-b border-border flex items-center gap-2">
-        <DiamondIcon />
-        <span className="text-[12px] font-bold tracking-tight">AMES</span>
-        <span className="text-[10px] text-muted ml-1">front desk</span>
-      </div>
+  const groups = groupChats(chats);
+  const showEmpty = !activeChatId && messages.length === 0;
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="max-w-xl mx-auto px-4 py-6 space-y-4">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed ${m.role === "user" ? "bg-black text-white rounded-2xl rounded-br-md" : "bg-surface border border-border text-black rounded-2xl rounded-bl-md"}`}>
-                {m.text}
-              </div>
+  return (
+    <div className="flex-1 flex min-h-0" style={{ background: "#FAF8F4" }}>
+      {/* Sidebar — desktop: always visible; mobile: toggle */}
+      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "#EAE4DA", background: "#FAF8F4" }}>
+        {/* New chat pill */}
+        <div className="px-3 pt-14 pb-2">
+          <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-light transition-colors" style={{ border: "1px solid #EAE4DA", color: "#1A1A1A" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
+            New chat
+          </button>
+        </div>
+        {/* History */}
+        <div className="flex-1 overflow-y-auto px-3 pb-4">
+          {groups.map(g => (
+            <div key={g.label} className="mb-3">
+              <div className="text-[10px] uppercase tracking-[0.08em] px-2 py-1.5 font-light" style={{ color: "#9A938A" }}>{g.label}</div>
+              {g.items.map(c => (
+                <button key={c.id} onClick={() => loadChat(c.id)} className={`w-full text-left px-2 py-1.5 rounded-md text-[12px] font-light truncate transition-colors ${activeChatId === c.id ? "" : ""}`} style={{ color: activeChatId === c.id ? "#1A1A1A" : "#9A938A", background: activeChatId === c.id ? "#FFFFFF" : "transparent", border: activeChatId === c.id ? "1px solid #EAE4DA" : "1px solid transparent" }}>
+                  {c.title}
+                </button>
+              ))}
             </div>
           ))}
-          {typing && (
-            <div className="flex justify-start">
-              <div className="bg-surface border border-border rounded-2xl rounded-bl-md px-4 py-3 flex gap-1">
-                <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </div>
-            </div>
-          )}
-
-          {/* Suggestion chips — shown only at start */}
-          {messages.length === 1 && (
-            <div className="space-y-3 mt-2">
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s)} className="px-3 py-1.5 border border-border rounded-full text-[11px] text-muted hover:bg-surface transition-colors cursor-default">
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button onClick={onBrowseBoutique} className="flex-1 py-2.5 border border-border text-[11px] font-medium text-center cursor-default hover:bg-surface transition-colors rounded-lg">
-                  Browse the boutique
-                </button>
-                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="flex-1 py-2.5 bg-green-700 text-white text-[11px] font-medium text-center cursor-default rounded-lg">
-                  WhatsApp a human
-                </a>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Input bar */}
-      <div className="shrink-0 px-4 pb-4 pt-2">
-        <div className="max-w-xl mx-auto flex items-center gap-2 bg-surface border border-border rounded-full px-4 py-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="Ask AMES..."
-            className="flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted/50"
-          />
-          <button onClick={() => handleSend()} disabled={!input.trim()} className="w-8 h-8 flex items-center justify-center rounded-full bg-black text-white disabled:opacity-30 transition-opacity shrink-0">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" />
-            </svg>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-[80] md:hidden" onClick={() => setSidebarOpen(false)}>
+          <div className="absolute inset-0 bg-black/30" />
+        </div>
+      )}
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* Top bar with mobile history toggle */}
+        <div className="shrink-0 flex items-center px-3 pt-12 pb-1 md:hidden">
+          <button onClick={() => setSidebarOpen(p => !p)} className="p-2 rounded-lg" style={{ color: "#1A1A1A" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
           </button>
+        </div>
+
+        {/* Messages scroll area */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+          {showEmpty ? (
+            /* Empty state — centred heading */
+            <div className="h-full flex flex-col items-center justify-center px-4">
+              <div className="flex items-center gap-2 mb-6">
+                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" /></svg>
+                <span className="text-[14px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</span>
+              </div>
+              <h2 className="text-[18px] font-light mb-6" style={{ color: "#1A1A1A" }}>Start chatting with AMES</h2>
+
+              {/* Mode segmented control */}
+              <div className="flex rounded-full p-0.5 mb-6" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+                <button onClick={() => setMode("instant")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "instant" ? "#1A1A1A" : "transparent", color: mode === "instant" ? "#FFFFFF" : "#9A938A" }}>Instant</button>
+                <button onClick={() => setMode("expert")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "expert" ? "#1A1A1A" : "transparent", color: mode === "expert" ? "#FFFFFF" : "#9A938A" }}>Expert</button>
+              </div>
+
+              {/* Quick actions */}
+              <div className="flex gap-2">
+                <button onClick={onBrowseBoutique} className="px-4 py-2 text-[11px] font-light rounded-lg transition-colors" style={{ border: "1px solid #EAE4DA", color: "#1A1A1A" }}>Browse the boutique</button>
+                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-[11px] font-medium text-white rounded-lg" style={{ background: "#C9A227" }}>WhatsApp a human</a>
+              </div>
+            </div>
+          ) : (
+            /* Messages */
+            <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+              {messages.map((m) => (
+                <div key={m.id} className="space-y-2">
+                  {/* Expert thinking block — collapsible */}
+                  {m.role === "assistant" && m.thinking && (
+                    <div className="ml-2">
+                      <details className="group">
+                        <summary className="text-[10px] font-light cursor-pointer select-none" style={{ color: "#9A938A" }}>Reasoning</summary>
+                        <div className="mt-1 px-3 py-2 text-[11px] font-light leading-relaxed rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA", color: "#9A938A" }}>{m.thinking}</div>
+                      </details>
+                    </div>
+                  )}
+                  <div className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {m.role === "assistant" && (
+                      <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5" style={{ background: "#C9A227" }}>
+                        <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
+                      </div>
+                    )}
+                    <div className="max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed font-light" style={m.role === "user" ? { background: "#1A1A1A", color: "#FFFFFF", borderRadius: "18px 18px 4px 18px" } : { background: "#FFFFFF", border: "1px solid #EAE4DA", color: "#1A1A1A", borderRadius: "18px 18px 18px 4px" }}>
+                      {m.text}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {typing && (
+                <div className="flex justify-start">
+                  <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5" style={{ background: "#C9A227" }}>
+                    <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
+                  </div>
+                  <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 flex gap-1" style={{ border: "1px solid #EAE4DA" }}>
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Composer */}
+        <div className="shrink-0 px-4 pb-4 pt-2">
+          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+            {/* DeepThink toggle chip */}
+            <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-light transition-all" style={{ background: deepThink ? "#C9A227" : "transparent", color: deepThink ? "#FFFFFF" : "#9A938A", border: deepThink ? "none" : "1px solid #EAE4DA" }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+              DeepThink
+            </button>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder="Message AMES"
+              className="flex-1 bg-transparent text-[13px] font-light outline-none placeholder:text-[#9A938A]/50"
+            />
+            <button onClick={() => handleSend()} disabled={!input.trim()} className="w-8 h-8 flex items-center justify-center rounded-full text-white disabled:opacity-30 transition-opacity shrink-0" style={{ background: "#C9A227" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -382,36 +536,30 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#F5F0EB" }}>
-      {/* Header */}
-      <div className="shrink-0 px-6 py-4 border-b flex items-center gap-3" style={{ borderColor: "#D4C8BC", background: "#FAF7F3" }}>
-        <DiamondIcon />
-        <span className="text-[14px] font-serif font-semibold tracking-wide" style={{ color: "#2C2418" }}>Boutique</span>
-        <span className="text-[10px] ml-auto" style={{ color: "#9C8E7E", fontFamily: "monospace" }}>{filtered.length} pieces</span>
-      </div>
-
+    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#FAF8F4" }}>
       {/* Category chips */}
-      <div className="shrink-0 px-6 py-3 flex gap-2" style={{ background: "#FAF7F3", borderBottom: "1px solid #E8DFD4" }}>
+      <div className="shrink-0 px-5 pt-14 pb-3 flex gap-2">
         {(["All", "Polished", "Jewelry"] as const).map(c => (
-          <button key={c} onClick={() => setFilter(c)} className="px-4 py-1.5 rounded-full text-[11px] font-medium transition-colors cursor-default" style={{ background: filter === c ? "#2C2418" : "#EDE6DD", color: filter === c ? "#FAF7F3" : "#6B5D4F", border: filter === c ? "none" : "1px solid #D4C8BC" }}>
+          <button key={c} onClick={() => setFilter(c)} className="px-4 py-1.5 rounded-full text-[11px] font-light transition-colors cursor-default" style={{ background: filter === c ? "#C9A227" : "#FFFFFF", color: filter === c ? "#FFFFFF" : "#1A1A1A", border: filter === c ? "none" : "1px solid #EAE4DA" }}>
             {c}
           </button>
         ))}
       </div>
 
       {/* Grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
         {loading ? (
-          <div className="text-[12px] text-center py-12" style={{ color: "#9C8E7E" }}>Loading...</div>
+          <div className="text-[11px] text-center py-12" style={{ color: "#9A938A" }}>Loading...</div>
         ) : filtered.length === 0 ? (
-          <p className="text-[12px] text-center py-12" style={{ color: "#9C8E7E" }}>No pieces currently available.</p>
+          <p className="text-[11px] text-center py-12" style={{ color: "#9A938A" }}>No pieces currently available.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-2 gap-4">
             {filtered.map(stone => (
               <BoutiqueCard key={stone.id} stone={stone} onReserve={(n, w) => handleReserve(stone.id, n, w)} reserved={!!reserved[stone.id]} highlighted={highlightStone === stone.id} />
             ))}
           </div>
         )}
+        <p className="text-center mt-4" style={{ fontSize: 11, color: "#9A938A", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
         <div className="h-8" />
       </div>
     </div>
@@ -425,32 +573,32 @@ function BoutiqueCard({ stone, onReserve, reserved, highlighted }: { stone: Stor
   const [wa, setWa] = useState("");
 
   return (
-    <div className="transition-all duration-500 overflow-hidden" style={{ background: "#FFFCF9", boxShadow: highlighted ? "0 4px 20px rgba(44,36,24,0.15), 0 0 0 2px #2C2418" : "0 1px 4px rgba(44,36,24,0.06)", border: highlighted ? "none" : "1px solid #E8DFD4" }}>
+    <div className="overflow-hidden" style={{ background: "#FFFFFF", border: highlighted ? "1px solid #C9A227" : "1px solid #EAE4DA" }}>
       <div className="aspect-square overflow-hidden relative">
         <img src={hasPhoto ? stone.photo : PLACEHOLDER} alt={stone.ref} className="w-full h-full object-cover" />
         {stone.listing_category === "Jewelry" && (
-          <span className="absolute top-2 left-2 text-white text-[8px] font-bold uppercase tracking-wider px-2 py-0.5" style={{ background: "#2C2418" }}>Jewelry</span>
+          <span className="absolute top-2 left-2 text-white text-[8px] font-medium uppercase tracking-wider px-2 py-0.5" style={{ background: "#1A1A1A" }}>Jewelry</span>
         )}
       </div>
       <div className="p-4 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium truncate" style={{ color: "#9C8E7E", fontFamily: "monospace" }}>{stone.ref}</span>
-          <span className="text-[12px] font-serif font-semibold" style={{ color: "#2C2418" }}>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span>
+          <span className="text-[10px] font-light truncate" style={{ color: "#9A938A", fontFamily: "monospace" }}>{stone.ref}</span>
+          <span className="text-[12px] font-light" style={{ color: "#1A1A1A" }}>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span>
         </div>
-        <p className="text-[10px] leading-snug" style={{ color: "#6B5D4F" }}>{stone.shape} {stone.carat}ct {stone.color}</p>
+        <p className="text-[10px] leading-snug font-light" style={{ color: "#1A1A1A" }}>{stone.shape} {stone.carat}ct {stone.color}</p>
         {reserved ? (
-          <p className="text-[10px] pt-1" style={{ color: "#9C8E7E" }}>Reserved. Our desk will be in touch.</p>
+          <p className="text-[10px] pt-1 font-light" style={{ color: "#9A938A" }}>Reserved. Our desk will be in touch.</p>
         ) : showForm ? (
           <div className="space-y-1.5 pt-1">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="w-full px-2 py-1.5 text-[10px] rounded" style={{ border: "1px solid #D4C8BC", background: "#FAF7F3" }} />
-            <input value={wa} onChange={e => setWa(e.target.value)} placeholder="WhatsApp" className="w-full px-2 py-1.5 text-[10px] rounded" style={{ border: "1px solid #D4C8BC", background: "#FAF7F3" }} />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+            <input value={wa} onChange={e => setWa(e.target.value)} placeholder="WhatsApp" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
             <div className="flex gap-1.5">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-1.5 text-[10px] rounded cursor-default" style={{ border: "1px solid #D4C8BC", color: "#6B5D4F" }}>Cancel</button>
-              <button onClick={() => onReserve(name, wa)} disabled={!name.trim()} className="flex-1 py-1.5 text-white text-[10px] font-medium rounded cursor-default disabled:opacity-40" style={{ background: "#2C2418" }}>Confirm</button>
+              <button onClick={() => setShowForm(false)} className="flex-1 py-1.5 text-[10px] font-light rounded cursor-default" style={{ border: "1px solid #EAE4DA", color: "#9A938A" }}>Cancel</button>
+              <button onClick={() => onReserve(name, wa)} disabled={!name.trim()} className="flex-1 py-1.5 text-white text-[10px] font-medium rounded cursor-default disabled:opacity-40" style={{ background: "#C9A227" }}>Confirm</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowForm(true)} className="w-full py-1.5 text-white text-[10px] font-medium text-center cursor-default mt-1 rounded" style={{ background: "#2C2418" }}>Reserve</button>
+          <button onClick={() => setShowForm(true)} className="w-full py-2 text-white text-[11px] font-medium text-center cursor-default mt-1 rounded" style={{ background: "#C9A227" }}>Reserve</button>
         )}
       </div>
     </div>
@@ -545,7 +693,7 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments 
 
   function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = `${video.caption} — AMES DE BRILLIANTE`;
+    const text = `${video.caption} — AMES`;
     if (navigator.share) {
       navigator.share({ title: "AMES", text, url }).catch(() => {});
     } else {
@@ -664,38 +812,37 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
   return (
     <div className="fixed inset-0 z-[90] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40" />
-      <div className="relative w-full max-h-[70dvh] bg-white rounded-t-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="relative w-full max-h-[70dvh] bg-[#FAF8F4] rounded-t-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Handle */}
-        <div className="flex justify-center py-2"><div className="w-10 h-1 bg-border rounded-full" /></div>
+        <div className="flex justify-center py-2"><div className="w-10 h-1 rounded-full" style={{ background: "#EAE4DA" }} /></div>
         <div className="px-4 pb-2 flex items-center justify-between">
-          <span className="text-[13px] font-semibold">Comments</span>
-          <button onClick={onClose} className="text-[11px] text-muted cursor-default">Close</button>
+          <span className="text-[13px] font-light" style={{ color: "#1A1A1A" }}>Comments</span>
+          <button onClick={onClose} className="text-[11px] cursor-default" style={{ color: "#9A938A" }}>Close</button>
         </div>
-        <div className="border-t border-border" />
+        <div style={{ borderTop: "1px solid #EAE4DA" }} />
 
         {/* Comment list */}
         <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[100px] max-h-[45dvh]">
           {loading ? (
-            <div className="text-[11px] text-muted text-center py-4">Loading...</div>
+            <div className="text-[11px] text-center py-4" style={{ color: "#9A938A" }}>Loading...</div>
           ) : comments.length === 0 ? (
-            <div className="text-[11px] text-muted text-center py-4">No comments yet. Be the first.</div>
+            <div className="text-[11px] text-center py-4" style={{ color: "#9A938A" }}>No comments yet. Be the first.</div>
           ) : comments.map(c => (
             <div key={c.id} className="space-y-0.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-[11px] font-semibold">{c.author}</span>
-                <span className="text-[9px] text-muted">{timeAgo(c.created_at)}</span>
+                <span className="text-[11px] font-medium" style={{ color: "#1A1A1A" }}>{c.author}</span>
+                <span className="text-[9px]" style={{ color: "#9A938A" }}>{timeAgo(c.created_at)}</span>
               </div>
               <p className="text-[12px] leading-relaxed">{c.text}</p>
             </div>
           ))}
         </div>
 
-        {/* Input */}
-        <div className="border-t border-border px-4 py-3 space-y-2">
-          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 border border-border text-[11px] rounded-lg" />
+        {/* Input */}          <div className="px-4 py-3 space-y-2" style={{ borderTop: "1px solid #EAE4DA" }}>
+          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }} />
           <div className="flex gap-2">
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 border border-border text-[11px] rounded-lg outline-none" />
-            <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 bg-black text-white text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40">
+            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }} />
+            <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 text-white text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40" style={{ background: "#C9A227" }}>
               {sending ? "..." : "Post"}
             </button>
           </div>
