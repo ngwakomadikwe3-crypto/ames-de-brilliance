@@ -26,7 +26,7 @@ export interface SourcingRequestEmail {
 }
 
 function buildSubject(req: SourcingRequestEmail): string {
-  return `[ADB] New sourcing request — ${req.company || req.buyer_name} — ${req.shape} ${req.carat_min}–${req.carat_max}ct`;
+  return `[AMES] New sourcing request — ${req.company || req.buyer_name} — ${req.shape} ${req.carat_min}\u2013${req.carat_max}ct`;
 }
 
 function buildBody(req: SourcingRequestEmail): string {
@@ -36,20 +36,7 @@ function buildBody(req: SourcingRequestEmail): string {
     : "";
   const decl = req.type === "rough" ? "\nDeclaration on file: Yes" : "";
 
-  return `New sourcing request received.
-
-  Request: ${req.id}
-  Buyer:   ${req.buyer_name} (${req.company})
-  Country: ${req.country}
-  Contact: ${req.contact}
-  Type:    ${req.type}
-
-REQUIREMENT:
-  ${req.shape} ${req.carat_min}–${req.carat_max}ct ${req.color} ${req.clarity}${cert}
-${kp}${decl}
-${req.notes ? `\nNOTES:\n  ${req.notes}\n` : ""}
-Log in to the dashboard to view, update status, or generate an offer.
-http://localhost:3000/dashboard`;
+  return `New sourcing request received.\n\n  Request: ${req.id}\n  Buyer:   ${req.buyer_name} (${req.company})\n  Country: ${req.country}\n  Contact: ${req.contact}\n  Type:    ${req.type}\n\nREQUIREMENT:\n  ${req.shape} ${req.carat_min}\u2013${req.carat_max}ct ${req.color} ${req.clarity}${cert}\n${kp}${decl}\n${req.notes ? `\nNOTES:\n  ${req.notes}\n` : ""}\nLog in to the dashboard to view, update status, or generate an offer.\nhttp://localhost:3000/dashboard`;
 }
 
 export async function sendSourcingNotification(req: SourcingRequestEmail): Promise<boolean> {
@@ -67,7 +54,7 @@ export async function sendSourcingNotification(req: SourcingRequestEmail): Promi
     });
 
     await transporter.sendMail({
-      from: `"AMES DE BRILLIANCE" <${NOTIFY_FROM}>`,
+      from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`,
       to: NOTIFY_TO,
       subject: buildSubject(req),
       text: buildBody(req),

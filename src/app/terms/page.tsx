@@ -6,7 +6,7 @@ export default function TermsPage() {
       <div className="text-[11px] leading-relaxed space-y-4">
         <div>
           <h3 className="font-bold mb-1">1. Invitation to Treat</h3>
-          <p>All listings, descriptions, and advertisements on this website constitute invitations to treat and are not offers to sell. All listings are subject to prior sale and written confirmation by AMES DE BRILLIANCE (Pty) Ltd.</p>
+          <p>All listings, descriptions, and advertisements on this website constitute invitations to treat and are not offers to sell. All listings are subject to prior sale and written confirmation by AMES DE BRILLIANTE (Pty) Ltd.</p>
         </div>
 
         <div>
@@ -16,12 +16,12 @@ export default function TermsPage() {
 
         <div>
           <h3 className="font-bold mb-1">3. No Investment Advice</h3>
-          <p>AMES DE BRILLIANCE (Pty) Ltd does not provide investment advice. Nothing on this website constitutes a recommendation or representation that diamonds will appreciate in value, maintain their value, or are suitable as an investment. Purchasers should seek independent financial advice before making any purchase decision.</p>
+          <p>AMES DE BRILLIANTE (Pty) Ltd does not provide investment advice. Nothing on this website constitutes a recommendation or representation that diamonds will appreciate in value, maintain their value, or are suitable as an investment. Purchasers should seek independent financial advice before making any purchase decision.</p>
         </div>
 
         <div>
           <h3 className="font-bold mb-1">4. Limitation of Liability</h3>
-          <p>To the maximum extent permitted by the laws of the Republic of Botswana, AMES DE BRILLIANCE (Pty) Ltd shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in connection with the use of this website or the purchase of any goods, including but not limited to loss of profits, data, or business opportunities.</p>
+          <p>To the maximum extent permitted by the laws of the Republic of Botswana, AMES DE BRILLIANTE (Pty) Ltd shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in connection with the use of this website or the purchase of any goods, including but not limited to loss of profits, data, or business opportunities.</p>
         </div>
 
         <div>
@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <div>
           <h3 className="font-bold mb-1">7. Amendments</h3>
-          <p>AMES DE BRILLIANCE (Pty) Ltd reserves the right to amend these terms at any time without prior notice. Continued use of this website following any amendment constitutes acceptance of the amended terms.</p>
+          <p>AMES DE BRILLIANTE (Pty) Ltd reserves the right to amend these terms at any time without prior notice. Continued use of this website following any amendment constitutes acceptance of the amended terms.</p>
         </div>
       </div>
     </div>

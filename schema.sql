@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
--- AMES DE BRILLIANCE — Supabase schema
+-- AMES DE BRILLIANTE — Supabase schema
 -- Run this in the Supabase SQL Editor to set up all tables
 -- ══════════════════════════════════════════════════════════════
 
@@ -9,7 +9,68 @@ CREATE TABLE IF NOT EXISTS traders (
   name TEXT NOT NULL,
   whatsapp TEXT NOT NULL DEFAULT '',
   licence TEXT NOT NULL DEFAULT '',
+  portal_code TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Pending',
+  company TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT '',
+  licence_photo TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Reports ──
+CREATE TABLE IF NOT EXISTS reports (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  trader_id BIGINT NOT NULL REFERENCES traders(id),
+  period_start TIMESTAMPTZ NOT NULL,
+  period_end TIMESTAMPTZ NOT NULL,
+  report_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  summary TEXT NOT NULL DEFAULT '',
+  data JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Models ──
+CREATE TABLE IF NOT EXISTS models (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name TEXT NOT NULL,
+  whatsapp TEXT NOT NULL DEFAULT '',
+  instagram TEXT NOT NULL DEFAULT '',
+  portal_code TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'Active',
+  monthly_video_quota INTEGER NOT NULL DEFAULT 30,
+  monthly_base_fee NUMERIC NOT NULL DEFAULT 200,
+  commission_rate NUMERIC NOT NULL DEFAULT 0.005,
+  payment_method TEXT NOT NULL DEFAULT '',
+  payment_details TEXT NOT NULL DEFAULT '',
+  total_paid NUMERIC NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Videos ──
+CREATE TABLE IF NOT EXISTS videos (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  video_url TEXT NOT NULL,
+  caption TEXT NOT NULL DEFAULT '',
+  stone_id TEXT REFERENCES stones(id),
+  published INTEGER NOT NULL DEFAULT 0,
+  model_id BIGINT REFERENCES models(id),
+  status TEXT NOT NULL DEFAULT 'Live',
+  tap_count INTEGER NOT NULL DEFAULT 0,
+  reserve_count INTEGER NOT NULL DEFAULT 0,
+  sales_count INTEGER NOT NULL DEFAULT 0,
+  sales_value NUMERIC NOT NULL DEFAULT 0,
+  commission_earned NUMERIC NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Stone Status Log ──
+CREATE TABLE IF NOT EXISTS stone_status_log (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  stone_id TEXT NOT NULL REFERENCES stones(id),
+  status TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ── Requests ──
@@ -63,6 +124,19 @@ CREATE TABLE IF NOT EXISTS stones (
   commission REAL NOT NULL DEFAULT 0,
   sale_price REAL,
   photo_path TEXT,
+  listing_category TEXT NOT NULL DEFAULT 'Polished',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── Orders (Reserve flow) ──
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  stone_id TEXT NOT NULL REFERENCES stones(id),
+  stone_ref TEXT NOT NULL,
+  buyer_name TEXT NOT NULL DEFAULT '',
+  buyer_whatsapp TEXT NOT NULL DEFAULT '',
+  price REAL,
+  status TEXT NOT NULL DEFAULT 'Reserved',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

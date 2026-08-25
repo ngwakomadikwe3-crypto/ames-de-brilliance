@@ -1,4 +1,4 @@
-# AMES DE BRILLIANCE
+# AMES DE BRILLIANTE
 
 A B2B wholesale diamond sourcing platform for a licensed dealer in Botswana. Built with Next.js, Tailwind CSS, SQLite, and DeepSeek AI.
 

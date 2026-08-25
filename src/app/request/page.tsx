@@ -160,7 +160,7 @@ export default function RequestPage() {
           <label className="flex items-start gap-2 cursor-default">
             <input type="checkbox" name="consent" className="mt-0.5" />
             <span className="text-[10px] leading-relaxed">
-              I have read and agree to the <a href="/terms" target="_blank" className="underline">Terms of Use</a> and <a href="/privacy" target="_blank" className="underline">Privacy Policy</a> of AMES DE BRILLIANCE (Pty) Ltd. I understand that my data will be processed in accordance with the Botswana Data Protection Act 2018.
+              I have read and agree to the <a href="/terms" target="_blank" className="underline">Terms of Use</a> and <a href="/privacy" target="_blank" className="underline">Privacy Policy</a> of AMES DE BRILLIANTE (Pty) Ltd. I understand that my data will be processed in accordance with the Botswana Data Protection Act 2018.
             </span>
           </label>
           {errors.consent && <p className="text-[10px] text-red-600 mt-1">{errors.consent}</p>}

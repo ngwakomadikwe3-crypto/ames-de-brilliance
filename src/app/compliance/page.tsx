@@ -6,12 +6,12 @@ export default function CompliancePage() {
       <div className="text-[11px] leading-relaxed space-y-4">
         <div>
           <h3 className="font-bold mb-1">1. Licensing</h3>
-          <p>AMES DE BRILLIANCE (Pty) Ltd is a licensed diamond dealer in the Republic of Botswana, operating under the provisions of the Diamond Trading Act and applicable regulations of the Ministry of Minerals and Energy. Our dealer licence number is displayed in the footer of this website.</p>
+          <p>AMES DE BRILLIANTE (Pty) Ltd is a licensed diamond dealer in the Republic of Botswana, operating under the provisions of the Diamond Trading Act and applicable regulations of the Ministry of Minerals and Energy. Our dealer licence number is displayed in the footer of this website.</p>
         </div>
 
         <div>
           <h3 className="font-bold mb-1">2. Kimberley Process Compliance</h3>
-          <p>All rough diamond exports by AMES DE BRILLIANCE (Pty) Ltd fully comply with the Kimberley Process Certification Scheme (KPCS). The KPCS is an international initiative to prevent conflict diamonds from entering the mainstream rough diamond market.</p>
+          <p>All rough diamond exports by AMES DE BRILLIANTE (Pty) Ltd fully comply with the Kimberley Process Certification Scheme (KPCS). The KPCS is an international initiative to prevent conflict diamonds from entering the mainstream rough diamond market.</p>
           <p className="mt-1">We ensure that:</p>
           <ul className="list-disc ml-4 mt-1 space-y-0.5">
             <li>All rough diamonds are sourced from legitimate, KPCS-compliant channels</li>
@@ -39,7 +39,7 @@ export default function CompliancePage() {
 
         <div>
           <h3 className="font-bold mb-1">5. Transaction Refusal</h3>
-          <p>AMES DE BRILLIANCE (Pty) Ltd reserves the right to decline any transaction that cannot be satisfactorily verified through our KYC and compliance procedures. We will not proceed with any transaction where there is suspicion of money laundering, terrorism financing, sanctions evasion, or any other illicit activity.</p>
+          <p>AMES DE BRILLIANTE (Pty) Ltd reserves the right to decline any transaction that cannot be satisfactorily verified through our KYC and compliance procedures. We will not proceed with any transaction where there is suspicion of money laundering, terrorism financing, sanctions evasion, or any other illicit activity.</p>
         </div>
 
         <div>

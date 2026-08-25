@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       trader_id: traderId,
       commission: parseFloat(data.commission) || 0,
       photo_path: null,
+      listing_category: data.listing_category || 'Polished',
     });
     return NextResponse.json({ id: saved.id, ref: saved.ref });
   } catch { return NextResponse.json({ error: "Failed" }, { status: 500 }); }

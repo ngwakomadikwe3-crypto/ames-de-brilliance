@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <div className="text-[11px] leading-relaxed space-y-4">
         <div>
           <h3 className="font-bold mb-1">1. Data Controller</h3>
-          <p>AMES DE BRILLIANCE (Pty) Ltd is the data controller responsible for your personal data. We are a licensed diamond dealer registered in the Republic of Botswana.</p>
+          <p>AMES DE BRILLIANTE (Pty) Ltd is the data controller responsible for your personal data. We are a licensed diamond dealer registered in the Republic of Botswana.</p>
         </div>
 
         <div>

@@ -11,14 +11,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AMES DE BRILLIANCE",
+  title: "AMES DE BRILLIANTE",
   description: "Licensed Diamond Dealer, Republic of Botswana",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="min-h-full flex flex-col bg-white text-black font-sans">
+      <body className="min-h-full flex flex-col bg-background text-black font-sans">
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

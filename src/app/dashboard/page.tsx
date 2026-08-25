@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useEffect, useState, useCallback } from "react";
 
 interface Request {
@@ -10,20 +11,22 @@ interface Request {
   offer_text?: string; offer_timestamp?: string;
 }
 
-interface Stone {
-  id: string; ref: string; stone_type: string; shape: string; carat: number; color: string; clarity: string;
+interface Stone {  id: string; ref: string; stone_type: string; shape: string; carat: number; color: string; clarity: string;
   cut: string; certification: string; category: string; crystal_form: string; clarity_notes: string;
-  kp_status: number; price: number | null; status: "Available" | "Reserved" | "Sold";
-  photo: string; source: "Own stock" | "Consigned";
+  kp_status: number; price: number | null; status: "Pending" | "Available" | "Reserved" | "Sold" | "Rejected"; photo: string; source: "Own stock" | "Consigned";
+  listing_category: string;
   trader_name?: string; trader_whatsapp?: string; trader_licence?: string;
   trader_id: number | null; commission: number; sale_price: number | null;
 }
 
 interface Trader {
-  id: number; name: string; whatsapp: string; licence: string; created_at: string;
+  id: number; name: string; whatsapp: string; licence: string;
+  portal_code: string; email: string; status: "Pending" | "Active" | "Declined";
+  company: string; country: string; licence_photo: string;
+  created_at: string;
 }
 
-type Tab = "requests" | "stones" | "addstone" | "pastein" | "traders";
+type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "videos" | "models";
 
 function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
   const esc = (v: string|number) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -37,6 +40,18 @@ function downloadCSV(filename: string, headers: string[], rows: (string|number)[
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("requests");
+  const [orderCount, setOrderCount] = useState<number>(0);
+
+  const refreshOrderCount = useCallback(() => {
+    fetch("/api/orders").then(r => r.ok ? r.json() : []).then((orders: any[]) => setOrderCount(orders.length)).catch(() => {});
+  }, []);
+
+  useEffect(() => { refreshOrderCount(); }, [refreshOrderCount]);
+
+  function switchTab(t: Tab) {
+    setTab(t);
+    refreshOrderCount();
+  }
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -48,8 +63,8 @@ export default function Dashboard() {
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
-            {([["requests","Requests"],["stones","Stones"],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"]] as [Tab,string][]).map(([t,label]) => (
-              <button key={t} onClick={() => setTab(t)} className={`pb-2 whitespace-nowrap cursor-default ${tab===t?"border-b-2 border-black text-black":"text-muted"}`}>{label}</button>
+            {([["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],["videos","Videos"],["models","Models"]] as [Tab,string,number?][]).map(([t,label,badge]) => (
+              <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b-2 border-black text-black":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-black text-white rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
           <button onClick={handleLogout} className="text-[10px] text-muted hover:text-black whitespace-nowrap ml-3 pb-2 cursor-default shrink-0">Logout</button>
@@ -58,13 +73,17 @@ export default function Dashboard() {
       <div className="flex-1">
         {tab==="requests" && <RequestsTab />}
         {tab==="stones" && <StonesTab />}
+        {tab==="orders" && <OrdersTab />}
         {tab==="addstone" && <AddStoneTab />}
         {tab==="pastein" && <PasteInTab />}
         {tab==="traders" && <TradersTab />}
+        {tab==="videos" && <VideosTab />}
+        {tab==="models" && <ModelsTab />}
       </div>
     </div>
   );
 }
+
 
 /* ═══════ REQUESTS TAB ═══════ */
 
@@ -232,6 +251,7 @@ function RequestsTab() {
   );
 }
 
+
 function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftReply, handleGenerateOffer, handleCopyOffer, handleSaveOffer, setOffer, aiStates, copiedId }: any) {
   return (
     <div className="text-[11px] space-y-2 max-w-xl">
@@ -294,6 +314,7 @@ function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftR
   );
 }
 
+
 function buildReqWA(r: Request): string {
   const cr = r.caratMin===r.caratMax ? r.caratMin+"ct" : r.caratMin+"\u2013"+r.caratMax+"ct";
   const cert = r.certification==="None"?"":" "+r.certification;
@@ -311,7 +332,10 @@ function StonesTab() {
   const [saleModal, setSaleModal] = useState<{stone:Stone}|null>(null);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"All"|"rough"|"polished">("All");
-  const [statusFilter, setStatusFilter] = useState<"All"|"Available"|"Reserved"|"Sold">("All");
+  const [statusFilter, setStatusFilter] = useState<"All"|"Pending"|"Available"|"Reserved"|"Sold"|"Rejected">("All");
+  const [approveModal, setApproveModal] = useState<Stone | null>(null);
+  const [rejectModal, setRejectModal] = useState<Stone | null>(null);
+  const [whatsAppMsg, setWhatsAppMsg] = useState<string | null>(null);
   const [certFilter, setCertFilter] = useState<"All"|"GIA"|"IGI"|"HRD"|"None">("All");
   const [sort, setSort] = useState<"ref-asc"|"ref-desc"|"carat-asc"|"carat-desc"|"price-asc"|"price-desc"|"newest">("ref-asc");
   const [showFilters, setShowFilters] = useState(false);
@@ -328,7 +352,28 @@ function StonesTab() {
   }
 
   function statusColor(s: string) {
-    switch(s){case"Available":return"bg-green-700 text-white";case"Reserved":return"bg-yellow-500 text-white";case"Sold":return"bg-gray-400 text-white";default:return"bg-gray-200 text-black";}
+    switch(s){case"Pending":return"bg-yellow-500 text-white";case"Available":return"bg-green-700 text-white";case"Reserved":return"bg-blue-600 text-white";case"Sold":return"bg-gray-400 text-white";case"Rejected":return"bg-red-600 text-white";default:return"bg-gray-200 text-black";}
+  }
+
+  async function handleApprove(s: Stone, edits: any) {
+    await fetch("/api/stones/approve", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: s.id, action: "approve", edits }) });
+    setStones(prev => prev.map(st => st.id===s.id ? {...st, status: "Available" as const, ...edits} : st));
+    setApproveModal(null);
+    buildWhatsAppUpdate(s, "Live");
+  }
+
+  async function handleReject(s: Stone, reason: string) {
+    await fetch("/api/stones/approve", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: s.id, action: "reject", reason }) });
+    setStones(prev => prev.map(st => st.id===s.id ? {...st, status: "Rejected" as const} : st));
+    setRejectModal(null);
+  }
+
+  function buildWhatsAppUpdate(s: Stone, newStatus: string) {
+    const tName = s.trader_name || "Trader";
+    const specs = s.shape + " " + s.carat + "ct " + s.color;
+    const msg = tName + ", your item " + s.ref + " " + specs + " is now " + newStatus + " on AMES DE BRILLIANTE.";
+    navigator.clipboard.writeText(msg).catch(() => {});
+    setWhatsAppMsg(s.ref + ": copied!"); setTimeout(() => setWhatsAppMsg(null), 2000);
   }
   function specs(s: Stone) {
     if(s.stone_type==="rough") return s.category+" "+s.crystal_form+" "+s.carat+"ct "+s.color;
@@ -396,7 +441,7 @@ function StonesTab() {
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted">Status:</span>
               <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-white cursor-default">
-                <option value="All">All</option><option value="Available">Available</option><option value="Reserved">Reserved</option><option value="Sold">Sold</option>
+                <option value="All">All</option><option value="Pending">Pending</option><option value="Available">Available</option><option value="Reserved">Reserved</option><option value="Sold">Sold</option><option value="Rejected">Rejected</option>
               </select>
             </div>
             <div className="flex items-center gap-1">
@@ -438,11 +483,22 @@ function StonesTab() {
                 <td className="px-3 py-1.5 font-mono">{specs(s)}</td>
                 <td className="px-3 py-1.5">{s.source}</td>
                 <td className="px-3 py-1.5 text-muted">{s.source==="Consigned"?s.trader_name:"\u2014"}</td>
-                <td className="px-3 py-1.5 text-right font-mono">{s.price?"$"+s.price.toLocaleString():"\u2014"}</td>
-                <td className="px-3 py-1.5">
-                  <select value={s.status} onChange={(e)=>{if(e.target.value==="Sold"&&s.source==="Consigned"){setSaleModal({stone:s});}else{handleStatusChange(s.id,e.target.value);}}} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default "+statusColor(s.status)+" border-0 outline-none"}>
-                    <option>Available</option><option>Reserved</option><option>Sold</option>
-                  </select>
+                <td className="px-3 py-1.5 text-right font-mono">{s.price?"$"+s.price.toLocaleString():"\u2014"}</td>                <td className="px-3 py-1.5">
+                  {s.status === "Pending" ? (
+                    <div className="flex gap-1">
+                      <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 bg-green-700 text-white cursor-default">Approve</button>
+                      <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 bg-red-600 text-white cursor-default">Reject</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <select value={s.status} onChange={(e)=>{if(e.target.value==="Sold"&&s.source==="Consigned"){setSaleModal({stone:s});}else{handleStatusChange(s.id,e.target.value);}}} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default "+statusColor(s.status)+" border-0 outline-none"}>
+                        <option>Available</option><option>Reserved</option><option>Sold</option>
+                      </select>
+                      {s.trader_name && (
+                        <button onClick={()=>buildWhatsAppUpdate(s, s.status)} title="Copy WhatsApp update" className="text-[9px] px-1 py-0.5 border border-border hover:bg-surface cursor-default">WA</button>
+                      )}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -455,9 +511,21 @@ function StonesTab() {
           <div key={s.id} className="border border-border p-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-mono font-medium">{s.ref}</span>
-              <select value={s.status} onChange={(e)=>{if(e.target.value==="Sold"&&s.source==="Consigned"){setSaleModal({stone:s});}else{handleStatusChange(s.id,e.target.value);}}} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default "+statusColor(s.status)+" border-0 outline-none"}>
-                <option>Available</option><option>Reserved</option><option>Sold</option>
-              </select>
+              {s.status === "Pending" ? (
+                <div className="flex gap-1">
+                  <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 bg-green-700 text-white cursor-default">Approve</button>
+                  <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 bg-red-600 text-white cursor-default">Reject</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <select value={s.status} onChange={(e)=>{if(e.target.value==="Sold"&&s.source==="Consigned"){setSaleModal({stone:s});}else{handleStatusChange(s.id,e.target.value);}}} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default "+statusColor(s.status)+" border-0 outline-none"}>
+                    <option>Available</option><option>Reserved</option><option>Sold</option>
+                  </select>
+                  {s.trader_name && (
+                    <button onClick={()=>buildWhatsAppUpdate(s, s.status)} title="Copy WhatsApp update" className="text-[9px] px-1 py-0.5 border border-border hover:bg-surface cursor-default">WA</button>
+                  )}
+                </div>
+              )}
             </div>
             <div className="text-[11px] font-mono text-muted">{specs(s)}</div>
             <div className="flex justify-between items-center mt-1 text-[10px]">
@@ -468,6 +536,9 @@ function StonesTab() {
         ))}
       </div>
       {saleModal&&<SaleModal stone={saleModal.stone} onConfirm={(p)=>{handleStatusChange(saleModal.stone.id,"Sold",p);setSaleModal(null);}} onCancel={()=>setSaleModal(null)} />}
+      {approveModal && <ApproveModal stone={approveModal} onApprove={(edits)=>handleApprove(approveModal,edits)} onCancel={()=>setApproveModal(null)} />}
+      {rejectModal && <RejectModal stone={rejectModal} onReject={(reason)=>handleReject(rejectModal,reason)} onCancel={()=>setRejectModal(null)} />}
+      {whatsAppMsg && <div className="fixed bottom-4 right-4 bg-black text-white text-[11px] px-3 py-2 rounded z-50">{whatsAppMsg}</div>}
     </div>
   );
 }
@@ -502,11 +573,66 @@ function SaleModal({ stone, onConfirm, onCancel }: { stone: Stone; onConfirm: (p
   );
 }
 
+function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove: (edits: any) => void; onCancel: () => void }) {
+  const [shape, setShape] = useState(stone.shape);
+  const [carat, setCarat] = useState(String(stone.carat));
+  const [color, setColor] = useState(stone.color);
+  const [clarity, setClarity] = useState(stone.clarity);
+  const [cert, setCert] = useState(stone.certification);
+  const [price, setPrice] = useState(stone.price ? String(stone.price) : "");
+  const [lc, setLc] = useState(stone.listing_category);
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-border p-5 w-full max-w-md text-[12px]">
+        <h3 className="font-bold mb-3">Approve {stone.ref}</h3>
+        <div className="space-y-3">
+          <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Shape</label><input value={shape} onChange={e=>setShape(e.target.value)} className="field-input min-h-[36px]" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Carat</label><input value={carat} onChange={e=>setCarat(e.target.value)} type="number" step="0.01" className="field-input min-h-[36px]" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Color</label><input value={color} onChange={e=>setColor(e.target.value)} className="field-input min-h-[36px]" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Clarity</label><input value={clarity} onChange={e=>setClarity(e.target.value)} className="field-input min-h-[36px]" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Certification</label><input value={cert} onChange={e=>setCert(e.target.value)} className="field-input min-h-[36px]" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
+              <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end mt-4">
+          <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
+          <button onClick={()=>onApprove({shape, carat:parseFloat(carat)||0, color, clarity, certification:cert, price:price?Number(price):null, listing_category:lc})} className="px-3 py-1.5 bg-green-700 text-white font-medium cursor-default min-h-[36px]">Approve &amp; Publish</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RejectModal({ stone, onReject, onCancel }: { stone: Stone; onReject: (reason: string) => void; onCancel: () => void }) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-border p-5 w-full max-w-md text-[12px]">
+        <h3 className="font-bold mb-3">Reject {stone.ref}</h3>
+        <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Reason (optional)</label>
+          <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3} className="field-input resize-none" placeholder="Why is this being rejected?" /></div>
+        <div className="flex gap-2 justify-end mt-4">
+          <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
+          <button onClick={()=>onReject(reason)} className="px-3 py-1.5 bg-red-600 text-white font-medium cursor-default min-h-[36px]">Reject</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════ ADD STONE TAB ═══════ */
 
 function AddStoneTab() {
   const [saved, setSaved] = useState<{ref:string}|null>(null);
   const [stoneType, setStoneType] = useState<"rough"|"polished">("polished");
+  const [listingCategory, setListingCategory] = useState<"Rough"|"Polished"|"Jewelry">("Polished");
   const [source, setSource] = useState<"Own stock"|"Consigned">("Own stock");
   const [traderText, setTraderText] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -543,8 +669,9 @@ function AddStoneTab() {
     const form=e.currentTarget;
     const fd=new FormData(form);
     fd.set("stone_type",stoneType);
+    fd.set("listing_category",listingCategory);
     const res=await fetch("/api/stones",{method:"POST",body:fd});
-    if(res.ok){const data=await res.json();setSaved({ref:data.ref});form.reset();setSource("Own stock");setStoneType("polished");}
+    if(res.ok){const data=await res.json();setSaved({ref:data.ref});form.reset();setSource("Own stock");setStoneType("polished");setListingCategory("Polished");}
   }
 
   if(saved) return <div className="px-4 md:px-6 py-10 max-w-lg mx-auto w-full"><p className="text-[13px] mb-2">Stone <strong>{saved.ref}</strong> added. Visible on the <a href="/" className="underline">public stock page</a>.</p><button onClick={()=>setSaved(null)} className="text-[12px] underline text-muted">Add another</button></div>;
@@ -563,8 +690,8 @@ function AddStoneTab() {
         <div>
           <label className="block text-[11px] font-medium mb-1">Stone Type</label>
           <div className="flex gap-2">
-            <button type="button" onClick={()=>setStoneType("rough")} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="rough"?"bg-black text-white font-medium":"border border-border bg-white"}`}>Rough</button>
-            <button type="button" onClick={()=>setStoneType("polished")} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="polished"?"bg-black text-white font-medium":"border border-border bg-white"}`}>Polished</button>
+            <button type="button" onClick={()=>{setStoneType("rough");setListingCategory("Rough");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="rough"?"bg-black text-white font-medium":"border border-border bg-white"}`}>Rough</button>
+            <button type="button" onClick={()=>{setStoneType("polished");if(listingCategory==="Rough")setListingCategory("Polished");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="polished"?"bg-black text-white font-medium":"border border-border bg-white"}`}>Polished</button>
           </div>
         </div>
         <div>
@@ -598,7 +725,16 @@ function AddStoneTab() {
         )}
         <div className="grid grid-cols-2 gap-4">
           <div><label className="block text-[11px] font-medium mb-1">Status</label><select name="status" required className="field-input min-h-[40px]" defaultValue="Available"><option>Available</option><option>Reserved</option><option>Sold</option></select></div>
-          <div><label className="block text-[11px] font-medium mb-1">Source</label><select name="source" required className="field-input min-h-[40px]" value={source} onChange={(e)=>setSource(e.target.value as "Own stock"|"Consigned")}><option>Own stock</option><option>Consigned</option></select></div>
+          <div><label className="block text-[11px] font-medium mb-1">Source</label><select name="source" required className="field-input min-h-[40px]" value={source} onChange={(e)=>setSource(e.target.value as "Own stock"|"Consigned")}><option>Own stock</option><option>Consigned</option></select>          </div>
+        </div>
+        <div>
+          <label className="block text-[11px] font-medium mb-1">Listing Category</label>
+          <select name="listing_category" required className="field-input min-h-[40px]" value={listingCategory} onChange={(e)=>setListingCategory(e.target.value as "Rough"|"Polished"|"Jewelry")}>
+            <option value="Rough">Rough — website only</option>
+            <option value="Polished">Polished — store + website</option>
+            <option value="Jewelry">Jewelry — store + website</option>
+          </select>
+          <p className="text-[9px] text-muted mt-0.5">Rough items appear only on the sourcing site. Polished &amp; Jewelry appear in the /app store.</p>
         </div>
         {source==="Consigned"&&(
           <div className="grid grid-cols-2 gap-4">
@@ -624,6 +760,7 @@ function PasteInTab() {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsed, setParsed] = useState<{ stones: any[]; skipped: string[] } | null>(null);
+  const [listingCategory, setListingCategory] = useState<"Rough"|"Polished"|"Jewelry">("Polished");
   const [edits, setEdits] = useState<Record<number, any>>({});
   const [checked, setChecked] = useState<Record<number, boolean>>({});
   const [publishing, setPublishing] = useState(false);
@@ -689,6 +826,7 @@ function PasteInTab() {
         traderWhatsapp: selectedTrader?.whatsapp || "",
         traderLicence: selectedTrader?.licence || "",
         commission: "0",
+        listing_category: listingCategory,
       };
       try {
         const res = await fetch("/api/stones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -708,6 +846,17 @@ function PasteInTab() {
           <option value="Own stock">Own stock</option>
           {traders.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
         </select>
+      </div>
+
+      {/* Listing category */}
+      <div>
+        <label className="block text-[11px] font-medium mb-1">Listing Category</label>
+        <select value={listingCategory} onChange={e => setListingCategory(e.target.value as "Rough"|"Polished"|"Jewelry")} className="field-input min-h-[40px]">
+          <option value="Rough">Rough — website only</option>
+          <option value="Polished">Polished — store + website</option>
+          <option value="Jewelry">Jewelry — store + website</option>
+        </select>
+        <p className="text-[9px] text-muted mt-0.5">Rough items appear only on the sourcing site. Polished &amp; Jewelry appear in the /app store.</p>
       </div>
 
       {/* Guardrail */}
@@ -820,15 +969,73 @@ function PasteInTab() {
 function TradersTab() {
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copiedAction, setCopiedAction] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState<string | null>(null);
+  const [reports, setReports] = useState<any[]>([]);
+  const [generatingReport, setGeneratingReport] = useState<number | null>(null);
 
   const fetchData = useCallback(async () => {
-    try { const res = await fetch("/api/traders"); if(res.ok) setTraders(await res.json()); }
-    catch {/* */} finally { setLoading(false); }
+    try {
+      const [tRes, rRes] = await Promise.all([
+        fetch("/api/traders"),
+        fetch("/api/reports/weekly"),
+      ]);
+      if (tRes.ok) setTraders(await tRes.json());
+      if (rRes.ok) setReports(await rRes.json());
+    } catch {/* */} finally { setLoading(false); }
   }, []);
   useEffect(()=>{fetchData();},[fetchData]);
 
+  async function handleApprove(t: Trader) {
+    await fetch("/api/traders/approve", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: t.id }) });
+    setTraders(prev => prev.map(tr => tr.id===t.id ? {...tr, status: "Active" as const} : tr));
+    // Re-fetch to get the portal code
+    const res = await fetch("/api/traders");
+    if (res.ok) setTraders(await res.json());
+  }
+
+  async function handleDecline(t: Trader, reason: string) {
+    await fetch("/api/traders/decline", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: t.id, reason }) });
+    setTraders(prev => prev.map(tr => tr.id===t.id ? {...tr, status: "Declined" as const} : tr));
+    setRejectReason(null);
+    setExpanded(null);
+  }
+
+  function copyPortalLink(t: Trader) {
+    const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/trader/${t.portal_code}`;
+    const msg = `Welcome to AMES DE BRILLIANTE, ${t.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items. If you have any questions, reply here on WhatsApp.`;
+    navigator.clipboard.writeText(msg).catch(() => {});
+    setCopiedAction(`link-${t.id}`); setTimeout(() => setCopiedAction(null), 1500);
+  }
+
+  async function handleGenerateReport(t: Trader) {
+    setGeneratingReport(t.id);
+    try {
+      await fetch("/api/reports/weekly", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ traderId: t.id }) });
+      // Re-fetch reports
+      const res = await fetch("/api/reports/weekly");
+      if (res.ok) setReports(await res.json());
+    } finally { setGeneratingReport(null); }
+  }
+
+  function copyReportWA(r: any) {
+    const msg = r.summary || `Weekly report for ${r.period_start?.split("T")[0]} to ${r.period_end?.split("T")[0]}`;
+    navigator.clipboard.writeText(msg).catch(() => {});
+    setCopiedAction(`report-${r.id}`); setTimeout(() => setCopiedAction(null), 1500);
+  }
+
+  function traderStatusColor(s: string) {
+    switch(s) {
+      case "Pending": return "bg-yellow-500 text-white";
+      case "Active": return "bg-green-700 text-white";
+      case "Declined": return "bg-red-600 text-white";
+      default: return "bg-gray-200 text-black";
+    }
+  }
+
   if(loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
-  if(traders.length===0) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">No traders yet. Traders are added automatically when you save a consigned stone.</div>;
+  if(traders.length===0) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">No traders yet.</div>;
 
   return (
     <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
@@ -836,30 +1043,302 @@ function TradersTab() {
         <table className="w-full text-[12px]">
           <thead><tr className="text-left border-b border-border bg-surface">
             <th className="px-3 py-1.5 font-semibold text-muted">Name</th>
+            <th className="px-3 py-1.5 font-semibold text-muted">Company</th>
             <th className="px-3 py-1.5 font-semibold text-muted">WhatsApp</th>
             <th className="px-3 py-1.5 font-semibold text-muted">Licence</th>
+            <th className="px-3 py-1.5 font-semibold text-muted w-20">Status</th>
             <th className="px-3 py-1.5 font-semibold text-muted text-right">Created</th>
+            <th className="px-3 py-1.5 font-semibold text-muted w-40"></th>
           </tr></thead>
           <tbody>
             {traders.map((t)=>(
-              <tr key={t.id} className="border-b border-border/60">
-                <td className="px-3 py-1.5 font-medium">{t.name}</td>
-                <td className="px-3 py-1.5 font-mono">{t.whatsapp||"\u2014"}</td>
-                <td className="px-3 py-1.5 font-mono">{t.licence||"\u2014"}</td>
-                <td className="px-3 py-1.5 font-mono text-muted text-right">{t.created_at.split("T")[0]}</td>
+              <React.Fragment key={t.id}>
+                <tr className="border-b border-border/60">
+                  <td className="px-3 py-1.5 font-medium">{t.name}</td>
+                  <td className="px-3 py-1.5 text-muted">{t.company||"\u2014"}</td>
+                  <td className="px-3 py-1.5 font-mono">{t.whatsapp||"\u2014"}</td>
+                  <td className="px-3 py-1.5 font-mono">{t.licence||"\u2014"}</td>
+                  <td className="px-3 py-1.5">
+                    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 ${traderStatusColor(t.status)}`}>{t.status}</span>
+                  </td>
+                  <td className="px-3 py-1.5 font-mono text-muted text-right">{t.created_at.split("T")[0]}</td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center gap-1">
+                      {t.status === "Pending" && (
+                        <>
+                          <button onClick={()=>setExpanded(expanded===t.id?null:t.id)} className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
+                            Review
+                          </button>
+                        </>
+                      )}
+                      {t.status === "Active" && t.portal_code && (
+                        <button onClick={()=>copyPortalLink(t)} className="text-[10px] px-1.5 py-0.5 bg-black text-white hover:bg-black/80 cursor-default whitespace-nowrap">
+                          {copiedAction===`link-${t.id}` ? "Copied ✓" : "Copy portal link"}
+                        </button>
+                      )}
+                      {t.status === "Active" && (
+                        <button onClick={()=>handleGenerateReport(t)} disabled={generatingReport===t.id} className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap disabled:opacity-50">
+                          {generatingReport===t.id ? "Generating..." : "Report"}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                {expanded===t.id && t.status === "Pending" && (
+                  <tr className="border-b border-border bg-surface/50"><td colSpan={7} className="px-3 py-3">
+                    <div className="text-[11px] space-y-2">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div><span className="text-muted">Company:</span> {t.company||"\u2014"}</div>
+                        <div><span className="text-muted">Country:</span> {t.country||"\u2014"}</div>
+                        <div><span className="text-muted">Email:</span> {t.email||"\u2014"}</div>
+                      </div>
+                      {t.licence_photo && (
+                        <div><span className="text-muted">Licence photo:</span><br/>
+                          <img src={t.licence_photo} alt="Licence" className="w-32 h-32 object-cover border border-border mt-1" />
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={()=>handleApprove(t)} className="px-3 py-1.5 bg-green-700 text-white text-[11px] font-medium cursor-default">
+                          Approve
+                        </button>
+                        <button onClick={()=>setRejectReason(rejectReason===String(t.id)?null:String(t.id))} className="px-3 py-1.5 border border-red-300 text-red-600 text-[11px] font-medium cursor-default">
+                          Decline
+                        </button>
+                      </div>
+                      {rejectReason===String(t.id) && (
+                        <div className="mt-2 flex gap-2">
+                          <input id={`reason-${t.id}`} placeholder="Decline reason..." className="field-input min-h-[36px] flex-1 text-[11px]" />
+                          <button onClick={()=>{
+                            const input = document.getElementById(`reason-${t.id}`) as HTMLInputElement;
+                            handleDecline(t, input?.value || "Application declined");
+                          }} className="px-3 py-1.5 bg-red-600 text-white text-[11px] font-medium cursor-default">
+                            Confirm decline
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td></tr>
+                )}
+                {t.status === "Active" && reports.filter((r:any)=>r.trader_id===t.id).length > 0 && (
+                  <tr className="border-b border-border bg-surface/30"><td colSpan={7} className="px-3 py-2">
+                    <div className="text-[9px] uppercase tracking-wider text-muted font-medium mb-1">Recent reports</div>
+                    <div className="flex gap-3 flex-wrap">
+                      {reports.filter((r:any)=>r.trader_id===t.id).slice(0,5).map((r:any)=>(
+                        <div key={r.id} className="flex items-center gap-1.5 text-[10px]">
+                          <span className="font-mono text-muted">{r.period_end?.split("T")[0]||""}</span>
+                          <button onClick={()=>copyReportWA(r)} className="px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
+                            {copiedAction===`report-${r.id}` ? "Copied" : "Copy WA"}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </td></tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Mobile */}
+      <div className="md:hidden space-y-3">
+        {traders.map((t)=>(
+          <div key={t.id} className="border border-border p-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[12px] font-medium">{t.name}</div>
+              <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${traderStatusColor(t.status)}`}>{t.status}</span>
+            </div>
+            <div className="text-[10px] text-muted mt-1">
+              {t.company&&<div>Company: {t.company}</div>}
+              {t.whatsapp&&<div>WhatsApp: {t.whatsapp}</div>}
+              {t.email&&<div>Email: {t.email}</div>}
+              {t.licence&&<div>Licence: {t.licence}</div>}
+              <div>Added: {t.created_at.split("T")[0]}</div>
+            </div>
+            {t.status === "Pending" && (
+              <div className="flex gap-2 mt-2">
+                <button onClick={()=>handleApprove(t)} className="flex-1 py-1.5 bg-green-700 text-white text-[10px] font-medium cursor-default">Approve</button>
+                <button onClick={()=>setExpanded(expanded===t.id?null:t.id)} className="flex-1 py-1.5 border border-red-300 text-red-600 text-[10px] font-medium cursor-default">Decline</button>
+              </div>
+            )}
+            {t.status === "Active" && t.portal_code && (
+              <button onClick={()=>copyPortalLink(t)} className="mt-2 w-full py-1.5 bg-black text-white text-[10px] font-medium cursor-default">
+                {copiedAction===`link-${t.id}` ? "Copied ✓" : "Copy portal link + welcome message"}
+              </button>
+            )}
+            {t.status === "Active" && (
+              <button onClick={()=>handleGenerateReport(t)} disabled={generatingReport===t.id} className="mt-1 w-full py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default disabled:opacity-50">
+                {generatingReport===t.id ? "Generating..." : "Generate weekly report"}
+              </button>
+            )}
+            {t.status === "Active" && reports.filter((r:any)=>r.trader_id===t.id).length > 0 && (
+              <div className="mt-2 space-y-1">
+                <div className="text-[9px] uppercase tracking-wider text-muted font-medium">Recent reports</div>
+                {reports.filter((r:any)=>r.trader_id===t.id).slice(0,3).map((r:any)=>(
+                  <div key={r.id} className="flex items-center justify-between border border-border/60 p-2">
+                    <span className="text-[10px] text-muted font-mono">{r.period_end?.split("T")[0]||""}</span>
+                    <button onClick={()=>copyReportWA(r)} className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
+                      {copiedAction===`report-${r.id}` ? "Copied" : "Copy WA report"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {expanded===t.id && t.status === "Pending" && (
+              <div className="mt-2 space-y-2 border-t border-border pt-2">
+                {t.licence_photo && <img src={t.licence_photo} alt="Licence" className="w-24 h-24 object-cover border border-border" />}
+                <input id={`reason-mob-${t.id}`} placeholder="Decline reason..." className="w-full field-input min-h-[36px] text-[11px]" />
+                <button onClick={()=>{
+                  const input = document.getElementById(`reason-mob-${t.id}`) as HTMLInputElement;
+                  handleDecline(t, input?.value || "Application declined");
+                }} className="w-full py-1.5 bg-red-600 text-white text-[10px] font-medium cursor-default">Confirm decline</button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════ ORDERS TAB ═══════ */
+
+interface OrderRow {
+  id: number; stone_id: string; stone_ref: string;
+  buyer_name: string; buyer_whatsapp: string; price: number | null;
+  status: string; created_at: string;
+  shape: string; carat: number; color: string; clarity: string;
+  certification: string; stone_status: string;
+}
+
+function OrdersTab() {
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const fetchData = useCallback(async () => {
+    try { const res = await fetch("/api/orders"); if (res.ok) setOrders(await res.json()); }
+    catch { /* */ } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleStatusChange(id: number, status: string) {
+    await fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
+    setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
+  }
+
+  function buildInvoiceMsg(o: OrderRow) {
+    const priceStr = o.price ? `$${o.price.toLocaleString()}` : "price on request";
+    return `Hello ${o.buyer_name || ""},\n\nThank you for your interest. Your reservation for ${o.stone_ref} (${o.shape} ${o.carat}ct ${o.color} ${o.clarity} ${o.certification}) has been noted.\n\nPrice: ${priceStr}\n\nPayment details are shared below.`;
+  }
+
+  function buildWaUrl(o: OrderRow) {
+    const num = (o.buyer_whatsapp || "").replace(/[^0-9]/g, "");
+    if (!num) return null;
+    return `https://wa.me/${num}?text=${encodeURIComponent(buildInvoiceMsg(o))}`;
+  }
+
+  async function handleCopy(o: OrderRow) {
+    const msg = buildInvoiceMsg(o);
+    try { await navigator.clipboard.writeText(msg); } catch {
+      const ta = document.createElement("textarea"); ta.value = msg;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    setCopiedId(o.id); setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  function statusColor(s: string) {
+    switch (s) {
+      case "Reserved": return "bg-yellow-500 text-white";
+      case "Invoiced": return "bg-blue-600 text-white";
+      case "Paid": return "bg-green-700 text-white";
+      case "Shipped": return "bg-purple-600 text-white";
+      case "Closed": return "bg-gray-400 text-white";
+      default: return "bg-gray-200 text-black";
+    }
+  }
+  const STATUSES = ["Reserved", "Invoiced", "Paid", "Shipped", "Closed"];
+
+  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
+  if (orders.length === 0) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">No orders yet.</div>;
+
+  const q = search.toLowerCase();
+  const filtered = q
+    ? orders.filter((o) =>
+        o.buyer_name.toLowerCase().includes(q) ||
+        o.stone_ref.toLowerCase().includes(q) ||
+        o.buyer_whatsapp.toLowerCase().includes(q)
+      )
+    : orders;
+
+  return (
+    <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
+      <div className="flex items-center gap-2 mb-3">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search buyer, ref, WhatsApp..." className="field-input min-h-[36px] flex-1 text-[11px]" />
+        <span className="text-[11px] text-muted font-mono shrink-0">{filtered.length}/{orders.length}</span>
+      </div>
+      {/* Desktop */}
+      <div className="hidden md:block border border-border">
+        <table className="w-full text-[12px]">
+          <thead><tr className="text-left border-b border-border bg-surface">
+            <th className="px-3 py-1.5 font-semibold text-muted w-24">Date</th>
+            <th className="px-3 py-1.5 font-semibold text-muted">Buyer</th>
+            <th className="px-3 py-1.5 font-semibold text-muted">WhatsApp</th>
+            <th className="px-3 py-1.5 font-semibold text-muted">Item</th>
+            <th className="px-3 py-1.5 font-semibold text-muted text-right">Price</th>
+            <th className="px-3 py-1.5 font-semibold text-muted w-32">Status</th>
+            <th className="px-3 py-1.5 font-semibold text-muted w-10"></th>
+          </tr></thead>
+          <tbody>
+            {filtered.map((o) => (
+              <tr key={o.id} className="border-b border-border/60 hover:bg-surface/60">
+                <td className="px-3 py-1.5 font-mono text-muted">{o.created_at.split("T")[0]}</td>
+                <td className="px-3 py-1.5">{o.buyer_name || "\u2014"}</td>
+                <td className="px-3 py-1.5 font-mono text-muted">{o.buyer_whatsapp || "\u2014"}</td>
+                <td className="px-3 py-1.5 font-mono">{o.stone_ref}<span className="text-muted ml-1">{o.shape} {o.carat}ct {o.color}</span></td>
+                <td className="px-3 py-1.5 text-right font-mono">{o.price ? "$" + o.price.toLocaleString() : "\u2014"}</td>
+                <td className="px-3 py-1.5">
+                  <select value={o.status} onChange={(e) => handleStatusChange(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
+                    {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </td>
+                <td className="px-3 py-1.5 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => handleCopy(o)} title="Copy invoice message" className="text-[10px] px-1.5 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">
+                      {copiedId === o.id ? "Copied" : "Copy"}
+                    </button>
+                    {buildWaUrl(o) && (
+                      <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" title="Send invoice via WhatsApp" className="text-[10px] px-1.5 py-0.5 bg-green-700 text-white hover:bg-green-800 cursor-default whitespace-nowrap inline-block">WA</a>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {/* Mobile */}
       <div className="md:hidden space-y-3">
-        {traders.map((t)=>(
-          <div key={t.id} className="border border-border p-3">
-            <div className="text-[12px] font-medium">{t.name}</div>
-            <div className="text-[10px] text-muted mt-1">
-              {t.whatsapp&&<div>WhatsApp: {t.whatsapp}</div>}
-              {t.licence&&<div>Licence: {t.licence}</div>}
-              <div>Added: {t.created_at.split("T")[0]}</div>
+        {filtered.map((o) => (
+          <div key={o.id} className="border border-border p-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-mono text-muted">{o.created_at.split("T")[0]}</span>
+              <select value={o.status} onChange={(e) => handleStatusChange(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="text-[12px] font-medium">{o.stone_ref} <span className="text-muted font-normal">{o.shape} {o.carat}ct {o.color}</span></div>
+            <div className="flex justify-between items-center mt-1 text-[10px]">
+              <span className="text-muted">{o.buyer_name || "\u2014"}{o.buyer_whatsapp ? " · " + o.buyer_whatsapp : ""}</span>
+              <span className="font-mono font-medium">{o.price ? "$" + o.price.toLocaleString() : "\u2014"}</span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => handleCopy(o)} className="flex-1 py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default">
+                {copiedId === o.id ? "Copied" : "Copy invoice"}
+              </button>
+              {buildWaUrl(o) && (
+                <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" className="flex-1 py-1.5 bg-green-700 text-white text-[10px] font-medium text-center hover:bg-green-800 cursor-default inline-block">Send WhatsApp</a>
+              )}
             </div>
           </div>
         ))}
@@ -867,3 +1346,442 @@ function TradersTab() {
     </div>
   );
 }
+
+/* ═══════ VIDEOS TAB ═══════ */
+
+interface VideoRow {
+  id: number; video_url: string; caption: string;
+  stone_id: string | null; published: number;
+  model_id: number | null; status: string; tap_count: number;
+  created_at: string; stone_ref: string | null;
+  model_name: string | null; model_instagram: string | null;
+}
+
+function VideosTab() {
+  const [videos, setVideos] = useState<VideoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stones, setStones] = useState<Stone[]>([]);
+  const [url, setUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [linkedStone, setLinkedStone] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [vRes, sRes] = await Promise.all([
+        fetch("/api/videos"),
+        fetch("/api/stones"),
+      ]);
+      if (vRes.ok) setVideos(await vRes.json());
+      if (sRes.ok) {
+        const all: Stone[] = await sRes.json();
+        setStones(all.filter(s => s.status === "Available"));
+      }
+    } catch {/* */} finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch("/api/videos/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
+      const data = await res.json();
+      setUrl(data.url);
+    } catch (e: any) { setError(e.message); } finally { setUploading(false); }
+  }
+
+  async function handleCreate() {
+    if (!url.trim()) { setError("Video URL required"); return; }
+    setError(null);
+    try {
+      const res = await fetch("/api/videos", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ video_url: url, caption, stone_id: linkedStone || null }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      const v = await res.json();
+      setVideos(prev => [{ ...v, stone_ref: stones.find(s => s.id === v.stone_id)?.ref || null }, ...prev]);
+      setUrl(""); setCaption(""); setLinkedStone("");
+    } catch (e: any) { setError(e.message); }
+  }
+
+  async function togglePublish(v: VideoRow) {
+    const newPub = v.published ? 0 : 1;
+    await fetch("/api/videos", {
+      method: "PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ id: v.id, published: newPub }),
+    });
+    setVideos(prev => prev.map(vid => vid.id === v.id ? {...vid, published: newPub} : vid));
+  }
+
+  async function handleDelete(v: VideoRow) {
+    await fetch(`/api/videos?id=${v.id}`, { method: "DELETE" });
+    setVideos(prev => prev.filter(vid => vid.id !== v.id));
+  }
+
+  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
+
+  return (
+    <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
+      {/* Create form */}
+      <div className="border border-border p-4 mb-4 space-y-3">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted">Add video</div>
+        {error && <div className="text-[10px] text-red-600 border border-red-300 p-2 bg-red-50">{error}</div>}
+        <div className="flex gap-2">
+          <label className="flex-1">
+            <span className="block text-[10px] text-muted mb-1">Upload mp4</span>
+            <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleFileUpload} disabled={uploading} className="w-full text-[11px] file:mr-2 file:py-1 file:px-2 file:border file:border-border file:text-[10px] file:bg-surface file:cursor-default" />
+            {uploading && <span className="text-[10px] text-muted">Uploading...</span>}
+          </label>
+          <span className="text-[10px] text-muted self-end">or</span>
+          <div className="flex-1">
+            <span className="block text-[10px] text-muted mb-1">Paste URL</span>
+            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://...mp4" className="field-input min-h-[36px] text-[11px]" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="block text-[10px] text-muted mb-1">Caption</span>
+            <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="One line caption" className="field-input min-h-[36px] text-[11px]" />
+          </div>
+          <div>
+            <span className="block text-[10px] text-muted mb-1">Link to stone (optional)</span>
+            <select value={linkedStone} onChange={e => setLinkedStone(e.target.value)} className="field-input min-h-[36px] text-[11px]">
+              <option value="">None</option>
+              {stones.map(s => (
+                <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct {s.color}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <button onClick={handleCreate} disabled={!url.trim()} className="px-4 py-2 bg-black text-white text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Add video</button>
+      </div>
+
+      {/* Pending model videos */}
+      {videos.some(v => v.status === "Pending") && (
+        <div className="mb-4">
+          <div className="text-[10px] uppercase tracking-wider text-muted font-medium mb-2">Pending model videos</div>
+          <div className="space-y-2">
+            {videos.filter(v => v.status === "Pending").map(v => (
+              <div key={v.id} className="border border-yellow-300 bg-yellow-50/50 p-3 flex gap-3 items-start">
+                <div className="w-16 h-24 bg-black overflow-hidden shrink-0">
+                  <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-yellow-500 text-white">Pending</span>
+                    {v.model_name && <span className="text-[10px] text-muted">{v.model_name}</span>}
+                    {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
+                    {v.stone_ref && <span className="text-[10px] text-muted font-mono">→ {v.stone_ref}</span>}
+                  </div>
+                  <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
+                  <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
+                  <div className="flex gap-2 mt-2">
+                    <button onClick={async () => {
+                      await fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "approve" }) });
+                      setVideos(prev => prev.map(vid => vid.id === v.id ? {...vid, status: "Live", published: 1} : vid));
+                    }} className="text-[10px] px-2 py-1 bg-green-700 text-white cursor-default min-h-[32px]">Approve</button>
+                    <button onClick={async () => {
+                      await fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "decline" }) });
+                      setVideos(prev => prev.filter(vid => vid.id !== v.id));
+                    }} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default min-h-[32px]">Decline</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Video list */}
+      <div className="text-[11px] text-muted font-mono mb-2">{videos.filter(v => v.status !== "Pending").length} published videos</div>
+      {videos.filter(v => v.status !== "Pending").length === 0 ? (
+        <div className="text-[12px] text-muted">No published videos yet.</div>
+      ) : (
+        <div className="space-y-3">
+          {videos.filter(v => v.status !== "Pending").map(v => (
+            <div key={v.id} className="border border-border p-3 flex gap-3 items-start">
+              <div className="w-20 h-28 bg-black overflow-hidden shrink-0">
+                <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${v.published ? "bg-green-700 text-white" : "bg-gray-200 text-black"}`}>{v.published ? "Published" : "Draft"}</span>
+                  {v.stone_ref && <span className="text-[10px] text-muted font-mono">→ {v.stone_ref}</span>}
+                  {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
+                </div>
+                <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
+                <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => togglePublish(v)} className={`text-[10px] px-2 py-1 cursor-default min-h-[32px] ${v.published ? "border border-border text-muted hover:bg-surface" : "bg-black text-white"}`}>{v.published ? "Unpublish" : "Publish"}</button>
+                  <button onClick={() => handleDelete(v)} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default hover:bg-red-50 min-h-[32px]">Delete</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════ MODELS TAB ═══════ */
+
+interface ModelRow {
+  id: number; name: string; whatsapp: string; instagram: string;
+  portal_code: string; status: string; created_at: string;
+  live_count: number; pending_count: number;
+  approved_this_month: number; commission_earnings: number;
+  monthly_video_quota: number; monthly_base_fee: number; commission_rate: number;
+  payment_method: string; payment_details: string; total_paid: number;
+}
+
+function ModelsTab() {
+  const [models, setModels] = useState<ModelRow[]>([]);
+  const [activeCount, setActiveCount] = useState(0);
+  const [rosterFull, setRosterFull] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [paymentModal, setPaymentModal] = useState<ModelRow | null>(null);
+  const [report, setReport] = useState<any>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/models");
+      if (res.ok) {
+        const data = await res.json();
+        setModels(data.models);
+        setActiveCount(data.activeCount);
+        setRosterFull(data.rosterFull);
+      }
+    } catch {/* */} finally { setLoading(false); }
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function handleInvite() {
+    if (!name.trim()) { setError("Name required"); return; }
+    setError(null);
+    try {
+      const res = await fetch("/api/models", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ name, whatsapp, instagram }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      const model = await res.json();
+      setModels(prev => [{ ...model, live_count: 0, pending_count: 0, approved_this_month: 0, commission_earnings: 0, monthly_video_quota: 30, monthly_base_fee: 200, commission_rate: 0.005, payment_method: "", payment_details: "", total_paid: 0 }, ...prev]);
+      setActiveCount(prev => prev + 1);
+      setName(""); setWhatsapp(""); setInstagram("");
+      setShowForm(false);
+      const url = `${window.location.origin}/model/${model.portal_code}`;
+      navigator.clipboard.writeText(url).catch(() => {});
+      setCopiedId(model.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (e: any) { setError(e.message); }
+  }
+
+  function copyPortalLink(m: ModelRow) {
+    const url = `${window.location.origin}/model/${m.portal_code}`;
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopiedId(m.id);
+    setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  async function openReport(m: ModelRow) {
+    setPaymentModal(m);
+    setReportLoading(true);
+    setReport(null);
+    try {
+      const res = await fetch(`/api/models?report=${m.id}`);
+      if (res.ok) setReport(await res.json());
+    } catch {/* */} finally { setReportLoading(false); }
+  }
+
+  function copyPaymentInstructions(m: ModelRow, totalDue: number) {
+    const method = m.payment_method || "bank transfer";
+    const details = m.payment_details || "Contact desk for details";
+    const msg = `Hi ${m.name},\n\nYour AMES DE BRILLIANTE model payment for this month is ready.\n\nAmount due: $${totalDue.toLocaleString()}\nPayment method: ${method}\nDetails: ${details}\n\nPlease confirm once sent. Thank you.`;
+    navigator.clipboard.writeText(msg).catch(() => {});
+  }
+
+  async function handleMarkPaid(m: ModelRow, amount: number) {
+    await fetch("/api/models", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ action: "mark_paid", model_id: m.id, amount }),
+    });
+    setModels(prev => prev.map(mod => mod.id === m.id ? {...mod, total_paid: mod.total_paid + amount} : mod));
+    // Re-fetch report
+    const res = await fetch(`/api/models?report=${m.id}`);
+    if (res.ok) setReport(await res.json());
+  }
+
+  function baseEarned(m: ModelRow) {
+    return Math.min(m.approved_this_month, m.monthly_video_quota) * (m.monthly_base_fee / m.monthly_video_quota);
+  }
+
+  function totalDue(m: ModelRow) {
+    return baseEarned(m) + m.commission_earnings - m.total_paid;
+  }
+
+  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
+
+  return (
+    <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
+      {/* Payment modal */}
+      {paymentModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
+          <div className="bg-white border border-border max-w-lg w-full max-h-[80vh] overflow-y-auto p-4 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div className="text-[13px] font-bold">{paymentModal.name} — Payment Report</div>
+              <button onClick={() => setPaymentModal(null)} className="text-[11px] text-muted cursor-default">Close</button>
+            </div>
+            {reportLoading ? (
+              <div className="text-[11px] text-muted py-4">Loading report...</div>
+            ) : report ? (
+              <div className="space-y-3">
+                <div className="text-[10px] text-muted">Month: {report.month}</div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="border border-border p-2"><div className="text-[16px] font-bold">{report.videos.length}</div><div className="text-[9px] uppercase text-muted">Approved</div></div>
+                  <div className="border border-border p-2"><div className="text-[16px] font-bold">${report.base_earned.toFixed(0)}</div><div className="text-[9px] uppercase text-muted">Base</div></div>
+                  <div className="border border-border p-2"><div className="text-[16px] font-bold">${report.commission_total.toFixed(0)}</div><div className="text-[9px] uppercase text-muted">Commission</div></div>
+                </div>
+                <div className="border border-border p-2 text-center"><div className="text-[14px] font-bold">${report.total_due.toFixed(2)}</div><div className="text-[9px] uppercase text-muted">Total due (base + commission - paid: ${report.model.total_paid})</div></div>
+                {report.videos.length > 0 && (
+                  <div>
+                    <div className="text-[10px] uppercase text-muted font-medium mb-1">Videos this month</div>
+                    <div className="space-y-1">
+                      {report.videos.map((v: any) => (
+                        <div key={v.id} className="flex items-center justify-between text-[10px] border border-border/60 p-1.5">
+                          <span>{v.stone_ref || "—"} <span className="text-muted">{v.caption?.slice(0, 30)}</span></span>
+                          <span className="font-mono">{v.sales_count > 0 ? `$${v.sales_value.toFixed(0)} sale · $${v.commission_earned.toFixed(0)} comm` : "no sales"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => copyPaymentInstructions(paymentModal, report.total_due)} className="flex-1 py-2 border border-border text-[11px] font-medium cursor-default">Copy payment instructions</button>
+                  <button onClick={() => handleMarkPaid(paymentModal, report.total_due)} disabled={report.total_due <= 0} className="flex-1 py-2 bg-black text-white text-[11px] font-medium cursor-default disabled:opacity-40">Mark Paid (${report.total_due.toFixed(2)})</button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] text-muted py-4">No report data.</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="text-[12px] font-medium">
+            <span className="font-mono font-bold">{activeCount}</span>
+            <span className="text-muted"> / 100</span>
+          </div>
+          {rosterFull && <span className="text-[10px] font-semibold uppercase px-2 py-0.5 bg-red-100 text-red-700">Roster full</span>}
+        </div>
+        {!rosterFull && (
+          <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-black text-white text-[11px] font-medium cursor-default min-h-[36px]">
+            {showForm ? "Cancel" : "Invite model"}
+          </button>
+        )}
+        {rosterFull && <span className="text-[10px] text-muted">100 active models reached</span>}
+      </div>
+      {showForm && (
+        <div className="border border-border p-4 mb-4 space-y-3">
+          <div className="text-[11px] font-medium uppercase tracking-wider text-muted">New model</div>
+          {error && <div className="text-[10px] text-red-600 border border-red-300 p-2 bg-red-50">{error}</div>}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <span className="block text-[10px] text-muted mb-1">Name *</span>
+              <input value={name} onChange={e => setName(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="Full name" />
+            </div>
+            <div>
+              <span className="block text-[10px] text-muted mb-1">WhatsApp</span>
+              <input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="Number" />
+            </div>
+            <div>
+              <span className="block text-[10px] text-muted mb-1">Instagram</span>
+              <input value={instagram} onChange={e => setInstagram(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="handle" />
+            </div>
+          </div>
+          <button onClick={handleInvite} disabled={!name.trim()} className="px-4 py-2 bg-black text-white text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Invite &amp; copy portal link</button>
+        </div>
+      )}
+      <div className="text-[11px] text-muted font-mono mb-2">{models.length} models</div>
+      {models.length === 0 ? (
+        <div className="text-[12px] text-muted">No models yet.</div>
+      ) : (
+        <div className="hidden md:block border border-border">
+          <table className="w-full text-[12px]">
+            <thead><tr className="text-left border-b border-border bg-surface">
+              <th className="px-3 py-1.5 font-semibold text-muted">Name</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">Live</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">Pending</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">This mo.</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">Base</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">Commission</th>
+              <th className="px-2 py-1.5 font-semibold text-muted text-right">Due</th>
+              <th className="px-2 py-1.5 font-semibold text-muted w-28"></th>
+            </tr></thead>
+            <tbody>
+              {models.map(m => (
+                <tr key={m.id} className="border-b border-border/60">
+                  <td className="px-3 py-1.5 font-medium">{m.name}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{m.live_count}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{m.pending_count}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">{m.approved_this_month}/{m.monthly_video_quota}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">${baseEarned(m).toFixed(0)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earnings.toFixed(0)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono font-medium">${totalDue(m).toFixed(2)}</td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex gap-1">
+                      <button onClick={() => copyPortalLink(m)} className="text-[9px] px-1 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">{copiedId === m.id ? "Copied" : "Link"}</button>
+                      <button onClick={() => openReport(m)} className="text-[9px] px-1 py-0.5 bg-black text-white hover:bg-black/80 cursor-default whitespace-nowrap">Report</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {/* Mobile */}
+      <div className="md:hidden space-y-3">
+        {models.map(m => (
+          <div key={m.id} className="border border-border p-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[12px] font-medium">{m.name}</div>
+              <span className="text-[11px] font-mono font-medium">${totalDue(m).toFixed(2)}</span>
+            </div>
+            <div className="flex gap-3 mt-1 text-[10px] text-muted font-mono">
+              <span>{m.live_count} live</span>
+              <span>{m.pending_count} pending</span>
+              <span>{m.approved_this_month}/{m.monthly_video_quota} this mo.</span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => copyPortalLink(m)} className="flex-1 py-1.5 border border-border text-[10px] text-muted cursor-default">{copiedId === m.id ? "Copied" : "Copy link"}</button>
+              <button onClick={() => openReport(m)} className="flex-1 py-1.5 bg-black text-white text-[10px] cursor-default">Payment report</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
