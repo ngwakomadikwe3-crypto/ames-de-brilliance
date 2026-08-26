@@ -1,7 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Script from "next/script";
+import { useState, useEffect, useCallback, useRef, Suspense, lazy } from "react";
+import dynamic from "next/dynamic";
+
+const DiamondViewer = dynamic(
+  () => import("@/components/DiamondViewer").then((m) => m.DiamondViewer),
+  { ssr: false, loading: () => null }
+);
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -104,50 +109,27 @@ export default function AppPage() {
 
   return (
     <>
-      {/* Load Spline viewer */}
-      <Script src="https://unpkg.com/@splinetool/viewer@1.9.72/build/spline-viewer.js" strategy="afterInteractive" />
-
-      {/* App shell font */}
+      {/* App shell font + animations */}
       <style>{`
-        :root { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); }
         @keyframes shimmer {
           0% { background-position: -400px 0; }
           100% { background-position: 400px 0; }
         }
         .shimmer {
-          background: linear-gradient(90deg, transparent 25%, rgba(201,162,39,0.08) 50%, transparent 75%);
+          background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
           background-size: 400px 100%;
           animation: shimmer 1.6s ease-in-out infinite;
         }
-        @keyframes breathe {
-          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
-          100% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
-        }
-        .vitrine-glow {
-          position: absolute; top: 50%; left: 50%;
-          width: 200px; height: 200px; border-radius: 50%;
-          background: radial-gradient(circle, rgba(201,162,39,0.22) 0%, rgba(201,162,39,0.06) 50%, transparent 70%);
-          animation: breathe 12s ease-in-out infinite alternate;
-          pointer-events: none;
-        }
-        @keyframes sparkle {
-          0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
-          50% { opacity: 1; transform: scale(1) rotate(180deg); }
-        }
-        .sparkle-1 { animation: sparkle 3s ease-in-out infinite; animation-delay: 0s; }
-        .sparkle-2 { animation: sparkle 3s ease-in-out infinite; animation-delay: 1.5s; }
         @media (prefers-reduced-motion: reduce) {
-          .vitrine-glow, .sparkle-1, .sparkle-2, .shimmer {
-            animation: none !important;
-          }
-          .vitrine-glow { opacity: 1; transform: translate(-50%, -50%); }
+          .shimmer { animation: none !important; }
         }
       `}</style>
 
-      {/* Slim transparent top bar — dark vitrine */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: "#0B0C0D", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        {/* Left: 44px charcoal vitrine card with gold SVG glyph */}
-        <div style={{ width: 44, height: 44, background: '#1A1A1A', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      {/* Slim transparent top bar — iOS translucent */}
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        {/* Left: 44px elevated glyph card */}
+        <div style={{ width: 44, height: 44, background: '#2C2C2E', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg viewBox="0 0 24 24" fill="none" style={{ width: 22, height: 22 }} aria-hidden="true">
             <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.8" strokeLinejoin="round" fill="none"/>
           </svg>
@@ -156,7 +138,7 @@ export default function AppPage() {
         <div className="flex items-center gap-5">
           {LABELS.map((l, i) => (
             <button key={i} onClick={() => scrollToPanel(i)} className="relative flex flex-col items-center">
-              <span className="text-[11px] uppercase" style={{ color: activePanel === i ? '#FAF8F4' : '#9A938A', letterSpacing: '0.14em', fontWeight: 400 }}>{l}</span>
+              <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 400, color: activePanel === i ? '#FFFFFF' : '#98989E' }}>{l}</span>
               <span className="absolute -bottom-1 h-[2px] rounded-full transition-all duration-300" style={{ background: '#C9A227', width: activePanel === i ? 16 : 0 }} />
             </button>
           ))}
@@ -239,27 +221,6 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const [chatLoading, setChatLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const splineFallbackRef = useRef<HTMLDivElement>(null);
-  const splineViewerRef = useRef<HTMLDivElement>(null);
-
-  // Dynamically create spline-viewer element to avoid TSX type errors
-  useEffect(() => {
-    const container = splineViewerRef.current;
-    if (!container) return;
-    const viewer = document.createElement('spline-viewer');
-    viewer.setAttribute('url', 'https://prod.spline.design/ba5d5cf6-c636-46fc-b3f5-ffc6840b905b/scene.splinecode');
-    viewer.style.cssText = 'width:100%;height:200px;display:block;background:#1A1A1A;';
-    viewer.addEventListener('load', () => {
-      const fb = splineFallbackRef.current;
-      if (fb) fb.style.display = 'none';
-    });
-    viewer.addEventListener('error', () => {
-      const fb = splineFallbackRef.current;
-      if (fb) fb.style.opacity = '1';
-    });
-    container.appendChild(viewer);
-    return () => { container.removeChild(viewer); };
-  }, []);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
@@ -361,29 +322,35 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const showEmpty = !activeChatId && messages.length === 0;
 
   return (
-    <div className="flex-1 flex min-h-0" style={{ background: "#0B0C0D" }}>
-      {/* Fixed Spline header — above the chat interface */}
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, background: '#1A1A1A', borderBottom: '1px solid rgba(255,255,255,0.08)', height: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden' }}>
-        {/* Fallback: gold SVG diamond glyph (visible while Spline loads or if it fails) */}
-        <div ref={splineFallbackRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-          <svg viewBox="0 0 24 24" fill="none" style={{ width: 80, height: 80 }} aria-hidden="true">
-            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
-          </svg>
+    <div className="flex-1 flex min-h-0" style={{ background: '#000000' }}>
+      {/* Fixed chat header — translucent blurred black band with 3D diamond */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.08)', height: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden' }}>
+        {/* 3D Diamond viewer — centred, auto-rotating */}
+        <div style={{ flex: 1, width: '100%', position: 'relative', minHeight: 130 }}>
+          <Suspense fallback={null}>
+            <DiamondViewer style={{ width: '100%', height: '100%' }} />
+          </Suspense>
         </div>
-        {/* Spline viewer — loads over fallback, removes fallback on load */}
-        <div ref={splineViewerRef} style={{ width: '100%', height: 200, position: 'relative', zIndex: 2, background: '#1A1A1A' }} />
-        {/* AMES wordmark centred below canvas */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: -24, position: 'relative', zIndex: 3 }}>
+        {/* AMES wordmark centred below 3D diamond */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 8, zIndex: 2 }}>
           <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.2em', color: '#FAF8F4', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>AMES</span>
           <span style={{ fontSize: 9, letterSpacing: '0.3em', color: '#C9A227', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>DE BRILLIANTE</span>
         </div>
+        {/* VIEW IN 3D pill — top right */}
+        <a href="https://app.spline.design/community/file/43cb7f5f-508d-4483-83d5-d93ae316829d" target="_blank" rel="noopener noreferrer" style={{ position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', padding: '5px 12px', borderRadius: 9999, border: '1px solid #C9A227', fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', color: '#C9A227', textDecoration: 'none', background: 'transparent', lineHeight: 1, zIndex: 2 }}>
+          VIEW IN 3D
+        </a>
+        {/* CC BY credit line — tiny, unobtrusive */}
+        <span style={{ position: 'absolute', bottom: 4, left: 0, right: 0, textAlign: 'center', fontSize: 8, letterSpacing: '0.05em', color: 'rgba(255,255,255,0.35)', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+          3D diamond model: Kugetsu Tsukai 3D Model Hub (CC BY)
+        </span>
       </div>
 
       {/* Sidebar — desktop: always visible; mobile: toggle */}
-      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0B0C0D", paddingTop: 230 }}>
+      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: 'rgba(255,255,255,0.08)', background: '#1C1C1E', paddingTop: 190 }}>
         {/* New chat pill */}
         <div className="px-3 pb-2">
-          <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-light transition-colors" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4" }}>
+          <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-3 rounded-xl text-[13px] font-medium transition-colors" style={{ background: '#2C2C2E', color: '#FFFFFF' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
             New chat
           </button>
@@ -392,9 +359,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           {groups.map(g => (
             <div key={g.label} className="mb-3">
-              <div className="text-[10px] uppercase tracking-[0.08em] px-2 py-1.5 font-light" style={{ color: "#9A938A" }}>{g.label}</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 400, padding: '6px 8px 2px', color: '#98989E' }}>{g.label}</div>
               {g.items.map(c => (
-                <button key={c.id} onClick={() => loadChat(c.id)} className={`w-full text-left px-2 py-1.5 rounded-md text-[12px] font-light truncate transition-colors ${activeChatId === c.id ? "" : ""}`} style={{ color: activeChatId === c.id ? "#1A1A1A" : "#9A938A", background: activeChatId === c.id ? "rgba(255,255,255,0.08)" : "transparent", border: activeChatId === c.id ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent" }}>
+                <button key={c.id} onClick={() => loadChat(c.id)} style={{ width: '100%', textAlign: 'left', padding: '8px', borderRadius: 8, fontSize: 13, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: activeChatId === c.id ? '#FFFFFF' : '#98989E', background: activeChatId === c.id ? '#2C2C2E' : 'transparent' }}>
                   {c.title}
                 </button>
               ))}
@@ -414,49 +381,28 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
         {/* Top bar with mobile history toggle */}
         <div className="shrink-0 flex items-center px-3 pt-12 pb-1 md:hidden">
-          <button onClick={() => setSidebarOpen(p => !p)} className="p-2 rounded-lg" style={{ color: "#FAF8F4" }}>
+          <button onClick={() => setSidebarOpen(p => !p)} style={{ padding: 8, borderRadius: 8, color: '#FFFFFF' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
           </button>
         </div>
 
         {/* Messages scroll area — offset below fixed Spline header */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ paddingTop: 220 }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ paddingTop: 190 }}>
           {showEmpty ? (
-            /* Empty state — vitrine showcase */
+            /* Empty state — clean iOS style */
             <div className="h-full flex flex-col items-center justify-center px-4">
-              {/* Gold glyph 44px */}
-              <svg viewBox="0 0 24 24" fill="none" className="mb-5" style={{ width: 44, height: 44 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.8" strokeLinejoin="round" fill="none" /></svg>
-              {/* Vitrine card — pure SVG+CSS, no external images */}
-              <div className="relative w-full max-w-[340px] mb-8" style={{ background: '#1A1A1A', borderRadius: 12, border: '1px solid #C9A227', overflow: 'hidden' }}>
-                <div style={{ height: 260, position: 'relative', overflow: 'hidden' }}>
-                  {/* Radial gold glow behind glyph */}
-                  <div className="vitrine-glow" />
-                  {/* Diamond glyph 120px, centred */}
-                  <svg viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 120, height: 120 }} aria-hidden="true">
-                    <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
-                  </svg>
-                  {/* Sparkle 1 — top-left */}
-                  <div className="sparkle-1" style={{ position: 'absolute', top: 32, left: 36, pointerEvents: 'none' }}>
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0L8.2 5.2L14 7L8.2 8.8L7 14L5.8 8.8L0 7L5.8 5.2Z" fill="#C9A227" fillOpacity="0.9"/></svg>
-                  </div>
-                  {/* Sparkle 2 — top-right */}
-                  <div className="sparkle-2" style={{ position: 'absolute', top: 48, right: 40, pointerEvents: 'none' }}>
-                    <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M7 0L8.2 5.2L14 7L8.2 8.8L7 14L5.8 8.8L0 7L5.8 5.2Z" fill="#C9A227" fillOpacity="0.7"/></svg>
-                  </div>
-                </div>
-              </div>
-              <h2 className="text-[18px] font-light mb-6" style={{ color: "#FAF8F4" }}>Start chatting with AMES</h2>
+              <h2 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', color: '#FFFFFF', marginBottom: 24 }}>Start chatting with AMES</h2>
 
-              {/* Mode segmented control */}
-              <div className="flex rounded-full p-0.5 mb-6" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <button onClick={() => setMode("instant")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "instant" ? "#C9A227" : "transparent", color: mode === "instant" ? "#0B0C0D" : "#9A938A" }}>Instant</button>
-                <button onClick={() => setMode("expert")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "expert" ? "#C9A227" : "transparent", color: mode === "expert" ? "#0B0C0D" : "#9A938A" }}>Expert</button>
+              {/* Mode segmented control — iOS translucent pill */}
+              <div className="flex rounded-full p-[3px] mb-6" style={{ background: '#2C2C2E' }}>
+                <button onClick={() => setMode('instant')} className="px-6 py-1.5 rounded-full text-[13px] transition-all" style={{ background: mode === 'instant' ? '#3A3A3C' : 'transparent', color: mode === 'instant' ? '#FFFFFF' : '#98989E' }}>Instant</button>
+                <button onClick={() => setMode('expert')} className="px-6 py-1.5 rounded-full text-[13px] transition-all" style={{ background: mode === 'expert' ? '#3A3A3C' : 'transparent', color: mode === 'expert' ? '#FFFFFF' : '#98989E' }}>Expert</button>
               </div>
 
-              {/* Quick actions */}
-              <div className="flex gap-2">
-                <button onClick={onBrowseBoutique} className="px-4 py-2 text-[11px] font-light rounded-lg transition-colors" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4" }}>Browse the boutique</button>
-                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-[11px] font-medium text-[#0B0C0D] rounded-lg" style={{ background: "#C9A227" }}>WhatsApp a human</a>
+              {/* Quick actions — iOS style buttons */}
+              <div className="flex gap-3">
+                <button onClick={onBrowseBoutique} className="px-5 py-3 text-[13px] font-medium rounded-xl transition-colors" style={{ background: '#2C2C2E', color: '#FFFFFF', minHeight: 44 }}>Browse the boutique</button>
+                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="px-5 py-3 text-[13px] font-semibold rounded-xl text-center" style={{ background: '#C9A227', color: '#000000', minHeight: 44, display: 'flex', alignItems: 'center' }}>WhatsApp a human</a>
               </div>
             </div>
           ) : (
@@ -468,18 +414,18 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                   {m.role === "assistant" && m.thinking && (
                     <div className="ml-2">
                       <details className="group">
-                        <summary className="text-[10px] font-light cursor-pointer select-none" style={{ color: "#9A938A" }}>Reasoning</summary>
-                        <div className="mt-1 px-3 py-2 text-[11px] font-light leading-relaxed rounded-lg" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)", color: "#9A938A" }}>{m.thinking}</div>
+                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#98989E' }}>Reasoning</summary>
+                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#1C1C1E', border: '1px solid rgba(255,255,255,0.08)', color: '#98989E' }}>{m.thinking}</div>
                       </details>
                     </div>
                   )}
                   <div className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     {m.role === "assistant" && (
-                      <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5" style={{ background: "#C9A227" }}>
-                        <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
+                      <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#C9A227' }}>
+                        <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
                       </div>
                     )}
-                    <div className="max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed font-light" style={m.role === "user" ? { background: "rgba(201,162,39,0.12)", color: "#FAF8F4", borderRadius: "18px 18px 4px 18px", border: "1px solid rgba(201,162,39,0.15)" } : { background: "#16181A", border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4", borderRadius: "18px 18px 18px 4px" }}>
+                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: 'rgba(201,162,39,0.12)', color: '#FFFFFF', borderRadius: '18px 18px 4px 18px', border: '1px solid rgba(201,162,39,0.15)' } : { background: '#1C1C1E', border: '1px solid rgba(255,255,255,0.08)', color: '#FFFFFF', borderRadius: '18px 18px 18px 4px' }) }}>
                       {m.text}
                     </div>
                   </div>
@@ -487,10 +433,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
               ))}
               {typing && (
                 <div className="flex justify-start">
-                  <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5" style={{ background: "#C9A227" }}>
-                    <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
+                  <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#C9A227' }}>
+                    <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
                   </div>
-                  <div className="bg-[#16181A] rounded-2xl rounded-bl-md px-4 py-3 flex gap-1" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div style={{ background: '#1C1C1E', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', display: 'flex', gap: 4, border: '1px solid rgba(255,255,255,0.08)' }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "0ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "150ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "300ms" }} />
@@ -503,9 +449,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
 
         {/* Composer */}
         <div className="shrink-0 px-4 pb-4 pt-2">
-          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
-            {/* DeepThink toggle chip */}
-            <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-light transition-all" style={{ background: deepThink ? "#C9A227" : "transparent", color: deepThink ? "#16181A" : "#9A938A", border: deepThink ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: '#1C1C1E', border: '1px solid rgba(255,255,255,0.08)', minHeight: 44 }}>
+            {/* DeepThink toggle chip — iOS style */}
+            <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#C9A227' : '#3A3A3C', color: deepThink ? '#000000' : '#98989E' }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
               DeepThink
             </button>
@@ -515,9 +461,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               placeholder="Message AMES"
-              className="flex-1 bg-transparent text-[13px] font-light outline-none placeholder:text-[#9A938A]/50"
+              className="flex-1 bg-transparent outline-none"
+              style={{ fontSize: 14, fontWeight: 400, color: '#FFFFFF' }}
             />
-            <button onClick={() => handleSend()} disabled={!input.trim()} className="w-8 h-8 flex items-center justify-center rounded-full text-white disabled:opacity-30 transition-opacity shrink-0" style={{ background: "#C9A227" }}>
+            <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#C9A227', flexShrink: 0, opacity: input.trim() ? 1 : 0.3, transition: 'opacity 0.15s' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" />
               </svg>
@@ -787,7 +734,7 @@ function BoutiqueCard({ stone, onReserve, reserved, highlighted, onPhotoClick }:
   const [wa, setWa] = useState("");
 
   return (
-    <div className="overflow-hidden stone-glow" style={{ background: "#16181A", borderRadius: 12, border: highlighted ? '1px solid #C9A227' : '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="overflow-hidden stone-glow" style={{ background: '#1C1C1E', borderRadius: 12, border: highlighted ? '1px solid #C9A227' : '1px solid rgba(255,255,255,0.08)' }}>
       <div className="aspect-square overflow-hidden relative cursor-zoom-in" onClick={hasPhoto && onPhotoClick ? () => onPhotoClick(stone.photo, stone.ref) : undefined}>
         <img src={hasPhoto ? stone.photo : PLACEHOLDER} alt={stone.ref} className="w-full h-full object-cover" />
         {stone.listing_category === "Jewelry" && (
