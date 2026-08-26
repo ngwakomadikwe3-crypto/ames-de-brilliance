@@ -53,7 +53,8 @@ export async function PATCH(req: NextRequest) {
     }
     // Approve/decline model videos
     if (action === "approve") {
-      const video = await approveModelVideo(String(id));
+      const { house_note, featured_piece, ...rest } = updates;
+      const video = await approveModelVideo(String(id), { house_note, featured_piece });
       if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
       return NextResponse.json(video);
     }
