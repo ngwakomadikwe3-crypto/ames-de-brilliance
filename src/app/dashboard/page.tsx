@@ -1137,7 +1137,7 @@ function TradersTab() {
                   <td className="px-3 py-1.5 font-mono text-muted text-right">{t.created_at.split("T")[0]}</td>
                   <td className="px-3 py-1.5 text-center">
                     {t.status === "Active" ? (
-                      <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase whitespace-nowrap cursor-default" style={t.preferred ? { background: "#C9A227", color: "#FFFFFF", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase whitespace-nowrap cursor-default" style={t.preferred ? { background: "#C9A227", color: "#0B0C0D", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
                         {t.preferred ? "Preferred" : "Set Preferred"}
                       </button>
                     ) : <span className="text-[10px]" style={{ color: "#9A938A" }}>—</span>}
@@ -1227,7 +1227,7 @@ function TradersTab() {
               <div className="text-[12px] font-medium">{t.name}</div>
               <div className="flex items-center gap-1.5">
                 {t.status === "Active" && (
-                  <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase cursor-default" style={t.preferred ? { background: "#C9A227", color: "#FFFFFF", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase cursor-default" style={t.preferred ? { background: "#C9A227", color: "#0B0C0D", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
                     {t.preferred ? "Preferred" : "Set Preferred"}
                   </button>
                 )}

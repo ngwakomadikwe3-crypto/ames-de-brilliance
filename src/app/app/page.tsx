@@ -1,4 +1,3 @@
-import { BrandMark } from "@/components/BrandMark";
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -141,24 +140,26 @@ export default function AppPage() {
         }
       `}</style>
 
-      {/* Slim transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(11,12,13,0.88)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        {/* Left: AMES logo */}
-        <div className="flex items-center">
-          <BrandMark variant="compact" height={22} />
+      {/* Slim transparent top bar — dark vitrine */}
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: "#0B0C0D", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+        {/* Left: 44px charcoal vitrine card with gold SVG glyph */}
+        <div style={{ width: 44, height: 44, background: '#1A1A1A', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg viewBox="0 0 24 24" fill="none" style={{ width: 22, height: 22 }} aria-hidden="true">
+            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.8" strokeLinejoin="round" fill="none"/>
+          </svg>
         </div>
         {/* Centre: panel labels */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {LABELS.map((l, i) => (
             <button key={i} onClick={() => scrollToPanel(i)} className="relative flex flex-col items-center">
-              <span className="text-[11px] uppercase tracking-[0.12em] transition-colors duration-300" style={{ color: activePanel === i ? "#1A1A1A" : "#9A938A", fontWeight: activePanel === i ? 400 : 300 }}>{l}</span>
-              {activePanel === i && <span className="absolute -bottom-1 w-3 h-[3px] rounded-full" style={{ background: "#C9A227" }} />}
+              <span className="text-[11px] uppercase" style={{ color: activePanel === i ? '#FAF8F4' : '#9A938A', letterSpacing: '0.14em', fontWeight: 400 }}>{l}</span>
+              <span className="absolute -bottom-1 h-[2px] rounded-full transition-all duration-300" style={{ background: '#C9A227', width: activePanel === i ? 16 : 0 }} />
             </button>
           ))}
         </div>
-        {/* Right: WhatsApp icon */}
-        <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="flex items-center">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "#FAF8F4" }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/></svg>
+        {/* Right: WhatsApp gold outline bubble icon */}
+        <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-9 h-9 rounded-full" style={{ border: '1.5px solid #C9A227' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A227" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
         </a>
       </div>
 
@@ -595,7 +596,7 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           <div className="grid grid-cols-2 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="overflow-hidden" style={{ background: '#16181A', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="aspect-square relative" style={{ background: '#F0EDE8' }}>
+                <div className="aspect-square relative" style={{ background: '#1a1c1e' }}>
                   <div className="absolute inset-0 shimmer" />
                 </div>
                 <div className="p-4 space-y-2">
