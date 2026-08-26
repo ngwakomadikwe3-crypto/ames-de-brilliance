@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -39,7 +40,9 @@ const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
 
 export default function AppPage() {
   const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window !== "undefined") return !sessionStorage.getItem("ames_splash_seen");
+    if (typeof window === "undefined") return true;
+    if (sessionStorage.getItem("ames_splash_seen")) return false;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
     return true;
   });
   const [splashFading, setSplashFading] = useState(false);
@@ -50,14 +53,14 @@ export default function AppPage() {
 
   useEffect(() => {
     if (!showSplash) return;
-    const f = setTimeout(() => setSplashFading(true), 2500);
+    const f = setTimeout(() => setSplashFading(true), 2400);
     const h = setTimeout(() => { sessionStorage.setItem("ames_splash_seen", "1"); setShowSplash(false); }, 3200);
     return () => { clearTimeout(f); clearTimeout(h); };
   }, [showSplash]);
 
   function handleSplashTap() {
-    setSplashFading(true);
-    setTimeout(() => { sessionStorage.setItem("ames_splash_seen", "1"); setShowSplash(false); }, 400);
+    sessionStorage.setItem("ames_splash_seen", "1");
+    setShowSplash(false);
   }
 
   useEffect(() => {
@@ -119,9 +122,12 @@ export default function AppPage() {
 
   return (
     <>
+      {/* App shell font */}
+      <style>{`@import url('https://db.onlinewebfonts.com/c/e66905e07608167a84e6ad52f638c3c6?family=Helvetica+Now+Var'); :root { font-family: 'Helvetica Now Var', 'Helvetica Neue', Helvetica, Arial, sans-serif; }`}</style>
+
       {showSplash && (
-        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center transition-opacity duration-700 ease-out cursor-pointer" style={{ opacity: splashFading ? 0 : 1 }} onClick={handleSplashTap}>
-          <DiamondHero />
+        <div className="fixed inset-0 z-[100] cursor-pointer" onClick={handleSplashTap}>
+          <DiamondHero fading={splashFading} />
         </div>
       )}
 
@@ -176,61 +182,101 @@ export default function AppPage() {
 }
 
 /* ═══════════════════════════════════════════
-   HERO SPLASH — WebGL Diamond
+   HERO SPLASH — Video + Spinning Diamond
    ═══════════════════════════════════════════ */
 
-function DiamondHero() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const SPLASH_VIDEO = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260514_135830_bb6491d1-9b66-4aec-9722-13b4dfe3fb46.mp4";
+
+function DiamondHero({ fading }: { fading: boolean }) {
+  const [glowIntensity, setGlowIntensity] = useState(0);
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const gl = canvas.getContext("webgl");
-    if (!gl) return;
-    const vs = `attribute vec2 a_pos; void main(){gl_Position=vec4(a_pos,0,1);}`;
-    const fs = `
-      precision mediump float;
-      uniform float u_t;
-      uniform vec2 u_r;
-      float sdHex(vec2 p,float r){vec2 q=abs(p);float d=dot(q,vec2(.866,.5));d=max(d,q.y);return(d-r)*2.;}
-      void main(){
-        vec2 uv=(gl_FragCoord.xy-.5*u_r)/min(u_r.x,u_r.y);
-        float t=u_t*.4;float c=cos(t),s=sin(t);uv=mat2(c,s,-s,c)*uv;
-        vec2 p=uv*1.8;float angle=atan(p.y,p.x);
-        float facets=pow(abs(sin(angle*6.+t*2.)),3.);
-        float diamond=sdHex(p,.6);float edge=smoothstep(.02,.0,abs(diamond));float fill=1.-smoothstep(0.,.02,diamond);
-        float sparkle=facets*fill*.4;vec3 col=vec3(.95+sparkle);
-        col.r+=sin(angle*3.+t)*.05*fill;col.b+=cos(angle*2.+t*1.5)*.05*fill;
-        col+=edge*vec3(1.)*.8;col*=1.-length(uv)*.8;
-        gl_FragColor=vec4(col,fill*.9+edge);
-      }`;
-    const G = gl;
-    function compile(type: number, src: string) { const sh = G.createShader(type)!; G.shaderSource(sh, src); G.compileShader(sh); return sh; }
-    const prog = G.createProgram()!;
-    G.attachShader(prog, compile(G.VERTEX_SHADER, vs));
-    G.attachShader(prog, compile(G.FRAGMENT_SHADER, fs));
-    G.linkProgram(prog); G.useProgram(prog);
-    const buf = G.createBuffer(); G.bindBuffer(G.ARRAY_BUFFER, buf);
-    G.bufferData(G.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), G.STATIC_DRAW);
-    const aP = G.getAttribLocation(prog, "a_pos"); G.enableVertexAttribArray(aP); G.vertexAttribPointer(aP, 2, G.FLOAT, false, 0, 0);
-    const uT = G.getUniformLocation(prog, "u_t"); const uR = G.getUniformLocation(prog, "u_r");
-    let raf: number; const start = performance.now();
-    function draw() {
-      canvas!.width = innerWidth * devicePixelRatio; canvas!.height = innerHeight * devicePixelRatio;
-      G.viewport(0, 0, canvas!.width, canvas!.height); G.clearColor(0, 0, 0, 1); G.clear(G.COLOR_BUFFER_BIT);
-      G.uniform1f(uT, (performance.now() - start) / 1000); G.uniform2f(uR, canvas!.width, canvas!.height);
-      G.drawArrays(G.TRIANGLE_STRIP, 0, 4); raf = requestAnimationFrame(draw);
-    }
-    draw(); return () => cancelAnimationFrame(raf);
+    const t = setTimeout(() => setGlowIntensity(1), 1200);
+    return () => clearTimeout(t);
   }, []);
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      <div className="relative z-10 text-center space-y-3 animate-pulse">
-        <div className="text-white text-[32px] font-bold tracking-[0.25em]">AMES</div>
-        <div className="text-white/50 text-[11px] tracking-[0.15em] uppercase">Botswana&apos;s Diamond GPT</div>
+    <motion.div
+      className="fixed inset-0"
+      style={{ zIndex: 100 }}
+      initial={{ opacity: 1, scale: 1 }}
+      animate={fading ? { opacity: 0, scale: 1.08 } : { opacity: 1, scale: 1 }}
+      transition={{ duration: fading ? 0.8 : 0, ease: "easeOut" }}
+    >
+      {/* Background video */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        src={SPLASH_VIDEO}
+        className="fixed top-0 left-0 w-full object-cover"
+        style={{ height: "100vh", zIndex: 0 }}
+      />
+
+      {/* Diamond centred over video */}
+      <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
+        {/* Soft white glow */}
+        <div
+          className="absolute rounded-full splash-glow"
+          style={{
+            opacity: glowIntensity ? 1 : 0.5,
+            transition: "opacity 1.2s ease-out",
+          }}
+        />
+        {/* Spin wrapper — CSS rotation, no conflict with Framer Motion */}
+        <div className="relative splash-spin">
+          {/* Breathe wrapper — CSS scale, separate from Framer Motion entrance */}
+          <div className="splash-breathe">
+            <motion.img
+              src="/diamond.png"
+              alt=""
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+              className="splash-diamond"
+            />
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* Keyframes and responsive sizing */}
+      <style>{`
+        @keyframes diamondSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes diamondBreathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.04); }
+        }
+        .splash-glow {
+          width: 65vmin;
+          height: 65vmin;
+          background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%);
+          filter: blur(24px);
+        }
+        .splash-spin {
+          animation: diamondSpin 24s linear infinite;
+        }
+        .splash-breathe {
+          animation: diamondBreathe 6s ease-in-out infinite;
+        }
+        .splash-diamond {
+          width: 55vmin;
+          height: 55vmin;
+          object-fit: contain;
+          position: relative;
+          z-index: 1;
+        }
+        @media (max-width: 900px) {
+          .splash-diamond {
+            width: 70vmin;
+            height: 70vmin;
+          }
+        }
+      `}</style>
+    </motion.div>
   );
 }
 
@@ -336,17 +382,17 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
     setMessages(p => [...p, userMsg]);
     setTyping(true);
 
-    // Simulate AMES reply
-    setTimeout(async () => {
-      const replies = [
-        "That\u2019s a great question. Let me look into our current inventory and sourcing options for you.",
-        "We have several stones that may match what you\u2019re looking for. Shall I pull up the latest offerings?",
-        "Absolutely. Our desk can arrange a private viewing or send you detailed specifications. What\u2019s your preference?",
-        "Every stone in our collection comes with full certification. I can walk you through the verification process.",
-        "That\u2019s a beautiful choice. Botswana diamonds carry a unique story \u2014 would you like to know more about the origin?",
-      ];
+    // Call AMES AI with system prompt
+    try {
+      const history = messages.map(m => ({ role: m.role, text: m.text }));
+      const chatRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, history }),
+      });
+      const chatData = await chatRes.json();
+      const replyText = chatData.reply || "That's a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
       const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
-      const replyText = replies[Math.floor(Math.random() * replies.length)];
       const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -354,10 +400,19 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       });
       const assistantMsg: ChatMessage = await assistantRes.json();
       setMessages(p => [...p, assistantMsg]);
+    } catch {
+      const fallback = "That's a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
+      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "assistant", text: fallback }),
+      });
+      const assistantMsg: ChatMessage = await assistantRes.json();
+      setMessages(p => [...p, assistantMsg]);
+    } finally {
       setTyping(false);
-      // Refresh chat list to update titles
       fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
-    }, 1200 + Math.random() * 800);
+    }
   }
 
   // If no AI configured, show WhatsApp fallback
