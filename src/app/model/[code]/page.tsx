@@ -61,7 +61,7 @@ export default function ModelPortal() {
 
   if (loading && !authenticated) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#FAF8F4" }}>
+      <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#0B0C0D" }}>
         <div className="text-[12px]" style={{ color: "#9A938A" }}>Loading...</div>
       </div>
     );
@@ -70,28 +70,28 @@ export default function ModelPortal() {
   // Show login if not authenticated
   if (!authenticated && !model) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#0B0C0D" }}>
         <div className="w-full max-w-sm">
           {/* Logo */}
           <div className="text-center mb-8">
             <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto mb-3">
               <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
             </svg>
-            <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
+            <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#FAF8F4" }}>AMES</h1>
             <p className="text-[11px] mt-2" style={{ color: "#9A938A" }}>Model Portal</p>
           </div>
 
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Phone Number</label>
+              <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Phone Number</label>
               <input
                 type="tel"
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 placeholder="+267 XX XXX XXX"
                 className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-                style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+                style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
                 required
               />
             </div>
@@ -122,12 +122,12 @@ export default function ModelPortal() {
   // Inactive model
   if (model && model.status !== "Active") {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#0B0C0D" }}>
         <div className="max-w-sm text-center space-y-4">
           <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto">
             <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
           </svg>
-          <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
+          <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#FAF8F4" }}>AMES</h1>
           <p className="text-[13px] font-light leading-relaxed" style={{ color: "#9A938A" }}>
             This roster is invitation-only.
           </p>
@@ -144,14 +144,14 @@ type Tab = "post" | "myvideos";
 function ModelTabs({ model }: { model: Model }) {
   const [tab, setTab] = useState<Tab>("post");
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#0B0C0D" }}>
       {/* Header */}
       <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
             <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
           </svg>
-          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#1A1A1A" }}>{model.name}</span>
+          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#FAF8F4" }}>{model.name}</span>
           {model.instagram && (
             <span className="text-[10px] font-light font-mono" style={{ color: "#9A938A" }}>@{model.instagram}</span>
           )}
@@ -239,7 +239,7 @@ function PostVideoTab({ model }: { model: Model }) {
 
   if (submitted) return (
     <div className="p-6 text-center space-y-3">
-      <p className="text-[13px] font-light" style={{ color: "#1A1A1A" }}>Video submitted for review.</p>
+      <p className="text-[13px] font-light" style={{ color: "#FAF8F4" }}>Video submitted for review.</p>
       <p className="text-[11px] font-light" style={{ color: "#9A938A" }}>
         The desk will review and publish. Track status in "My videos".
       </p>
@@ -256,7 +256,7 @@ function PostVideoTab({ model }: { model: Model }) {
   return (
     <div className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
       {/* House rules */}
-      <div className="p-3 space-y-1.5" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+      <div className="p-3 space-y-1.5" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="text-[10px] uppercase tracking-wider font-light" style={{ color: "#9A938A" }}>House Rules</div>
         <ul className="text-[11px] font-light leading-relaxed space-y-1" style={{ color: "#9A938A" }}>
           <li>• Real pieces only — no replicas, no stock imagery</li>
@@ -273,7 +273,7 @@ function PostVideoTab({ model }: { model: Model }) {
       )}
 
       <div>
-        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Video</span>
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Video</span>
         <div className="flex gap-2">
           <label className="flex-1">
             <input
@@ -292,29 +292,29 @@ function PostVideoTab({ model }: { model: Model }) {
             onChange={e => setUrl(e.target.value)}
             placeholder="Paste URL"
             className="flex-1 px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
           />
         </div>
       </div>
 
       <div>
-        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Caption</span>
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Caption</span>
         <input
           value={caption}
           onChange={e => setCaption(e.target.value)}
           placeholder="One line — describe the piece, not the price"
           className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
         />
       </div>
 
       <div>
-        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Link to stone (optional)</span>
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Link to stone (optional)</span>
         <select
           value={linkedStone}
           onChange={e => setLinkedStone(e.target.value)}
           className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
         >
           <option value="">None</option>
           {stones.map(s => (
@@ -387,7 +387,7 @@ function MyVideosTab({ model }: { model: Model }) {
     <div className="p-4 space-y-3">
       {/* Monthly Summary */}
       {summary && (
-        <div className="p-3 mb-2" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+        <div className="p-3 mb-2" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#9A938A" }}>This Month</div>
           <div className="flex gap-4 text-[11px] font-light" style={{ fontFamily: "monospace" }}>
             <span><strong>{summary.approved_this_month}</strong>/30 approved</span>
@@ -402,7 +402,7 @@ function MyVideosTab({ model }: { model: Model }) {
       {videos.map(v => {
         const badge = statusBadge(v.status);
         return (
-          <div key={v.id} className="flex gap-3 items-start p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+          <div key={v.id} className="flex gap-3 items-start p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
             <div className="w-20 h-28 overflow-hidden shrink-0" style={{ background: "#1A1A1A" }}>
               <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
             </div>
@@ -415,7 +415,7 @@ function MyVideosTab({ model }: { model: Model }) {
                   <span className="text-[10px] font-mono" style={{ color: "#9A938A" }}>→ {v.stone_ref}</span>
                 )}
               </div>
-              <div className="text-[11px] truncate" style={{ color: "#1A1A1A" }}>{v.caption || "No caption"}</div>
+              <div className="text-[11px] truncate" style={{ color: "#FAF8F4" }}>{v.caption || "No caption"}</div>
               <div className="flex gap-3 mt-1 text-[10px] font-mono" style={{ color: "#9A938A" }}>
                 <span>{v.tap_count} taps</span>
                 <span>{v.reserve_count} reserves</span>

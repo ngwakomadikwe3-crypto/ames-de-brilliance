@@ -57,7 +57,7 @@ export default function SignInPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 min-h-[44px] bg-[#1A1A1A] text-[#FAF8F4] text-[13px] font-medium cursor-default disabled:opacity-50"
+            className="w-full py-2 min-h-[44px] bg-[#C9A227] text-[#0B0C0D] text-[13px] font-medium cursor-default disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

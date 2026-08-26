@@ -70,7 +70,7 @@ export default function TraderPage() {
   }
 
   if (loading) return (
-    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#0B0C0D" }}>
       <div className="text-[12px]" style={{ color: "#9A938A" }}>Loading...</div>
     </div>
   );
@@ -108,13 +108,13 @@ function TraderPublic({ code }: { code: string }) {
   }, [code]);
 
   if (loading) return (
-    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#0B0C0D" }}>
       <div className="text-[12px]" style={{ color: "#9A938A" }}>Loading...</div>
     </div>
   );
 
   if (!trader) return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#0B0C0D" }}>
       <div className="max-w-sm text-center space-y-4">
         <BrandMark height={36} />
         <p className="text-[13px] font-light text-[#9A938A]">This portfolio is not available.</p>
@@ -125,18 +125,18 @@ function TraderPublic({ code }: { code: string }) {
   const live = stones.filter((s: any) => s.status === "Available");
 
   return (
-    <div className="min-h-[100dvh]" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh]" style={{ background: "#0B0C0D" }}>
       {/* Header */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 pt-12 pb-8">
         <div className="mb-6"><BrandMark height={28} /></div>
 
         <div className="flex items-start gap-6 mb-6">
           <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center shrink-0"
-            style={{ border: "1px solid #EAE4DA", background: "#F0EDE8" }}>
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1a1c1e" }}>
             <span className="text-[20px] font-light text-[#9A938A]">{(trader.name || "?")[0]}</span>
           </div>
           <div>
-            <h1 className="text-[20px] font-light text-[#1A1A1A] mb-1">{trader.name}</h1>
+            <h1 className="text-[20px] font-light text-[#FAF8F4] mb-1">{trader.name}</h1>
             {trader.company && <p className="text-[12px] font-light text-[#9A938A]">{trader.company}</p>}
             {trader.country && <p className="text-[11px] font-light text-[#9A938A] mt-1">{trader.country}</p>}
           </div>
@@ -144,7 +144,7 @@ function TraderPublic({ code }: { code: string }) {
 
         {trader.preferred && (
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-6"
-            style={{ border: "1px solid #C9A227", background: "rgba(250,248,244,0.9)" }}>
+            style={{ border: "1px solid #C9A227", background: "rgba(22,24,26,0.9)" }}>
             <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
               <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
             </svg>
@@ -169,8 +169,8 @@ function TraderPublic({ code }: { code: string }) {
             {live.map((s: any) => {
               const photos = (s.photo || "").split("|").filter((u: string) => u.length > 10 && u.startsWith("http"));
               return (
-                <div key={s.id} style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
-                  <div className="aspect-square overflow-hidden relative" style={{ background: "#F0EDE8" }}>
+                <div key={s.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
+                  <div className="aspect-square overflow-hidden relative" style={{ background: "#1a1c1e" }}>
                     {photos.length > 0 ? (
                       <img src={photos[0]} alt={s.ref} className="w-full h-full object-cover" />
                     ) : (
@@ -180,7 +180,7 @@ function TraderPublic({ code }: { code: string }) {
                   <div className="p-3">
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-[10px] font-mono text-[#9A938A]">{s.ref}</span>
-                      <span className="text-[11px] font-light text-[#1A1A1A]">{s.price ? `$${s.price.toLocaleString()}` : "Price on request"}</span>
+                      <span className="text-[11px] font-light text-[#FAF8F4]">{s.price ? `$${s.price.toLocaleString()}` : "Price on request"}</span>
                     </div>
                     <p className="text-[10px] font-light text-[#9A938A]">{s.shape} {s.carat}ct {s.color}</p>
                   </div>
@@ -229,7 +229,7 @@ function TraderLogin({ code }: { code: string }) {
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#0B0C0D" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <BrandMark height={32} />
@@ -238,14 +238,14 @@ function TraderLogin({ code }: { code: string }) {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Phone Number</label>
+            <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Phone Number</label>
             <input
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+267 XX XXX XXX"
               className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-              style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+              style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
               required
             />
           </div>
@@ -281,11 +281,11 @@ type Tab = "list" | "items" | "numbers" | "reports";
 function TraderTabs({ trader }: { trader: Trader }) {
   const [tab, setTab] = useState<Tab>("list");
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#FAF8F4" }}>
+    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#0B0C0D" }}>
       <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
         <div className="flex items-center gap-2">
-          <BrandMark compact height={18} />
-          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#1A1A1A" }}>{trader.name}</span>
+          <BrandMark variant="compact" height={18} />
+          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#FAF8F4" }}>{trader.name}</span>
         </div>
       </div>
 
@@ -373,20 +373,20 @@ function TraderNumbersTab({ trader }: { trader: Trader }) {
       <div className="text-[12px] font-medium text-[#9A938A] uppercase tracking-wider">Performance</div>
       <div className="grid grid-cols-3 gap-3">
         {stats.map(s => (
-          <div key={s.label} className="text-center p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
-            <div className="text-[18px] font-light text-[#1A1A1A]">{s.value}</div>
+          <div key={s.label} className="text-center p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
+            <div className="text-[18px] font-light text-[#FAF8F4]">{s.value}</div>
             <div className="text-[9px] uppercase tracking-wider text-[#9A938A] mt-1">{s.label}</div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+        <div className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
           <div className="text-[10px] uppercase tracking-wider text-[#9A938A] mb-1">This Month — Sales</div>
           <div className="text-[14px] font-light">{thisMonthSold.length}</div>
           <div className="text-[11px] text-[#9A938A]">${thisMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
         </div>
-        <div className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+        <div className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
           <div className="text-[10px] uppercase tracking-wider text-[#9A938A] mb-1">Last Month — Sales</div>
           <div className="text-[14px] font-light">{lastMonthSold.length}</div>
           <div className="text-[11px] text-[#9A938A]">${lastMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
@@ -467,7 +467,7 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
   if (saved) return (
     <div className="p-6 text-center space-y-3">
-      <p className="text-[13px] font-light" style={{ color: "#1A1A1A" }}><strong>{saved}</strong> submitted for review.</p>
+      <p className="text-[13px] font-light" style={{ color: "#FAF8F4" }}><strong>{saved}</strong> submitted for review.</p>
       <p className="text-[11px] font-light" style={{ color: "#9A938A" }}>The desk will review and publish your item.</p>
       <button onClick={() => setSaved(null)} className="text-[12px] font-light" style={{ color: "#C9A227" }}>List another</button>
     </div>
@@ -476,10 +476,10 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Photos (up to 6)</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Photos (up to 6)</label>
         <div className="grid grid-cols-3 gap-2 mb-2">
           {photoUrls.map((url, idx) => (
-            <div key={idx} className="relative aspect-square overflow-hidden" style={{ border: "1px solid #EAE4DA" }}>
+            <div key={idx} className="relative aspect-square overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
               <img src={url} alt="" className="w-full h-full object-cover" />
               <button type="button" onClick={() => removePhoto(idx)}
                 className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
@@ -499,10 +499,10 @@ function SingleItemForm({ trader }: { trader: Trader }) {
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Category</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Category</label>
         <select value={lc} onChange={e => setLc(e.target.value as any)}
           className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}>
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}>
           <option>Rough</option>
           <option>Polished</option>
           <option>Jewelry</option>
@@ -510,49 +510,49 @@ function SingleItemForm({ trader }: { trader: Trader }) {
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>{lc === "Jewelry" ? "Piece description" : "Shape"}</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>{lc === "Jewelry" ? "Piece description" : "Shape"}</label>
         <input name="shape" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
           placeholder={lc === "Jewelry" ? "e.g. Tennis bracelet" : "e.g. Round Brilliant"} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Carat</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Carat</label>
           <input name="carat" type="number" step="0.01" min="0.01" required
             className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} />
         </div>
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Color</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Color</label>
           <input name="color" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. G" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="e.g. G" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Clarity</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Clarity</label>
           <input name="clarity" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. VS1" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="e.g. VS1" />
         </div>
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Certification</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Certification</label>
           <input name="certification" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. GIA" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="e.g. GIA" />
         </div>
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Asking Price (USD)</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Asking Price (USD)</label>
         <input name="price" type="number" min="0" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="Leave blank for price on request" />
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="Leave blank for price on request" />
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Notes</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Notes</label>
         <textarea name="clarity_notes" rows={3} className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none resize-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="Any extra detail..." />
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="Any extra detail..." />
       </div>
 
       <button type="submit" disabled={uploading}
@@ -634,10 +634,10 @@ function PasteListTab({ trader }: { trader: Trader }) {
   return (
     <div className="p-4 max-w-3xl mx-auto w-full flex flex-col gap-4">
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Paste stock text</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Paste stock text</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="w-full px-4 py-3 text-[13px] font-light rounded-lg outline-none resize-y"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }}
           placeholder="Paste WhatsApp messages or stone listing text here..." />
       </div>
       <button onClick={handleParse} disabled={parsing || !text.trim()}
@@ -657,7 +657,7 @@ function PasteListTab({ trader }: { trader: Trader }) {
             const s = getStone(i);
             const isRough = s.type === "rough";
             return (
-              <div key={i} className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+              <div key={i} className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
                 <label className="flex items-start gap-2 cursor-default">
                   <input type="checkbox" checked={checked[i] !== false}
                     onChange={e => setChecked(prev => ({ ...prev, [i]: e.target.checked }))} className="mt-0.5" />
@@ -667,32 +667,32 @@ function PasteListTab({ trader }: { trader: Trader }) {
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>{isRough ? "Crystal Form" : "Shape"}</label>
                         <input value={s.shape_or_form || ""} onChange={e => updateEdit(i, "shape_or_form", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>Carat</label>
                         <input value={s.carat || ""} onChange={e => updateEdit(i, "carat", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>Color</label>
                         <input value={s.color || ""} onChange={e => updateEdit(i, "color", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>Clarity</label>
                         <input value={s.clarity || ""} onChange={e => updateEdit(i, "clarity", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>Certification</label>
                         <input value={s.certification || ""} onChange={e => updateEdit(i, "certification", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                       <div>
                         <label className="text-[10px]" style={{ color: "#9A938A" }}>Price</label>
                         <input value={s.price ?? ""} onChange={e => updateEdit(i, "price", e.target.value ? Number(e.target.value) : null)} type="number"
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
                       </div>
                     </div>
                   </div>
@@ -701,7 +701,7 @@ function PasteListTab({ trader }: { trader: Trader }) {
             );
           })}
           {published ? (
-            <div className="p-3 rounded-lg text-[11px]" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+            <div className="p-3 rounded-lg text-[11px]" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
               <p className="font-medium mb-1">{published.length} items submitted for review.</p>
               <p style={{ color: "#9A938A" }}>The desk will review and publish.</p>
             </div>
@@ -760,20 +760,20 @@ function MyItemsTab({ trader }: { trader: Trader }) {
         const badge = statusBadge(s.status);
 
         return (
-          <div key={s.id} style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+          <div key={s.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
             <div className="flex gap-3 p-3 cursor-default" onClick={() => setExpanded(isOpen ? null : s.id)}>
-              <div className="w-16 h-16 overflow-hidden shrink-0" style={{ background: "#FAF8F4" }}>
+              <div className="w-16 h-16 overflow-hidden shrink-0" style={{ background: "#0B0C0D" }}>
                 <img src={mainPhoto} alt={s.ref} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium" style={{ color: "#1A1A1A", fontFamily: "monospace" }}>{s.ref}</span>
+                  <span className="text-[11px] font-medium" style={{ color: "#FAF8F4", fontFamily: "monospace" }}>{s.ref}</span>
                   <span className="text-[9px] font-medium uppercase px-1.5 py-0.5 rounded" style={{ background: badge.bg, color: badge.text }}>{s.status}</span>
                 </div>
                 <div className="text-[11px] mt-0.5" style={{ color: "#9A938A" }}>
                   {s.shape} · {s.carat}ct · {s.color} · {s.clarity || s.certification}
                 </div>
-                <div className="text-[11px] font-medium mt-0.5" style={{ color: "#1A1A1A" }}>
+                <div className="text-[11px] font-medium mt-0.5" style={{ color: "#FAF8F4" }}>
                   {s.price ? `$${s.price.toLocaleString()}` : "Price on request"}
                 </div>
                 {s.sales_count != null && s.sales_count > 0 && (
@@ -834,10 +834,10 @@ function ReportsTab({ trader }: { trader: Trader }) {
         let data: any = {};
         try { data = JSON.parse(r.data || "{}"); } catch {}
         return (
-          <div key={r.id} style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+          <div key={r.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }}>
             <div className="p-3 cursor-default" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>
               <div className="flex items-center justify-between">
-                <div className="text-[12px] font-light" style={{ color: "#1A1A1A" }}>
+                <div className="text-[12px] font-light" style={{ color: "#FAF8F4" }}>
                   Week of {r.period_start?.split("T")[0] || ""} — {r.period_end?.split("T")[0] || ""}
                 </div>
                 <span className="text-[10px] font-mono" style={{ color: "#9A938A" }}>{r.created_at?.split("T")[0] || ""}</span>
@@ -852,15 +852,15 @@ function ReportsTab({ trader }: { trader: Trader }) {
             {expanded === r.id && (
               <div className="p-3 space-y-3" style={{ borderTop: "1px solid #EAE4DA" }}>
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="p-2" style={{ border: "1px solid #EAE4DA" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">{data.live?.length || 0}</div>
                     <div className="text-[9px] uppercase tracking-wider" style={{ color: "#9A938A" }}>Live</div>
                   </div>
-                  <div className="p-2" style={{ border: "1px solid #EAE4DA" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">{data.sold?.length || 0}</div>
                     <div className="text-[9px] uppercase tracking-wider" style={{ color: "#9A938A" }}>Sold</div>
                   </div>
-                  <div className="p-2" style={{ border: "1px solid #EAE4DA" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">${(data.total_commission || 0).toLocaleString()}</div>
                     <div className="text-[9px] uppercase tracking-wider" style={{ color: "#9A938A" }}>Commission</div>
                   </div>

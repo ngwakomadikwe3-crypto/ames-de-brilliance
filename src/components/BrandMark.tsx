@@ -5,14 +5,15 @@ type Props = {
   variant?: "full" | "compact";
   /** Override height in px (default: 36 full, 20 compact) */
   height?: number;
-  /** Force dark text on dark backgrounds */
+  /** Force light text on dark backgrounds */
   dark?: boolean;
 };
 
-export function BrandMark({ variant = "full", height, dark = false }: Props) {
+export function BrandMark({ variant = "full", height, dark = true }: Props) {
   const gold = "#C9A227";
-  const text = dark ? "#FFFFFF" : "#1A1A1A";
-  const sub = dark ? "rgba(255,255,255,0.6)" : "#9A938A";
+  // Always ivory for AMES wordmark on dark vitrine background
+  const text = "#FAF8F4";
+  const sub = "#C9A227";
 
   if (variant === "compact") {
     const h = height ?? 20;

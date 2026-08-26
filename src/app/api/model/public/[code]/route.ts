@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc, doc, DB_ID } from "@/lib/appwrite";
+import { Query } from "node-appwrite";
 
 export async function GET(
   _req: Request,
@@ -9,26 +10,30 @@ export async function GET(
   await ensureReady();
   try {
     const db = await getDbSvc();
-    const modelRes = await db.listDocuments(DB_ID, "models", [
-      doc("equal", "portal_code", code),
-    ]);
+    const modelRes = await db.listDocuments({
+      databaseId: DB_ID,
+      collectionId: "models",
+      queries: [Query.equal("portal_code", code), Query.limit(1)],
+    });
     if (modelRes.documents.length === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const m = modelRes.documents[0] as any;
-    if (m.status !== "Active") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
     const safeModel = {
       name: m.name,
-      instagram: m.instagram || "",
+      instagram: m.instagram,
+      bio: m.bio,
+      photo: m.profile_photo,
     };
 
-    // Get live videos
-    const videoRes = await db.listDocuments(DB_ID, "videos", [
-      doc("equal", "model_id", m.$id),
-      doc("equal", "status", "Live"),
-    ]);
+    const videoRes = await db.listDocuments({
+      databaseId: DB_ID,
+      collectionId: "videos",
+      queries: [
+        Query.equal("model_id", m.$id),
+        Query.equal("status", "Live"),
+      ],
+    });
 
     return NextResponse.json({
       model: safeModel,

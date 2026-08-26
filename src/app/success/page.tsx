@@ -6,7 +6,7 @@ export default function SuccessPage() {
         <p className="text-[12px] text-muted mb-6">Our desk responds within one business day.</p>
         <a
           href="/"
-          className="inline-block px-4 py-2 bg-[#1A1A1A] text-[#FAF8F4] text-[12px] font-medium"
+          className="inline-block px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[12px] font-medium"
         >
           Back to stock
         </a>

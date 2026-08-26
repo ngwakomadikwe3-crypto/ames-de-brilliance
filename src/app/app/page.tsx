@@ -106,8 +106,7 @@ export default function AppPage() {
     <>
       {/* App shell font */}
       <style>{`
-        @import url('https://db.onlinewebfonts.com/c/e66905e07608167a84e6ad52f638c3c6?family=Helvetica+Now+Var');
-        :root { font-family: 'Helvetica Now Var', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        :root { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
         @keyframes shimmer {
           0% { background-position: -400px 0; }
           100% { background-position: 400px 0; }
@@ -117,10 +116,33 @@ export default function AppPage() {
           background-size: 400px 100%;
           animation: shimmer 1.6s ease-in-out infinite;
         }
+        @keyframes breathe {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+          100% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+        }
+        .vitrine-glow {
+          position: absolute; top: 50%; left: 50%;
+          width: 200px; height: 200px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(201,162,39,0.22) 0%, rgba(201,162,39,0.06) 50%, transparent 70%);
+          animation: breathe 12s ease-in-out infinite alternate;
+          pointer-events: none;
+        }
+        @keyframes sparkle {
+          0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+          50% { opacity: 1; transform: scale(1) rotate(180deg); }
+        }
+        .sparkle-1 { animation: sparkle 3s ease-in-out infinite; animation-delay: 0s; }
+        .sparkle-2 { animation: sparkle 3s ease-in-out infinite; animation-delay: 1.5s; }
+        @media (prefers-reduced-motion: reduce) {
+          .vitrine-glow, .sparkle-1, .sparkle-2, .shimmer {
+            animation: none !important;
+          }
+          .vitrine-glow { opacity: 1; transform: translate(-50%, -50%); }
+        }
       `}</style>
 
       {/* Slim transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(250,248,244,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #EAE4DA" }}>
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(11,12,13,0.88)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
         {/* Left: AMES logo */}
         <div className="flex items-center">
           <BrandMark variant="compact" height={22} />
@@ -136,7 +158,7 @@ export default function AppPage() {
         </div>
         {/* Right: WhatsApp icon */}
         <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="flex items-center">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "#1A1A1A" }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ color: "#FAF8F4" }}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="currentColor"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill="currentColor"/></svg>
         </a>
       </div>
 
@@ -156,13 +178,13 @@ export default function AppPage() {
 
       {/* Desktop edge arrows — 40% opacity */}
       {activePanel > 0 && (
-        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-black/5 backdrop-blur-sm border border-black/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-sm border border-white/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF8F4" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
       {activePanel < 2 && (
-        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-black/5 backdrop-blur-sm border border-black/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
+        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 backdrop-blur-sm border border-white/10 opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FAF8F4" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
     </>
@@ -313,12 +335,12 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const showEmpty = !activeChatId && messages.length === 0;
 
   return (
-    <div className="flex-1 flex min-h-0" style={{ background: "#FAF8F4" }}>
+    <div className="flex-1 flex min-h-0" style={{ background: "#0B0C0D" }}>
       {/* Sidebar — desktop: always visible; mobile: toggle */}
-      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "#EAE4DA", background: "#FAF8F4" }}>
+      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0B0C0D" }}>
         {/* New chat pill */}
         <div className="px-3 pt-14 pb-2">
-          <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-light transition-colors" style={{ border: "1px solid #EAE4DA", color: "#1A1A1A" }}>
+          <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-light transition-colors" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
             New chat
           </button>
@@ -329,7 +351,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
             <div key={g.label} className="mb-3">
               <div className="text-[10px] uppercase tracking-[0.08em] px-2 py-1.5 font-light" style={{ color: "#9A938A" }}>{g.label}</div>
               {g.items.map(c => (
-                <button key={c.id} onClick={() => loadChat(c.id)} className={`w-full text-left px-2 py-1.5 rounded-md text-[12px] font-light truncate transition-colors ${activeChatId === c.id ? "" : ""}`} style={{ color: activeChatId === c.id ? "#1A1A1A" : "#9A938A", background: activeChatId === c.id ? "#FFFFFF" : "transparent", border: activeChatId === c.id ? "1px solid #EAE4DA" : "1px solid transparent" }}>
+                <button key={c.id} onClick={() => loadChat(c.id)} className={`w-full text-left px-2 py-1.5 rounded-md text-[12px] font-light truncate transition-colors ${activeChatId === c.id ? "" : ""}`} style={{ color: activeChatId === c.id ? "#1A1A1A" : "#9A938A", background: activeChatId === c.id ? "rgba(255,255,255,0.08)" : "transparent", border: activeChatId === c.id ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent" }}>
                   {c.title}
                 </button>
               ))}
@@ -341,7 +363,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[80] md:hidden" onClick={() => setSidebarOpen(false)}>
-          <div className="absolute inset-0 bg-black/30" />
+          <div className="absolute inset-0 bg-black/60" />
         </div>
       )}
 
@@ -349,7 +371,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       <div className="flex-1 flex flex-col min-h-0 min-w-0">
         {/* Top bar with mobile history toggle */}
         <div className="shrink-0 flex items-center px-3 pt-12 pb-1 md:hidden">
-          <button onClick={() => setSidebarOpen(p => !p)} className="p-2 rounded-lg" style={{ color: "#1A1A1A" }}>
+          <button onClick={() => setSidebarOpen(p => !p)} className="p-2 rounded-lg" style={{ color: "#FAF8F4" }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
           </button>
         </div>
@@ -357,24 +379,41 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         {/* Messages scroll area */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
           {showEmpty ? (
-            /* Empty state — centred heading */
+            /* Empty state — vitrine showcase */
             <div className="h-full flex flex-col items-center justify-center px-4">
-              <div className="flex items-center gap-2 mb-6">
-                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" /></svg>
-                <span className="text-[14px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</span>
+              {/* Gold glyph 44px */}
+              <svg viewBox="0 0 24 24" fill="none" className="mb-5" style={{ width: 44, height: 44 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.8" strokeLinejoin="round" fill="none" /></svg>
+              {/* Vitrine card — pure SVG+CSS, no external images */}
+              <div className="relative w-full max-w-[340px] mb-8" style={{ background: '#1A1A1A', borderRadius: 12, border: '1px solid #C9A227', overflow: 'hidden' }}>
+                <div style={{ height: 260, position: 'relative', overflow: 'hidden' }}>
+                  {/* Radial gold glow behind glyph */}
+                  <div className="vitrine-glow" />
+                  {/* Diamond glyph 120px, centred */}
+                  <svg viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 120, height: 120 }} aria-hidden="true">
+                    <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+                  </svg>
+                  {/* Sparkle 1 — top-left */}
+                  <div className="sparkle-1" style={{ position: 'absolute', top: 32, left: 36, pointerEvents: 'none' }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0L8.2 5.2L14 7L8.2 8.8L7 14L5.8 8.8L0 7L5.8 5.2Z" fill="#C9A227" fillOpacity="0.9"/></svg>
+                  </div>
+                  {/* Sparkle 2 — top-right */}
+                  <div className="sparkle-2" style={{ position: 'absolute', top: 48, right: 40, pointerEvents: 'none' }}>
+                    <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M7 0L8.2 5.2L14 7L8.2 8.8L7 14L5.8 8.8L0 7L5.8 5.2Z" fill="#C9A227" fillOpacity="0.7"/></svg>
+                  </div>
+                </div>
               </div>
-              <h2 className="text-[18px] font-light mb-6" style={{ color: "#1A1A1A" }}>Start chatting with AMES</h2>
+              <h2 className="text-[18px] font-light mb-6" style={{ color: "#FAF8F4" }}>Start chatting with AMES</h2>
 
               {/* Mode segmented control */}
-              <div className="flex rounded-full p-0.5 mb-6" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
-                <button onClick={() => setMode("instant")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "instant" ? "#1A1A1A" : "transparent", color: mode === "instant" ? "#FFFFFF" : "#9A938A" }}>Instant</button>
-                <button onClick={() => setMode("expert")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "expert" ? "#1A1A1A" : "transparent", color: mode === "expert" ? "#FFFFFF" : "#9A938A" }}>Expert</button>
+              <div className="flex rounded-full p-0.5 mb-6" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <button onClick={() => setMode("instant")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "instant" ? "#C9A227" : "transparent", color: mode === "instant" ? "#0B0C0D" : "#9A938A" }}>Instant</button>
+                <button onClick={() => setMode("expert")} className="px-5 py-1.5 rounded-full text-[11px] font-light transition-all" style={{ background: mode === "expert" ? "#C9A227" : "transparent", color: mode === "expert" ? "#0B0C0D" : "#9A938A" }}>Expert</button>
               </div>
 
               {/* Quick actions */}
               <div className="flex gap-2">
-                <button onClick={onBrowseBoutique} className="px-4 py-2 text-[11px] font-light rounded-lg transition-colors" style={{ border: "1px solid #EAE4DA", color: "#1A1A1A" }}>Browse the boutique</button>
-                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-[11px] font-medium text-white rounded-lg" style={{ background: "#C9A227" }}>WhatsApp a human</a>
+                <button onClick={onBrowseBoutique} className="px-4 py-2 text-[11px] font-light rounded-lg transition-colors" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4" }}>Browse the boutique</button>
+                <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" className="px-4 py-2 text-[11px] font-medium text-[#0B0C0D] rounded-lg" style={{ background: "#C9A227" }}>WhatsApp a human</a>
               </div>
             </div>
           ) : (
@@ -387,7 +426,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                     <div className="ml-2">
                       <details className="group">
                         <summary className="text-[10px] font-light cursor-pointer select-none" style={{ color: "#9A938A" }}>Reasoning</summary>
-                        <div className="mt-1 px-3 py-2 text-[11px] font-light leading-relaxed rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA", color: "#9A938A" }}>{m.thinking}</div>
+                        <div className="mt-1 px-3 py-2 text-[11px] font-light leading-relaxed rounded-lg" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)", color: "#9A938A" }}>{m.thinking}</div>
                       </details>
                     </div>
                   )}
@@ -397,7 +436,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                         <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
                       </div>
                     )}
-                    <div className="max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed font-light" style={m.role === "user" ? { background: "#1A1A1A", color: "#FFFFFF", borderRadius: "18px 18px 4px 18px" } : { background: "#FFFFFF", border: "1px solid #EAE4DA", color: "#1A1A1A", borderRadius: "18px 18px 18px 4px" }}>
+                    <div className="max-w-[85%] px-4 py-2.5 text-[13px] leading-relaxed font-light" style={m.role === "user" ? { background: "rgba(201,162,39,0.12)", color: "#FAF8F4", borderRadius: "18px 18px 4px 18px", border: "1px solid rgba(201,162,39,0.15)" } : { background: "#16181A", border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4", borderRadius: "18px 18px 18px 4px" }}>
                       {m.text}
                     </div>
                   </div>
@@ -408,7 +447,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                   <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center mr-2 mt-0.5" style={{ background: "#C9A227" }}>
                     <svg viewBox="0 0 24 24" fill="none" className="w-3 h-3"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="white" strokeWidth="1.5" fill="none" /></svg>
                   </div>
-                  <div className="bg-white rounded-2xl rounded-bl-md px-4 py-3 flex gap-1" style={{ border: "1px solid #EAE4DA" }}>
+                  <div className="bg-[#16181A] rounded-2xl rounded-bl-md px-4 py-3 flex gap-1" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "0ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "150ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#C9A227", animationDelay: "300ms" }} />
@@ -421,9 +460,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
 
         {/* Composer */}
         <div className="shrink-0 px-4 pb-4 pt-2">
-          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-2xl px-4 py-2" style={{ background: "#16181A", border: "1px solid rgba(255,255,255,0.08)" }}>
             {/* DeepThink toggle chip */}
-            <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-light transition-all" style={{ background: deepThink ? "#C9A227" : "transparent", color: deepThink ? "#FFFFFF" : "#9A938A", border: deepThink ? "none" : "1px solid #EAE4DA" }}>
+            <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-light transition-all" style={{ background: deepThink ? "#C9A227" : "transparent", color: deepThink ? "#16181A" : "#9A938A", border: deepThink ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
               DeepThink
             </button>
@@ -526,11 +565,11 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#FAF8F4" }}>
+    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#0B0C0D" }}>
       {/* Category chips */}
       <div className="shrink-0 px-5 pt-14 pb-3 flex gap-2">
         {(["All", "Polished", "Jewelry"] as const).map(c => (
-          <button key={c} onClick={() => setFilter(c)} className="px-4 py-1.5 rounded-full text-[11px] font-light transition-colors cursor-default" style={{ background: filter === c ? "#C9A227" : "#FFFFFF", color: filter === c ? "#FFFFFF" : "#1A1A1A", border: filter === c ? "none" : "1px solid #EAE4DA" }}>
+          <button key={c} onClick={() => setFilter(c)} className="px-4 py-1.5 rounded-full text-[11px] font-light transition-colors cursor-default" style={{ background: filter === c ? "#C9A227" : "#16181A", color: filter === c ? "#16181A" : "#1A1A1A", border: filter === c ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
             {c}
           </button>
         ))}
@@ -555,7 +594,7 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
         {loading ? (
           <div className="grid grid-cols-2 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="overflow-hidden" style={{ background: '#FFFFFF', border: '1px solid #EAE4DA' }}>
+              <div key={i} className="overflow-hidden" style={{ background: '#16181A', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="aspect-square relative" style={{ background: '#F0EDE8' }}>
                   <div className="absolute inset-0 shimmer" />
                 </div>
@@ -677,10 +716,10 @@ function PhotoZoom({ src, alt, onClose }: { src: string; alt: string; onClose: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
       {/* Caption */}
-      {alt && <div className="absolute bottom-6 left-0 right-0 text-center z-10"><span className="text-white/70 text-[12px] font-light">{alt}</span></div>}
+      {alt && <div className="absolute bottom-6 left-0 right-0 text-center z-10"><span className="text-[#FAF8F4]/70 text-[12px] font-light">{alt}</span></div>}
       {/* Zoom hint */}
       {scale <= 1.01 && (
-        <div className="absolute bottom-14 left-0 right-0 text-center z-10"><span className="text-white/40 text-[10px]">Pinch to zoom · Double-tap to magnify</span></div>
+        <div className="absolute bottom-14 left-0 right-0 text-center z-10"><span className="text-[#FAF8F4]/40 text-[10px]">Pinch to zoom · Double-tap to magnify</span></div>
       )}
       {/* Zoomable image */}
       <img
@@ -705,14 +744,14 @@ function BoutiqueCard({ stone, onReserve, reserved, highlighted, onPhotoClick }:
   const [wa, setWa] = useState("");
 
   return (
-    <div className="overflow-hidden" style={{ background: "#FFFFFF", border: highlighted ? "1px solid #C9A227" : "1px solid #EAE4DA" }}>
+    <div className="overflow-hidden stone-glow" style={{ background: "#16181A", borderRadius: 12, border: highlighted ? '1px solid #C9A227' : '1px solid rgba(255,255,255,0.08)' }}>
       <div className="aspect-square overflow-hidden relative cursor-zoom-in" onClick={hasPhoto && onPhotoClick ? () => onPhotoClick(stone.photo, stone.ref) : undefined}>
         <img src={hasPhoto ? stone.photo : PLACEHOLDER} alt={stone.ref} className="w-full h-full object-cover" />
         {stone.listing_category === "Jewelry" && (
-          <span className="absolute top-2 left-2 text-white text-[8px] font-medium uppercase tracking-wider px-2 py-0.5" style={{ background: "#1A1A1A" }}>Jewelry</span>
+          <span className="absolute top-2 left-2 text-[#FAF8F4] text-[8px] font-medium uppercase tracking-wider px-2 py-0.5 rounded" style={{ background: "rgba(22,24,26,0.9)" }}>Jewelry</span>
         )}
         {(stone as any).trader_preferred && (
-          <span className="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 rounded-full" style={{ color: "#C9A227", background: "rgba(250,248,244,0.9)", border: "1px solid #C9A227" }}>
+          <span className="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 rounded-full" style={{ color: "#C9A227", background: "rgba(22,24,26,0.9)", border: "1px solid #C9A227" }}>
             <svg viewBox="0 0 24 24" fill="none" className="w-2.5 h-2.5 shrink-0"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
             Preferred Source
           </span>
@@ -721,22 +760,22 @@ function BoutiqueCard({ stone, onReserve, reserved, highlighted, onPhotoClick }:
       <div className="p-4 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-light truncate" style={{ color: "#9A938A", fontFamily: "monospace" }}>{stone.ref}</span>
-          <span className="text-[12px] font-light" style={{ color: "#1A1A1A" }}>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span>
+          <span className="text-[12px] font-medium tabular-nums" style={{ color: stone.price ? '#C9A227' : '#9A938A' }}>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span>
         </div>
-        <p className="text-[10px] leading-snug font-light" style={{ color: "#1A1A1A" }}>{stone.shape} {stone.carat}ct {stone.color}</p>
+        <p className="text-[10px] leading-snug font-light" style={{ color: "#FAF8F4" }}>{stone.shape} {stone.carat}ct {stone.color}</p>
         {reserved ? (
           <p className="text-[10px] pt-1 font-light" style={{ color: "#9A938A" }}>Reserved. Our desk will be in touch.</p>
         ) : showForm ? (
           <div className="space-y-1.5 pt-1">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
-            <input value={wa} onChange={e => setWa(e.target.value)} placeholder="WhatsApp" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid #EAE4DA", background: "#FAF8F4" }} />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Your name" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
+            <input value={wa} onChange={e => setWa(e.target.value)} placeholder="WhatsApp" className="w-full px-2 py-1.5 text-[10px] font-light rounded" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0B0C0D" }} />
             <div className="flex gap-1.5">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-1.5 text-[10px] font-light rounded cursor-default" style={{ border: "1px solid #EAE4DA", color: "#9A938A" }}>Cancel</button>
-              <button onClick={() => onReserve(name, wa)} disabled={!name.trim()} className="flex-1 py-1.5 text-white text-[10px] font-medium rounded cursor-default disabled:opacity-40" style={{ background: "#C9A227" }}>Confirm</button>
+              <button onClick={() => setShowForm(false)} className="flex-1 py-1.5 text-[10px] font-light rounded cursor-default" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#9A938A" }}>Cancel</button>
+              <button onClick={() => onReserve(name, wa)} disabled={!name.trim()} className="flex-1 py-1.5 text-[#0B0C0D] text-[10px] font-medium rounded cursor-default disabled:opacity-40" style={{ background: "#C9A227" }}>Confirm</button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setShowForm(true)} className="w-full py-2 text-white text-[11px] font-medium text-center cursor-default mt-1 rounded" style={{ background: "#C9A227" }}>Reserve</button>
+          <button onClick={() => setShowForm(true)} className="w-full py-2 text-[#0B0C0D] text-[11px] font-medium text-center cursor-default mt-1 rounded" style={{ background: "#C9A227" }}>Reserve</button>
         )}
       </div>
     </div>
@@ -769,9 +808,9 @@ function VideosPanel({ onSeePiece, onAskAmes }: { onSeePiece: (id: string) => vo
     return () => obs.disconnect();
   }, [videos]);
 
-  if (loading) return <div className="h-full flex items-center justify-center bg-black text-white/60 text-[12px]">Loading videos...</div>;
+  if (loading) return <div className="h-full flex items-center justify-center bg-black text-[#FAF8F4]/60 text-[12px]">Loading videos...</div>;
   if (!videos.length) return (
-    <div className="h-full flex items-center justify-center bg-[#1A1A1A] text-[#FAF8F4]/60 text-[12px] text-center px-6">
+    <div className="h-full flex items-center justify-center bg-[#C9A227] text-[#0B0C0D]/60 text-[12px] text-center px-6">
       <div>
         <DiamondIcon />
         <p className="mt-3">No videos published yet.</p>
@@ -856,7 +895,7 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments 
 
       {/* Mute button */}
       <div className="absolute top-4 right-4 z-20">
-        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="w-8 h-8 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-full">
+        <button onClick={(e) => { e.stopPropagation(); toggleMute(); }} className="w-8 h-8 bg-white/50 backdrop-blur-sm flex items-center justify-center rounded-full">
           {muted ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M11 5L6 9H2v6h4l5 4V5z" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>
           ) : (
@@ -869,21 +908,21 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments 
       <div className="absolute right-3 bottom-36 z-20 flex flex-col items-center gap-5">
         {/* Like */}
         <button onClick={(e) => { e.stopPropagation(); toggleLike(); }} className="flex flex-col items-center gap-1">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${liked ? "bg-red-500" : "bg-black/40 backdrop-blur-sm"}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${liked ? "bg-red-500" : "bg-black/60 backdrop-blur-sm"}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill={liked ? "white" : "none"} stroke="white" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
           </div>
           <span className="text-white text-[10px] font-medium">{likes}</span>
         </button>
         {/* Comment */}
         <button onClick={(e) => { e.stopPropagation(); onComments(); }} className="flex flex-col items-center gap-1">
-          <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
           </div>
           <span className="text-white text-[10px] font-medium">{commentCount ?? "-"}</span>
         </button>
         {/* Share */}
         <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="flex flex-col items-center gap-1">
-          <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
           </div>
           <span className="text-white text-[10px] font-medium">{shareCount}</span>
@@ -894,7 +933,7 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments 
       {stoneInfo && (
         <button onClick={(e) => { e.stopPropagation(); onSeePiece(video.stone_id!); }} className="absolute bottom-28 left-4 z-20 bg-black/60 backdrop-blur-sm border border-white/20 px-3 py-2 cursor-default text-left">
           {isSold ? (
-            <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-white/20 px-2 py-0.5">Sold</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-[#16181A]/20 px-2 py-0.5">Sold</span>
           ) : (
             <>
               <div className="text-white text-[11px] font-medium">{stoneInfo.ref} &middot; {stoneInfo.shape} {stoneInfo.carat}ct {stoneInfo.color}</div>
@@ -907,11 +946,11 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments 
       {/* Caption */}
       <div className="absolute bottom-0 left-0 right-0 z-20 p-4 pb-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
         <p className="text-white text-[13px] font-medium mb-1">{video.caption}</p>
-        {video.model_instagram && <p className="text-white/50 text-[10px] font-mono mb-2">@{video.model_instagram}</p>}
+        {video.model_instagram && <p className="text-[#FAF8F4]/50 text-[10px] font-mono mb-2">@{video.model_instagram}</p>}
         {stoneInfo && (
           <div className="flex gap-2">
-            <button onClick={(e) => { e.stopPropagation(); onSeePiece(video.stone_id!); }} className="px-3 py-2 bg-white text-black text-[11px] font-medium cursor-default rounded-lg">See this piece &rarr;</button>
-            <button onClick={(e) => { e.stopPropagation(); onAskAmes(stoneInfo.ref, stoneInfo.shape, stoneInfo.carat, stoneInfo.color, stoneInfo.clarity); }} className="px-3 py-2 bg-white/20 backdrop-blur-sm text-white text-[11px] font-medium border border-white/30 cursor-default rounded-lg">Ask AMES</button>
+            <button onClick={(e) => { e.stopPropagation(); onSeePiece(video.stone_id!); }} className="px-3 py-2 bg-[#16181A] text-[#FAF8F4] text-[11px] font-medium cursor-default rounded-lg">See this piece &rarr;</button>
+            <button onClick={(e) => { e.stopPropagation(); onAskAmes(stoneInfo.ref, stoneInfo.shape, stoneInfo.carat, stoneInfo.color, stoneInfo.clarity); }} className="px-3 py-2 bg-[#16181A]/20 backdrop-blur-sm text-white text-[11px] font-medium border border-white/30 cursor-default rounded-lg">Ask AMES</button>
           </div>
         )}
       </div>
@@ -949,15 +988,15 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
 
   return (
     <div className="fixed inset-0 z-[90] flex items-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="relative w-full max-h-[70dvh] bg-[#FAF8F4] rounded-t-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="relative w-full max-h-[70dvh] bg-[#0B0C0D] rounded-t-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Handle */}
-        <div className="flex justify-center py-2"><div className="w-10 h-1 rounded-full" style={{ background: "#EAE4DA" }} /></div>
+        <div className="flex justify-center py-2"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} /></div>
         <div className="px-4 pb-2 flex items-center justify-between">
-          <span className="text-[13px] font-light" style={{ color: "#1A1A1A" }}>Comments</span>
+          <span className="text-[13px] font-light" style={{ color: "#FAF8F4" }}>Comments</span>
           <button onClick={onClose} className="text-[11px] cursor-default" style={{ color: "#9A938A" }}>Close</button>
         </div>
-        <div style={{ borderTop: "1px solid #EAE4DA" }} />
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
 
         {/* Comment list */}
         <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[100px] max-h-[45dvh]">
@@ -968,7 +1007,7 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
           ) : comments.map(c => (
             <div key={c.id} className="space-y-0.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-[11px] font-medium" style={{ color: "#1A1A1A" }}>{c.author}</span>
+                <span className="text-[11px] font-medium" style={{ color: "#FAF8F4" }}>{c.author}</span>
                 <span className="text-[9px]" style={{ color: "#9A938A" }}>{timeAgo(c.created_at)}</span>
               </div>
               <p className="text-[12px] leading-relaxed">{c.text}</p>
@@ -976,10 +1015,10 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
           ))}
         </div>
 
-        {/* Input */}          <div className="px-4 py-3 space-y-2" style={{ borderTop: "1px solid #EAE4DA" }}>
-          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }} />
+        {/* Input */}          <div className="px-4 py-3 space-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }} />
           <div className="flex gap-2">
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }} />
+            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A" }} />
             <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 text-white text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40" style={{ background: "#C9A227" }}>
               {sending ? "..." : "Post"}
             </button>
@@ -995,7 +1034,7 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
    ═══════════════════════════════════════════ */
 
 function DiamondIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" aria-hidden="true"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#000" strokeWidth="1.5" fill="none" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 shrink-0" aria-hidden="true"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#FAF8F4" strokeWidth="1.5" fill="none" /></svg>;
 }
 
 function timeAgo(dateStr: string): string {
