@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logUsage } from "./db";
 
 export const ParsedRequestSchema = z.object({
   buyerName: z.string().min(1), company: z.string().min(1),
@@ -69,6 +70,11 @@ async function callDeepSeek(systemPrompt: string, userMessage: string): Promise<
   });
   if (!res.ok) { const body = await res.text(); throw new Error("DeepSeek " + res.status + ": " + body); }
   const data = await res.json();
+  // Log usage
+  try {
+    const u = data.usage || {};
+    logUsage("deepseek", AI_MODEL, u.prompt_tokens || 0, u.completion_tokens || 0, "ai").catch(() => {});
+  } catch {}
   return data.choices?.[0]?.message?.content || "";
 }
 

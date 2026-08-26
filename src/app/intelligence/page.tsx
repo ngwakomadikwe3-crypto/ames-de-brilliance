@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { BrandMark } from "@/components/BrandMark";
 
 interface ReportIssue {
   id: string;

@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -122,7 +123,7 @@ export default function AppPage() {
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(250,248,244,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #EAE4DA" }}>
         {/* Left: AMES logo */}
         <div className="flex items-center">
-          <img src="/logo.png" alt="AMES" style={{ height: 28, width: 'auto' }} className="object-contain" />
+          <BrandMark variant="compact" height={22} />
         </div>
         {/* Centre: panel labels */}
         <div className="flex items-center gap-4">
@@ -770,7 +771,7 @@ function VideosPanel({ onSeePiece, onAskAmes }: { onSeePiece: (id: string) => vo
 
   if (loading) return <div className="h-full flex items-center justify-center bg-black text-white/60 text-[12px]">Loading videos...</div>;
   if (!videos.length) return (
-    <div className="h-full flex items-center justify-center bg-black text-white/60 text-[12px] text-center px-6">
+    <div className="h-full flex items-center justify-center bg-[#1A1A1A] text-[#FAF8F4]/60 text-[12px] text-center px-6">
       <div>
         <DiamondIcon />
         <p className="mt-3">No videos published yet.</p>

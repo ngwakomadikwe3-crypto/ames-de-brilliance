@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -105,9 +106,8 @@ export default function ModelPortal() {
               type="submit"
               disabled={logging || !phone.trim()}
               className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-              style={{ background: "#C9A227" }}
-            >
-              {logging ? "Signing in..." : "Sign In"}
+              style={{ background: "#1A1A1A" }}>
+{logging ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
@@ -327,9 +327,8 @@ function PostVideoTab({ model }: { model: Model }) {
         onClick={handleSubmit}
         disabled={!url.trim() || submitting}
         className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-        style={{ background: "#C9A227" }}
-      >
-        {submitting ? "Submitting..." : "Submit for Review"}
+        style={{ background: "#1A1A1A" }}>
+{submitting ? "Submitting..." : "Submit for Review"}
       </button>
     </div>
   );

@@ -15,9 +15,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     await ensureReady();
     const { id } = await params;
-    const { author, text } = await request.json();
+    const { author, whatsapp, text } = await request.json();
     if (!text) return NextResponse.json({ error: "text required" }, { status: 400 });
-    const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "comments", documentId: ID.unique(), data: { video_id: id, author: author || "Anonymous", text, created_at: nowISO() } });
+    if (!author || !author.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "comments", documentId: ID.unique(), data: { video_id: id, author: author.trim(), whatsapp: whatsapp || "", text, created_at: nowISO() } });
     return NextResponse.json(doc(res));
   } catch (err: any) { return NextResponse.json({ error: err.message }, { status: 500 }); }
 }

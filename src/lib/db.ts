@@ -574,5 +574,138 @@ export async function getStoneSalesCount(stoneId: string): Promise<number> {
   return res.total;
 }
 
+
+/* ── Staff / Auth ── */
+
+export interface DbStaff {
+  id: string; name: string; access_code: string; role: string;
+  status: string; created_at: string;
+}
+
+export async function getStaffByCode(code: string): Promise<DbStaff | undefined> {
+  await ensureReady();
+  try {
+    const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "staff", queries: [Query.equal("access_code", code), Query.limit(1)] });
+    return res.documents.length ? doc<DbStaff>(res.documents[0]) : undefined;
+  } catch { return undefined; }
+}
+
+export async function getStaffByCodeAndPassword(code: string): Promise<DbStaff | undefined> {
+  const staff = await getStaffByCode(code);
+  if (!staff || staff.status !== "active") return undefined;
+  return staff;
+}
+
+/* ── Trader Management ── */
+
+export async function disableTrader(id: string): Promise<DbTrader | null> {
+  await ensureReady();
+  if (!(await getTraderById(id))) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { status: "Declined" } });
+  return (await getTraderById(id)) || null;
+}
+
+export async function enableTrader(id: string): Promise<DbTrader | null> {
+  await ensureReady();
+  if (!(await getTraderById(id))) return null;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { status: "Active" } });
+  return (await getTraderById(id)) || null;
+}
+
+export async function getTraderStoneCount(traderId: string): Promise<number> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId), Query.limit(0)] });
+  return res.total;
+}
+
+export async function getTraderSalesCount(traderId: string): Promise<number> {
+  await ensureReady();
+  const stones = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId)] });
+  let count = 0;
+  for (const s of stones.documents) {
+    if (s.status === "Sold") count++;
+  }
+  return count;
+}
+
+/* ── Model Management ── */
+
+export async function disableModel(id: string): Promise<boolean> {
+  await ensureReady();
+  try {
+    await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "models", documentId: String(id), data: { status: "Disabled" } });
+    return true;
+  } catch { return false; }
+}
+
+export async function enableModel(id: string): Promise<boolean> {
+  await ensureReady();
+  try {
+    await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "models", documentId: String(id), data: { status: "Active" } });
+    return true;
+  } catch { return false; }
+}
+
+export async function getModelVideoStats(modelId: string): Promise<{ count: number; views: number; likes: number }> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "videos", queries: [Query.equal("model_id", String(modelId))] });
+  const videos = res.documents;
+  return {
+    count: videos.length,
+    views: videos.reduce((sum: number, v: any) => sum + (v.tap_count || 0), 0),
+    likes: videos.reduce((sum: number, v: any) => sum + (v.likes_count || 0), 0),
+  };
+}
+
+/* ── Usage Logging ── */
+
+export async function logUsage(service: string, model: string, promptTokens: number, completionTokens: number, route: string): Promise<void> {
+  await ensureReady();
+  const cost = (promptTokens * 0.27 + completionTokens * 1.10) / 1000000; // DeepSeek R1 pricing
+  try {
+    await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "usage_log", documentId: ID.unique(), data: {
+      service, model, prompt_tokens: promptTokens, completion_tokens: completionTokens,
+      estimated_cost_usd: Math.round(cost * 10000) / 10000, route, created_at: nowISO()
+    }});
+  } catch {}
+}
+
+export async function getUsageStats(startDate: string): Promise<{ totalCalls: number; totalTokens: number; totalCost: number; byDay: Record<string, { calls: number; tokens: number; cost: number }> }> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "usage_log", queries: [Query.greaterThanEqual("created_at", startDate)] });
+  let totalCalls = 0, totalTokens = 0, totalCost = 0;
+  const byDay: Record<string, { calls: number; tokens: number; cost: number }> = {};
+  for (const doc of res.documents) {
+    const day = (doc.created_at || "").slice(0, 10);
+    if (!byDay[day]) byDay[day] = { calls: 0, tokens: 0, cost: 0 };
+    totalCalls++;
+    const tokens = (doc.prompt_tokens || 0) + (doc.completion_tokens || 0);
+    totalTokens += tokens;
+    totalCost += doc.estimated_cost_usd || 0;
+    byDay[day].calls++;
+    byDay[day].tokens += tokens;
+    byDay[day].cost += doc.estimated_cost_usd || 0;
+  }
+  return { totalCalls, totalTokens, totalCost, byDay };
+}
+
+/* ── Balances ── */
+
+export async function getBalances(): Promise<any[]> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "balances" });
+  return res.documents.map(d => doc<any>(d));
+}
+
+export async function updateBalance(service: string, amount: number, note: string): Promise<void> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "balances", queries: [Query.equal("service", service), Query.limit(1)] });
+  if (res.documents.length) {
+    await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "balances", documentId: res.documents[0].$id, data: { amount, note, updated_at: nowISO() } });
+  } else {
+    await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "balances", documentId: ID.unique(), data: { service, amount, note, updated_at: nowISO() } });
+  }
+}
+
 /* ── Seed on import ── */
 seedIfEmpty().catch(() => {});

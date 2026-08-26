@@ -1,5 +1,6 @@
 "use client";
 
+import { BrandMark } from "@/components/BrandMark";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 
@@ -7,7 +8,7 @@ interface Trader {
   id: number; name: string; whatsapp: string; licence: string;
   portal_code: string; email: string; status: "Pending" | "Active" | "Declined";
   company: string; country: string; licence_photo: string;
-  created_at: string;
+  created_at: string; preferred?: boolean;
 }
 
 interface StoneRow {
@@ -23,16 +24,25 @@ const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="#FAF8F4" width="400" height="400"/><text x="200" y="200" font-family="sans-serif" font-size="13" fill="#9A938A" text-anchor="middle">No photo</text></svg>'
 );
 
-export default function TraderPortal() {
+export default function TraderPage() {
   const params = useParams();
   const code = params.code as string;
   const [trader, setTrader] = useState<Trader | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [phone, setPhone] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
+
+  // Try loading via authenticated portal first (legacy codes / saved session)
+  useEffect(() => {
+    fetch("/api/trader/" + code)
+      .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
+      .then(d => { setTrader(d); setAuthenticated(true); })
+      .catch(() => setShowLogin(true))
+      .finally(() => setLoading(false));
+  }, [code]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -59,12 +69,41 @@ export default function TraderPortal() {
     }
   }
 
+  if (loading) return (
+    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#FAF8F4" }}>
+      <div className="text-[12px]" style={{ color: "#9A938A" }}>Loading...</div>
+    </div>
+  );
+
+  // Show public portfolio for inactive/unknown traders, or login for active ones
+  if (showLogin && !authenticated) {
+    return <TraderLogin code={code} />;
+  }
+
+  if (trader && trader.status !== "Active" && !authenticated) {
+    return <TraderPublic code={code} />;
+  }
+
+  if (authenticated && trader) {
+    return trader.status === "Active" ? <TraderTabs trader={trader} /> : <TraderPublic code={code} />;
+  }
+
+  return <TraderLogin code={code} />;
+}
+
+// ──────────────────────────────────────
+// Public Portfolio Page
+// ──────────────────────────────────────
+function TraderPublic({ code }: { code: string }) {
+  const [stones, setStones] = useState<any[]>([]);
+  const [trader, setTrader] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    // Try loading without login first (legacy portal codes)
-    fetch("/api/trader/" + code)
-      .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
-      .then(d => { setTrader(d); setAuthenticated(true); })
-      .catch(() => setError("not_found"))
+    fetch(`/api/trader/public/${code}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { setTrader(d.trader); setStones(d.stones || []); } })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [code]);
 
@@ -74,120 +113,292 @@ export default function TraderPortal() {
     </div>
   );
 
-  // Show login if not authenticated
-  if (!authenticated && !trader) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
-        <div className="w-full max-w-sm">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto mb-3">
+  if (!trader) return (
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+      <div className="max-w-sm text-center space-y-4">
+        <BrandMark height={36} />
+        <p className="text-[13px] font-light text-[#9A938A]">This portfolio is not available.</p>
+      </div>
+    </div>
+  );
+
+  const live = stones.filter((s: any) => s.status === "Available");
+
+  return (
+    <div className="min-h-[100dvh]" style={{ background: "#FAF8F4" }}>
+      {/* Header */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-12 pb-8">
+        <div className="mb-6"><BrandMark height={28} /></div>
+
+        <div className="flex items-start gap-6 mb-6">
+          <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center shrink-0"
+            style={{ border: "1px solid #EAE4DA", background: "#F0EDE8" }}>
+            <span className="text-[20px] font-light text-[#9A938A]">{(trader.name || "?")[0]}</span>
+          </div>
+          <div>
+            <h1 className="text-[20px] font-light text-[#1A1A1A] mb-1">{trader.name}</h1>
+            {trader.company && <p className="text-[12px] font-light text-[#9A938A]">{trader.company}</p>}
+            {trader.country && <p className="text-[11px] font-light text-[#9A938A] mt-1">{trader.country}</p>}
+          </div>
+        </div>
+
+        {trader.preferred && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-6"
+            style={{ border: "1px solid #C9A227", background: "rgba(250,248,244,0.9)" }}>
+            <svg viewBox="0 0 24 24" fill="none" className="w-3.5 h-3.5">
               <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
             </svg>
-            <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
-            <p className="text-[11px] mt-2" style={{ color: "#9A938A" }}>Trader Portal</p>
+            <span className="text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: "#C9A227" }}>
+              Preferred Source
+            </span>
           </div>
+        )}
 
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Phone Number</label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="+267 XX XXX XXX"
-                className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-                style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-                required
-              />
-            </div>
-
-            {loginError && (
-              <div className="text-[11px] p-3 rounded-lg" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>
-                {loginError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={logging || !phone.trim()}
-              className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-              style={{ background: "#C9A227" }}
-            >
-              {logging ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
-
-          <p className="text-center text-[10px] mt-6" style={{ color: "#9A938A" }}>
-            Contact the desk on WhatsApp for your access code
-          </p>
-        </div>
+        <p className="text-[11px] font-light text-[#9A938A]">
+          Licensed partner &middot; {live.length} {live.length === 1 ? "stone" : "stones"} listed
+        </p>
       </div>
-    );
-  }
 
-  if (trader?.status !== "Active") {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
-        <div className="max-w-sm text-center space-y-4">
-          <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto">
-            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
-          </svg>
-          <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
-          <p className="text-[13px] font-light leading-relaxed" style={{ color: "#9A938A" }}>
-            Contact the desk on WhatsApp to complete onboarding.
-          </p>
-        </div>
+      {/* Stones Grid */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pb-12">
+        <h2 className="text-[12px] font-medium text-[#9A938A] uppercase tracking-wider mb-4">Listed Stones</h2>
+        {live.length === 0 ? (
+          <p className="text-[12px] text-[#9A938A]">No stones currently listed.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {live.map((s: any) => {
+              const photos = (s.photo || "").split("|").filter((u: string) => u.length > 10 && u.startsWith("http"));
+              return (
+                <div key={s.id} style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+                  <div className="aspect-square overflow-hidden relative" style={{ background: "#F0EDE8" }}>
+                    {photos.length > 0 ? (
+                      <img src={photos[0]} alt={s.ref} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[11px] text-[#9A938A]">No photo</div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-mono text-[#9A938A]">{s.ref}</span>
+                      <span className="text-[11px] font-light text-[#1A1A1A]">{s.price ? `$${s.price.toLocaleString()}` : "Price on request"}</span>
+                    </div>
+                    <p className="text-[10px] font-light text-[#9A938A]">{s.shape} {s.carat}ct {s.color}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    );
-  }
-
-  return <TraderTabs trader={trader!} />;
+    </div>
+  );
 }
 
-type Tab = "list" | "items" | "reports";
+// ──────────────────────────────────────
+// Login Page
+// ──────────────────────────────────────
+function TraderLogin({ code }: { code: string }) {
+  const [trader, setTrader] = useState<Trader | null>(null);
+  const [phone, setPhone] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [logging, setLogging] = useState(false);
+  const [view, setView] = useState<"login" | "notfound">("login");
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLogging(true);
+    setLoginError(null);
+    try {
+      const res = await fetch("/api/trader/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, phone }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setLoginError(data.error || "Invalid credentials");
+        return;
+      }
+      const data = await res.json();
+      window.location.reload();
+    } catch {
+      setLoginError("Connection failed. Please try again.");
+    } finally {
+      setLogging(false);
+    }
+  }
+
+  return (
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <BrandMark height={32} />
+          <p className="text-[11px] mt-3" style={{ color: "#9A938A" }}>Trader Portal</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="+267 XX XXX XXX"
+              className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+              style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+              required
+            />
+          </div>
+
+          {loginError && (
+            <div className="text-[11px] p-3 rounded-lg" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>
+              {loginError}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={logging || !phone.trim()}
+            className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
+            style={{ background: "#1A1A1A" }}>
+            {logging ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
+
+        <p className="text-center text-[10px] mt-6" style={{ color: "#9A938A" }}>
+          Contact the desk on WhatsApp for your access code
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────
+// Private Portal Tabs
+// ──────────────────────────────────────
+type Tab = "list" | "items" | "numbers" | "reports";
 
 function TraderTabs({ trader }: { trader: Trader }) {
   const [tab, setTab] = useState<Tab>("list");
   return (
     <div className="min-h-[100dvh] flex flex-col" style={{ background: "#FAF8F4" }}>
-      {/* Header */}
       <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
         <div className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
-          </svg>
+          <BrandMark compact height={18} />
           <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#1A1A1A" }}>{trader.name}</span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex shrink-0" style={{ borderBottom: "1px solid #EAE4DA" }}>
-        {(["list", "items", "reports"] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className="flex-1 py-2.5 text-[12px] font-light text-center transition-colors"
+      <div className="flex shrink-0 overflow-x-auto" style={{ borderBottom: "1px solid #EAE4DA" }}>
+        {(["list", "items", "numbers", "reports"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className="px-3 py-2.5 text-[11px] font-light text-center whitespace-nowrap transition-colors"
             style={{
               color: tab === t ? "#1A1A1A" : "#9A938A",
               borderBottom: tab === t ? "2px solid #C9A227" : "2px solid transparent"
-            }}
-          >
-            {t === "list" ? "List items" : t === "items" ? "My items" : "Reports"}
+            }}>
+            {t === "list" ? "List items" : t === "items" ? "My items" : t === "numbers" ? "My numbers" : "Reports"}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {tab === "list" && <ListItemsTab trader={trader} />}
         {tab === "items" && <MyItemsTab trader={trader} />}
+        {tab === "numbers" && <TraderNumbersTab trader={trader} />}
         {tab === "reports" && <ReportsTab trader={trader} />}
       </div>
     </div>
   );
 }
 
+// ──────────────────────────────────────
+// My Numbers Tab
+// ──────────────────────────────────────
+function TraderNumbersTab({ trader }: { trader: Trader }) {
+  const [stones, setStones] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/trader/" + trader.portal_code + "/stones").then(r => r.ok ? r.json() : []),
+      fetch("/api/trader/" + trader.portal_code + "/stones").then(r => r.ok ? r.json() : []),
+    ]).then(([s]) => {
+      setStones(s);
+      // Fetch orders for these stones
+      const stoneIds = s.map((st: any) => st.id);
+      if (stoneIds.length > 0) {
+        fetch("/api/orders").then(r => r.ok ? r.json() : []).then((o: any[]) => {
+          setOrders(o.filter(ord => stoneIds.includes(ord.stone_id)));
+        }).catch(() => {});
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [trader.portal_code]);
+
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>;
+
+  const live = stones.filter((s: any) => s.status === "Available");
+  const totalViews = stones.reduce((sum: number, s: any) => sum + (s.views || 0), 0);
+  const totalReserves = stones.filter((s: any) => s.status === "Reserved" || s.status === "Sold").length;
+  const totalSold = stones.filter((s: any) => s.status === "Sold").length;
+  const totalSalesValue = orders
+    .filter((o: any) => o.status === "Paid" || o.status === "Shipped" || o.status === "Closed")
+    .reduce((sum: number, o: any) => sum + (o.price || 0), 0);
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const thisMonthSold = orders.filter((o: any) => {
+    const d = new Date(o.created_at);
+    return (o.status === "Paid" || o.status === "Sold") && d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+  const lastMonth = thisMonth === 0 ? 11 : thisMonth - 1;
+  const lastMonthYear = thisMonth === 0 ? thisYear - 1 : thisYear;
+  const lastMonthSold = orders.filter((o: any) => {
+    const d = new Date(o.created_at);
+    return (o.status === "Paid" || o.status === "Sold") && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+  });
+  const convRate = totalReserves > 0 ? Math.round((totalSold / totalReserves) * 100) : 0;
+
+  const stats = [
+    { label: "Live Stones", value: live.length },
+    { label: "Total Views", value: totalViews.toLocaleString() },
+    { label: "Reserves", value: totalReserves },
+    { label: "Sales", value: totalSold },
+    { label: "Reserve → Sale", value: `${convRate}%` },
+    { label: "Total Revenue", value: `$${totalSalesValue.toLocaleString()}` },
+  ];
+
+  return (
+    <div className="p-4 max-w-lg mx-auto space-y-6">
+      <div className="text-[12px] font-medium text-[#9A938A] uppercase tracking-wider">Performance</div>
+      <div className="grid grid-cols-3 gap-3">
+        {stats.map(s => (
+          <div key={s.label} className="text-center p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+            <div className="text-[18px] font-light text-[#1A1A1A]">{s.value}</div>
+            <div className="text-[9px] uppercase tracking-wider text-[#9A938A] mt-1">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+          <div className="text-[10px] uppercase tracking-wider text-[#9A938A] mb-1">This Month — Sales</div>
+          <div className="text-[14px] font-light">{thisMonthSold.length}</div>
+          <div className="text-[11px] text-[#9A938A]">${thisMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
+        </div>
+        <div className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+          <div className="text-[10px] uppercase tracking-wider text-[#9A938A] mb-1">Last Month — Sales</div>
+          <div className="text-[14px] font-light">{lastMonthSold.length}</div>
+          <div className="text-[11px] text-[#9A938A]">${lastMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────
+// List Items Tab
+// ──────────────────────────────────────
 type ListMode = "single" | "paste";
 
 function ListItemsTab({ trader }: { trader: Trader }) {
@@ -196,15 +407,12 @@ function ListItemsTab({ trader }: { trader: Trader }) {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex shrink-0" style={{ borderBottom: "1px solid #EAE4DA" }}>
         {(["single", "paste"] as const).map(m => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
+          <button key={m} onClick={() => setMode(m)}
             className="flex-1 py-2 text-[11px] font-light text-center transition-colors"
             style={{
               color: mode === m ? "#1A1A1A" : "#9A938A",
               borderBottom: mode === m ? "2px solid #C9A227" : "2px solid transparent"
-            }}
-          >
+            }}>
             {m === "single" ? "Single item" : "Paste a list"}
           </button>
         ))}
@@ -226,12 +434,8 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   function handlePhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []).slice(0, 6);
     setPhotos(files);
-    // Preview
     const urls: string[] = [];
-    files.forEach(f => {
-      const url = URL.createObjectURL(f);
-      urls.push(url);
-    });
+    files.forEach(f => { urls.push(URL.createObjectURL(f)); });
     setPhotoUrls(urls);
   }
 
@@ -243,35 +447,20 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setUploading(true);
-
     try {
-      // Upload photos first
       let allPhotoUrls: string[] = [];
       if (photos.length > 0) {
         const formData = new FormData();
         photos.forEach(f => formData.append("photos", f));
         const uploadRes = await fetch("/api/stones/photos", { method: "POST", body: formData });
-        if (uploadRes.ok) {
-          const data = await uploadRes.json();
-          allPhotoUrls = data.urls;
-        }
+        if (uploadRes.ok) { const data = await uploadRes.json(); allPhotoUrls = data.urls; }
       }
-
-      // Submit stone
       const fd = new FormData(e.currentTarget);
       fd.set("listing_category", lc);
       fd.set("stone_type", lc === "Rough" ? "rough" : "polished");
       fd.set("photo", allPhotoUrls.join("|"));
-
       const res = await fetch("/api/trader/" + trader.portal_code + "/stones", { method: "POST", body: fd });
-      if (res.ok) {
-        const d = await res.json();
-        setSaved(d.ref);
-        (e.target as HTMLFormElement).reset();
-        setLc("Polished");
-        setPhotos([]);
-        setPhotoUrls([]);
-      }
+      if (res.ok) { const d = await res.json(); setSaved(d.ref); (e.target as HTMLFormElement).reset(); setLc("Polished"); setPhotos([]); setPhotoUrls([]); }
     } catch {}
     setUploading(false);
   }
@@ -286,25 +475,20 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
-      {/* Photo upload - up to 6 */}
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Photos (up to 6)</label>
         <div className="grid grid-cols-3 gap-2 mb-2">
           {photoUrls.map((url, idx) => (
             <div key={idx} className="relative aspect-square overflow-hidden" style={{ border: "1px solid #EAE4DA" }}>
               <img src={url} alt="" className="w-full h-full object-cover" />
-              <button
-                type="button"
-                onClick={() => removePhoto(idx)}
+              <button type="button" onClick={() => removePhoto(idx)}
                 className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
-                style={{ background: "rgba(0,0,0,0.5)" }}
-              >
-                ×
-              </button>
+                style={{ background: "rgba(0,0,0,0.5)" }}>×</button>
             </div>
           ))}
           {photos.length < 6 && (
-            <label className="aspect-square flex flex-col items-center justify-center cursor-pointer" style={{ border: "1px dashed #C9A227", color: "#C9A227" }}>
+            <label className="aspect-square flex flex-col items-center justify-center cursor-pointer"
+              style={{ border: "1px dashed #C9A227", color: "#C9A227" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
               <span className="text-[9px] mt-1">Add photo</span>
               <input type="file" accept="image/*" multiple onChange={handlePhotosChange} className="hidden" />
@@ -316,12 +500,9 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Category</label>
-        <select
-          value={lc}
-          onChange={e => setLc(e.target.value as any)}
+        <select value={lc} onChange={e => setLc(e.target.value as any)}
           className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-        >
+          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}>
           <option>Rough</option>
           <option>Polished</option>
           <option>Jewelry</option>
@@ -330,13 +511,9 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>{lc === "Jewelry" ? "Piece description" : "Shape"}</label>
-        <input
-          name="shape"
-          required
-          className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+        <input name="shape" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
           style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-          placeholder={lc === "Jewelry" ? "e.g. Tennis bracelet" : "e.g. Round Brilliant"}
-        />
+          placeholder={lc === "Jewelry" ? "e.g. Tennis bracelet" : "e.g. Round Brilliant"} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -344,67 +521,43 @@ function SingleItemForm({ trader }: { trader: Trader }) {
           <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Carat</label>
           <input name="carat" type="number" step="0.01" min="0.01" required
             className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-          />
+            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} />
         </div>
         <div>
           <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Color</label>
-          <input name="color" required
-            className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-            placeholder="e.g. G"
-          />
+          <input name="color" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. G" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Clarity</label>
-          <input name="clarity"
-            className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-            placeholder="e.g. VS1"
-          />
+          <input name="clarity" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. VS1" />
         </div>
         <div>
           <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Certification</label>
-          <input name="certification"
-            className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-            placeholder="e.g. GIA"
-          />
+          <input name="certification" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="e.g. GIA" />
         </div>
       </div>
 
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Asking Price (USD)</label>
-        <input
-          name="price"
-          type="number"
-          min="0"
-          className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-          placeholder="Leave blank for price on request"
-        />
+        <input name="price" type="number" min="0" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="Leave blank for price on request" />
       </div>
 
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Notes</label>
-        <textarea
-          name="clarity_notes"
-          rows={3}
-          className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none resize-none"
-          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-          placeholder="Any extra detail..."
-        />
+        <textarea name="clarity_notes" rows={3} className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none resize-none"
+          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }} placeholder="Any extra detail..." />
       </div>
 
-      <button
-        type="submit"
-        disabled={uploading}
+      <button type="submit" disabled={uploading}
         className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-        style={{ background: "#C9A227" }}
-      >
+        style={{ background: "#1A1A1A" }}>
         {uploading ? "Submitting..." : "Submit for Review"}
       </button>
     </form>
@@ -482,30 +635,19 @@ function PasteListTab({ trader }: { trader: Trader }) {
     <div className="p-4 max-w-3xl mx-auto w-full flex flex-col gap-4">
       <div>
         <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Paste stock text</label>
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          rows={8}
+        <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="w-full px-4 py-3 text-[13px] font-light rounded-lg outline-none resize-y"
           style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
-          placeholder="Paste WhatsApp messages or stone listing text here..."
-        />
+          placeholder="Paste WhatsApp messages or stone listing text here..." />
       </div>
-      <button
-        onClick={handleParse}
-        disabled={parsing || !text.trim()}
+      <button onClick={handleParse} disabled={parsing || !text.trim()}
         className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-        style={{ background: "#C9A227" }}
-      >
+        style={{ background: "#C9A227" }}>
         {parsing ? "Parsing..." : "Parse"}
       </button>
-
       {parseError && (
-        <div className="p-3 rounded-lg text-[11px]" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>
-          {parseError}
-        </div>
+        <div className="p-3 rounded-lg text-[11px]" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>{parseError}</div>
       )}
-
       {parsed && (
         <div className="space-y-3">
           <div className="text-[11px]" style={{ color: "#9A938A", fontFamily: "monospace" }}>
@@ -517,12 +659,8 @@ function PasteListTab({ trader }: { trader: Trader }) {
             return (
               <div key={i} className="p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
                 <label className="flex items-start gap-2 cursor-default">
-                  <input
-                    type="checkbox"
-                    checked={checked[i] !== false}
-                    onChange={e => setChecked(prev => ({ ...prev, [i]: e.target.checked }))}
-                    className="mt-0.5"
-                  />
+                  <input type="checkbox" checked={checked[i] !== false}
+                    onChange={e => setChecked(prev => ({ ...prev, [i]: e.target.checked }))} className="mt-0.5" />
                   <div className="flex-1">
                     <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#9A938A" }}>{s.type}</div>
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
@@ -568,12 +706,10 @@ function PasteListTab({ trader }: { trader: Trader }) {
               <p style={{ color: "#9A938A" }}>The desk will review and publish.</p>
             </div>
           ) : (
-            <button
-              onClick={handlePublish}
+            <button onClick={handlePublish}
               disabled={publishing || !parsed.stones.some((_: any, i: number) => checked[i] !== false)}
               className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
-              style={{ background: "#C9A227" }}
-            >
+              style={{ background: "#C9A227" }}>
               {publishing ? "Submitting..." : "Submit Selected for Review"}
             </button>
           )}
@@ -583,6 +719,9 @@ function PasteListTab({ trader }: { trader: Trader }) {
   );
 }
 
+// ──────────────────────────────────────
+// My Items Tab
+// ──────────────────────────────────────
 function MyItemsTab({ trader }: { trader: Trader }) {
   const [stones, setStones] = useState<StoneRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -597,13 +736,8 @@ function MyItemsTab({ trader }: { trader: Trader }) {
 
   useEffect(() => { fetchStones(); }, [fetchStones]);
 
-  if (loading) return (
-    <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>
-  );
-
-  if (stones.length === 0) return (
-    <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>No items listed yet.</div>
-  );
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>;
+  if (stones.length === 0) return <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>No items listed yet.</div>;
 
   function statusBadge(s: string) {
     switch (s) {
@@ -649,7 +783,6 @@ function MyItemsTab({ trader }: { trader: Trader }) {
                 )}
               </div>
             </div>
-
             {isOpen && s.status_log && s.status_log.length > 0 && (
               <div className="p-3 space-y-1.5" style={{ borderTop: "1px solid #EAE4DA" }}>
                 <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#9A938A" }}>Status History</div>
@@ -672,6 +805,9 @@ function MyItemsTab({ trader }: { trader: Trader }) {
   );
 }
 
+// ──────────────────────────────────────
+// Reports Tab
+// ──────────────────────────────────────
 function ReportsTab({ trader }: { trader: Trader }) {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -685,10 +821,7 @@ function ReportsTab({ trader }: { trader: Trader }) {
       .finally(() => setLoading(false));
   }, [trader.id]);
 
-  if (loading) return (
-    <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>
-  );
-
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>;
   if (reports.length === 0) return (
     <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>
       No reports yet. Your first weekly report will appear here after the desk generates one.

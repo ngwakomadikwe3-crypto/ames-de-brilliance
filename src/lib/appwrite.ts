@@ -204,6 +204,10 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "licence_photo", type: "string", size: 65535, default: "" },
       { key: "created_at", type: "datetime" },
       { key: "preferred", type: "boolean", default: false },
+      { key: "display_name", type: "string", size: 255, default: "" },
+      { key: "city", type: "string", size: 100, default: "" },
+      { key: "bio_intro", type: "string", size: 500, default: "" },
+      { key: "logo_photo", type: "string", size: 65535, default: "" },
     ],
   },
   {
@@ -274,6 +278,7 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "price", type: "float", default: 0 },
       { key: "status", type: "string", size: 50, default: "Reserved" },
       { key: "created_at", type: "datetime" },
+      { key: "source", type: "string", size: 100, default: "boutique" },
     ],
   },
   {
@@ -314,6 +319,9 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "payment_method", type: "string", size: 50, default: "" },
       { key: "payment_details", type: "string", size: 1000, default: "" },
       { key: "total_paid", type: "float", default: 0 },
+      { key: "display_name", type: "string", size: 255, default: "" },
+      { key: "bio", type: "string", size: 1000, default: "" },
+      { key: "profile_photo", type: "string", size: 65535, default: "" },
       { key: "created_at", type: "datetime" },
     ],
   },
@@ -341,7 +349,8 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
     name: "Comments",
     attrs: [
       { key: "video_id", type: "string", size: 50, required: true },
-      { key: "author", type: "string", size: 255, default: "" },
+      { key: "author", type: "string", size: 255, default: "Anonymous" },
+      { key: "whatsapp", type: "string", size: 50, default: "" },
       { key: "text", type: "string", size: 5000, required: true },
       { key: "created_at", type: "datetime" },
     ],
@@ -408,6 +417,41 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "notes", type: "string", size: 5000, default: "" },
       { key: "status", type: "string", size: 50, default: "Requested" },
       { key: "created_at", type: "datetime" },
+    ],
+  },
+
+  {
+    id: "staff",
+    name: "Staff",
+    attrs: [
+      { key: "name", type: "string", size: 255, required: true },
+      { key: "access_code", type: "string", size: 255, required: true },
+      { key: "role", type: "string", size: 50, required: true },
+      { key: "status", type: "string", size: 50, default: "active" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "usage_log",
+    name: "Usage Log",
+    attrs: [
+      { key: "service", type: "string", size: 100, required: true },
+      { key: "model", type: "string", size: 100, default: "" },
+      { key: "prompt_tokens", type: "integer", default: 0 },
+      { key: "completion_tokens", type: "integer", default: 0 },
+      { key: "estimated_cost_usd", type: "float", default: 0 },
+      { key: "route", type: "string", size: 200, default: "" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "balances",
+    name: "Manual Balances",
+    attrs: [
+      { key: "service", type: "string", size: 100, required: true },
+      { key: "amount", type: "float", default: 0 },
+      { key: "note", type: "string", size: 500, default: "" },
+      { key: "updated_at", type: "datetime" },
     ],
   },
 ];

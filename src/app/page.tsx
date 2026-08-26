@@ -49,7 +49,7 @@ export default async function Home() {
                     className="w-full h-full object-cover"
                   />
                   {isRough && (
-                    <span className="absolute top-2 left-2 bg-black text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                    <span className="absolute top-2 left-2 bg-[#1A1A1A] text-[#FAF8F4] text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
                       Rough
                     </span>
                   )}
@@ -94,7 +94,7 @@ export default async function Home() {
                     )}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full mt-2 py-1.5 bg-black text-white text-[11px] font-medium text-center"
+                    className="block w-full mt-2 py-1.5 bg-[#1A1A1A] text-[#FAF8F4] text-[11px] font-medium text-center"
                   >
                     Enquire on WhatsApp
                   </a>

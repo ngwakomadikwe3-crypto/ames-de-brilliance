@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logUsage } from "@/lib/db";
 
 const AI_BASE_URL = process.env.AI_BASE_URL || "https://api.deepseek.com";
 const AI_MODEL = process.env.AI_MODEL || "deepseek-chat";
@@ -79,6 +80,9 @@ export async function POST(req: NextRequest) {
         reply: "That's a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.",
       });
     }
+
+    // Log usage
+    logUsage("deepseek", AI_MODEL, data.usage?.prompt_tokens || 0, data.usage?.completion_tokens || 0, "/api/chat");
 
     return NextResponse.json({ reply });
   } catch (err) {

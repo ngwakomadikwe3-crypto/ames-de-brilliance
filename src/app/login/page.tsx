@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function LoginPage() {
+export default function SignInPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <div className="px-4 md:px-6 py-16 max-w-sm mx-auto w-full">
       <div className="border border-border p-6">
-        <h2 className="text-[13px] font-bold mb-1">Dealer Login</h2>
+        <h2 className="text-[13px] font-bold mb-1">Dealer Sign In</h2>
         <p className="text-[11px] text-muted mb-6">Enter the dealer password to access the dashboard.</p>
 
         {error && (
@@ -45,7 +45,7 @@ export default function LoginPage() {
           <div>
             <label className="block text-[11px] font-medium mb-1">Password</label>
             <input
-              type="password"
+              type="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="field-input"
@@ -57,7 +57,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 min-h-[44px] bg-black text-white text-[13px] font-medium cursor-default disabled:opacity-50"
+            className="w-full py-2 min-h-[44px] bg-[#1A1A1A] text-[#FAF8F4] text-[13px] font-medium cursor-default disabled:opacity-50"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
