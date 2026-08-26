@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 interface Request {
   id: string; date: string; company: string; country: string; buyerName: string;
@@ -23,7 +23,7 @@ interface Trader {
   id: number; name: string; whatsapp: string; licence: string;
   portal_code: string; email: string; status: "Pending" | "Active" | "Declined";
   company: string; country: string; licence_photo: string;
-  created_at: string;
+  created_at: string; preferred?: boolean;
 }
 
 type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "videos" | "models" | "intelligence";
@@ -975,6 +975,10 @@ function TradersTab() {
   const [rejectReason, setRejectReason] = useState<string | null>(null);
   const [reports, setReports] = useState<any[]>([]);
   const [generatingReport, setGeneratingReport] = useState<number | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -987,6 +991,29 @@ function TradersTab() {
     } catch {/* */} finally { setLoading(false); }
   }, []);
   useEffect(()=>{fetchData();},[fetchData]);
+
+  async function handleCreateTrader() {
+    if (!newName.trim()) { setCreateError("Name required"); return; }
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/traders", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ name: newName, phone: newPhone }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed");
+      const trader = await res.json();
+      setTraders(prev => [trader, ...prev]);
+      setNewName(""); setNewPhone("");
+      setShowCreateForm(false);
+      // Copy portal link
+      const url = `${window.location.origin}/trader/${trader.portal_code}`;
+      const msg = `Welcome to AMES DE BRILLIANTE, ${trader.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items.`;
+      navigator.clipboard.writeText(msg).catch(() => {});
+      setCopiedAction(`link-${trader.id}`);
+      setTimeout(() => setCopiedAction(null), 2000);
+    } catch (e: any) { setCreateError(e.message); }
+  }
 
   async function handleApprove(t: Trader) {
     await fetch("/api/traders/approve", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: t.id }) });
@@ -1008,6 +1035,14 @@ function TradersTab() {
     const msg = `Welcome to AMES DE BRILLIANTE, ${t.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items. If you have any questions, reply here on WhatsApp.`;
     navigator.clipboard.writeText(msg).catch(() => {});
     setCopiedAction(`link-${t.id}`); setTimeout(() => setCopiedAction(null), 1500);
+  }
+
+  async function togglePreferred(t: Trader) {
+    const res = await fetch("/api/traders/preferred", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ id: t.id }) });
+    if (res.ok) {
+      const data = await res.json();
+      setTraders(prev => prev.map(tr => tr.id === t.id ? { ...tr, preferred: data.preferred } : tr));
+    }
   }
 
   async function handleGenerateReport(t: Trader) {
@@ -1036,10 +1071,38 @@ function TradersTab() {
   }
 
   if(loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">Loading...</div>;
-  if(traders.length===0) return <div className="px-4 md:px-6 py-10 text-[12px] text-muted">No traders yet.</div>;
 
   return (
     <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
+      {/* Create Trader Button + Form */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[11px] font-mono text-muted">{traders.length} traders</div>
+          <button onClick={()=>setShowCreateForm(!showCreateForm)} className="px-3 py-1.5 bg-black text-white text-[11px] font-medium cursor-default min-h-[36px]">
+            {showCreateForm ? "Cancel" : "Create trader"}
+          </button>
+        </div>
+        {showCreateForm && (
+          <div className="border border-border p-4 mb-4 space-y-3">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-muted">New trader</div>
+            {createError && <div className="text-[10px] text-red-600 border border-red-300 p-2 bg-red-50">{createError}</div>}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="block text-[10px] text-muted mb-1">Name *</span>
+                <input value={newName} onChange={e => setNewName(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="Full name" />
+              </div>
+              <div>
+                <span className="block text-[10px] text-muted mb-1">WhatsApp</span>
+                <input value={newPhone} onChange={e => setNewPhone(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="Phone number" />
+              </div>
+            </div>
+            <button onClick={handleCreateTrader} disabled={!newName.trim()} className="px-4 py-2 bg-black text-white text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Create &amp; copy portal link</button>
+          </div>
+        )}
+      </div>
+
+      {traders.length===0 && !showCreateForm ? <div className="text-[12px] text-muted">No traders yet. Create one above.</div> : null}
+
       <div className="hidden md:block border border-border">
         <table className="w-full text-[12px]">
           <thead><tr className="text-left border-b border-border bg-surface">
@@ -1049,6 +1112,7 @@ function TradersTab() {
             <th className="px-3 py-1.5 font-semibold text-muted">Licence</th>
             <th className="px-3 py-1.5 font-semibold text-muted w-20">Status</th>
             <th className="px-3 py-1.5 font-semibold text-muted text-right">Created</th>
+            <th className="px-3 py-1.5 font-semibold text-muted text-center w-20">Preferred</th>
             <th className="px-3 py-1.5 font-semibold text-muted w-40"></th>
           </tr></thead>
           <tbody>
@@ -1063,6 +1127,13 @@ function TradersTab() {
                     <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 ${traderStatusColor(t.status)}`}>{t.status}</span>
                   </td>
                   <td className="px-3 py-1.5 font-mono text-muted text-right">{t.created_at.split("T")[0]}</td>
+                  <td className="px-3 py-1.5 text-center">
+                    {t.status === "Active" ? (
+                      <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase whitespace-nowrap cursor-default" style={t.preferred ? { background: "#C9A227", color: "#FFFFFF", border: "none" } : { background: "#FFFFFF", color: "#9A938A", border: "1px solid #EAE4DA" }}>
+                        {t.preferred ? "Preferred" : "Set Preferred"}
+                      </button>
+                    ) : <span className="text-[10px]" style={{ color: "#9A938A" }}>—</span>}
+                  </td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-1">
                       {t.status === "Pending" && (
@@ -1146,7 +1217,14 @@ function TradersTab() {
           <div key={t.id} className="border border-border p-3">
             <div className="flex items-center justify-between">
               <div className="text-[12px] font-medium">{t.name}</div>
-              <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${traderStatusColor(t.status)}`}>{t.status}</span>
+              <div className="flex items-center gap-1.5">
+                {t.status === "Active" && (
+                  <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase cursor-default" style={t.preferred ? { background: "#C9A227", color: "#FFFFFF", border: "none" } : { background: "#FFFFFF", color: "#9A938A", border: "1px solid #EAE4DA" }}>
+                    {t.preferred ? "Preferred" : "Set Preferred"}
+                  </button>
+                )}
+                <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${traderStatusColor(t.status)}`}>{t.status}</span>
+              </div>
             </div>
             <div className="text-[10px] text-muted mt-1">
               {t.company&&<div>Company: {t.company}</div>}
@@ -1216,6 +1294,14 @@ function OrdersTab() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function showToast(msg: string) {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3000);
+  }
 
   const fetchData = useCallback(async () => {
     try { const res = await fetch("/api/orders"); if (res.ok) setOrders(await res.json()); }
@@ -1226,6 +1312,11 @@ function OrdersTab() {
   async function handleStatusChange(id: number, status: string) {
     await fetch("/api/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
     setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status } : o));
+    const order = orders.find(o => o.id === id);
+    if (order) {
+      const priceStr = order.price ? `$${order.price.toLocaleString()}` : 'price on request';
+      showToast(`Order ${order.stone_ref} (${order.buyer_name || 'buyer'}) → ${status}${order.price ? ' · ' + priceStr : ''}`);
+    }
   }
 
   function buildInvoiceMsg(o: OrderRow) {
@@ -1376,6 +1467,14 @@ function OrdersTab() {
           </div>
         ))}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg shadow-lg flex items-center gap-2" style={{ background: '#1A1A1A', color: '#FAF8F4' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A227" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+          <span className="text-[11px] font-light whitespace-nowrap">{toast}</span>
+        </div>
+      )}
     </div>
   );
 }

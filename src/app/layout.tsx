@@ -13,6 +13,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "AMES DE BRILLIANTE",
   description: "Licensed Diamond Dealer, Republic of Botswana",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -14,6 +13,7 @@ interface StoreStone {
   shape: string; carat: number; color: string; clarity: string;
   cut: string; certification: string; price: number | null;
   photo: string; listing_category: string; status: string;
+  trader_preferred?: boolean;
 }
 
 interface VideoItem {
@@ -39,29 +39,10 @@ const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
    ═══════════════════════════════════════════ */
 
 export default function AppPage() {
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === "undefined") return true;
-    if (sessionStorage.getItem("ames_splash_seen")) return false;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-    return true;
-  });
-  const [splashFading, setSplashFading] = useState(false);
   const [activePanel, setActivePanel] = useState(1);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
   const [chatPrefill, setChatPrefill] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showSplash) return;
-    const f = setTimeout(() => setSplashFading(true), 2400);
-    const h = setTimeout(() => { sessionStorage.setItem("ames_splash_seen", "1"); setShowSplash(false); }, 3200);
-    return () => { clearTimeout(f); clearTimeout(h); };
-  }, [showSplash]);
-
-  function handleSplashTap() {
-    sessionStorage.setItem("ames_splash_seen", "1");
-    setShowSplash(false);
-  }
 
   useEffect(() => {
     const c = containerRef.current;
@@ -72,12 +53,12 @@ export default function AppPage() {
     );
     c.querySelectorAll("[data-panel]").forEach((p) => obs.observe(p));
     return () => obs.disconnect();
-  }, [showSplash]);
+  }, []);
 
   // Scroll to Chat (middle) on initial load
   useEffect(() => {
-    if (!showSplash) setTimeout(() => scrollToPanel(1), 100);
-  }, [showSplash]);
+    setTimeout(() => scrollToPanel(1), 100);
+  }, []);
 
   function scrollToPanel(idx: number) {
     const c = containerRef.current;
@@ -123,19 +104,25 @@ export default function AppPage() {
   return (
     <>
       {/* App shell font */}
-      <style>{`@import url('https://db.onlinewebfonts.com/c/e66905e07608167a84e6ad52f638c3c6?family=Helvetica+Now+Var'); :root { font-family: 'Helvetica Now Var', 'Helvetica Neue', Helvetica, Arial, sans-serif; }`}</style>
-
-      {showSplash && (
-        <div className="fixed inset-0 z-[100] cursor-pointer" onClick={handleSplashTap}>
-          <DiamondHero fading={splashFading} />
-        </div>
-      )}
+      <style>{`
+        @import url('https://db.onlinewebfonts.com/c/e66905e07608167a84e6ad52f638c3c6?family=Helvetica+Now+Var');
+        :root { font-family: 'Helvetica Now Var', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        @keyframes shimmer {
+          0% { background-position: -400px 0; }
+          100% { background-position: 400px 0; }
+        }
+        .shimmer {
+          background: linear-gradient(90deg, transparent 25%, rgba(201,162,39,0.08) 50%, transparent 75%);
+          background-size: 400px 100%;
+          animation: shimmer 1.6s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* Slim transparent top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-10" style={{ background: "rgba(250,248,244,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #EAE4DA" }}>
-        {/* Left: AMES wordmark */}
+        {/* Left: AMES logo */}
         <div className="flex items-center">
-          <span className="text-[12px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</span>
+          <img src="/logo.png" alt="AMES" style={{ height: 28, width: 'auto' }} className="object-contain" />
         </div>
         {/* Centre: panel labels */}
         <div className="flex items-center gap-4">
@@ -178,105 +165,6 @@ export default function AppPage() {
         </button>
       )}
     </>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   HERO SPLASH — Video + Spinning Diamond
-   ═══════════════════════════════════════════ */
-
-const SPLASH_VIDEO = "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260514_135830_bb6491d1-9b66-4aec-9722-13b4dfe3fb46.mp4";
-
-function DiamondHero({ fading }: { fading: boolean }) {
-  const [glowIntensity, setGlowIntensity] = useState(0);
-
-  useEffect(() => {
-    const t = setTimeout(() => setGlowIntensity(1), 1200);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <motion.div
-      className="fixed inset-0"
-      style={{ zIndex: 100 }}
-      initial={{ opacity: 1, scale: 1 }}
-      animate={fading ? { opacity: 0, scale: 1.08 } : { opacity: 1, scale: 1 }}
-      transition={{ duration: fading ? 0.8 : 0, ease: "easeOut" }}
-    >
-      {/* Background video */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        src={SPLASH_VIDEO}
-        className="fixed top-0 left-0 w-full object-cover"
-        style={{ height: "100vh", zIndex: 0 }}
-      />
-
-      {/* Diamond centred over video */}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 1 }}>
-        {/* Soft white glow */}
-        <div
-          className="absolute rounded-full splash-glow"
-          style={{
-            opacity: glowIntensity ? 1 : 0.5,
-            transition: "opacity 1.2s ease-out",
-          }}
-        />
-        {/* Spin wrapper — CSS rotation, no conflict with Framer Motion */}
-        <div className="relative splash-spin">
-          {/* Breathe wrapper — CSS scale, separate from Framer Motion entrance */}
-          <div className="splash-breathe">
-            <motion.img
-              src="/diamond.png"
-              alt=""
-              initial={{ opacity: 0, scale: 0.6 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-              className="splash-diamond"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Keyframes and responsive sizing */}
-      <style>{`
-        @keyframes diamondSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes diamondBreathe {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.04); }
-        }
-        .splash-glow {
-          width: 65vmin;
-          height: 65vmin;
-          background: radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%);
-          filter: blur(24px);
-        }
-        .splash-spin {
-          animation: diamondSpin 24s linear infinite;
-        }
-        .splash-breathe {
-          animation: diamondBreathe 6s ease-in-out infinite;
-        }
-        .splash-diamond {
-          width: 55vmin;
-          height: 55vmin;
-          object-fit: contain;
-          position: relative;
-          z-index: 1;
-        }
-        @media (max-width: 900px) {
-          .splash-diamond {
-            width: 70vmin;
-            height: 70vmin;
-          }
-        }
-      `}</style>
-    </motion.div>
   );
 }
 
@@ -567,13 +455,59 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"All" | "Polished" | "Jewelry">("All");
   const [reserved, setReserved] = useState<Record<string, boolean>>({});
+  const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
+  const [zoomAlt, setZoomAlt] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetch("/api/stones").then(r => r.ok ? r.json() : []).then((all: StoreStone[]) => {
-      setStones(all.filter(s => s.status === "Available" && (s.listing_category === "Polished" || s.listing_category === "Jewelry")));
-    }).catch(() => {}).finally(() => setLoading(false));
+  // Pull-to-refresh state
+  const [pullDist, setPullDist] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullStartRef = useRef<number | null>(null);
+  const pullingRef = useRef(false);
+  const THRESHOLD = 80;
+  const MAX_PULL = 120;
+
+  const fetchStones = useCallback(async () => {
+    try {
+      const r = await fetch('/api/stones');
+      if (r.ok) {
+        const all: StoreStone[] = await r.json();
+        setStones(all.filter(s => s.status === 'Available' && (s.listing_category === 'Polished' || s.listing_category === 'Jewelry')));
+      }
+    } catch {} finally { setLoading(false); }
   }, []);
+
+  useEffect(() => { fetchStones(); }, [fetchStones]);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    const el = scrollRef.current;
+    if (!el || el.scrollTop > 5 || isRefreshing) return;
+    pullStartRef.current = e.touches[0].clientY;
+    pullingRef.current = true;
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (!pullingRef.current || pullStartRef.current === null || isRefreshing) return;
+    const dy = e.touches[0].clientY - pullStartRef.current;
+    if (dy <= 0) { setPullDist(0); return; }
+    const el = scrollRef.current;
+    if (el && el.scrollTop > 0) { pullingRef.current = false; setPullDist(0); return; }
+    // Rubber-band curve: diminishing resistance past threshold
+    const dampened = Math.min(MAX_PULL, dy * 0.55);
+    setPullDist(dampened);
+  }
+
+  function handleTouchEnd() {
+    if (!pullingRef.current) return;
+    pullingRef.current = false;
+    if (pullDist >= THRESHOLD && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullDist(50);
+      fetchStones().finally(() => { setIsRefreshing(false); setPullDist(0); });
+    } else {
+      setPullDist(0);
+    }
+  }
 
   useEffect(() => {
     if (!highlightStone || !scrollRef.current) return;
@@ -601,27 +535,169 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
         ))}
       </div>
 
+      {/* Pull-to-refresh indicator */}
+      <div className="shrink-0 overflow-hidden flex items-center justify-center" style={{ height: pullDist || 0, transition: isRefreshing ? 'none' : 'height 0.25s ease-out' }}>
+        {pullDist > 10 && (
+          <div className="flex items-center gap-2" style={{ opacity: Math.min(1, pullDist / THRESHOLD) }}>
+            <svg className={isRefreshing ? 'animate-spin' : ''} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A227" strokeWidth="2" strokeLinecap="round" style={{ transform: !isRefreshing ? `rotate(${pullDist / THRESHOLD * 90}deg)` : undefined, transition: isRefreshing ? 'none' : 'transform 0.1s' }}>
+              <path d="M21 12a9 9 0 11-6.219-8.56" />
+            </svg>
+            <span className="text-[10px]" style={{ color: isRefreshing ? '#C9A227' : '#9A938A' }}>
+              {pullDist >= THRESHOLD ? (isRefreshing ? 'Refreshing...' : 'Release to refresh') : 'Pull to refresh'}
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Grid */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-8" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
         {loading ? (
-          <div className="text-[11px] text-center py-12" style={{ color: "#9A938A" }}>Loading...</div>
+          <div className="grid grid-cols-2 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="overflow-hidden" style={{ background: '#FFFFFF', border: '1px solid #EAE4DA' }}>
+                <div className="aspect-square relative" style={{ background: '#F0EDE8' }}>
+                  <div className="absolute inset-0 shimmer" />
+                </div>
+                <div className="p-4 space-y-2">
+                  <div className="flex justify-between"><div className="h-3 w-16 shimmer rounded" /><div className="h-3 w-14 shimmer rounded" /></div>
+                  <div className="h-3 w-3/4 shimmer rounded" />
+                  <div className="h-6 w-full shimmer rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
           <p className="text-[11px] text-center py-12" style={{ color: "#9A938A" }}>No pieces currently available.</p>
         ) : (
           <div className="grid grid-cols-2 gap-4">
             {filtered.map(stone => (
-              <BoutiqueCard key={stone.id} stone={stone} onReserve={(n, w) => handleReserve(stone.id, n, w)} reserved={!!reserved[stone.id]} highlighted={highlightStone === stone.id} />
+              <BoutiqueCard key={stone.id} stone={stone} onReserve={(n, w) => handleReserve(stone.id, n, w)} reserved={!!reserved[stone.id]} highlighted={highlightStone === stone.id} onPhotoClick={(src, alt) => { setZoomPhoto(src); setZoomAlt(alt); }} />
             ))}
           </div>
         )}
         <p className="text-center mt-4" style={{ fontSize: 11, color: "#9A938A", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
         <div className="h-8" />
       </div>
+
+      {/* Photo zoom overlay */}
+      {zoomPhoto && <PhotoZoom src={zoomPhoto} alt={zoomAlt} onClose={() => setZoomPhoto(null)} />}
     </div>
   );
 }
 
-function BoutiqueCard({ stone, onReserve, reserved, highlighted }: { stone: StoreStone; onReserve: (name: string, whatsapp: string) => void; reserved: boolean; highlighted?: boolean }) {
+/* ── Photo Zoom Overlay ── */
+function PhotoZoom({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const lastTouchRef = useRef<{ d: number; cx: number; cy: number } | null>(null);
+  const lastPanRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+
+  function clampScale(s: number) { return Math.min(Math.max(s, 0.5), 5); }
+  function clampT(nx: number, ny: number, ns: number) {
+    const mx = Math.max(0, (ns - 1) * window.innerWidth / 2);
+    const my = Math.max(0, (ns - 1) * window.innerHeight / 2);
+    return { x: Math.min(mx, Math.max(-mx, nx)), y: Math.min(my, Math.max(-my, ny)) };
+  }
+
+  // Wheel zoom (desktop)
+  function onWheel(e: React.WheelEvent) {
+    e.preventDefault();
+    const d = e.deltaY > 0 ? -0.15 : 0.15;
+    setScale(prev => {
+      const ns = clampScale(prev + d);
+      const t = clampT(tx, ty, ns);
+      setTx(t.x);
+      setTy(t.y);
+      return ns;
+    });
+  }
+
+  // Touch pinch + pan
+  function touchDist(ts: React.TouchList) {
+    if (ts.length < 2) return 0;
+    const a = ts.item(0)!, b = ts.item(1)!;
+    const dx = a.clientX - b.clientX;
+    const dy = a.clientY - b.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    if (e.touches.length === 2) {
+      lastTouchRef.current = { d: touchDist(e.touches), cx: (e.touches[0].clientX + e.touches[1].clientX) / 2, cy: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+    } else if (e.touches.length === 1 && scale > 1) {
+      lastPanRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx, ty };
+    }
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (e.touches.length === 2 && lastTouchRef.current) {
+      e.preventDefault();
+      const d = touchDist(e.touches);
+      const ratio = d / lastTouchRef.current.d;
+      setScale(prev => clampScale(prev * ratio));
+      lastTouchRef.current.d = d;
+    } else if (e.touches.length === 1 && scale > 1 && lastPanRef.current) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - lastPanRef.current.x;
+      const dy = e.touches[0].clientY - lastPanRef.current.y;
+      const t = clampT(lastPanRef.current.tx + dx, lastPanRef.current.ty + dy, scale);
+      setTx(t.x);
+      setTy(t.y);
+    }
+  }
+
+  function onTouchEnd() {
+    lastTouchRef.current = null;
+    lastPanRef.current = null;
+  }
+
+  function resetAndClose() {
+    setScale(1); setTx(0); setTy(0);
+    onClose();
+  }
+
+  // Double-tap to toggle zoom
+  const lastTapRef = useRef(0);
+  function onDoubleTap(e: React.TouchEvent) {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      if (scale > 1.1) { setScale(1); setTx(0); setTy(0); }
+      else { setScale(2.5); }
+    }
+    lastTapRef.current = now;
+  }
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 z-[95] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.92)" }} onClick={(e) => { if (e.target === e.currentTarget) resetAndClose(); }}>
+      {/* Close button */}
+      <button onClick={resetAndClose} className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.15)" }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      {/* Caption */}
+      {alt && <div className="absolute bottom-6 left-0 right-0 text-center z-10"><span className="text-white/70 text-[12px] font-light">{alt}</span></div>}
+      {/* Zoom hint */}
+      {scale <= 1.01 && (
+        <div className="absolute bottom-14 left-0 right-0 text-center z-10"><span className="text-white/40 text-[10px]">Pinch to zoom · Double-tap to magnify</span></div>
+      )}
+      {/* Zoomable image */}
+      <img
+        src={src}
+        alt={alt}
+        draggable={false}
+        className="max-h-[85vh] max-w-[90vw] object-contain select-none"
+        style={{ transform: `translate(${tx}px, ${ty}px) scale(${scale})`, transition: lastTouchRef.current || lastPanRef.current ? 'none' : 'transform 0.15s ease-out', touchAction: 'none' }}
+        onWheel={onWheel}
+        onTouchStart={(e) => { onDoubleTap(e); onTouchStart(e); }}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      />
+    </div>
+  );
+}
+
+function BoutiqueCard({ stone, onReserve, reserved, highlighted, onPhotoClick }: { stone: StoreStone; onReserve: (name: string, whatsapp: string) => void; reserved: boolean; highlighted?: boolean; onPhotoClick?: (src: string, alt: string) => void }) {
   const hasPhoto = stone.photo && stone.photo.length > 10 && !stone.photo.startsWith("data:");
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -629,10 +705,16 @@ function BoutiqueCard({ stone, onReserve, reserved, highlighted }: { stone: Stor
 
   return (
     <div className="overflow-hidden" style={{ background: "#FFFFFF", border: highlighted ? "1px solid #C9A227" : "1px solid #EAE4DA" }}>
-      <div className="aspect-square overflow-hidden relative">
+      <div className="aspect-square overflow-hidden relative cursor-zoom-in" onClick={hasPhoto && onPhotoClick ? () => onPhotoClick(stone.photo, stone.ref) : undefined}>
         <img src={hasPhoto ? stone.photo : PLACEHOLDER} alt={stone.ref} className="w-full h-full object-cover" />
         {stone.listing_category === "Jewelry" && (
           <span className="absolute top-2 left-2 text-white text-[8px] font-medium uppercase tracking-wider px-2 py-0.5" style={{ background: "#1A1A1A" }}>Jewelry</span>
+        )}
+        {(stone as any).trader_preferred && (
+          <span className="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-medium uppercase tracking-[0.08em] px-2 py-0.5 rounded-full" style={{ color: "#C9A227", background: "rgba(250,248,244,0.9)", border: "1px solid #C9A227" }}>
+            <svg viewBox="0 0 24 24" fill="none" className="w-2.5 h-2.5 shrink-0"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
+            Preferred Source
+          </span>
         )}
       </div>
       <div className="p-4 space-y-2">

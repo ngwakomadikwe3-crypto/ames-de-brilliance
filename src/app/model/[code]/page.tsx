@@ -20,30 +20,123 @@ export default function ModelPortal() {
   const code = params.code as string;
   const [model, setModel] = useState<Model | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [logging, setLogging] = useState(false);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLogging(true);
+    setLoginError(null);
+    try {
+      const res = await fetch("/api/models/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, phone }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setLoginError(data.error || "Invalid credentials");
+        return;
+      }
+      const data = await res.json();
+      setModel(data);
+      setAuthenticated(true);
+    } catch {
+      setLoginError("Connection failed. Please try again.");
+    } finally {
+      setLogging(false);
+    }
+  }
 
   useEffect(() => {
+    // Try loading without login first (legacy portal codes)
     fetch("/api/models/" + code)
       .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
-      .then(d => setModel(d))
-      .catch(() => setError("not found"))
-      .finally(() => setLoading(false));
+      .then(d => { setModel(d); setAuthenticated(true); })
+      .catch(() => setLoading(false));
   }, [code]);
 
-  if (loading) return <div className="min-h-[100dvh] flex items-center justify-center text-[12px] text-muted">Loading...</div>;
-  if (error || !model) return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6">
-      <div className="max-w-sm text-center space-y-4">
-        <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto">
-          <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#000" strokeWidth="1.5" fill="none" />
-        </svg>
-        <h1 className="text-[16px] font-bold">AMES DE BRILLIANTE</h1>
-        <p className="text-[13px] text-muted leading-relaxed">This roster is invitation-only.</p>
+  if (loading && !authenticated) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#FAF8F4" }}>
+        <div className="text-[12px]" style={{ color: "#9A938A" }}>Loading...</div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  return <ModelTabs model={model} />;
+  // Show login if not authenticated
+  if (!authenticated && !model) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+        <div className="w-full max-w-sm">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto mb-3">
+              <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
+            </svg>
+            <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
+            <p className="text-[11px] mt-2" style={{ color: "#9A938A" }}>Model Portal</p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+267 XX XXX XXX"
+                className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+                style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+                required
+              />
+            </div>
+
+            {loginError && (
+              <div className="text-[11px] p-3 rounded-lg" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>
+                {loginError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={logging || !phone.trim()}
+              className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
+              style={{ background: "#C9A227" }}
+            >
+              {logging ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+
+          <p className="text-center text-[10px] mt-6" style={{ color: "#9A938A" }}>
+            This roster is invitation-only
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Inactive model
+  if (model && model.status !== "Active") {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#FAF8F4" }}>
+        <div className="max-w-sm text-center space-y-4">
+          <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 mx-auto">
+            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
+          </svg>
+          <h1 className="text-[16px] font-light tracking-[0.18em]" style={{ color: "#1A1A1A" }}>AMES</h1>
+          <p className="text-[13px] font-light leading-relaxed" style={{ color: "#9A938A" }}>
+            This roster is invitation-only.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ModelTabs model={model!} />;
 }
 
 type Tab = "post" | "myvideos";
@@ -51,18 +144,37 @@ type Tab = "post" | "myvideos";
 function ModelTabs({ model }: { model: Model }) {
   const [tab, setTab] = useState<Tab>("post");
   return (
-    <div className="min-h-[100dvh] flex flex-col bg-white">
-      <header className="border-b border-border px-4 py-3 shrink-0">
+    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#FAF8F4" }}>
+      {/* Header */}
+      <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
         <div className="flex items-center gap-2">
-          <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4"><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#000" strokeWidth="1.5" fill="none" /></svg>
-          <span className="text-[13px] font-bold tracking-tight">{model.name}</span>
-          {model.instagram && <span className="text-[10px] text-muted font-mono">@{model.instagram}</span>}
+          <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
+            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" fill="none" />
+          </svg>
+          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#1A1A1A" }}>{model.name}</span>
+          {model.instagram && (
+            <span className="text-[10px] font-light font-mono" style={{ color: "#9A938A" }}>@{model.instagram}</span>
+          )}
         </div>
-      </header>
-      <div className="flex border-b border-border shrink-0">
-        <button onClick={() => setTab("post")} className={`flex-1 py-2.5 text-[12px] font-medium text-center cursor-default ${tab === "post" ? "border-b-2 border-black text-black" : "text-muted"}`}>Post a video</button>
-        <button onClick={() => setTab("myvideos")} className={`flex-1 py-2.5 text-[12px] font-medium text-center cursor-default ${tab === "myvideos" ? "border-b-2 border-black text-black" : "text-muted"}`}>My videos</button>
       </div>
+
+      {/* Tabs */}
+      <div className="flex shrink-0" style={{ borderBottom: "1px solid #EAE4DA" }}>
+        {(["post", "myvideos"] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="flex-1 py-2.5 text-[12px] font-light text-center transition-colors"
+            style={{
+              color: tab === t ? "#1A1A1A" : "#9A938A",
+              borderBottom: tab === t ? "2px solid #C9A227" : "2px solid transparent"
+            }}
+          >
+            {t === "post" ? "Post a video" : "My videos"}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 min-h-0 overflow-y-auto">
         {tab === "post" ? <PostVideoTab model={model} /> : <MyVideosTab model={model} />}
       </div>
@@ -90,7 +202,8 @@ function PostVideoTab({ model }: { model: Model }) {
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true); setError(null);
+    setUploading(true);
+    setError(null);
     try {
       const fd = new FormData();
       fd.set("file", file);
@@ -98,73 +211,126 @@ function PostVideoTab({ model }: { model: Model }) {
       if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
       const data = await res.json();
       setUrl(data.url);
-    } catch (e: any) { setError(e.message); } finally { setUploading(false); }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit() {
     if (!url.trim()) { setError("Video URL required"); return; }
-    setError(null); setSubmitting(true);
+    setError(null);
+    setSubmitting(true);
     try {
       const res = await fetch("/api/models/" + model.portal_code + "/videos", {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ video_url: url, caption, stone_id: linkedStone || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       setSubmitted(true);
-    } catch (e: any) { setError(e.message); } finally { setSubmitting(false); }
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (submitted) return (
     <div className="p-6 text-center space-y-3">
-      <p className="text-[13px] font-medium">Video submitted for review.</p>
-      <p className="text-[11px] text-muted">The desk will review and publish. Track status in &ldquo;My videos&rdquo;.</p>
-      <button onClick={() => { setSubmitted(false); setUrl(""); setCaption(""); setLinkedStone(""); }} className="text-[12px] underline text-muted">Post another</button>
+      <p className="text-[13px] font-light" style={{ color: "#1A1A1A" }}>Video submitted for review.</p>
+      <p className="text-[11px] font-light" style={{ color: "#9A938A" }}>
+        The desk will review and publish. Track status in "My videos".
+      </p>
+      <button
+        onClick={() => { setSubmitted(false); setUrl(""); setCaption(""); setLinkedStone(""); }}
+        className="text-[12px] font-light"
+        style={{ color: "#C9A227" }}
+      >
+        Post another
+      </button>
     </div>
   );
 
   return (
     <div className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
-      <div className="border border-border bg-surface p-3 space-y-1.5">
-        <div className="text-[10px] uppercase tracking-wider text-muted font-medium">House rules</div>
-        <ul className="text-[11px] text-muted leading-relaxed space-y-1 list-disc list-inside">
-          <li>Real pieces only &mdash; no replicas, no stock imagery</li>
-          <li>Never state prices in captions &mdash; prices come from the live tag</li>
-          <li>No investment claims or urgency language</li>
-          <li>The house may decline any video at its discretion</li>
+      {/* House rules */}
+      <div className="p-3 space-y-1.5" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+        <div className="text-[10px] uppercase tracking-wider font-light" style={{ color: "#9A938A" }}>House Rules</div>
+        <ul className="text-[11px] font-light leading-relaxed space-y-1" style={{ color: "#9A938A" }}>
+          <li>• Real pieces only — no replicas, no stock imagery</li>
+          <li>• Never state prices in captions — prices come from the live tag</li>
+          <li>• No investment claims or urgency language</li>
+          <li>• The house may decline any video at its discretion</li>
         </ul>
       </div>
 
-      {error && <div className="text-[10px] text-red-600 border border-red-300 p-2 bg-red-50">{error}</div>}
+      {error && (
+        <div className="text-[10px] p-3 rounded-lg" style={{ color: "#B91C1C", background: "#FEE2E2", border: "1px solid #FECACA" }}>
+          {error}
+        </div>
+      )}
 
       <div>
-        <span className="block text-[11px] font-medium mb-1">Video</span>
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Video</span>
         <div className="flex gap-2">
           <label className="flex-1">
-            <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={handleFileUpload} disabled={uploading} className="w-full text-[11px] file:mr-2 file:py-1 file:px-2 file:border file:border-border file:text-[10px] file:bg-surface file:cursor-default min-h-[40px]" />
-            {uploading && <span className="text-[10px] text-muted">Uploading...</span>}
+            <input
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="w-full text-[11px] file:mr-2 file:py-1 file:px-3 file:rounded file:border file:text-[10px] file:cursor-default min-h-[40px]"
+              style={{ color: "#9A938A" }}
+            />
+            {uploading && <span className="text-[10px]" style={{ color: "#9A938A" }}>Uploading...</span>}
           </label>
-          <span className="text-[10px] text-muted self-center">or</span>
-          <input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste URL" className="flex-1 field-input min-h-[40px] text-[11px]" />
+          <span className="text-[10px] self-center" style={{ color: "#9A938A" }}>or</span>
+          <input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="Paste URL"
+            className="flex-1 px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+            style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+          />
         </div>
       </div>
 
       <div>
-        <span className="block text-[11px] font-medium mb-1">Caption</span>
-        <input value={caption} onChange={e => setCaption(e.target.value)} placeholder="One line &mdash; describe the piece, not the price" className="w-full field-input min-h-[40px] text-[11px]" />
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Caption</span>
+        <input
+          value={caption}
+          onChange={e => setCaption(e.target.value)}
+          placeholder="One line — describe the piece, not the price"
+          className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+        />
       </div>
 
       <div>
-        <span className="block text-[11px] font-medium mb-1">Link to stone (optional)</span>
-        <select value={linkedStone} onChange={e => setLinkedStone(e.target.value)} className="w-full field-input min-h-[40px] text-[11px]">
+        <span className="block text-[11px] font-light mb-1.5" style={{ color: "#1A1A1A" }}>Link to stone (optional)</span>
+        <select
+          value={linkedStone}
+          onChange={e => setLinkedStone(e.target.value)}
+          className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+          style={{ border: "1px solid #EAE4DA", background: "#FFFFFF", color: "#1A1A1A" }}
+        >
           <option value="">None</option>
           {stones.map(s => (
-            <option key={s.id} value={s.id}>{s.ref} &mdash; {s.shape} {s.carat}ct {s.color}</option>
+            <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct {s.color}</option>
           ))}
         </select>
       </div>
 
-      <button onClick={handleSubmit} disabled={!url.trim() || submitting} className="w-full py-2 bg-black text-white text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">{submitting ? "Submitting..." : "Submit for review"}</button>
+      <button
+        onClick={handleSubmit}
+        disabled={!url.trim() || submitting}
+        className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
+        style={{ background: "#C9A227" }}
+      >
+        {submitting ? "Submitting..." : "Submit for Review"}
+      </button>
     </div>
   );
 }
@@ -197,28 +363,34 @@ function MyVideosTab({ model }: { model: Model }) {
           total_due: data.total_due,
         });
       }
-    } catch {/* */} finally { setLoading(false); }
+    } catch {} finally { setLoading(false); }
   }, [model.portal_code, model.id]);
 
   useEffect(() => { fetchVideos(); }, [fetchVideos]);
 
   function statusBadge(s: string) {
     switch (s) {
-      case "Pending": return "bg-yellow-500 text-white";
-      case "Live": return "bg-green-700 text-white";
-      default: return "bg-gray-200 text-black";
+      case "Pending": return { bg: "#FEF3C7", text: "#92400E" };
+      case "Live": return { bg: "#D1FAE5", text: "#065F46" };
+      default: return { bg: "#F3F4F6", text: "#374151" };
     }
   }
 
-  if (loading) return <div className="p-6 text-[12px] text-muted text-center">Loading...</div>;
-  if (videos.length === 0) return <div className="p-6 text-[12px] text-muted text-center">No videos posted yet.</div>;
+  if (loading) return (
+    <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>Loading...</div>
+  );
+
+  if (videos.length === 0) return (
+    <div className="p-6 text-[12px] text-center" style={{ color: "#9A938A" }}>No videos posted yet.</div>
+  );
 
   return (
     <div className="p-4 space-y-3">
+      {/* Monthly Summary */}
       {summary && (
-        <div className="border border-border bg-surface p-3 mb-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted font-medium mb-1">This month</div>
-          <div className="flex gap-4 text-[11px] font-mono">
+        <div className="p-3 mb-2" style={{ background: "#FFFFFF", border: "1px solid #EAE4DA" }}>
+          <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#9A938A" }}>This Month</div>
+          <div className="flex gap-4 text-[11px] font-light" style={{ fontFamily: "monospace" }}>
             <span><strong>{summary.approved_this_month}</strong>/30 approved</span>
             <span>Base: <strong>${summary.base_earned.toFixed(0)}</strong></span>
             <span>Commission: <strong>${summary.commission_earned.toFixed(0)}</strong></span>
@@ -226,27 +398,38 @@ function MyVideosTab({ model }: { model: Model }) {
           </div>
         </div>
       )}
-      {videos.map(v => (
-        <div key={v.id} className="border border-border p-3 flex gap-3 items-start">
-          <div className="w-20 h-28 bg-black overflow-hidden shrink-0">
-            <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${statusBadge(v.status)}`}>{v.status}</span>
-              {v.stone_ref && <span className="text-[10px] text-muted font-mono">&rarr; {v.stone_ref}</span>}
+
+      {/* Videos */}
+      {videos.map(v => {
+        const badge = statusBadge(v.status);
+        return (
+          <div key={v.id} className="flex gap-3 items-start p-3" style={{ border: "1px solid #EAE4DA", background: "#FFFFFF" }}>
+            <div className="w-20 h-28 overflow-hidden shrink-0" style={{ background: "#1A1A1A" }}>
+              <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
             </div>
-            <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
-            <div className="flex gap-3 mt-1 text-[10px] text-muted font-mono">
-              <span>{v.tap_count} taps</span>
-              <span>{v.reserve_count} reserves</span>
-              {v.sales_count > 0 && <span>{v.sales_count} sales</span>}
-              {v.commission_earned > 0 && <span>${v.commission_earned.toFixed(2)} comm</span>}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] font-medium uppercase px-1.5 py-0.5 rounded" style={{ background: badge.bg, color: badge.text }}>
+                  {v.status}
+                </span>
+                {v.stone_ref && (
+                  <span className="text-[10px] font-mono" style={{ color: "#9A938A" }}>→ {v.stone_ref}</span>
+                )}
+              </div>
+              <div className="text-[11px] truncate" style={{ color: "#1A1A1A" }}>{v.caption || "No caption"}</div>
+              <div className="flex gap-3 mt-1 text-[10px] font-mono" style={{ color: "#9A938A" }}>
+                <span>{v.tap_count} taps</span>
+                <span>{v.reserve_count} reserves</span>
+                {v.sales_count > 0 && <span>{v.sales_count} sales</span>}
+                {v.commission_earned > 0 && <span>${v.commission_earned.toFixed(2)} comm</span>}
+              </div>
+              <div className="text-[10px] font-mono mt-0.5" style={{ color: "#9A938A" }}>
+                {v.created_at.split("T")[0]}
+              </div>
             </div>
-            <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

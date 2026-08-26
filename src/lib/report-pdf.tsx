@@ -21,6 +21,7 @@ interface ReportData {
 const styles = StyleSheet.create({
   page: { padding: 50, fontSize: 10, fontFamily: "Helvetica", color: "#1A1A1A" },
   cover: { display: "flex", flexDirection: "column" as const, justifyContent: "center", alignItems: "center", height: "100%", marginBottom: 30 },
+  diamondWatermark: { position: "absolute" as const, top: "50%", left: "50%", width: 120, height: 120, marginTop: -60, marginLeft: -60, opacity: 0.06 },
   title: { fontSize: 14, fontFamily: "Helvetica-Bold", letterSpacing: 2, marginBottom: 8, textAlign: "center" },
   subtitle: { fontSize: 9, color: "#9A938A", marginBottom: 20, textAlign: "center" },
   issue: { fontSize: 10, color: "#1A1A1A", textAlign: "center" },
@@ -38,6 +39,9 @@ export function ReportPDF({ data, prose }: { data: ReportData; prose: string }) 
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.cover}>
+          <svg style={styles.diamondWatermark} viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="0.8" fill="none" />
+          </svg>
           <Text style={styles.title}>AMES INTELLIGENCE</Text>
           <Text style={styles.subtitle}>Licensed Diamond Dealer � Botswana</Text>
           {data.tierLabel ? <Text style={{ fontSize: 9, color: "#C9A227", marginBottom: 10, textAlign: "center" }}>{data.tierLabel}</Text> : null}

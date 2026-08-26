@@ -15,6 +15,7 @@ const API_KEY = process.env.APPWRITE_API_KEY!;
 export const DB_ID = "ames";
 export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
+export const LICENCE_DOCS_BUCKET = "licence-docs";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -41,6 +42,10 @@ export function getStorage(): Storage {
 
 export function getMediaUrl(fileId: string): string {
   return `${ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
+}
+
+export function getLicenceUrl(fileId: string): string {
+  return `${ENDPOINT}/storage/buckets/${LICENCE_DOCS_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
 /* ── Helpers ── */
@@ -121,6 +126,18 @@ export async function ensureReady(): Promise<void> {
       });
     } catch { /* exists */ }
 
+    // 5. Create private licence documents bucket (dashboard-only read)
+    try {
+      await sto.createBucket({
+        bucketId: LICENCE_DOCS_BUCKET,
+        name: "Licence Documents",
+        permissions: [Permission.write(Role.any())],
+        enabled: true,
+        maximumFileSize: 20 * 1024 * 1024,
+        allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+      });
+    } catch { /* exists */ }
+
     _ready = true;
   } catch (err) {
     console.error("[appwrite] ensureReady failed:", err);
@@ -186,6 +203,7 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "country", type: "string", size: 255, default: "" },
       { key: "licence_photo", type: "string", size: 65535, default: "" },
       { key: "created_at", type: "datetime" },
+      { key: "preferred", type: "boolean", default: false },
     ],
   },
   {
