@@ -1,6 +1,6 @@
 import {
-  ensureReady, getDb as getDbSvc, getStorage, getMediaUrl,
-  doc, nowISO, DB_ID, MEDIA_BUCKET,
+  ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, getLicenceUrl,
+  doc, nowISO, DB_ID, MEDIA_BUCKET, LICENCE_DOCS_BUCKET,
 } from "./appwrite";
 import { ID, Query } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
@@ -157,6 +157,12 @@ export async function updateRequestOffer(id: string, offerText: string): Promise
 
 /* ── Trader Queries ── */
 
+export async function createTrader(name: string, whatsapp: string): Promise<DbTrader> {
+  await ensureReady();
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "traders", documentId: ID.unique(), data: { name, whatsapp, licence: "", portal_code: genPortalCode(), email: "", status: "Active", company: "", country: "", licence_photo: "", created_at: nowISO() } });
+  return doc<DbTrader>(res);
+}
+
 export async function getAllTraders(): Promise<DbTrader[]> {
   await ensureReady();
   const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "traders" });
@@ -202,6 +208,15 @@ export async function declineTrader(id: string): Promise<DbTrader | null> {
   if (!(await getTraderById(id))) return null;
   await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { status: "Declined" } });
   return (await getTraderById(id)) || null;
+}
+
+export async function togglePreferredTrader(id: string): Promise<boolean> {
+  await ensureReady();
+  const trader = await getTraderById(id);
+  if (!trader) return false;
+  const newVal = !(trader as any).preferred;
+  await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "traders", documentId: id, data: { preferred: newVal } });
+  return newVal;
 }
 
 /* ── Report Queries ── */
@@ -260,7 +275,7 @@ async function enrichStones(stones: any[]): Promise<any[]> {
   const traderIds = [...new Set(stones.map(s => s.trader_id).filter(Boolean))];
   const traderMap = new Map<string, any>();
   for (const tid of traderIds) { try { traderMap.set(tid, await db.getDocument({ databaseId: DB_ID, collectionId: "traders", documentId: tid })); } catch {} }
-  return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null }));
+  return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null, trader_preferred: s.trader_id ? !!(traderMap.get(s.trader_id) as any)?.preferred : false }));
 }
 
 export async function getAllStones() { await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
@@ -500,6 +515,63 @@ export async function declineModelVideo(id: string): Promise<boolean> { await en
 
 export async function incrementTapCount(id: string): Promise<void> {
   await ensureReady(); try { const v = await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id }); await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { tap_count: (v.tap_count || 0) + 1 } }); } catch {}
+}
+
+/* ── Portal Authentication ── */
+
+export async function authenticateTrader(code: string, phone: string): Promise<DbTrader | null> {
+  const trader = await getTraderByPortalCode(code);
+  if (!trader) return null;
+  const normalise = (s: string) => s.replace(/[^0-9+]/g, "");
+  if (normalise(trader.whatsapp) && normalise(phone) && normalise(trader.whatsapp) !== normalise(phone)) return null;
+  return trader;
+}
+
+export async function authenticateModel(code: string, phone: string): Promise<DbModel | null> {
+  const model = await getModelByPortalCode(code);
+  if (!model) return null;
+  const normalise = (s: string) => s.replace(/[^0-9+]/g, "");
+  if (normalise(model.whatsapp) && normalise(phone) && normalise(model.whatsapp) !== normalise(phone)) return null;
+  return model;
+}
+
+/* ── Multi-photo support ── */
+
+export async function savePhotos(files: File[]): Promise<string[]> {
+  const urls: string[] = [];
+  for (const file of files.slice(0, 6)) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const url = await savePhoto(file.name, buffer);
+    urls.push(url);
+  }
+  return urls;
+}
+
+export function parsePhotos(photoField: string): string[] {
+  if (!photoField) return [];
+  return photoField.split("|").filter(u => u.length > 10 && u.startsWith("http"));
+}
+
+/* ── Licence Document Storage ── */
+
+export async function saveLicenceDoc(filename: string, buffer: Buffer): Promise<string> {
+  await ensureReady();
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const file = InputFile.fromBuffer(buffer, `${Date.now()}_${safeName}`);
+  const res = await getStorage().createFile({ bucketId: LICENCE_DOCS_BUCKET, fileId: ID.unique(), file });
+  return getLicenceUrl(res.$id);
+}
+
+export function getLicenceDocUrl(fileId: string): string {
+  return getLicenceUrl(fileId);
+}
+
+/* ── Stone sales count ── */
+
+export async function getStoneSalesCount(stoneId: string): Promise<number> {
+  await ensureReady();
+  const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "orders", queries: [Query.equal("stone_id", stoneId), Query.equal("status", "Paid")] });
+  return res.total;
 }
 
 /* ── Seed on import ── */

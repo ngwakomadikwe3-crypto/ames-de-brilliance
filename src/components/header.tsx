@@ -24,11 +24,8 @@ export default function Header() {
     <header className="border-b border-border bg-white shrink-0 relative z-50">
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 md:px-6 py-3">
         {/* Left: diamond + wordmark */}
-        <a href="/" className="flex items-center gap-2 shrink-0">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" aria-hidden="true">
-            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#000000" strokeWidth="1.5" fill="none" />
-          </svg>
-          <span className="text-sm font-bold tracking-tight">AMES DE BRILLIANTE</span>
+        <a href="/" className="flex items-center shrink-0">
+          <img src="/logo.png" alt="AMES DE BRILLIANTE" style={{ height: 28, width: 'auto' }} className="object-contain" />
         </a>
 
         {/* Desktop nav */}
