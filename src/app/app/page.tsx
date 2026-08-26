@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Script from "next/script";
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -103,6 +104,9 @@ export default function AppPage() {
 
   return (
     <>
+      {/* Load Spline viewer */}
+      <Script src="https://unpkg.com/@splinetool/viewer@1.9.72/build/spline-viewer.js" strategy="afterInteractive" />
+
       {/* App shell font */}
       <style>{`
         :root { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
@@ -235,6 +239,27 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const [chatLoading, setChatLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const splineFallbackRef = useRef<HTMLDivElement>(null);
+  const splineViewerRef = useRef<HTMLDivElement>(null);
+
+  // Dynamically create spline-viewer element to avoid TSX type errors
+  useEffect(() => {
+    const container = splineViewerRef.current;
+    if (!container) return;
+    const viewer = document.createElement('spline-viewer');
+    viewer.setAttribute('url', 'https://prod.spline.design/ba5d5cf6-c636-46fc-b3f5-ffc6840b905b/scene.splinecode');
+    viewer.style.cssText = 'width:100%;height:200px;display:block;background:#1A1A1A;';
+    viewer.addEventListener('load', () => {
+      const fb = splineFallbackRef.current;
+      if (fb) fb.style.display = 'none';
+    });
+    viewer.addEventListener('error', () => {
+      const fb = splineFallbackRef.current;
+      if (fb) fb.style.opacity = '1';
+    });
+    container.appendChild(viewer);
+    return () => { container.removeChild(viewer); };
+  }, []);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
@@ -337,10 +362,27 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
 
   return (
     <div className="flex-1 flex min-h-0" style={{ background: "#0B0C0D" }}>
+      {/* Fixed Spline header — above the chat interface */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, background: '#1A1A1A', borderBottom: '1px solid rgba(255,255,255,0.08)', height: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden' }}>
+        {/* Fallback: gold SVG diamond glyph (visible while Spline loads or if it fails) */}
+        <div ref={splineFallbackRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
+          <svg viewBox="0 0 24 24" fill="none" style={{ width: 80, height: 80 }} aria-hidden="true">
+            <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#C9A227" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+          </svg>
+        </div>
+        {/* Spline viewer — loads over fallback, removes fallback on load */}
+        <div ref={splineViewerRef} style={{ width: '100%', height: 200, position: 'relative', zIndex: 2, background: '#1A1A1A' }} />
+        {/* AMES wordmark centred below canvas */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: -24, position: 'relative', zIndex: 3 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.2em', color: '#FAF8F4', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>AMES</span>
+          <span style={{ fontSize: 9, letterSpacing: '0.3em', color: '#C9A227', fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>DE BRILLIANTE</span>
+        </div>
+      </div>
+
       {/* Sidebar — desktop: always visible; mobile: toggle */}
-      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0B0C0D" }}>
+      <div className={`${sidebarOpen ? "flex" : "hidden"} md:flex flex-col shrink-0 w-[260px] border-r`} style={{ borderColor: "rgba(255,255,255,0.08)", background: "#0B0C0D", paddingTop: 230 }}>
         {/* New chat pill */}
-        <div className="px-3 pt-14 pb-2">
+        <div className="px-3 pb-2">
           <button onClick={newChat} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-light transition-colors" style={{ border: "1px solid rgba(255,255,255,0.08)", color: "#FAF8F4" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
             New chat
@@ -377,8 +419,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
           </button>
         </div>
 
-        {/* Messages scroll area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
+        {/* Messages scroll area — offset below fixed Spline header */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" style={{ paddingTop: 220 }}>
           {showEmpty ? (
             /* Empty state — vitrine showcase */
             <div className="h-full flex flex-col items-center justify-center px-4">

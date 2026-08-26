@@ -21,7 +21,7 @@ interface StoneRow {
 }
 
 const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="#FAF8F4" width="400" height="400"/><text x="200" y="200" font-family="sans-serif" font-size="13" fill="#9A938A" text-anchor="middle">No photo</text></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect fill="#1A1A1A" width="400" height="400"/><text x="200" y="200" font-family="sans-serif" font-size="13" fill="#9A938A" text-anchor="middle">No photo</text></svg>'
 );
 
 export default function TraderPage() {

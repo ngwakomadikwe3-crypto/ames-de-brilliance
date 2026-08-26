@@ -42,7 +42,7 @@ export default function Header() {
           ))}
           <a
             href="/dashboard"
-            className={isActive("/dashboard") ? "font-medium text-[#FAF8F4] border-b border-[#1A1A1A] pb-0.5" : "text-[#9A938A] hover:text-[#FAF8F4]"}
+className={isActive("/dashboard") ? "font-medium text-[#C9A227] border-b border-[#C9A227] pb-0.5" : "text-[#9A938A] hover:text-[#FAF8F4]"}
           >
             Dealer Login
           </a>
