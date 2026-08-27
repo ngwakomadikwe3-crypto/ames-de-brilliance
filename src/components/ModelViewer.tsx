@@ -28,6 +28,7 @@ const CRYSTAL = new THREE.MeshPhysicalMaterial({
   color: new THREE.Color("#ffffff"),
   transmission: 1,
   ior: 2.417,
+  dispersion: 0.4,
   roughness: 0.03,
   thickness: 1.2,
   clearcoat: 1,

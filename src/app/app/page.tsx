@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import ModelViewer from "@/components/ModelViewer";
+import RingViewer from "@/components/RingViewer";
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -102,12 +103,14 @@ export default function AppPage() {
     { label: "Model Portal", href: "/model" },
     { label: "Dashboard", href: "/dashboard" },
     { label: "Intelligence", href: "/intelligence" },
+    { label: "Legal & Compliance", href: "/legal" },
   ];
 
   return (
     <>
       <style>{`
         :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #EAE8E4; }
+        footer { display: none !important; }
       `}</style>
 
       {/* Minimal transparent top bar */}
@@ -311,7 +314,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: '#EAE8E4', position: 'relative' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: '#EAE8E4', position: 'relative' }}>
 
       {chatStarted ? (
         /* === CHAT MODE === */
@@ -389,52 +392,33 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         </div>
       ) : (
         /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center px-6 relative" style={{ background: '#EAE8E4' }}>
-          {/* Centred column, generous top spacing */}
-          <div className="flex-1 flex flex-col items-center justify-center w-full" style={{ maxWidth: 360 }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-            {/* 3D Diamond — centred emblem, 160px on dark stage */}
-            <div style={{ position: 'relative', width: 272, height: 272, marginBottom: 28 }}>
-              {/* Dark stage — feathered radial ellipse, z-index behind canvas */}
-              <div style={{
-                position: 'absolute',
-                top: '50%', left: '50%',
-                width: '100%', height: '100%',
-                transform: 'translate(-50%, -50%)',
-                borderRadius: '50%',
-                background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
-                zIndex: 0,
-              }} />
-              {/* Diamond viewer — sits above the stage */}
-              <div style={{ position: 'relative', width: 160, height: 160, top: 56, left: 56, zIndex: 1 }}>
-                <ModelViewer modelPath="/diamond.glb/scene.gltf" style={{ width: '100%', height: '100%' }} />
-              </div>
-            </div>
-
-            {/* Time-based greeting in Cormorant Garamond */}
-            <h2 style={{ fontSize: 26, fontWeight: 500, color: '#171717', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 8, textAlign: 'center' }}>
-              {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
-            </h2>
-            <p style={{ fontSize: 14, fontWeight: 400, color: '#6E6C69', marginBottom: 28, textAlign: 'center' }}>
-              How can I help you today?
-            </p>
-
-            {/* Suggestion cards — 2-column grid, Claude style */}
-            <div className="grid grid-cols-2 gap-2.5" style={{ width: '100%' }}>
-              {[
-                "Show me what's on the ground this week",
-                "How do I verify a licensed dealer?",
-                "I want a custom ring",
-                "Tell me about Botswana diamonds",
-              ].map((chip) => (
-                <button key={chip} onClick={() => { setInput(chip); setTimeout(() => handleSend(chip), 50); }}
-                  className="text-left px-3.5 py-3 text-[13px] transition-colors"
-                  style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', color: '#171717', fontWeight: 400, lineHeight: 1.35, borderRadius: 14 }}>
-                  {chip}
-                </button>
-              ))}
+          {/* 3D Diamond — centred emblem on graphite niche */}
+          <div style={{ position: 'relative', width: 272, height: 272, marginBottom: 32 }}>
+            {/* Dark stage — feathered radial ellipse, z-index behind canvas */}
+            <div style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              width: '100%', height: '100%',
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '50%',
+              background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
+              zIndex: 0,
+            }} />
+            {/* Diamond viewer — centred in the niche, fully visible */}
+            <div style={{ position: 'absolute', top: 56, left: 56, width: 160, height: 160, zIndex: 1 }}>
+              <ModelViewer modelPath="/diamond.glb/scene.gltf" style={{ width: '100%', height: '100%' }} />
             </div>
           </div>
+
+          {/* Serif time-of-day greeting */}
+          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#171717', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
+            {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
+          </h2>
+          <p style={{ fontSize: 14, fontWeight: 400, color: '#6E6C69', textAlign: 'center' }}>
+            How can I help you today?
+          </p>
         </div>
       )}
 
@@ -600,10 +584,11 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Masked Sketchfab ring — cropped to show only the 3D ring, on dark stage */}
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: 'relative', width: 420, height: 420 }}>
-            {/* Dark stage — feathered radial ellipse behind the ring */}
+        {/* Native RingViewer — centred in graphite niche */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          {/* Graphite niche + ring — top portion of hero */}
+          <div style={{ position: 'relative', width: 300, height: 300, flexShrink: 0 }}>
+            {/* Dark stage — feathered radial ellipse */}
             <div style={{
               position: 'absolute',
               top: '50%', left: '50%',
@@ -613,47 +598,25 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
               background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
               zIndex: 0,
             }} />
-          <div style={{
-            width: 280,
-            height: 280,
-            borderRadius: 16,
-            overflow: "hidden",
-            background: "transparent",
-            position: "relative",
-            top: 70,
-            left: 70,
-            zIndex: 1,
-          }}>
-            <iframe
-              src="https://sketchfab.com/models/64cd08bd1293453281bdb23a5aa2bf3b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_vr=0&ui_fullscreen=0"
-              title="Engagement Ring"
-              style={{
-                width: "120%",
-                height: "120%",
-                border: "none",
-                position: "absolute",
-                top: "-10%",
-                left: "-10%",
-                pointerEvents: "auto",
-              }}
-              loading="lazy"
-              allow="autoplay; fullscreen"
-            />
+            {/* RingViewer — 240px centred on niche */}
+            <div style={{ position: 'relative', width: 240, height: 240, top: 30, left: 30, zIndex: 1 }}>
+              <RingViewer style={{ width: '100%', height: '100%' }} />
+            </div>
           </div>
+
+          {/* ALL text below the stage — never overlapping the stone */}
+          <div style={{ textAlign: 'center', padding: '16px 24px 0', zIndex: 2 }}>
+            <p style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 400, color: "#6E6C69", textTransform: "uppercase", marginBottom: 6 }}>The House Ring</p>
+            <h2 style={{ fontSize: 22, fontWeight: 500, color: "#171717", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.01em", lineHeight: 1.2, marginBottom: 12 }}>
+              Set with intention, worn with meaning.
+            </h2>
+            <button
+              onClick={() => { if (featured) setShowReserveId(featured.id); }}
+              style={{ fontSize: 12, color: "#6E6C69", background: "none", border: "none", padding: 0, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 400, textDecoration: "none", borderBottom: "1px solid rgba(110,108,105,0.3)", paddingBottom: 2 }}
+            >
+              Reserve
+            </button>
           </div>
-        </div>
-        {/* Text overlay */}
-        <div style={{ position: "absolute", bottom: 48, left: 24, right: 24 }}>
-          <p style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 400, color: "#6E6C69", textTransform: "uppercase", marginBottom: 6 }}>The House Ring</p>
-          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#171717", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.01em", lineHeight: 1.2, marginBottom: 12 }}>
-            {featured ? `${featured.shape}, ${featured.carat}ct ${featured.color}` : "Set with intention, worn with meaning"}
-          </h2>
-          <button
-            onClick={() => { if (featured) setShowReserveId(featured.id); }}
-            style={{ fontSize: 12, color: "#6E6C69", background: "none", border: "none", padding: 0, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 400, textDecoration: "none", borderBottom: "1px solid rgba(110,108,105,0.3)", paddingBottom: 2 }}
-          >
-            Reserve
-          </button>
         </div>
       </div>
 
