@@ -44,6 +44,8 @@ export default function AppPage() {
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
   const [chatPrefill, setChatPrefill] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [chatLoaded, setChatLoaded] = useState(false);
+  const [ringLoaded, setRingLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,8 +77,9 @@ export default function AppPage() {
   function isIgnoredTarget(el: EventTarget | null): boolean {
     let node = el as HTMLElement | null;
     for (let i = 0; i < 15 && node; i++) {
-      if (node.tagName === "CANVAS" || node.tagName === "IFRAME") return true;
+      if (node.tagName === "CANVAS") return true;
       if (node.dataset && node.dataset.gallery === "true") return true;
+      /* iframes are NOT ignored — gesture overlay sits above them to capture swipes */
       node = node.parentElement;
     }
     return false;
@@ -172,10 +175,17 @@ export default function AppPage() {
     { label: "Boutique", panel: 0 },
     { label: "Chat", panel: 1 },
     { label: "Videos", panel: 2 },
+    { label: "Stock", href: "/dashboard?tab=stones" },
+    { label: "Sourcing", href: "/dashboard?tab=traders" },
+    { label: "Reports", href: "/reports" },
+    { label: "Dealer Login", href: "/login" },
     { label: "Trader Portal", href: "/trader" },
     { label: "Model Portal", href: "/model" },
     { label: "Dashboard", href: "/dashboard" },
     { label: "Intelligence", href: "/intelligence" },
+    { label: "Compliance", href: "/legal#compliance" },
+    { label: "Terms", href: "/legal#terms" },
+    { label: "Privacy", href: "/legal#privacy" },
     { label: "Legal & Compliance", href: "/legal" },
   ];
 
@@ -332,6 +342,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const [mode, setMode] = useState<"instant" | "expert">("instant");
   const [deepThink, setDeepThink] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [iframeOpacity, setIframeOpacity] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -496,15 +507,18 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          {/* 3D Diamond — Sketchfab embed, cropped transparent */}
+          {/* 3D Diamond — Sketchfab embed, cropped transparent, silent fade-in */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 220, height: 220, marginBottom: 32, overflow: 'hidden', background: 'transparent' }}>
             <iframe
               title="Diamond"
               src="https://sketchfab.com/models/b508b33eb0844fcc91a4296cc53323c7/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%' }}
+              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%', opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out', mixBlendMode: 'multiply' }}
               allow="autoplay; fullscreen"
               loading="lazy"
+              onLoad={() => setIframeOpacity(1)}
             />
+            {/* Gesture overlay — captures swipes so they switch panels, not rotate the model */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
           </div>
 
           {/* Serif time-of-day greeting */}
@@ -588,6 +602,7 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
+  const [iframeOpacity, setIframeOpacity] = useState(0);
   const [wishlist, setWishlist] = useState<Record<string, boolean>>(() => {
     if (typeof window !== "undefined") {
       try { return JSON.parse(localStorage.getItem("boutique_wishlist") || "{}"); } catch { return {}; }
@@ -704,19 +719,22 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
         }} />
         {/* Ring — Sketchfab embed, cropped transparent */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          {/* Cropped ring iframe — no dark niche */}
+          {/* Cropped ring iframe — silent fade-in, mix-blend-mode merge */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 280, height: 280, overflow: 'hidden', background: 'transparent', flexShrink: 0 }}>
             <iframe
               title="Black Diamond Ring"
               src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%' }}
+              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%', opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out', mixBlendMode: 'multiply' }}
               allow="autoplay; fullscreen"
               loading="lazy"
+              onLoad={() => setIframeOpacity(1)}
             />
+            {/* Gesture overlay — captures swipes so they switch panels */}
+            <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
           </div>
 
           {/* ALL text below the stage — never overlapping the stone */}
-          <div style={{ textAlign: 'center', padding: '20px 24px 0', zIndex: 2, flexShrink: 0 }}>
+          <div style={{ textAlign: 'center', padding: '24px 24px 0', zIndex: 2, flexShrink: 0 }}>
             <p style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 400, color: "#6E6C69", textTransform: "uppercase", marginBottom: 6 }}>The House Ring</p>
             <h2 style={{ fontSize: 22, fontWeight: 500, color: "#171717", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.01em", lineHeight: 1.2, marginBottom: 12 }}>
               Set with intention, worn with meaning.
