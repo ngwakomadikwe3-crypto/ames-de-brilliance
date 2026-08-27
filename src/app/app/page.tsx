@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { animate } from "framer-motion";
-import ModelViewer from "@/components/ModelViewer";
-import RingViewer from "@/components/RingViewer";
+/* Sketchfab 3D embeds — PatelDev diamond + Busanello ring */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -497,22 +496,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          {/* 3D Diamond — centred emblem on graphite niche */}
-          <div style={{ position: 'relative', width: 272, height: 272, marginBottom: 32 }}>
-            {/* Dark stage — feathered radial ellipse, z-index behind canvas */}
-            <div style={{
-              position: 'absolute',
-              top: '50%', left: '50%',
-              width: '100%', height: '100%',
-              transform: 'translate(-50%, -50%)',
-              borderRadius: '50%',
-              background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
-              zIndex: 0,
-            }} />
-            {/* Diamond viewer — centred in the niche, fully visible */}
-            <div style={{ position: 'absolute', top: 56, left: 56, width: 160, height: 160, zIndex: 1 }}>
-              <ModelViewer modelPath="/diamond.glb/scene.gltf" style={{ width: '100%', height: '100%' }} />
-            </div>
+          {/* 3D Diamond — Sketchfab embed, cropped transparent */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: 220, height: 220, marginBottom: 32, overflow: 'hidden', background: 'transparent' }}>
+            <iframe
+              title="Diamond"
+              src="https://sketchfab.com/models/b508b33eb0844fcc91a4296cc53323c7/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
+              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%' }}
+              allow="autoplay; fullscreen"
+              loading="lazy"
+            />
           </div>
 
           {/* Serif time-of-day greeting */}
@@ -710,24 +702,17 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Native RingViewer — centred in graphite niche, text below with clear margin */}
+        {/* Ring — Sketchfab embed, cropped transparent */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          {/* Graphite niche + ring — top portion of hero */}
-          <div style={{ position: 'relative', width: 300, height: 300, flexShrink: 0 }}>
-            {/* Dark stage — feathered radial ellipse */}
-            <div style={{
-              position: 'absolute',
-              top: '50%', left: '50%',
-              width: '100%', height: '100%',
-              transform: 'translate(-50%, -50%)',
-              borderRadius: '50%',
-              background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
-              zIndex: 0,
-            }} />
-            {/* RingViewer — 240px centred on niche */}
-            <div style={{ position: 'relative', width: 240, height: 240, top: 30, left: 30, zIndex: 1 }}>
-              <RingViewer style={{ width: '100%', height: '100%' }} />
-            </div>
+          {/* Cropped ring iframe — no dark niche */}
+          <div style={{ position: 'relative', width: '100%', maxWidth: 280, height: 280, overflow: 'hidden', background: 'transparent', flexShrink: 0 }}>
+            <iframe
+              title="Black Diamond Ring"
+              src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
+              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%' }}
+              allow="autoplay; fullscreen"
+              loading="lazy"
+            />
           </div>
 
           {/* ALL text below the stage — never overlapping the stone */}
@@ -855,6 +840,11 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
               </span>
             ))}
           </div>
+        </div>
+
+        {/* Sketchfab licence credit */}
+        <div className="text-center pb-4" style={{ fontSize: 9, color: '#9A9A9F', letterSpacing: '0.04em' }}>
+          3D: &lsquo;Diamond&rsquo; by PatelDev &middot; &lsquo;Black Diamond Ring&rsquo; by Busanello on Sketchfab
         </div>
       </div>
 

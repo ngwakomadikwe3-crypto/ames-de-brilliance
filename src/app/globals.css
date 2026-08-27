@@ -149,16 +149,6 @@ button { font-family: inherit; }
   color: #6E6C69;
 }
 
-/* Graphite vitrine stage — behind every 3D object */
-.graphite-stage {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%);
-  pointer-events: none;
-}
-
 /* Cards */
 .card {
   background: #FCFCFB;
