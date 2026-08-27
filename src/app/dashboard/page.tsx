@@ -473,6 +473,10 @@ function StonesTab() {
             )}
           </div>
         )}
+        <button onClick={() => {
+          localStorage.setItem("boutique_demo_removed", "1");
+          alert("Demo stock removed from the boutique.");
+        }} className="text-[10px] px-2 py-1 border border-border text-muted hover:bg-surface cursor-default min-h-[36px]">Remove demo stock</button>
       </div>
       {/* Desktop */}
       <div className="hidden md:block border border-border">

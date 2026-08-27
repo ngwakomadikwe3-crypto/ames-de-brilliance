@@ -1,9 +1,19 @@
 "use client";
 
-import { Suspense, useRef, useMemo } from "react";
+import { Suspense, useRef, useState, Component, type ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { useGLTF, OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import { useGLTF, OrbitControls, ContactShadows, Environment, Lightformer } from "@react-three/drei";
 import * as THREE from "three";
+
+/* ── Error boundary for GLB load failures ── */
+class GlbErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
 
 /* ── Platinum SVG glyph fallback ── */
 function PlatinumGlyph() {
@@ -23,6 +33,46 @@ function PlatinumGlyph() {
   );
 }
 
+/* ── Procedural brilliant-cut diamond (crown + pavilion) ── */
+function ProceduralDiamond() {
+  return (
+    <group>
+      <mesh position={[0, 0.08, 0]}>
+        <cylinderGeometry args={[0.5, 0.7, 0.16, 8]} />
+        <meshPhysicalMaterial
+          color="#ffffff"
+          transmission={1}
+          ior={2.417}
+          dispersion={0.4}
+          roughness={0.03}
+          thickness={1.2}
+          clearcoat={1}
+          envMapIntensity={2.5}
+          transparent
+          side={THREE.DoubleSide}
+          flatShading
+        />
+      </mesh>
+      <mesh position={[0, -0.38, 0]}>
+        <coneGeometry args={[0.7, 0.6, 8]} />
+        <meshPhysicalMaterial
+          color="#ffffff"
+          transmission={1}
+          ior={2.417}
+          dispersion={0.4}
+          roughness={0.03}
+          thickness={1.2}
+          clearcoat={1}
+          envMapIntensity={2.5}
+          transparent
+          side={THREE.DoubleSide}
+          flatShading
+        />
+      </mesh>
+    </group>
+  );
+}
+
 /* ── Crystal material for the diamond stone ── */
 const CRYSTAL = new THREE.MeshPhysicalMaterial({
   color: new THREE.Color("#ffffff"),
@@ -37,11 +87,12 @@ const CRYSTAL = new THREE.MeshPhysicalMaterial({
   side: THREE.DoubleSide,
 });
 
-/* ── Platinum material for the band ── */
+/* ── Platinum material for the band — per spec: roughness 0.15, envMapIntensity 1.5 ── */
 const PLATINUM = new THREE.MeshStandardMaterial({
   color: new THREE.Color("#E8E6E1"),
   metalness: 1,
-  roughness: 0.12,
+  roughness: 0.15,
+  envMapIntensity: 1.5,
 });
 
 /* ═══════════════════════════════════════════
@@ -50,10 +101,18 @@ const PLATINUM = new THREE.MeshStandardMaterial({
 
 function RingScene() {
   const group = useRef<THREE.Group>(null!);
-  const { scene } = useGLTF("/diamond.glb/scene.gltf");
+  const [loaded, setLoaded] = useState(false);
+  let scene: THREE.Group | null = null;
 
-  /* Diamond: traverse every mesh, override material with crystal */
-  useMemo(() => {
+  try {
+    const result = useGLTF("/diamond.glb/scene.gltf");
+    scene = result.scene;
+    if (!loaded) setLoaded(true);
+  } catch {
+    /* ErrorBoundary catches real load failures */
+  }
+
+  if (loaded && scene) {
     scene.traverse((child) => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
@@ -62,16 +121,17 @@ function RingScene() {
       mesh.receiveShadow = false;
     });
 
-    // Normalize the diamond to ~0.55 world units
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    if (maxDim > 0) scene.scale.setScalar(0.55 / maxDim);
+    const height = size.y;
 
-    // Center the diamond and lift it above the band
+    if (height > 0.01) {
+      scene.scale.setScalar(0.55 / height);
+    }
+
     const center = box.getCenter(new THREE.Vector3());
-    scene.position.set(-center.x * (0.55 / maxDim), 0.62 + 0.04, -center.z * (0.55 / maxDim));
-  }, [scene]);
+    scene.position.set(-center.x * (0.55 / (height || 1)), 0.62 + 0.04, -center.z * (0.55 / (height || 1)));
+  }
 
   return (
     <group ref={group}>
@@ -96,15 +156,22 @@ function RingScene() {
         </mesh>
       ))}
 
-      {/* Diamond stone */}
-      <primitive object={scene} />
+      {/* Diamond stone — loaded or procedural */}
+      {loaded && scene ? (
+        <primitive object={scene} />
+      ) : (
+        <group position={[0, 0.66, 0]} scale={0.55 / 1.2}>
+          <ProceduralDiamond />
+        </group>
+      )}
     </group>
   );
 }
 
 /* ═══════════════════════════════════════════
    RING VIEWER — boutique hero
-   Fully transparent canvas, graphite niche.
+   Self-contained lighting, procedural fallback,
+   ContactShadows, transparent canvas.
    ═══════════════════════════════════════════ */
 
 export interface RingViewerProps {
@@ -115,76 +182,39 @@ export interface RingViewerProps {
 export default function RingViewer({ className, style }: RingViewerProps) {
   return (
     <div className={className} style={style}>
-      <Suspense fallback={<PlatinumGlyph />}>
-        <Canvas
-          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
-          dpr={[2, 3]}
-          camera={{ position: [0, 0.8, 2.8], fov: 40 }}
-          style={{ background: "transparent", width: "100%", height: "100%", touchAction: "pan-y" }}
-        >
-          {/* Custom Lightformers — no network presets */}
-          <Environment resolution={256}>
-            {/* White area light above */}
-            <group rotation={[-Math.PI / 3, 0, 0]}>
-              <mesh>
-                <planeGeometry args={[10, 10]} />
-                <meshBasicMaterial color="#ffffff" toneMapped={false} />
-              </mesh>
-              <pointLight intensity={3} distance={10} decay={0} />
-            </group>
-            {/* Dark side strip left */}
-            <group rotation={[0, Math.PI / 2, 0]} position={[-3, 0, 0]}>
-              <mesh>
-                <planeGeometry args={[6, 6]} />
-                <meshBasicMaterial color="#2B2B2B" toneMapped={false} />
-              </mesh>
-              <pointLight intensity={1.2} distance={8} decay={0} />
-            </group>
-            {/* Dark side strip right */}
-            <group rotation={[0, -Math.PI / 2, 0]} position={[3, 0, 0]}>
-              <mesh>
-                <planeGeometry args={[6, 6]} />
-                <meshBasicMaterial color="#2B2B2B" toneMapped={false} />
-              </mesh>
-              <pointLight intensity={1.2} distance={8} decay={0} />
-            </group>
-            {/* Cool silver accent from behind */}
-            <group rotation={[0, Math.PI, 0]}>
-              <mesh>
-                <planeGeometry args={[8, 4]} />
-                <meshBasicMaterial color="#b0c4de" toneMapped={false} />
-              </mesh>
-              <pointLight intensity={0.6} distance={8} decay={0} />
-            </group>
-          </Environment>
+      <GlbErrorBoundary fallback={<PlatinumGlyph />}>
+        <Suspense fallback={<PlatinumGlyph />}>
+          <Canvas
+            gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+            dpr={[2, 3]}
+            camera={{ position: [0, 0.8, 2.8], fov: 40 }}
+            style={{ background: "transparent", width: "100%", height: "100%", touchAction: "pan-y" }}
+          >
+            {/* Self-contained environment — Lightformers only, no network */}
+            <Environment resolution={256}>
+              <Lightformer form="rect" intensity={3} scale={4} position={[0, 5, 0]} rotation-x={-Math.PI / 3} color="#ffffff" />
+              <Lightformer form="rect" intensity={1.2} scale={[1, 6, 1]} position={[-5, 0, 0]} rotation-y={Math.PI / 2} color="#2B2B2B" />
+              <Lightformer form="rect" intensity={1.2} scale={[1, 6, 1]} position={[5, 0, 0]} rotation-y={-Math.PI / 2} color="#2B2B2B" />
+              <Lightformer form="rect" intensity={0.6} scale={[6, 3, 1]} position={[0, 0, -5]} rotation-y={Math.PI} color="#DDE3EA" />
+            </Environment>
 
-          <ambientLight intensity={0.15} />
+            {/* Real lights — guarantee materials never render black */}
+            <directionalLight intensity={2.5} position={[4, 6, 3]} />
+            <directionalLight intensity={1.2} position={[-5, 2, -4]} color="#DDE3EA" />
+            <ambientLight intensity={0.4} />
 
-          {/* Normalize entire ring to ~1.5 units */}
-          <group scale={1.5 / 1.8}>
-            <RingScene />
-          </group>
+            {/* Normalize entire ring to ~1.5 units */}
+            <group scale={1.5 / 1.8}>
+              <RingScene />
+            </group>
 
-          {/* Contact shadow on the niche floor */}
-          <ContactShadows
-            position={[0, -0.55, 0]}
-            opacity={0.3}
-            blur={2.5}
-            scale={3}
-            far={2}
-            color="#171717"
-          />
+            {/* Contact shadow — stone sits on the niche floor */}
+            <ContactShadows position={[0, -0.55, 0]} opacity={0.25} blur={2.5} scale={3} far={2} color="#171717" />
 
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            autoRotate
-            autoRotateSpeed={1.5}
-            dampingFactor={0.05}
-            enableDamping
-          />
-        </Canvas>
-      </Suspense>
+            <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1.5} dampingFactor={0.05} enableDamping />
+          </Canvas>
+        </Suspense>
+      </GlbErrorBoundary>
     </div>
   );
 }

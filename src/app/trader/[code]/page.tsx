@@ -496,7 +496,7 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
       <div>
-        <p className="text-[11px] mb-3" style={{ color: "#6E6C69" }}>Every piece is photographed three times &mdash; customers buy with their eyes.</p>
+        <p className="text-[11px] mb-3" style={{ color: "#6E6C69" }}>Three shots of the SAME piece &mdash; front, angle, worn. Customers buy with their eyes.</p>
         <div className="grid grid-cols-3 gap-2 mb-2">
           {slotLabels.map((label, idx) => (
             <div key={idx}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { animate } from "framer-motion";
 import ModelViewer from "@/components/ModelViewer";
 import RingViewer from "@/components/RingViewer";
 
@@ -57,43 +58,116 @@ export default function AppPage() {
     return () => obs.disconnect();
   }, []);
 
-  useEffect(() => { setTimeout(() => scrollToPanel(1), 100); }, []);
+  /* ── Swipe gesture state ── */
+  const innerRef = useRef<HTMLDivElement>(null);
+  const swipeRef = useRef({ tracking: false, startX: 0, startY: 0, dx: 0, dy: 0, locked: false, dir: 0 as -1 | 0 | 1 });
+  const SWIPE_THRESHOLD = 70;
+  const VERTICAL_CAP = 30;
+  const VELOCITY_THRESHOLD = 0.5;
 
-  function scrollToPanel(idx: number) {
-    const c = containerRef.current;
-    if (!c) return;
-    const p = c.querySelector(`[data-panel="${idx}"]`) as HTMLElement;
-    if (p) p.scrollIntoView({ behavior: "smooth", inline: "start" });
+  function swipeTo(idx: number) {
+    const next = Math.max(0, Math.min(2, idx));
+    setActivePanel(next);
+    if (innerRef.current) {
+      animate(innerRef.current, { left: `${-next * 100}dvw` }, { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] });
+    }
   }
 
-  function handleSeePiece(stoneId: string) {
-    setHighlightStone(stoneId);
-    scrollToPanel(0);
-    setTimeout(() => setHighlightStone(null), 3000);
-  }
-
-  function handleAskAmes(ref: string, shape: string, carat: number, color: string, clarity: string) {
-    setChatPrefill(`Tell me about ${ref} \u2014 ${shape} ${carat}ct ${color} ${clarity}`);
-    scrollToPanel(1);
+  function isIgnoredTarget(el: EventTarget | null): boolean {
+    let node = el as HTMLElement | null;
+    for (let i = 0; i < 15 && node; i++) {
+      if (node.tagName === "CANVAS" || node.tagName === "IFRAME") return true;
+      if (node.dataset && node.dataset.gallery === "true") return true;
+      node = node.parentElement;
+    }
+    return false;
   }
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    function onDown(e: PointerEvent) {
+      if (isIgnoredTarget(e.target)) return;
+      swipeRef.current = { tracking: true, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, locked: false, dir: 0 };
+    }
+
+    function onMove(e: PointerEvent) {
+      const s = swipeRef.current;
+      if (!s.tracking) return;
+      s.dx = e.clientX - s.startX;
+      s.dy = e.clientY - s.startY;
+      if (!s.locked && (Math.abs(s.dx) > 10 || Math.abs(s.dy) > 10)) {
+        s.locked = true;
+        s.dir = Math.abs(s.dx) > Math.abs(s.dy) ? (s.dx > 0 ? -1 : 1) : 0;
+      }
+      if (s.locked && s.dir !== 0) {
+        /* Let inner panel handle the vertical scroll */
+      }
+    }
+
+    function onUp(e: PointerEvent) {
+      const s = swipeRef.current;
+      if (!s.tracking) return;
+      s.tracking = false;
+      const elapsed = 1;
+      const velocity = Math.abs(s.dx) / elapsed;
+      if (
+        s.locked &&
+        s.dir !== 0 &&
+        Math.abs(s.dx) > SWIPE_THRESHOLD &&
+        Math.abs(s.dy) < VERTICAL_CAP &&
+        velocity > VELOCITY_THRESHOLD
+      ) {
+        const next = activePanel + s.dir;
+        if (next >= 0 && next <= 2) swipeTo(next);
+      }
+      s.dx = 0;
+      s.dy = 0;
+      s.locked = false;
+      s.dir = 0;
+    }
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [activePanel]);
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); scrollToPanel(Math.min(2, activePanel + 1)); }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); scrollToPanel(Math.max(0, activePanel - 1)); }
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
     }
     function onWheel(e: WheelEvent) {
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (Math.abs(e.deltaY) > 30) {
         e.preventDefault();
-        if (e.deltaY > 0) scrollToPanel(Math.min(2, activePanel + 1));
-        else scrollToPanel(Math.max(0, activePanel - 1));
+        if (e.deltaY > 0) swipeTo(Math.min(2, activePanel + 1));
+        else swipeTo(Math.max(0, activePanel - 1));
       }
     }
     window.addEventListener("keydown", onKey);
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("wheel", onWheel); };
   }, [activePanel]);
+
+  function handleSeePiece(stoneId: string) {
+    setHighlightStone(stoneId);
+    swipeTo(0);
+    setTimeout(() => setHighlightStone(null), 3000);
+  }
+
+  function handleAskAmes(ref: string, shape: string, carat: number, color: string, clarity: string) {
+    setChatPrefill(`Tell me about ${ref} \u2014 ${shape} ${carat}ct ${color} ${clarity}`);
+    swipeTo(1);
+  }
 
   const NAV_ITEMS = [
     { label: "Boutique", panel: 0 },
@@ -147,7 +221,7 @@ export default function AppPage() {
                   key={item.label}
                   onClick={() => {
                     setDrawerOpen(false);
-                    if ('panel' in item && item.panel !== undefined) scrollToPanel(item.panel);
+                    if ('panel' in item && item.panel !== undefined) swipeTo(item.panel);
                     else window.location.href = item.href!;
                   }}
                   className="w-full text-left px-5 py-3 text-[13px] transition-colors"
@@ -165,26 +239,55 @@ export default function AppPage() {
         </div>
       )}
 
-      <div ref={containerRef} className="h-[100dvh] w-[100dvw] overflow-x-scroll snap-x snap-mandatory flex" style={{ scrollSnapType: "x mandatory" }}>
-        <section data-panel="0" className="relative w-[100dvw] h-full snap-start snap-always flex-shrink-0 flex flex-col">
-          <BoutiquePanel highlightStone={highlightStone} />
-        </section>
-        <section data-panel="1" className="relative w-[100dvw] h-full snap-start snap-always flex-shrink-0 flex flex-col">
-          <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => scrollToPanel(0)} />
-        </section>
-        <section data-panel="2" className="relative w-[100dvw] h-full snap-start snap-always flex-shrink-0">
-          <VideosPanel onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); scrollToPanel(0); setTimeout(() => setHighlightStone(null), 3000); }} />
-        </section>
+      {/* Dot indicator — centred under top bar */}
+      <div className="fixed top-11 left-0 right-0 z-50 flex justify-center gap-1.5 py-1.5" style={{ pointerEvents: 'none' }}>
+        {[0, 1, 2].map((i) => (
+          <button
+            key={i}
+            onClick={() => swipeTo(i)}
+            className="rounded-full transition-all duration-200"
+            style={{
+              pointerEvents: 'auto',
+              width: activePanel === i ? 16 : 6,
+              height: 6,
+              background: activePanel === i ? '#A6A6AB' : '#D9D7D3',
+            }}
+            aria-label={['Boutique', 'Chat', 'Videos'][i]}
+          />
+        ))}
+      </div>
+
+      <div ref={containerRef} className="h-[100dvh] w-[100dvw] overflow-hidden relative">
+        <div
+          ref={innerRef}
+          className="flex h-full"
+          style={{
+            width: '300dvw',
+            position: 'relative',
+            left: `${-activePanel * 100}dvw`,
+            transition: 'left 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)',
+          }}
+        >
+          <section data-panel="0" className="relative w-[100dvw] h-full flex-shrink-0 flex flex-col overflow-x-hidden">
+            <BoutiquePanel highlightStone={highlightStone} />
+          </section>
+          <section data-panel="1" className="relative w-[100dvw] h-full flex-shrink-0 flex flex-col overflow-x-hidden">
+            <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} />
+          </section>
+          <section data-panel="2" className="relative w-[100dvw] h-full flex-shrink-0 overflow-x-hidden">
+            <VideosPanel onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
+          </section>
+        </div>
       </div>
 
       {/* Desktop edge arrows */}
       {activePanel > 0 && (
-        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
+        <button onClick={() => swipeTo(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
       {activePanel < 2 && (
-        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
+        <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
@@ -471,6 +574,24 @@ function parsePhotos(photoStr: string | null | undefined): (string | null)[] {
   return [parts[0] || null, parts[1] || null, parts[2] || null];
 }
 
+const DEMO_STONE: StoreStone & { demo?: boolean } = {
+  id: "_demo_aurora",
+  ref: "DEMO-001",
+  stone_type: "Diamond",
+  shape: "Solitaire",
+  carat: 1.20,
+  color: "D",
+  clarity: "VVS1",
+  cut: "Platinum",
+  certification: "GIA",
+  price: 6800,
+  photo: "/demo/ring-front.svg|/demo/ring-angle.svg|/demo/ring-worn.svg",
+  listing_category: "Jewelry",
+  status: "Available",
+  trader_preferred: false,
+  demo: true,
+};
+
 function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -504,7 +625,12 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
       const r = await fetch("/api/stones");
       if (r.ok) {
         const all: StoreStone[] = await r.json();
-        setStones(all.filter(s => s.status === "Available" && (s.listing_category === "Polished" || s.listing_category === "Jewelry")));
+        const live = all.filter(s => s.status === "Available" && (s.listing_category === "Polished" || s.listing_category === "Jewelry"));
+        /* Seed the single demo piece (hidden once real stock exists or owner removed it) */
+        const demoRemoved = typeof window !== "undefined" && localStorage.getItem("boutique_demo_removed") === "1";
+        const hasDemo = live.some(s => s.id === "_demo_aurora");
+        if (!hasDemo && !demoRemoved && live.length === 0) live.unshift(DEMO_STONE);
+        setStones(live);
       }
     } catch {} finally { setLoading(false); }
   }, []);
@@ -584,8 +710,8 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Native RingViewer — centred in graphite niche */}
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        {/* Native RingViewer — centred in graphite niche, text below with clear margin */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
           {/* Graphite niche + ring — top portion of hero */}
           <div style={{ position: 'relative', width: 300, height: 300, flexShrink: 0 }}>
             {/* Dark stage — feathered radial ellipse */}
@@ -605,7 +731,7 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           </div>
 
           {/* ALL text below the stage — never overlapping the stone */}
-          <div style={{ textAlign: 'center', padding: '16px 24px 0', zIndex: 2 }}>
+          <div style={{ textAlign: 'center', padding: '20px 24px 0', zIndex: 2, flexShrink: 0 }}>
             <p style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 400, color: "#6E6C69", textTransform: "uppercase", marginBottom: 6 }}>The House Ring</p>
             <h2 style={{ fontSize: 22, fontWeight: 500, color: "#171717", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.01em", lineHeight: 1.2, marginBottom: 12 }}>
               Set with intention, worn with meaning.
@@ -827,7 +953,7 @@ function PhotoGallery({ photos, initialIndex, onClose }: { photos: (string | nul
   const validCount = photos.filter(Boolean).length;
 
   return (
-    <div className="fixed inset-0 z-[95] flex flex-col" style={{ background: "rgba(0,0,0,0.95)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[95] flex flex-col" style={{ background: "rgba(0,0,0,0.95)" }} onClick={onClose} data-gallery="true">
       <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-2" onClick={e => e.stopPropagation()}>
         <span className="text-[11px]" style={{ color: "#A6A6AB" }}>{active + 1} / {validCount || 3}</span>
         <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(23,23,23,0.15)" }}>
