@@ -70,8 +70,8 @@ export default function TraderPage() {
   }
 
   if (loading) return (
-    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#EAE8E4" }}>
-      <div className="text-[12px]" style={{ color: "#6E6C69" }}>Loading...</div>
+    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#101214" }}>
+      <div className="text-[12px]" style={{ color: "#A6A6AB" }}>Loading...</div>
     </div>
   );
 
@@ -108,13 +108,13 @@ function TraderPublic({ code }: { code: string }) {
   }, [code]);
 
   if (loading) return (
-    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#EAE8E4" }}>
-      <div className="text-[12px]" style={{ color: "#6E6C69" }}>Loading...</div>
+    <div className="min-h-[100dvh] flex items-center justify-center" style={{ background: "#101214" }}>
+      <div className="text-[12px]" style={{ color: "#A6A6AB" }}>Loading...</div>
     </div>
   );
 
   if (!trader) return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#EAE8E4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#101214" }}>
       <div className="max-w-sm text-center space-y-4">
         <BrandMark height={36} />
         <p className="text-[13px] font-light text-[#6E6C69]">This portfolio is not available.</p>
@@ -125,14 +125,14 @@ function TraderPublic({ code }: { code: string }) {
   const live = stones.filter((s: any) => s.status === "Available");
 
   return (
-    <div className="min-h-[100dvh]" style={{ background: "#EAE8E4" }}>
+    <div className="min-h-[100dvh]" style={{ background: "#101214" }}>
       {/* Header */}
       <div className="max-w-5xl mx-auto px-4 md:px-6 pt-12 pb-8">
         <div className="mb-6"><BrandMark height={28} /></div>
 
         <div className="flex items-start gap-6 mb-6">
           <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center shrink-0"
-            style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#1a1c1e" }}>
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1a1c1e" }}>
             <span className="text-[20px] font-light text-[#6E6C69]">{(trader.name || "?")[0]}</span>
           </div>
           <div>
@@ -169,7 +169,7 @@ function TraderPublic({ code }: { code: string }) {
             {live.map((s: any) => {
               const photos = (s.photo || "").split("|").filter((u: string) => u.length > 10 && u.startsWith("http"));
               return (
-                <div key={s.id} style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+                <div key={s.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
                   <div className="aspect-square overflow-hidden relative" style={{ background: "#1a1c1e" }}>
                     {photos.length > 0 ? (
                       <img src={photos[0]} alt={s.ref} className="w-full h-full object-cover" />
@@ -229,23 +229,23 @@ function TraderLogin({ code }: { code: string }) {
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#EAE8E4" }}>
+    <div className="min-h-[100dvh] flex items-center justify-center p-6" style={{ background: "#101214" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <BrandMark height={32} />
-          <p className="text-[11px] mt-3" style={{ color: "#6E6C69" }}>Trader Portal</p>
+          <p className="text-[11px] mt-3" style={{ color: "#A6A6AB" }}>Trader Portal</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Phone Number</label>
+            <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Phone Number</label>
             <input
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+267 XX XXX XXX"
               className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-              style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }}
+              style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }}
               required
             />
           </div>
@@ -265,7 +265,7 @@ function TraderLogin({ code }: { code: string }) {
           </button>
         </form>
 
-        <p className="text-center text-[10px] mt-6" style={{ color: "#6E6C69" }}>
+        <p className="text-center text-[10px] mt-6" style={{ color: "#A6A6AB" }}>
           Contact the desk on WhatsApp for your access code
         </p>
       </div>
@@ -281,11 +281,11 @@ type Tab = "list" | "items" | "numbers" | "reports";
 function TraderTabs({ trader }: { trader: Trader }) {
   const [tab, setTab] = useState<Tab>("list");
   return (
-    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#EAE8E4" }}>
+    <div className="min-h-[100dvh] flex flex-col" style={{ background: "#101214" }}>
       <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)", background: "rgba(234,232,228,0.85)" }}>
         <div className="flex items-center gap-2">
           <BrandMark variant="compact" height={18} />
-          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#171717" }}>{trader.name}</span>
+          <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#EAE8E4" }}>{trader.name}</span>
         </div>
       </div>
 
@@ -336,7 +336,7 @@ function TraderNumbersTab({ trader }: { trader: Trader }) {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [trader.portal_code]);
 
-  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#6E6C69" }}>Loading...</div>;
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#A6A6AB" }}>Loading...</div>;
 
   const live = stones.filter((s: any) => s.status === "Available");
   const totalViews = stones.reduce((sum: number, s: any) => sum + (s.views || 0), 0);
@@ -373,7 +373,7 @@ function TraderNumbersTab({ trader }: { trader: Trader }) {
       <div className="text-[12px] font-medium text-[#6E6C69] uppercase tracking-wider">Performance</div>
       <div className="grid grid-cols-3 gap-3">
         {stats.map(s => (
-          <div key={s.label} className="text-center p-3" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+          <div key={s.label} className="text-center p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
             <div className="text-[18px] font-light text-[#171717]">{s.value}</div>
             <div className="text-[9px] uppercase tracking-wider text-[#6E6C69] mt-1">{s.label}</div>
           </div>
@@ -381,12 +381,12 @@ function TraderNumbersTab({ trader }: { trader: Trader }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-3" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+        <div className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
           <div className="text-[10px] uppercase tracking-wider text-[#6E6C69] mb-1">This Month — Sales</div>
           <div className="text-[14px] font-light">{thisMonthSold.length}</div>
           <div className="text-[11px] text-[#6E6C69]">${thisMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
         </div>
-        <div className="p-3" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+        <div className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
           <div className="text-[10px] uppercase tracking-wider text-[#6E6C69] mb-1">Last Month — Sales</div>
           <div className="text-[14px] font-light">{lastMonthSold.length}</div>
           <div className="text-[11px] text-[#6E6C69]">${lastMonthSold.reduce((s: number, o: any) => s + (o.price || 0), 0).toLocaleString()}</div>
@@ -427,6 +427,7 @@ function ListItemsTab({ trader }: { trader: Trader }) {
 function SingleItemForm({ trader }: { trader: Trader }) {
   const [saved, setSaved] = useState<string | null>(null);
   const [lc, setLc] = useState<"Rough"|"Polished"|"Jewelry">("Polished");
+  const [jewelryType, setJewelryType] = useState<""|"Ring"|"Necklace"|"Earring"|"Bracelet"|"Watch">("");
   const [photo0, setPhoto0] = useState<File | null>(null);
   const [photo1, setPhoto1] = useState<File | null>(null);
   const [photo2, setPhoto2] = useState<File | null>(null);
@@ -470,7 +471,11 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
       const fd = new FormData(e.currentTarget);
       fd.set("listing_category", lc);
-      fd.set("stone_type", lc === "Rough" ? "rough" : "polished");
+      fd.set("stone_type", lc === "Rough" ? "rough" : lc === "Jewelry" ? "polished" : "polished");
+      if (lc === "Jewelry" && jewelryType) {
+        const shape = fd.get("shape") as string || "";
+        fd.set("shape", jewelryType + (shape ? " \u2014 " + shape : ""));
+      }
       fd.set("photo", allPhotoUrls.join("|"));
       const res = await fetch("/api/trader/" + trader.portal_code + "/stones", { method: "POST", body: fd });
       if (res.ok) {
@@ -487,8 +492,8 @@ function SingleItemForm({ trader }: { trader: Trader }) {
 
   if (saved) return (
     <div className="p-6 text-center space-y-3">
-      <p className="text-[13px] font-light" style={{ color: "#171717" }}><strong>{saved}</strong> submitted for review.</p>
-      <p className="text-[11px] font-light" style={{ color: "#6E6C69" }}>The desk will review and publish your item.</p>
+      <p className="text-[13px] font-light" style={{ color: "#EAE8E4" }}><strong>{saved}</strong> submitted for review.</p>
+      <p className="text-[11px] font-light" style={{ color: "#A6A6AB" }}>The desk will review and publish your item.</p>
       <button onClick={() => setSaved(null)} className="text-[12px] font-light" style={{ color: "#A6A6AB" }}>List another</button>
     </div>
   );
@@ -496,13 +501,13 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
       <div>
-        <p className="text-[11px] mb-3" style={{ color: "#6E6C69" }}>Three shots of the SAME piece &mdash; front, angle, worn. Customers buy with their eyes.</p>
+        <p className="text-[11px] mb-3" style={{ color: "#A6A6AB" }}>Three shots of the SAME piece &mdash; front, angle, worn. Customers buy with their eyes.</p>
         <div className="grid grid-cols-3 gap-2 mb-2">
           {slotLabels.map((label, idx) => (
             <div key={idx}>
-              <p className="text-[9px] mb-1 text-center" style={{ color: "#6E6C69", letterSpacing: "0.04em" }}>{label}</p>
+              <p className="text-[9px] mb-1 text-center" style={{ color: "#A6A6AB", letterSpacing: "0.04em" }}>{label}</p>
               <label className="relative aspect-square flex items-center justify-center cursor-pointer overflow-hidden"
-                style={{ border: previews[idx] ? "1px solid rgba(23,23,23,0.08)" : "1px dashed " + (files[idx] ? "#6E6C69" : "#A6A6AB"), background: "#F5F4F2", borderRadius: 10 }}>
+                style={{ border: previews[idx] ? "1px solid rgba(23,23,23,0.08)" : "1px dashed " + (files[idx] ? "#6E6C69" : "#A6A6AB"), background: "#1A1D21", borderRadius: 10 }}>
                 {previews[idx] ? (
                   <>
                     <img src={previews[idx]} alt="" className="w-full h-full object-cover" />
@@ -528,60 +533,76 @@ function SingleItemForm({ trader }: { trader: Trader }) {
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Category</label>
-        <select value={lc} onChange={e => setLc(e.target.value as any)}
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Category</label>
+        <select value={lc} onChange={e => { setLc(e.target.value as any); setJewelryType(""); }}
           className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }}>
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }}>
           <option>Rough</option>
           <option>Polished</option>
           <option>Jewelry</option>
         </select>
       </div>
 
+      {lc === "Jewelry" && (
+        <div>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Piece Type</label>
+          <select value={jewelryType} onChange={e => setJewelryType(e.target.value as any)}
+            className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }}>
+            <option value="">Select type...</option>
+            <option value="Ring">Ring</option>
+            <option value="Necklace">Necklace</option>
+            <option value="Earring">Earring</option>
+            <option value="Bracelet">Bracelet</option>
+            <option value="Watch">Watch</option>
+          </select>
+        </div>
+      )}
+
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>{lc === "Jewelry" ? "Piece description" : "Shape"}</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>{lc === "Jewelry" ? "Piece description" : "Shape"}</label>
         <input name="shape" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }}
           placeholder={lc === "Jewelry" ? "e.g. Tennis bracelet" : "e.g. Round Brilliant"} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Carat</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Carat</label>
           <input name="carat" type="number" step="0.01" min="0.01" required
             className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} />
         </div>
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Color</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Color</label>
           <input name="color" required className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} placeholder="e.g. G" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} placeholder="e.g. G" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Clarity</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Clarity</label>
           <input name="clarity" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} placeholder="e.g. VS1" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} placeholder="e.g. VS1" />
         </div>
         <div>
-          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Certification</label>
+          <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Certification</label>
           <input name="certification" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-            style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} placeholder="e.g. GIA" />
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} placeholder="e.g. GIA" />
         </div>
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Asking Price (USD)</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Asking Price (USD)</label>
         <input name="price" type="number" min="0" className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none"
-          style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} placeholder="Leave blank for price on request" />
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} placeholder="Leave blank for price on request" />
       </div>
 
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Notes</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Notes</label>
         <textarea name="clarity_notes" rows={3} className="w-full px-4 py-2.5 text-[13px] font-light rounded-lg outline-none resize-none"
-          style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }} placeholder="Any extra detail..." />
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }} placeholder="Any extra detail..." />
       </div>
 
       <button type="submit" disabled={uploading || !allFilled}
@@ -665,10 +686,10 @@ function PasteListTab({ trader }: { trader: Trader }) {
   return (
     <div className="p-4 max-w-3xl mx-auto w-full flex flex-col gap-4">
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#171717" }}>Paste stock text</label>
+        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#EAE8E4" }}>Paste stock text</label>
         <textarea value={text} onChange={e => setText(e.target.value)} rows={8}
           className="w-full px-4 py-3 text-[13px] font-light rounded-lg outline-none resize-y"
-          style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB", color: "#171717" }}
+          style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21", color: "#EAE8E4" }}
           placeholder="Paste WhatsApp messages or stone listing text here..." />
       </div>
       <button onClick={handleParse} disabled={parsing || !text.trim()}
@@ -681,49 +702,49 @@ function PasteListTab({ trader }: { trader: Trader }) {
       )}
       {parsed && (
         <div className="space-y-3">
-          <div className="text-[11px]" style={{ color: "#6E6C69", fontFamily: "monospace" }}>
+          <div className="text-[11px]" style={{ color: "#A6A6AB", fontFamily: "monospace" }}>
             {parsed.stones.length} stones parsed, {parsed.skipped.length} skipped
           </div>
           {parsed.stones.map((_: any, i: number) => {
             const s = getStone(i);
             const isRough = s.type === "rough";
             return (
-              <div key={i} className="p-3" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+              <div key={i} className="p-3" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
                 <label className="flex items-start gap-2 cursor-default">
                   <input type="checkbox" checked={checked[i] !== false}
                     onChange={e => setChecked(prev => ({ ...prev, [i]: e.target.checked }))} className="mt-0.5" />
                   <div className="flex-1">
-                    <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#6E6C69" }}>{s.type}</div>
+                    <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#A6A6AB" }}>{s.type}</div>
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>{isRough ? "Crystal Form" : "Shape"}</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>{isRough ? "Crystal Form" : "Shape"}</label>
                         <input value={s.shape_or_form || ""} onChange={e => updateEdit(i, "shape_or_form", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>Carat</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>Carat</label>
                         <input value={s.carat || ""} onChange={e => updateEdit(i, "carat", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>Color</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>Color</label>
                         <input value={s.color || ""} onChange={e => updateEdit(i, "color", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>Clarity</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>Clarity</label>
                         <input value={s.clarity || ""} onChange={e => updateEdit(i, "clarity", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>Certification</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>Certification</label>
                         <input value={s.certification || ""} onChange={e => updateEdit(i, "certification", e.target.value)}
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                       <div>
-                        <label className="text-[10px]" style={{ color: "#6E6C69" }}>Price</label>
+                        <label className="text-[10px]" style={{ color: "#A6A6AB" }}>Price</label>
                         <input value={s.price ?? ""} onChange={e => updateEdit(i, "price", e.target.value ? Number(e.target.value) : null)} type="number"
-                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#EAE8E4" }} />
+                          className="w-full px-2 py-1.5 text-[11px] font-light rounded outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#101214" }} />
                       </div>
                     </div>
                   </div>
@@ -732,9 +753,9 @@ function PasteListTab({ trader }: { trader: Trader }) {
             );
           })}
           {published ? (
-            <div className="p-3 rounded-lg text-[11px]" style={{ background: "#FCFCFB", border: "1px solid rgba(23,23,23,0.08)" }}>
+            <div className="p-3 rounded-lg text-[11px]" style={{ background: "#1A1D21", border: "1px solid rgba(255,255,255,0.08)" }}>
               <p className="font-medium mb-1">{published.length} items submitted for review.</p>
-              <p style={{ color: "#6E6C69" }}>The desk will review and publish.</p>
+              <p style={{ color: "#A6A6AB" }}>The desk will review and publish.</p>
             </div>
           ) : (
             <button onClick={handlePublish}
@@ -767,8 +788,8 @@ function MyItemsTab({ trader }: { trader: Trader }) {
 
   useEffect(() => { fetchStones(); }, [fetchStones]);
 
-  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#6E6C69" }}>Loading...</div>;
-  if (stones.length === 0) return <div className="p-6 text-[12px] text-center" style={{ color: "#6E6C69" }}>No items listed yet.</div>;
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#A6A6AB" }}>Loading...</div>;
+  if (stones.length === 0) return <div className="p-6 text-[12px] text-center" style={{ color: "#A6A6AB" }}>No items listed yet.</div>;
 
   function statusBadge(s: string) {
     switch (s) {
@@ -791,24 +812,24 @@ function MyItemsTab({ trader }: { trader: Trader }) {
         const badge = statusBadge(s.status);
 
         return (
-          <div key={s.id} style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+          <div key={s.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
             <div className="flex gap-3 p-3 cursor-default" onClick={() => setExpanded(isOpen ? null : s.id)}>
-              <div className="w-16 h-16 overflow-hidden shrink-0" style={{ background: "#EAE8E4" }}>
+              <div className="w-16 h-16 overflow-hidden shrink-0" style={{ background: "#101214" }}>
                 <img src={mainPhoto} alt={s.ref} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-medium" style={{ color: "#171717", fontFamily: "monospace" }}>{s.ref}</span>
+                  <span className="text-[11px] font-medium" style={{ color: "#EAE8E4", fontFamily: "monospace" }}>{s.ref}</span>
                   <span className="text-[9px] font-medium uppercase px-1.5 py-0.5 rounded" style={{ background: badge.bg, color: badge.text }}>{s.status}</span>
                 </div>
-                <div className="text-[11px] mt-0.5" style={{ color: "#6E6C69" }}>
+                <div className="text-[11px] mt-0.5" style={{ color: "#A6A6AB" }}>
                   {s.shape} · {s.carat}ct · {s.color} · {s.clarity || s.certification}
                 </div>
-                <div className="text-[11px] font-medium mt-0.5" style={{ color: "#171717" }}>
+                <div className="text-[11px] font-medium mt-0.5" style={{ color: "#EAE8E4" }}>
                   {s.price ? `$${s.price.toLocaleString()}` : "Price on request"}
                 </div>
                 {s.sales_count != null && s.sales_count > 0 && (
-                  <div className="text-[10px] mt-0.5" style={{ color: "#6E6C69" }}>
+                  <div className="text-[10px] mt-0.5" style={{ color: "#A6A6AB" }}>
                     {s.sales_count} {s.sales_count === 1 ? "sale" : "sales"}
                   </div>
                 )}
@@ -816,14 +837,14 @@ function MyItemsTab({ trader }: { trader: Trader }) {
             </div>
             {isOpen && s.status_log && s.status_log.length > 0 && (
               <div className="p-3 space-y-1.5" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
-                <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#6E6C69" }}>Status History</div>
+                <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#A6A6AB" }}>Status History</div>
                 {s.status_log.map(log => {
                   const lb = statusBadge(log.status);
                   return (
                     <div key={log.id} className="flex items-center gap-2 text-[10px]">
                       <span className="font-medium uppercase px-1 py-0.5 rounded" style={{ background: lb.bg, color: lb.text }}>{log.status}</span>
-                      <span style={{ color: "#6E6C69", fontFamily: "monospace" }}>{log.changed_at.split("T")[0]}</span>
-                      {log.reason && <span style={{ color: "#6E6C69" }}>- {log.reason}</span>}
+                      <span style={{ color: "#A6A6AB", fontFamily: "monospace" }}>{log.changed_at.split("T")[0]}</span>
+                      {log.reason && <span style={{ color: "#A6A6AB" }}>- {log.reason}</span>}
                     </div>
                   );
                 })}
@@ -852,9 +873,9 @@ function ReportsTab({ trader }: { trader: Trader }) {
       .finally(() => setLoading(false));
   }, [trader.id]);
 
-  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#6E6C69" }}>Loading...</div>;
+  if (loading) return <div className="p-6 text-[12px] text-center" style={{ color: "#A6A6AB" }}>Loading...</div>;
   if (reports.length === 0) return (
-    <div className="p-6 text-[12px] text-center" style={{ color: "#6E6C69" }}>
+    <div className="p-6 text-[12px] text-center" style={{ color: "#A6A6AB" }}>
       No reports yet. Your first weekly report will appear here after the desk generates one.
     </div>
   );
@@ -865,16 +886,16 @@ function ReportsTab({ trader }: { trader: Trader }) {
         let data: any = {};
         try { data = JSON.parse(r.data || "{}"); } catch {}
         return (
-          <div key={r.id} style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#FCFCFB" }}>
+          <div key={r.id} style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#1A1D21" }}>
             <div className="p-3 cursor-default" onClick={() => setExpanded(expanded === r.id ? null : r.id)}>
               <div className="flex items-center justify-between">
-                <div className="text-[12px] font-light" style={{ color: "#171717" }}>
+                <div className="text-[12px] font-light" style={{ color: "#EAE8E4" }}>
                   Week of {r.period_start?.split("T")[0] || ""} — {r.period_end?.split("T")[0] || ""}
                 </div>
-                <span className="text-[10px] font-mono" style={{ color: "#6E6C69" }}>{r.created_at?.split("T")[0] || ""}</span>
+                <span className="text-[10px] font-mono" style={{ color: "#A6A6AB" }}>{r.created_at?.split("T")[0] || ""}</span>
               </div>
               {data.total_commission != null && (
-                <div className="text-[11px] mt-1" style={{ color: "#6E6C69" }}>
+                <div className="text-[11px] mt-1" style={{ color: "#A6A6AB" }}>
                   Commission earned: <strong>${data.total_commission.toLocaleString()}</strong>
                   {data.total_revenue != null && <span className="ml-2">(Revenue: ${data.total_revenue.toLocaleString()})</span>}
                 </div>
@@ -883,27 +904,27 @@ function ReportsTab({ trader }: { trader: Trader }) {
             {expanded === r.id && (
               <div className="p-3 space-y-3" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
                 <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="p-2" style={{ border: "1px solid rgba(23,23,23,0.08)" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">{data.live?.length || 0}</div>
-                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#6E6C69" }}>Live</div>
+                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#A6A6AB" }}>Live</div>
                   </div>
-                  <div className="p-2" style={{ border: "1px solid rgba(23,23,23,0.08)" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">{data.sold?.length || 0}</div>
-                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#6E6C69" }}>Sold</div>
+                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#A6A6AB" }}>Sold</div>
                   </div>
-                  <div className="p-2" style={{ border: "1px solid rgba(23,23,23,0.08)" }}>
+                  <div className="p-2" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
                     <div className="text-[18px] font-light">${(data.total_commission || 0).toLocaleString()}</div>
-                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#6E6C69" }}>Commission</div>
+                    <div className="text-[9px] uppercase tracking-wider" style={{ color: "#A6A6AB" }}>Commission</div>
                   </div>
                 </div>
                 {data.sold && data.sold.length > 0 && (
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#6E6C69" }}>Items Sold</div>
+                    <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#A6A6AB" }}>Items Sold</div>
                     <div className="space-y-1">
                       {data.sold.map((s: any, i: number) => (
                         <div key={i} className="flex items-center justify-between text-[11px] p-2" style={{ border: "1px solid rgba(234,228,218,0.6)" }}>
                           <span><strong>{s.ref}</strong> {s.shape} {s.carat}ct {s.color}</span>
-                          <span style={{ fontFamily: "monospace" }}>${s.sale_price?.toLocaleString() || 0} <span style={{ color: "#6E6C69" }}>({s.commission_pct}% → ${s.commission_amount?.toLocaleString() || 0})</span></span>
+                          <span style={{ fontFamily: "monospace" }}>${s.sale_price?.toLocaleString() || 0} <span style={{ color: "#A6A6AB" }}>({s.commission_pct}% → ${s.commission_amount?.toLocaleString() || 0})</span></span>
                         </div>
                       ))}
                     </div>

@@ -30,13 +30,13 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="px-4 md:px-6 py-16 max-w-sm mx-auto w-full">
-      <div className="border border-border p-6">
+    <div className="px-4 md:px-6 py-16 max-w-sm mx-auto w-full" style={{ background: '#101214', minHeight: '100vh', color: '#EAE8E4' }}>
+      <div className="border p-6" style={{ borderColor: 'rgba(255,255,255,0.08)', background: '#1A1D21' }}>
         <h2 className="text-[13px] font-bold mb-1">Dealer Sign In</h2>
         <p className="text-[11px] text-muted mb-6">Enter the dealer password to access the dashboard.</p>
 
         {error && (
-          <div className="border border-[#991B1B] bg-[#FEE2E2] p-3 mb-4 text-[11px] text-[#991B1B]">
+          <div className="border border-[#991B1B] bg-[rgba(239,68,68,0.1)] p-3 mb-4 text-[11px] text-[#EF4444]">
             {error}
           </div>
         )}

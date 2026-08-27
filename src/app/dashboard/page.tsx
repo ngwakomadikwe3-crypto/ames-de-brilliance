@@ -62,7 +62,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="min-h-full flex flex-col back-office" style={{ background: '#101214', color: '#EAE8E4' }}>
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <BrandMark variant="full" height={28} />

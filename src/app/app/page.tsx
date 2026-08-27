@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { animate } from "framer-motion";
+/* Native scroll-snap — no framer-motion needed */
 /* Sketchfab 3D embeds — PatelDev diamond + Busanello ring */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
@@ -59,105 +59,37 @@ export default function AppPage() {
     return () => obs.disconnect();
   }, []);
 
-  /* ── Swipe gesture state ── */
-  const innerRef = useRef<HTMLDivElement>(null);
-  const swipeRef = useRef({ tracking: false, startX: 0, startY: 0, dx: 0, dy: 0, locked: false, dir: 0 as -1 | 0 | 1 });
-  const SWIPE_THRESHOLD = 70;
-  const VERTICAL_CAP = 30;
-  const VELOCITY_THRESHOLD = 0.5;
+  /* ── Native scroll-snap navigation ── */
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   function swipeTo(idx: number) {
     const next = Math.max(0, Math.min(2, idx));
     setActivePanel(next);
-    if (innerRef.current) {
-      animate(innerRef.current, { left: `${-next * 100}dvw` }, { duration: 0.25, ease: [0.25, 0.1, 0.25, 1] });
+    const container = scrollRef.current;
+    if (container) {
+      container.scrollTo({ left: next * window.innerWidth, behavior: 'smooth' });
     }
   }
 
-  function isIgnoredTarget(el: EventTarget | null): boolean {
-    let node = el as HTMLElement | null;
-    for (let i = 0; i < 15 && node; i++) {
-      if (node.tagName === "CANVAS") return true;
-      if (node.dataset && node.dataset.gallery === "true") return true;
-      /* iframes are NOT ignored — gesture overlay sits above them to capture swipes */
-      node = node.parentElement;
-    }
-    return false;
-  }
-
+  /* Sync panel indicator with scroll position */
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    function onDown(e: PointerEvent) {
-      if (isIgnoredTarget(e.target)) return;
-      swipeRef.current = { tracking: true, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, locked: false, dir: 0 };
+    const container = scrollRef.current;
+    if (!container) return;
+    function onScroll() {
+      const idx = Math.round(container!.scrollLeft / window.innerWidth);
+      if (idx !== activePanel && idx >= 0 && idx <= 2) setActivePanel(idx);
     }
-
-    function onMove(e: PointerEvent) {
-      const s = swipeRef.current;
-      if (!s.tracking) return;
-      s.dx = e.clientX - s.startX;
-      s.dy = e.clientY - s.startY;
-      if (!s.locked && (Math.abs(s.dx) > 10 || Math.abs(s.dy) > 10)) {
-        s.locked = true;
-        s.dir = Math.abs(s.dx) > Math.abs(s.dy) ? (s.dx > 0 ? -1 : 1) : 0;
-      }
-      if (s.locked && s.dir !== 0) {
-        /* Let inner panel handle the vertical scroll */
-      }
-    }
-
-    function onUp(e: PointerEvent) {
-      const s = swipeRef.current;
-      if (!s.tracking) return;
-      s.tracking = false;
-      const elapsed = 1;
-      const velocity = Math.abs(s.dx) / elapsed;
-      if (
-        s.locked &&
-        s.dir !== 0 &&
-        Math.abs(s.dx) > SWIPE_THRESHOLD &&
-        Math.abs(s.dy) < VERTICAL_CAP &&
-        velocity > VELOCITY_THRESHOLD
-      ) {
-        const next = activePanel + s.dir;
-        if (next >= 0 && next <= 2) swipeTo(next);
-      }
-      s.dx = 0;
-      s.dy = 0;
-      s.locked = false;
-      s.dir = 0;
-    }
-
-    el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
-    return () => {
-      el.removeEventListener("pointerdown", onDown);
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onUp);
-    };
+    container.addEventListener('scroll', onScroll, { passive: true });
+    return () => container.removeEventListener('scroll', onScroll);
   }, [activePanel]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
-    }
-    function onWheel(e: WheelEvent) {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      if (Math.abs(e.deltaY) > 30) {
-        e.preventDefault();
-        if (e.deltaY > 0) swipeTo(Math.min(2, activePanel + 1));
-        else swipeTo(Math.max(0, activePanel - 1));
-      }
+      if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
     }
     window.addEventListener("keydown", onKey);
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("wheel", onWheel); };
+    return () => { window.removeEventListener("keydown", onKey); };
   }, [activePanel]);
 
   function handleSeePiece(stoneId: string) {
@@ -172,21 +104,8 @@ export default function AppPage() {
   }
 
   const NAV_ITEMS = [
-    { label: "Boutique", panel: 0 },
-    { label: "Chat", panel: 1 },
-    { label: "Videos", panel: 2 },
-    { label: "Stock", href: "/dashboard?tab=stones" },
-    { label: "Sourcing", href: "/dashboard?tab=traders" },
-    { label: "Reports", href: "/reports" },
-    { label: "Dealer Login", href: "/login" },
-    { label: "Trader Portal", href: "/trader" },
-    { label: "Model Portal", href: "/model" },
-    { label: "Dashboard", href: "/dashboard" },
-    { label: "Intelligence", href: "/intelligence" },
-    { label: "Compliance", href: "/legal#compliance" },
-    { label: "Terms", href: "/legal#terms" },
-    { label: "Privacy", href: "/legal#privacy" },
-    { label: "Legal & Compliance", href: "/legal" },
+    { label: "Settings", href: "/app/settings" },
+    { label: "Billing", href: "/app/billing" },
   ];
 
   return (
@@ -230,15 +149,10 @@ export default function AppPage() {
                   key={item.label}
                   onClick={() => {
                     setDrawerOpen(false);
-                    if ('panel' in item && item.panel !== undefined) swipeTo(item.panel);
-                    else window.location.href = item.href!;
+                    window.location.href = item.href!;
                   }}
                   className="w-full text-left px-5 py-3 text-[13px] transition-colors"
-                  style={{
-                    color: 'panel' in item && activePanel === item.panel ? '#171717' : '#6E6C69',
-                    background: 'panel' in item && activePanel === item.panel ? 'rgba(23,23,23,0.04)' : 'transparent',
-                    fontWeight: 'panel' in item && activePanel === item.panel ? 500 : 400,
-                  }}
+                  style={{ color: '#6E6C69', fontWeight: 400 }}
                 >
                   {item.label}
                 </button>
@@ -266,24 +180,16 @@ export default function AppPage() {
         ))}
       </div>
 
-      <div ref={containerRef} className="h-[100dvh] w-[100dvw] overflow-hidden relative">
-        <div
-          ref={innerRef}
-          className="flex h-full"
-          style={{
-            width: '300dvw',
-            position: 'relative',
-            left: `${-activePanel * 100}dvw`,
-            transition: 'left 0.25s cubic-bezier(0.25, 0.1, 0.25, 1)',
-          }}
-        >
-          <section data-panel="0" className="relative w-[100dvw] h-full flex-shrink-0 flex flex-col overflow-x-hidden">
+      <div ref={scrollRef} className="h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+        <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
+        <div className="flex h-full" style={{ width: '300dvw' }}>
+          <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <BoutiquePanel highlightStone={highlightStone} />
           </section>
-          <section data-panel="1" className="relative w-[100dvw] h-full flex-shrink-0 flex flex-col overflow-x-hidden">
+          <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} />
           </section>
-          <section data-panel="2" className="relative w-[100dvw] h-full flex-shrink-0 overflow-x-hidden">
+          <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
             <VideosPanel onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
           </section>
         </div>
@@ -507,16 +413,25 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          {/* 3D Diamond — Sketchfab embed, cropped transparent, silent fade-in */}
+          {/* 3D Diamond — Sketchfab embed, bare object on pearl, no backdrop */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 220, height: 220, marginBottom: 32, overflow: 'hidden', background: 'transparent' }}>
-            <iframe
-              title="Diamond"
-              src="https://sketchfab.com/models/b508b33eb0844fcc91a4296cc53323c7/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%', opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out', mixBlendMode: 'multiply' }}
-              allow="autoplay; fullscreen"
-              loading="lazy"
-              onLoad={() => setIframeOpacity(1)}
-            />
+            {/* Masked + blended iframe wrapper */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
+              <iframe
+                title="Diamond"
+                src="https://sketchfab.com/models/b508b33eb0844fcc91a4296cc53323c7/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
+                style={{
+                  width: '135%', height: '135%',
+                  border: 'none',
+                  position: 'absolute', top: '-17.5%', left: '-17.5%',
+                  opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out',
+                  filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
+                }}
+                allow="autoplay; fullscreen"
+                loading="lazy"
+                onLoad={() => setIframeOpacity(1)}
+              />
+            </div>
             {/* Gesture overlay — captures swipes so they switch panels, not rotate the model */}
             <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
           </div>
@@ -572,6 +487,7 @@ const CATEGORY_MAP: { label: string; key: string }[] = [
   { label: "Necklaces", key: "Necklace" },
   { label: "Earrings", key: "Earring" },
   { label: "Bracelets", key: "Bracelet" },
+  { label: "Watches", key: "Watch" },
 ];
 
 function parsePhotos(photoStr: string | null | undefined): (string | null)[] {
@@ -717,18 +633,29 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Ring — Sketchfab embed, cropped transparent */}
+        {/* Ring — Sketchfab embed, bare object on pearl, no backdrop */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          {/* Cropped ring iframe — silent fade-in, mix-blend-mode merge */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: 280, height: 280, overflow: 'hidden', background: 'transparent', flexShrink: 0 }}>
-            <iframe
-              title="Black Diamond Ring"
-              src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-              style={{ width: '140%', height: '140%', border: 'none', position: 'absolute', top: '-20%', left: '-20%', opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out', mixBlendMode: 'multiply' }}
-              allow="autoplay; fullscreen"
-              loading="lazy"
-              onLoad={() => setIframeOpacity(1)}
-            />
+          {/* Ring container — scaled, masked, shadowed, blended */}
+          <div style={{ position: 'relative', width: 340, maxWidth: '90vw', height: 340, flexShrink: 0, background: 'transparent' }}>
+            {/* Soft shadow ellipse beneath */}
+            <div style={{ position: 'absolute', bottom: -8, left: '20%', right: '20%', height: 14, background: 'radial-gradient(ellipse at center, rgba(23,23,23,0.18) 0%, transparent 75%)', filter: 'blur(12px)', pointerEvents: 'none', zIndex: 0 }} />
+            {/* Masked + blended iframe wrapper */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
+              <iframe
+                title="Black Diamond Ring"
+                src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
+                style={{
+                  width: '135%', height: '135%',
+                  border: 'none',
+                  position: 'absolute', top: '-17.5%', left: '-17.5%',
+                  opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out',
+                  filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
+                }}
+                allow="autoplay; fullscreen"
+                loading="lazy"
+                onLoad={() => setIframeOpacity(1)}
+              />
+            </div>
             {/* Gesture overlay — captures swipes so they switch panels */}
             <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
           </div>
@@ -771,12 +698,12 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           <h3 style={{ fontSize: 20, fontWeight: 500, color: "#171717", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 16 }}>
             Featured Categories
           </h3>
-          <div className="flex justify-center gap-6">
+          <div className="flex gap-5 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(0px, calc(50% - 200px))', paddingRight: 'max(0px, calc(50% - 200px))' }}>
             {categoryImages.map(cat => {
               const hasImage = cat.photo && cat.photo.length > 10 && !cat.photo.startsWith("data:");
               const isActive = filter === cat.key;
               return (
-                <button key={cat.key} onClick={() => setFilter(isActive ? "All" : cat.key)} className="flex flex-col items-center gap-2" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                <button key={cat.key} onClick={() => setFilter(isActive ? "All" : cat.key)} className="flex flex-col items-center gap-2 shrink-0" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                   <div style={{
                     width: 64, height: 64, borderRadius: "50%",
                     background: isActive ? "radial-gradient(circle, rgba(142,142,147,0.10) 0%, #FCFCFB 70%)" : "radial-gradient(circle, rgba(23,23,23,0.02) 0%, #FCFCFB 70%)",
@@ -789,7 +716,18 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
                     ) : (
                       <svg viewBox="0 0 24 24" fill="none" style={{ width: 24, height: 24 }}>
                         <defs><linearGradient id={`cat-${cat.key}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs>
-                        <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+                        {cat.key === 'Watch' ? (
+                          /* Watch glyph: circle face + two lugs */
+                          <>
+                            <circle cx="12" cy="12" r="7" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" fill="none" />
+                            <line x1="12" y1="5" x2="12" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
+                            <line x1="12" y1="12" x2="16" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
+                            <rect x="10" y="2" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
+                            <rect x="10" y="19.5" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
+                          </>
+                        ) : (
+                          <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+                        )}
                       </svg>
                     )}
                   </div>

@@ -209,3 +209,45 @@ button { font-family: inherit; }
 }
 .input-field::placeholder { color: #6E6C69; }
 .input-field:focus { border-color: #A6A6AB; }
+
+/* ═══════════════════════════════════════════
+   BACK OFFICE — Graphite register
+   ═══════════════════════════════════════════ */
+.back-office {
+  background: #101214;
+  color: #EAE8E4;
+  font-family: var(--font-sans);
+}
+.back-office .field-input,
+.back-office .input-field {
+  background: #1A1D21;
+  color: #EAE8E4;
+  border-color: rgba(255,255,255,0.08);
+}
+.back-office .field-input::placeholder,
+.back-office .input-field::placeholder {
+  color: #A6A6AB;
+}
+.back-office .field-input:focus,
+.back-office .input-field:focus {
+  border-color: #A6A6AB;
+}
+.back-office select {
+  background: #1A1D21;
+  color: #EAE8E4;
+  border-color: rgba(255,255,255,0.08);
+}
+.back-office table { border-color: rgba(255,255,255,0.08); }
+.back-office th { color: #A6A6AB; background: #1A1D21; }
+.back-office td { border-color: rgba(255,255,255,0.06); }
+.back-office tr:hover td { background: rgba(255,255,255,0.03); }
+.back-office .badge-pending { background: #A6A6AB; color: #101214; }
+.back-office .badge-active { background: #EAE8E4; color: #101214; }
+.back-office .badge-success { background: #34D399; color: #101214; }
+.back-office .badge-danger { background: #EF4444; color: #FCFCFB; }
+.back-office .badge-muted { background: #6E6C69; color: #FCFCFB; }
+.back-office .btn-primary { background: #A6A6AB; color: #101214; }
+.back-office .btn-secondary { border-color: rgba(255,255,255,0.12); color: #EAE8E4; }
+.back-office .surface { background: #1A1D21; }
+.back-office .card { background: #1A1D21; border-color: rgba(255,255,255,0.08); }
+.back-office .hairline { border-color: rgba(255,255,255,0.08); }
