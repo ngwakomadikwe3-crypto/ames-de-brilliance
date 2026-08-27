@@ -36,7 +36,7 @@ export default function SignInPage() {
         <p className="text-[11px] text-muted mb-6">Enter the dealer password to access the dashboard.</p>
 
         {error && (
-          <div className="border border-red-300 bg-red-50 p-3 mb-4 text-[11px] text-red-700">
+          <div className="border border-[#991B1B] bg-[#FEE2E2] p-3 mb-4 text-[11px] text-[#991B1B]">
             {error}
           </div>
         )}

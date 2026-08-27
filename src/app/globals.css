@@ -17,6 +17,10 @@
 /* Reset */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Kill browser blue focus ring — the "artifact" */
+*:focus { outline: none; }
+*:focus-visible { outline: none; }
+
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -125,3 +129,93 @@ button { font-family: inherit; }
   background: radial-gradient(ellipse at center, rgba(142,142,147,0.06) 0%, transparent 70%);
   pointer-events: none;
 }
+
+/* ═══════════════════════════════════════════
+   AMES DESIGN SYSTEM TOKENS
+   ═══════════════════════════════════════════ */
+
+/* Surfaces */
+.room { background: #EAE8E4; }
+.surface { background: #FCFCFB; }
+.hairline { border: 1px solid rgba(23,23,23,0.08); }
+
+/* Typography */
+.font-serif { font-family: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif; }
+.label-tag {
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #6E6C69;
+}
+
+/* Graphite vitrine stage — behind every 3D object */
+.graphite-stage {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%);
+  pointer-events: none;
+}
+
+/* Cards */
+.card {
+  background: #FCFCFB;
+  border: 1px solid rgba(23,23,23,0.08);
+  border-radius: 14px;
+}
+.card-float {
+  background: #FCFCFB;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+}
+
+/* Buttons */
+.btn-primary {
+  background: #171717;
+  color: #FCFCFB;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 20px;
+}
+.btn-secondary {
+  background: transparent;
+  color: #171717;
+  border: 1px solid rgba(23,23,23,0.08);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  min-height: 44px;
+  padding: 0 20px;
+}
+
+/* Status badges — house palette, no blue/yellow */
+.badge-pending { background: #A6A6AB; color: #FCFCFB; }
+.badge-active { background: #171717; color: #FCFCFB; }
+.badge-success { background: #065F46; color: #FCFCFB; }
+.badge-danger { background: #991B1B; color: #FCFCFB; }
+.badge-muted { background: #6E6C69; color: #FCFCFB; }
+
+/* Input fields */
+.input-field {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 36px;
+  color: #171717;
+  background: #FCFCFB;
+  border: 1px solid rgba(23,23,23,0.08);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input-field::placeholder { color: #6E6C69; }
+.input-field:focus { border-color: #A6A6AB; }

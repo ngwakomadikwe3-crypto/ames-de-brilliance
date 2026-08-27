@@ -185,7 +185,7 @@ function RequestsTab() {
   }
 
   function statusColor(s: string) {
-    switch (s) { case "New": return "bg-blue-600 text-white"; case "Sourcing": return "bg-yellow-500 text-white"; case "Quoted": return "bg-green-700 text-white"; case "Closed": return "bg-[#6E6C69] text-white"; default: return "bg-[#1a1c1e] text-[#171717]"; }
+    switch (s) { case "New": return "badge-active"; case "Sourcing": return "badge-pending"; case "Quoted": return "badge-success"; case "Closed": return "badge-muted"; default: return "badge-active"; }
   }
   const STATUSES: Request["status"][] = ["New", "Sourcing", "Quoted", "Closed"];
 
@@ -292,7 +292,7 @@ function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftR
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] uppercase tracking-wider text-muted font-medium">Saved Offer{r.offer_timestamp ? " — " + r.offer_timestamp.split("T")[0] : ""}</span>
-              <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5">Quoted</span>
+              <span className="text-[10px] font-semibold text-[#065F46] bg-[#ECFDF5] px-1.5 py-0.5">Quoted</span>
             </div>
             <pre className="font-mono text-[10px] whitespace-pre-wrap bg-[#FCFCFB] border border-border p-2 select-all">{r.offer_text}</pre>
             <button onClick={()=>handleCopy(r.offer_text||"","offer-"+r.id)} className="mt-1 px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId==="offer-"+r.id?"Copied":"Copy offer"}</button>
@@ -361,7 +361,7 @@ function StonesTab() {
   }
 
   function statusColor(s: string) {
-    switch(s){case"Pending":return"bg-yellow-500 text-white";case"Available":return"bg-green-700 text-white";case"Reserved":return"bg-blue-600 text-white";case"Sold":return"bg-[#6E6C69] text-white";case"Rejected":return"bg-red-600 text-white";default:return"bg-[#1a1c1e] text-[#171717]";}
+    switch(s){case"Pending":return"badge-pending";case"Available":return"badge-success";case"Reserved":return"badge-active";case"Sold":return"badge-muted";case"Rejected":return"badge-danger";default:return"badge-active";}
   }
 
   async function handleApprove(s: Stone, edits: any) {
@@ -495,8 +495,8 @@ function StonesTab() {
                 <td className="px-3 py-1.5 text-right font-mono">{s.price?"$"+s.price.toLocaleString():"\u2014"}</td>                <td className="px-3 py-1.5">
                   {s.status === "Pending" ? (
                     <div className="flex gap-1">
-                      <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 bg-green-700 text-white cursor-default">Approve</button>
-                      <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 bg-red-600 text-white cursor-default">Reject</button>
+                      <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 badge-success cursor-default">Approve</button>
+                      <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 badge-danger cursor-default">Reject</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
@@ -522,8 +522,8 @@ function StonesTab() {
               <span className="text-[11px] font-mono font-medium">{s.ref}</span>
               {s.status === "Pending" ? (
                 <div className="flex gap-1">
-                  <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 bg-green-700 text-white cursor-default">Approve</button>
-                  <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 bg-red-600 text-white cursor-default">Reject</button>
+                  <button onClick={()=>setApproveModal(s)} className="text-[9px] px-1.5 py-0.5 badge-success cursor-default">Approve</button>
+                  <button onClick={()=>setRejectModal(s)} className="text-[9px] px-1.5 py-0.5 badge-danger cursor-default">Reject</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-1">
@@ -612,7 +612,7 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
         </div>
         <div className="flex gap-2 justify-end mt-4">
           <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
-          <button onClick={()=>onApprove({shape, carat:parseFloat(carat)||0, color, clarity, certification:cert, price:price?Number(price):null, listing_category:lc})} className="px-3 py-1.5 bg-green-700 text-white font-medium cursor-default min-h-[36px]">Approve &amp; Publish</button>
+          <button onClick={()=>onApprove({shape, carat:parseFloat(carat)||0, color, clarity, certification:cert, price:price?Number(price):null, listing_category:lc})} className="px-3 py-1.5 badge-success font-medium cursor-default min-h-[36px]">Approve &amp; Publish</button>
         </div>
       </div>
     </div>
@@ -629,7 +629,7 @@ function RejectModal({ stone, onReject, onCancel }: { stone: Stone; onReject: (r
           <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3} className="field-input resize-none" placeholder="Why is this being rejected?" /></div>
         <div className="flex gap-2 justify-end mt-4">
           <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
-          <button onClick={()=>onReject(reason)} className="px-3 py-1.5 bg-red-600 text-white font-medium cursor-default min-h-[36px]">Reject</button>
+          <button onClick={()=>onReject(reason)} className="px-3 py-1.5 badge-danger font-medium cursor-default min-h-[36px]">Reject</button>
         </div>
       </div>
     </div>
@@ -958,7 +958,7 @@ function PasteInTab() {
 
           {/* Publish */}
           {published ? (
-            <div className="border border-green-300 bg-green-50 p-3 text-[11px]">
+            <div className="border border-[#065F46] bg-[#ECFDF5] p-3 text-[11px]">
               <p className="font-bold mb-1">Published {published.length} stones: {published.join(", ")}</p>
               <p>They are now visible on the <a href="/" className="underline">public stock page</a>.</p>
             </div>
@@ -1071,10 +1071,10 @@ function TradersTab() {
 
   function traderStatusColor(s: string) {
     switch(s) {
-      case "Pending": return "bg-yellow-500 text-white";
-      case "Active": return "bg-green-700 text-white";
-      case "Declined": return "bg-red-600 text-white";
-      default: return "bg-[#1a1c1e] text-[#171717]";
+      case "Pending": return "badge-pending";
+      case "Active": return "badge-success";
+      case "Declined": return "badge-danger";
+      default: return "badge-active";
     }
   }
 
@@ -1178,7 +1178,7 @@ function TradersTab() {
                         </div>
                       )}
                       <div className="flex gap-2 mt-3">
-                        <button onClick={()=>handleApprove(t)} className="px-3 py-1.5 bg-green-700 text-white text-[11px] font-medium cursor-default">
+                        <button onClick={()=>handleApprove(t)} className="px-3 py-1.5 badge-success text-[11px] font-medium cursor-default">
                           Approve
                         </button>
                         <button onClick={()=>setRejectReason(rejectReason===String(t.id)?null:String(t.id))} className="px-3 py-1.5 border border-red-300 text-red-600 text-[11px] font-medium cursor-default">
@@ -1191,7 +1191,7 @@ function TradersTab() {
                           <button onClick={()=>{
                             const input = document.getElementById(`reason-${t.id}`) as HTMLInputElement;
                             handleDecline(t, input?.value || "Application declined");
-                          }} className="px-3 py-1.5 bg-red-600 text-white text-[11px] font-medium cursor-default">
+                          }} className="px-3 py-1.5 badge-danger text-[11px] font-medium cursor-default">
                             Confirm decline
                           </button>
                         </div>
@@ -1243,7 +1243,7 @@ function TradersTab() {
             </div>
             {t.status === "Pending" && (
               <div className="flex gap-2 mt-2">
-                <button onClick={()=>handleApprove(t)} className="flex-1 py-1.5 bg-green-700 text-white text-[10px] font-medium cursor-default">Approve</button>
+                <button onClick={()=>handleApprove(t)} className="flex-1 py-1.5 badge-success text-[10px] font-medium cursor-default">Approve</button>
                 <button onClick={()=>setExpanded(expanded===t.id?null:t.id)} className="flex-1 py-1.5 border border-red-300 text-red-600 text-[10px] font-medium cursor-default">Decline</button>
               </div>
             )}
@@ -1277,7 +1277,7 @@ function TradersTab() {
                 <button onClick={()=>{
                   const input = document.getElementById(`reason-mob-${t.id}`) as HTMLInputElement;
                   handleDecline(t, input?.value || "Application declined");
-                }} className="w-full py-1.5 bg-red-600 text-white text-[10px] font-medium cursor-default">Confirm decline</button>
+                }} className="w-full py-1.5 badge-danger text-[10px] font-medium cursor-default">Confirm decline</button>
               </div>
             )}
           </div>
@@ -1349,9 +1349,9 @@ function OrdersTab() {
 
   function statusColor(s: string) {
     switch (s) {
-      case "Reserved": return "bg-yellow-500 text-white";
-      case "Invoiced": return "bg-blue-600 text-white";
-      case "Paid": return "bg-green-700 text-white";
+      case "Reserved": return "badge-pending";
+      case "Invoiced": return "badge-active";
+      case "Paid": return "badge-success";
       case "Shipped": return "bg-purple-600 text-white";
       case "Closed": return "bg-[#6E6C69] text-white";
       default: return "bg-[#1a1c1e] text-[#171717]";
@@ -1424,7 +1424,7 @@ function OrdersTab() {
                       </button>
                     )}
                     {buildWaUrl(o) && (
-                      <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" title="Send invoice via WhatsApp" className="text-[10px] px-1.5 py-0.5 bg-green-700 text-white hover:bg-green-800 cursor-default whitespace-nowrap inline-block">WA</a>
+                      <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" title="Send invoice via WhatsApp" className="text-[10px] px-1.5 py-0.5 badge-success hover:badge-success cursor-default whitespace-nowrap inline-block">WA</a>
                     )}
                   </div>
                 </td>
@@ -1469,7 +1469,7 @@ function OrdersTab() {
                 </button>
               )}
               {buildWaUrl(o) && (
-                <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" className="flex-1 py-1.5 bg-green-700 text-white text-[10px] font-medium text-center hover:bg-green-800 cursor-default inline-block">Send WhatsApp</a>
+                <a href={buildWaUrl(o)!} target="_blank" rel="noopener noreferrer" className="flex-1 py-1.5 badge-success text-[10px] font-medium text-center hover:badge-success cursor-default inline-block">Send WhatsApp</a>
               )}
             </div>
           </div>
@@ -1503,13 +1503,13 @@ function PendingVideoCard({ video, stones, onApprove, onDecline }: { video: Vide
   const [featuredPiece, setFeaturedPiece] = useState(video.featured_piece || "");
 
   return (
-    <div className="border border-yellow-300 bg-yellow-50/50 p-3 flex gap-3 items-start">
+    <div className="border border-[rgba(23,23,23,0.08)] bg-[#FCFCFB] p-3 flex gap-3 items-start">
       <div className="w-16 h-24 bg-black overflow-hidden shrink-0">
         <video src={video.video_url} className="w-full h-full object-cover" muted preload="metadata" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-yellow-500 text-white">Pending</span>
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 badge-pending">Pending</span>
           {video.model_name && <span className="text-[10px] text-muted">{video.model_name}</span>}
           {video.model_instagram && <span className="text-[10px] text-muted font-mono">@{video.model_instagram}</span>}
           {video.stone_ref && <span className="text-[10px] text-muted font-mono">→ {video.stone_ref}</span>}
@@ -1519,11 +1519,11 @@ function PendingVideoCard({ video, stones, onApprove, onDecline }: { video: Vide
         <div className="grid grid-cols-2 gap-2 mt-2">
           <div>
             <span className="block text-[9px] text-muted mb-0.5">House note</span>
-            <input value={houseNote} onChange={e => setHouseNote(e.target.value)} placeholder="Curator's voice" className="w-full px-2 py-1 text-[10px] border border-yellow-300 bg-white rounded" />
+            <input value={houseNote} onChange={e => setHouseNote(e.target.value)} placeholder="Curator's voice" className="w-full px-2 py-1 text-[10px] border border-border bg-[#FCFCFB] rounded" />
           </div>
           <div>
             <span className="block text-[9px] text-muted mb-0.5">Featured piece</span>
-            <select value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="w-full px-2 py-1 text-[10px] border border-yellow-300 bg-white rounded">
+            <select value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="w-full px-2 py-1 text-[10px] border border-border bg-[#FCFCFB] rounded">
               <option value="">None</option>
               {stones.map(s => (
                 <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct</option>
@@ -1532,7 +1532,7 @@ function PendingVideoCard({ video, stones, onApprove, onDecline }: { video: Vide
           </div>
         </div>
         <div className="flex gap-2 mt-2">
-          <button onClick={() => onApprove({ house_note: houseNote, featured_piece: featuredPiece || undefined })} className="text-[10px] px-2 py-1 bg-green-700 text-white cursor-default min-h-[32px]">Approve</button>
+          <button onClick={() => onApprove({ house_note: houseNote, featured_piece: featuredPiece || undefined })} className="text-[10px] px-2 py-1 badge-success cursor-default min-h-[32px]">Approve</button>
           <button onClick={onDecline} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default min-h-[32px]">Decline</button>
         </div>
       </div>
@@ -1696,7 +1696,7 @@ function VideosTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${v.published ? "bg-green-700 text-white" : "bg-[#1a1c1e] text-[#171717]"}`}>{v.published ? "Published" : "Draft"}</span>
+                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${v.published ? "badge-success" : "bg-[#1a1c1e] text-[#171717]"}`}>{v.published ? "Published" : "Draft"}</span>
                   {v.stone_ref && <span className="text-[10px] text-muted font-mono">→ {v.stone_ref}</span>}
                   {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
                 </div>
@@ -1826,7 +1826,7 @@ function ModelsTab() {
     <div className="px-4 md:px-6 py-4 max-w-5xl mx-auto w-full">
       {/* Payment modal */}
       {paymentModal && (
-        <div className="fixed inset-0 z-50 bg-white/50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
+        <div className="fixed inset-0 z-50 bg-[#EAE8E4]/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
           <div className="bg-[#FCFCFB] border border-border max-w-lg w-full max-h-[80vh] overflow-y-auto p-4 space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="text-[13px] font-bold">{paymentModal.name} — Payment Report</div>
@@ -2115,7 +2115,7 @@ function IntelligenceTab() {
                   <td className="px-3 py-1.5 text-right font-mono">{o.charge ? "$" + o.charge.toLocaleString() : "\u2014"}</td>
                   <td className="px-3 py-1.5">
                     <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
-                            className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#6E6C69] text-white")}>
+                            className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "badge-pending" : o.status === "Invoiced" ? "badge-active" : o.status === "Paid" ? "badge-success" : "badge-muted")}>
                       <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
                     </select>
                   </td>
@@ -2141,7 +2141,7 @@ function IntelligenceTab() {
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-mono">{o.tier_label}</span>
                 <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
-                        className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#6E6C69] text-white")}>
+                        className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "badge-pending" : o.status === "Invoiced" ? "badge-active" : o.status === "Paid" ? "badge-success" : "badge-muted")}>
                   <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
                 </select>
               </div>

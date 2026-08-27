@@ -146,7 +146,7 @@ function ModelTabs({ model }: { model: Model }) {
   return (
     <div className="min-h-[100dvh] flex flex-col" style={{ background: "#EAE8E4" }}>
       {/* Header */}
-      <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
+      <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)", background: "rgba(234,232,228,0.85)" }}>
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
             <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" />
@@ -159,7 +159,7 @@ function ModelTabs({ model }: { model: Model }) {
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0" style={{ borderBottom: "1px solid #EAE4DA" }}>
+      <div className="flex shrink-0" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)" }}>
         {(["post", "myvideos"] as const).map(t => (
           <button
             key={t}

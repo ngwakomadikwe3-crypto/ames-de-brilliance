@@ -282,14 +282,14 @@ function TraderTabs({ trader }: { trader: Trader }) {
   const [tab, setTab] = useState<Tab>("list");
   return (
     <div className="min-h-[100dvh] flex flex-col" style={{ background: "#EAE8E4" }}>
-      <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid #EAE4DA", background: "rgba(250,248,244,0.95)" }}>
+      <div className="shrink-0 px-4 py-3" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)", background: "rgba(234,232,228,0.85)" }}>
         <div className="flex items-center gap-2">
           <BrandMark variant="compact" height={18} />
           <span className="text-[13px] font-light tracking-[0.1em]" style={{ color: "#171717" }}>{trader.name}</span>
         </div>
       </div>
 
-      <div className="flex shrink-0 overflow-x-auto" style={{ borderBottom: "1px solid #EAE4DA" }}>
+      <div className="flex shrink-0 overflow-x-auto" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)" }}>
         {(["list", "items", "numbers", "reports"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className="px-3 py-2.5 text-[11px] font-light text-center whitespace-nowrap transition-colors"
@@ -405,7 +405,7 @@ function ListItemsTab({ trader }: { trader: Trader }) {
   const [mode, setMode] = useState<ListMode>("single");
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex shrink-0" style={{ borderBottom: "1px solid #EAE4DA" }}>
+      <div className="flex shrink-0" style={{ borderBottom: "1px solid rgba(23,23,23,0.08)" }}>
         {(["single", "paste"] as const).map(m => (
           <button key={m} onClick={() => setMode(m)}
             className="flex-1 py-2 text-[11px] font-light text-center transition-colors"
@@ -815,7 +815,7 @@ function MyItemsTab({ trader }: { trader: Trader }) {
               </div>
             </div>
             {isOpen && s.status_log && s.status_log.length > 0 && (
-              <div className="p-3 space-y-1.5" style={{ borderTop: "1px solid #EAE4DA" }}>
+              <div className="p-3 space-y-1.5" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
                 <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#6E6C69" }}>Status History</div>
                 {s.status_log.map(log => {
                   const lb = statusBadge(log.status);
@@ -881,7 +881,7 @@ function ReportsTab({ trader }: { trader: Trader }) {
               )}
             </div>
             {expanded === r.id && (
-              <div className="p-3 space-y-3" style={{ borderTop: "1px solid #EAE4DA" }}>
+              <div className="p-3 space-y-3" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="p-2" style={{ border: "1px solid rgba(23,23,23,0.08)" }}>
                     <div className="text-[18px] font-light">{data.live?.length || 0}</div>

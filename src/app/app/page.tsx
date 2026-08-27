@@ -111,7 +111,7 @@ export default function AppPage() {
       `}</style>
 
       {/* Minimal transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(234,232,228,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(23,23,23,0.08)' }}>
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(234,232,228,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => setDrawerOpen(!drawerOpen)} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu">
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#171717' : '#6E6C69', transition: 'all 0.3s' }} />
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#171717' : '#6E6C69', transition: 'all 0.3s' }} />
@@ -176,12 +176,12 @@ export default function AppPage() {
 
       {/* Desktop edge arrows */}
       {activePanel > 0 && (
-        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-white/50 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
+        <button onClick={() => scrollToPanel(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
       {activePanel < 2 && (
-        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-white/50 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
+        <button onClick={() => scrollToPanel(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
@@ -367,87 +367,102 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
             </div>
           </div>
 
-          {/* Composer — chat mode */}
+          {/* Composer — floating Claude-style card */}
           <div className="shrink-0 px-4 pb-4 pt-2" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-            <div className="max-w-2xl mx-auto">
-              {/* Segmented + DeepThink row */}
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <button onClick={() => setDeepThink(p => !p)} className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all" style={{ background: deepThink ? '#171717' : '#F5F4F2', color: deepThink ? '#FCFCFB' : '#6E6C69', border: '1px solid rgba(23,23,23,0.08)' }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                  DeepThink
-                </button>
-              </div>
-              <div className="flex items-center gap-2 rounded-full px-4 py-2" style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', minHeight: 48 }}>
-                <button style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Message AMES" className="flex-1 bg-transparent outline-none" style={{ fontSize: 14, fontWeight: 400, color: '#171717' }} />
-                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: input.trim() ? '#171717' : '#F5F4F2', flexShrink: 0, transition: 'all 0.15s', border: '1px solid rgba(23,23,23,0.08)' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#6E6C69'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" /></svg>
-                </button>
-              </div>
+            <div className="mx-auto" style={{ maxWidth: 680 }}>
               {hasAmesReply && (
-                <div className="text-center mt-2">
-                  <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#6E6C69', textDecoration: 'none', fontWeight: 400 }}>Talk to a human on WhatsApp</a>
+                <div className="text-center mb-2">
+                  <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#A6A6AB', textDecoration: 'none', fontWeight: 400 }}>Talk to a human on WhatsApp</a>
                 </div>
               )}
+              <div style={{ background: '#FCFCFB', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+                </button>
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 15, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       ) : (
-        /* === EMPTY STATE === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6 relative" style={{ background: '#EAE8E4', paddingBottom: 60 }}>
-          {/* 3D Diamond — centred, merged into pearl background */}
-          <div style={{ width: 220, height: 220, marginBottom: 24, position: 'relative', zIndex: 1 }}>
-            <ModelViewer modelPath="/diamond.glb/scene.gltf" style={{ width: '100%', height: '100%' }} />
-          </div>
+        /* === EMPTY STATE — Claude-mobile minimalism === */
+        <div className="flex-1 flex flex-col items-center px-6 relative" style={{ background: '#EAE8E4' }}>
+          {/* Centred column, generous top spacing */}
+          <div className="flex-1 flex flex-col items-center justify-center w-full" style={{ maxWidth: 360 }}>
 
-          {/* Greeting + heading */}
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', marginBottom: 32 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 600, color: '#171717', letterSpacing: '-0.01em' }}>How can I help?</h2>
-          </div>
+            {/* 3D Diamond — centred emblem, 160px on dark stage */}
+            <div style={{ position: 'relative', width: 272, height: 272, marginBottom: 28 }}>
+              {/* Dark stage — feathered radial ellipse, z-index behind canvas */}
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%',
+                width: '100%', height: '100%',
+                transform: 'translate(-50%, -50%)',
+                borderRadius: '50%',
+                background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
+                zIndex: 0,
+              }} />
+              {/* Diamond viewer — sits above the stage */}
+              <div style={{ position: 'relative', width: 160, height: 160, top: 56, left: 56, zIndex: 1 }}>
+                <ModelViewer modelPath="/diamond.glb/scene.gltf" style={{ width: '100%', height: '100%' }} />
+              </div>
+            </div>
 
-          {/* Suggestion chips — four hairline */}
-          <div className="grid grid-cols-2 gap-2 mb-6" style={{ position: 'relative', zIndex: 1, maxWidth: 360, width: '100%' }}>
-            {[
-              "Show me what's on the ground this week",
-              "How do I verify a licensed dealer?",
-              "I want a custom ring",
-              "Tell me about Botswana diamonds",
-            ].map((chip) => (
-              <button key={chip} onClick={() => { setInput(chip); setTimeout(() => handleSend(chip), 50); }}
-                className="text-left px-3 py-2.5 rounded-xl text-[13px] transition-colors"
-                style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', color: '#171717', fontWeight: 400, lineHeight: 1.3 }}>
-                {chip}
-              </button>
-            ))}
-          </div>
+            {/* Time-based greeting in Cormorant Garamond */}
+            <h2 style={{ fontSize: 26, fontWeight: 500, color: '#171717', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 8, textAlign: 'center' }}>
+              {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
+            </h2>
+            <p style={{ fontSize: 14, fontWeight: 400, color: '#6E6C69', marginBottom: 28, textAlign: 'center' }}>
+              How can I help you today?
+            </p>
 
-          {/* Segmented + DeepThink */}
-          <div className="flex items-center gap-2 mb-4" style={{ position: 'relative', zIndex: 1 }}>
-            <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-all" style={{ background: deepThink ? '#171717' : '#F5F4F2', color: deepThink ? '#FCFCFB' : '#6E6C69', border: '1px solid rgba(23,23,23,0.08)' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-              DeepThink
-            </button>
-            <div className="flex rounded-full p-[2px]" style={{ background: '#F5F4F2' }}>
-              <button onClick={() => setMode("instant")} className="px-4 py-1 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#FCFCFB" : "transparent", color: mode === "instant" ? "#171717" : "#6E6C69" }}>Instant</button>
-              <button onClick={() => setMode("expert")} className="px-4 py-1 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#FCFCFB" : "transparent", color: mode === "expert" ? "#171717" : "#6E6C69" }}>Expert</button>
+            {/* Suggestion cards — 2-column grid, Claude style */}
+            <div className="grid grid-cols-2 gap-2.5" style={{ width: '100%' }}>
+              {[
+                "Show me what's on the ground this week",
+                "How do I verify a licensed dealer?",
+                "I want a custom ring",
+                "Tell me about Botswana diamonds",
+              ].map((chip) => (
+                <button key={chip} onClick={() => { setInput(chip); setTimeout(() => handleSend(chip), 50); }}
+                  className="text-left px-3.5 py-3 text-[13px] transition-colors"
+                  style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', color: '#171717', fontWeight: 400, lineHeight: 1.35, borderRadius: 14 }}>
+                  {chip}
+                </button>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Composer — empty state only */}
+      {/* Floating bottom input card — Claude style */}
       {!chatStarted && (
-        <div className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))', position: 'relative', zIndex: 1, background: '#EAE8E4' }}>
-          <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-full px-4 py-2" style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', minHeight: 48 }}>
-            <button style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: '1px solid rgba(23,23,23,0.08)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-            </button>
-            <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none" style={{ fontSize: 14, fontWeight: 400, color: '#171717' }} />
-            <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 34, height: 34, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: input.trim() ? '#171717' : '#F5F4F2', flexShrink: 0, transition: 'all 0.15s', border: '1px solid rgba(23,23,23,0.08)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#6E6C69'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" /></svg>
-            </button>
+        <div className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))', position: 'relative', zIndex: 1 }}>
+          <div className="mx-auto" style={{ maxWidth: 360 }}>
+            {/* Controls row: DeepThink + Instant/Expert */}
+            <div className="flex items-center gap-2 mb-2.5 px-1">
+              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#171717' : '#FCFCFB', color: deepThink ? '#FCFCFB' : '#6E6C69', border: '1px solid rgba(23,23,23,0.08)' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                DeepThink
+              </button>
+              <div className="flex rounded-full p-[2px]" style={{ background: '#F5F4F2' }}>
+                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#FCFCFB" : "transparent", color: mode === "instant" ? "#171717" : "#6E6C69" }}>Instant</button>
+                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#FCFCFB" : "transparent", color: mode === "expert" ? "#171717" : "#6E6C69" }}>Expert</button>
+              </div>
+            </div>
+            {/* Floating card */}
+            <div style={{ background: '#FCFCFB', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+              </button>
+              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 15, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -585,16 +600,29 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Masked Sketchfab ring — cropped to show only the 3D ring */}
+        {/* Masked Sketchfab ring — cropped to show only the 3D ring, on dark stage */}
         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: 'relative', width: 420, height: 420 }}>
+            {/* Dark stage — feathered radial ellipse behind the ring */}
+            <div style={{
+              position: 'absolute',
+              top: '50%', left: '50%',
+              width: '100%', height: '100%',
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '50%',
+              background: 'radial-gradient(closest-side, #2A2D32 0%, #14161A 62%, rgba(234,232,228,0) 100%)',
+              zIndex: 0,
+            }} />
           <div style={{
             width: 280,
             height: 280,
             borderRadius: 16,
             overflow: "hidden",
             background: "transparent",
-            boxShadow: "0 8px 32px rgba(23,23,23,0.08), 0 2px 8px rgba(23,23,23,0.04)",
             position: "relative",
+            top: 70,
+            left: 70,
+            zIndex: 1,
           }}>
             <iframe
               src="https://sketchfab.com/models/64cd08bd1293453281bdb23a5aa2bf3b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_vr=0&ui_fullscreen=0"
@@ -611,6 +639,7 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
               loading="lazy"
               allow="autoplay; fullscreen"
             />
+          </div>
           </div>
         </div>
         {/* Text overlay */}

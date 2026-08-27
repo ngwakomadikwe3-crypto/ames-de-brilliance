@@ -16,7 +16,7 @@ export default async function Home() {
         .hero-glow {
           position: absolute; top: 50%; left: 50%;
           width: 240px; height: 240px; border-radius: 50%;
-          background: radial-gradient(circle, rgba(201,162,39,0.22) 0%, rgba(201,162,39,0.06) 50%, transparent 70%);
+          background: radial-gradient(circle, rgba(166,166,171,0.15) 0%, rgba(166,166,171,0.04) 50%, transparent 70%);
           animation: heroBreathe 12s ease-in-out infinite alternate;
           pointer-events: none;
         }

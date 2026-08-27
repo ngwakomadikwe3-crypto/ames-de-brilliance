@@ -109,7 +109,7 @@ export default function PartnerPage() {
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                 placeholder="e.g. Thabo Molefe"
                 required
               />
@@ -124,7 +124,7 @@ export default function PartnerPage() {
                   type="text"
                   value={form.company}
                   onChange={(e) => setForm({ ...form, company: e.target.value })}
-                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                   placeholder="Optional"
                 />
               </div>
@@ -136,7 +136,7 @@ export default function PartnerPage() {
                   type="text"
                   value={form.country}
                   onChange={(e) => setForm({ ...form, country: e.target.value })}
-                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                   placeholder="e.g. Botswana"
                 />
               </div>
@@ -151,7 +151,7 @@ export default function PartnerPage() {
                   type="tel"
                   value={form.whatsapp}
                   onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                   placeholder="+267 71 234 567"
                   required
                 />
@@ -164,7 +164,7 @@ export default function PartnerPage() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                  className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                   placeholder="Optional"
                 />
               </div>
@@ -178,7 +178,7 @@ export default function PartnerPage() {
                 type="text"
                 value={form.licence}
                 onChange={(e) => setForm({ ...form, licence: e.target.value })}
-                className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-white/40"
+                className="w-full bg-transparent border border-border px-3 py-2 text-[12px] text-foreground placeholder:text-muted/50 focus:outline-none focus:border-[#A6A6AB]"
                 placeholder="e.g. BDMR-123"
               />
             </div>
