@@ -249,6 +249,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const [deepThink, setDeepThink] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [iframeOpacity, setIframeOpacity] = useState(0);
+  const [posterOpacity, setPosterOpacity] = useState(1);
+  const [diamondPlaying, setDiamondPlaying] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -413,9 +415,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          {/* 3D Diamond — Sketchfab embed, bare object on pearl, no backdrop */}
+          {/* 3D Diamond — Sketchfab embed, poster-reveal, bare object on pearl */}
           <div style={{ position: 'relative', width: '100%', maxWidth: 220, height: 220, marginBottom: 32, overflow: 'hidden', background: 'transparent' }}>
-            {/* Masked + blended iframe wrapper */}
+            {/* Masked + blended iframe wrapper (behind poster) */}
             <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
               <iframe
                 title="Diamond"
@@ -424,16 +426,41 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                   width: '135%', height: '135%',
                   border: 'none',
                   position: 'absolute', top: '-17.5%', left: '-17.5%',
-                  opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out',
+                  opacity: iframeOpacity, transition: 'opacity 0.6s ease-in-out',
                   filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
                 }}
                 allow="autoplay; fullscreen"
-                loading="lazy"
-                onLoad={() => setIframeOpacity(1)}
+                loading="eager"
+                onLoad={() => { setIframeOpacity(1); setPosterOpacity(0); }}
               />
             </div>
-            {/* Gesture overlay — captures swipes so they switch panels, not rotate the model */}
-            <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
+            {/* Poster image — fades out on iframe load */}
+            <img
+              src="/diamond-poster.jpg"
+              alt=""
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                objectFit: 'contain', zIndex: 1,
+                opacity: posterOpacity, transition: 'opacity 0.6s ease-in-out',
+                pointerEvents: 'none',
+                background: 'transparent',
+                mixBlendMode: 'multiply',
+                maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
+                WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
+              }}
+            />
+            {/* Gesture overlay — captures swipes so they switch panels (removed in play mode) */}
+            {!diamondPlaying && <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />}
+            {/* Play / Done chip */}
+            <button
+              onClick={() => setDiamondPlaying(p => !p)}
+              className="flex items-center gap-1"
+              style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, padding: '4px 10px', borderRadius: 999, background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', fontSize: 11, color: '#6E6C69', cursor: 'pointer', fontWeight: 400 }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" /></svg>
+              {diamondPlaying ? 'Done' : 'Play'}
+            </button>
           </div>
 
           {/* Serif time-of-day greeting */}
@@ -519,6 +546,8 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
   const [iframeOpacity, setIframeOpacity] = useState(0);
+  const [posterOpacity, setPosterOpacity] = useState(1);
+  const [ringPlaying, setRingPlaying] = useState(false);
   const [wishlist, setWishlist] = useState<Record<string, boolean>>(() => {
     if (typeof window !== "undefined") {
       try { return JSON.parse(localStorage.getItem("boutique_wishlist") || "{}"); } catch { return {}; }
@@ -636,28 +665,53 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
         {/* Ring — Sketchfab embed, bare object on pearl, no backdrop */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
           {/* Ring container — scaled, masked, shadowed, blended */}
-          <div style={{ position: 'relative', width: 340, maxWidth: '90vw', height: 340, flexShrink: 0, background: 'transparent' }}>
+          <div style={{ position: 'relative', width: 340, maxWidth: '90vw', height: 240, flexShrink: 0, background: 'transparent' }}>
             {/* Soft shadow ellipse beneath */}
             <div style={{ position: 'absolute', bottom: -8, left: '20%', right: '20%', height: 14, background: 'radial-gradient(ellipse at center, rgba(23,23,23,0.18) 0%, transparent 75%)', filter: 'blur(12px)', pointerEvents: 'none', zIndex: 0 }} />
-            {/* Masked + blended iframe wrapper */}
+            {/* Masked + blended iframe wrapper (behind poster) */}
             <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
               <iframe
                 title="Black Diamond Ring"
                 src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
                 style={{
-                  width: '135%', height: '135%',
+                  width: '115%', height: '115%',
                   border: 'none',
-                  position: 'absolute', top: '-17.5%', left: '-17.5%',
-                  opacity: iframeOpacity, transition: 'opacity 0.4s ease-in-out',
+                  position: 'absolute', top: '-7.5%', left: '-7.5%',
+                  opacity: iframeOpacity, transition: 'opacity 0.6s ease-in-out',
                   filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
                 }}
                 allow="autoplay; fullscreen"
-                loading="lazy"
-                onLoad={() => setIframeOpacity(1)}
+                loading="eager"
+                onLoad={() => { setIframeOpacity(1); setPosterOpacity(0); }}
               />
             </div>
-            {/* Gesture overlay — captures swipes so they switch panels */}
-            <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />
+            {/* Poster image — fades out on iframe load */}
+            <img
+              src="/ring-poster.jpg"
+              alt=""
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              style={{
+                position: 'absolute', inset: 0, width: '100%', height: '100%',
+                objectFit: 'contain', zIndex: 1,
+                opacity: posterOpacity, transition: 'opacity 0.6s ease-in-out',
+                pointerEvents: 'none',
+                background: 'transparent',
+                mixBlendMode: 'multiply',
+                maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
+                WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
+              }}
+            />
+            {/* Gesture overlay — captures swipes so they switch panels (removed in play mode) */}
+            {!ringPlaying && <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />}
+            {/* Play / Done chip */}
+            <button
+              onClick={() => setRingPlaying(p => !p)}
+              className="flex items-center gap-1"
+              style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, padding: '4px 10px', borderRadius: 999, background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', fontSize: 11, color: '#6E6C69', cursor: 'pointer', fontWeight: 400 }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" /></svg>
+              {ringPlaying ? 'Done' : 'Play'}
+            </button>
           </div>
 
           {/* ALL text below the stage — never overlapping the stone */}
