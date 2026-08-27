@@ -664,8 +664,8 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
         }} />
         {/* Ring — Sketchfab embed, bare object on pearl, no backdrop */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          {/* Ring container — scaled, masked, shadowed, blended */}
-          <div style={{ position: 'relative', width: 340, maxWidth: '90vw', height: 240, flexShrink: 0, background: 'transparent' }}>
+          {/* Ring container — 200px tall, 100% wide, scaled down, masked, shadowed */}
+          <div style={{ position: 'relative', width: '100%', height: 200, flexShrink: 0, background: 'transparent' }}>
             {/* Soft shadow ellipse beneath */}
             <div style={{ position: 'absolute', bottom: -8, left: '20%', right: '20%', height: 14, background: 'radial-gradient(ellipse at center, rgba(23,23,23,0.18) 0%, transparent 75%)', filter: 'blur(12px)', pointerEvents: 'none', zIndex: 0 }} />
             {/* Masked + blended iframe wrapper (behind poster) */}
@@ -674,9 +674,10 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
                 title="Black Diamond Ring"
                 src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
                 style={{
-                  width: '115%', height: '115%',
+                  width: '100%', height: '100%',
                   border: 'none',
-                  position: 'absolute', top: '-7.5%', left: '-7.5%',
+                  position: 'absolute', inset: 0,
+                  transform: 'scale(0.9)',
                   opacity: iframeOpacity, transition: 'opacity 0.6s ease-in-out',
                   filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
                 }}
