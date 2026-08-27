@@ -341,6 +341,8 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "sales_value", type: "float", default: 0 },
       { key: "commission_earned", type: "float", default: 0 },
       { key: "likes_count", type: "integer", default: 0 },
+      { key: "house_note", type: "string", size: 500, default: "" },
+      { key: "featured_piece", type: "string", size: 50, default: "" },
       { key: "created_at", type: "datetime" },
     ],
   },

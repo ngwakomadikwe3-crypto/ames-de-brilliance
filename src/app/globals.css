@@ -52,12 +52,55 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
 /* Tabular-nums for prices */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
-/* Disable all transitions and animations */
-*,
-*::before,
-*::after {
-  animation: none !important;
-  transition-duration: 0s !important;
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Quartz glow pulse */
+@keyframes quartzPulse {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50% { opacity: 0.12; transform: scale(1.04); }
+}
+
+/* Shimmer loading */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+}
+
+/* Boutique marquee */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 30s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { animation: none; overflow: hidden; }
+}
+
+/* Gold waveform send button pulse */
+@keyframes waveformPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
 }
 
 /* Form fields: clean, luxury inputs */
@@ -93,7 +136,6 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   color: #98989E;
 }
 
-/* Selection */
 /* Scrollbar: minimal */
 ::-webkit-scrollbar {
   width: 4px;

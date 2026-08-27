@@ -1495,6 +1495,49 @@ interface VideoRow {
   model_id: number | null; status: string; tap_count: number;
   created_at: string; stone_ref: string | null;
   model_name: string | null; model_instagram: string | null;
+  house_note: string; featured_piece: string | null;
+}
+
+function PendingVideoCard({ video, stones, onApprove, onDecline }: { video: VideoRow; stones: Stone[]; onApprove: (edits: {house_note?: string; featured_piece?: string}) => void; onDecline: () => void }) {
+  const [houseNote, setHouseNote] = useState(video.house_note || "");
+  const [featuredPiece, setFeaturedPiece] = useState(video.featured_piece || "");
+
+  return (
+    <div className="border border-yellow-300 bg-yellow-50/50 p-3 flex gap-3 items-start">
+      <div className="w-16 h-24 bg-black overflow-hidden shrink-0">
+        <video src={video.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-yellow-500 text-white">Pending</span>
+          {video.model_name && <span className="text-[10px] text-muted">{video.model_name}</span>}
+          {video.model_instagram && <span className="text-[10px] text-muted font-mono">@{video.model_instagram}</span>}
+          {video.stone_ref && <span className="text-[10px] text-muted font-mono">→ {video.stone_ref}</span>}
+        </div>
+        <div className="text-[11px] truncate">{video.caption || "No caption"}</div>
+        <div className="text-[10px] text-muted font-mono mt-0.5">{video.created_at.split("T")[0]}</div>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          <div>
+            <span className="block text-[9px] text-muted mb-0.5">House note</span>
+            <input value={houseNote} onChange={e => setHouseNote(e.target.value)} placeholder="Curator's voice" className="w-full px-2 py-1 text-[10px] border border-yellow-300 bg-white rounded" />
+          </div>
+          <div>
+            <span className="block text-[9px] text-muted mb-0.5">Featured piece</span>
+            <select value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="w-full px-2 py-1 text-[10px] border border-yellow-300 bg-white rounded">
+              <option value="">None</option>
+              {stones.map(s => (
+                <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => onApprove({ house_note: houseNote, featured_piece: featuredPiece || undefined })} className="text-[10px] px-2 py-1 bg-green-700 text-white cursor-default min-h-[32px]">Approve</button>
+          <button onClick={onDecline} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default min-h-[32px]">Decline</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function VideosTab() {
@@ -1504,6 +1547,8 @@ function VideosTab() {
   const [url, setUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [linkedStone, setLinkedStone] = useState<string>("");
+  const [houseNote, setHouseNote] = useState("");
+  const [featuredPiece, setFeaturedPiece] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1543,12 +1588,12 @@ function VideosTab() {
       const res = await fetch("/api/videos", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ video_url: url, caption, stone_id: linkedStone || null }),
+        body: JSON.stringify({ video_url: url, caption, stone_id: linkedStone || null, house_note: houseNote, featured_piece: featuredPiece || null }),
       });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       const v = await res.json();
       setVideos(prev => [{ ...v, stone_ref: stones.find(s => s.id === v.stone_id)?.ref || null }, ...prev]);
-      setUrl(""); setCaption(""); setLinkedStone("");
+      setUrl(""); setCaption(""); setLinkedStone(""); setHouseNote(""); setFeaturedPiece("");
     } catch (e: any) { setError(e.message); }
   }
 
@@ -1602,6 +1647,21 @@ function VideosTab() {
             </select>
           </div>
         </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="block text-[10px] text-muted mb-1">House note (optional)</span>
+            <input value={houseNote} onChange={e => setHouseNote(e.target.value)} placeholder="Curator's note under the video" className="field-input min-h-[36px] text-[11px]" />
+          </div>
+          <div>
+            <span className="block text-[10px] text-muted mb-1">Featured piece (optional)</span>
+            <select value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="field-input min-h-[36px] text-[11px]">
+              <option value="">None</option>
+              {stones.map(s => (
+                <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct {s.color}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <button onClick={handleCreate} disabled={!url.trim()} className="px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Add video</button>
       </div>
 
@@ -1611,31 +1671,13 @@ function VideosTab() {
           <div className="text-[10px] uppercase tracking-wider text-muted font-medium mb-2">Pending model videos</div>
           <div className="space-y-2">
             {videos.filter(v => v.status === "Pending").map(v => (
-              <div key={v.id} className="border border-yellow-300 bg-yellow-50/50 p-3 flex gap-3 items-start">
-                <div className="w-16 h-24 bg-black overflow-hidden shrink-0">
-                  <video src={v.video_url} className="w-full h-full object-cover" muted preload="metadata" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[9px] font-semibold uppercase px-1.5 py-0.5 bg-yellow-500 text-white">Pending</span>
-                    {v.model_name && <span className="text-[10px] text-muted">{v.model_name}</span>}
-                    {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
-                    {v.stone_ref && <span className="text-[10px] text-muted font-mono">→ {v.stone_ref}</span>}
-                  </div>
-                  <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
-                  <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={async () => {
-                      await fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "approve" }) });
-                      setVideos(prev => prev.map(vid => vid.id === v.id ? {...vid, status: "Live", published: 1} : vid));
-                    }} className="text-[10px] px-2 py-1 bg-green-700 text-white cursor-default min-h-[32px]">Approve</button>
-                    <button onClick={async () => {
-                      await fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "decline" }) });
-                      setVideos(prev => prev.filter(vid => vid.id !== v.id));
-                    }} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default min-h-[32px]">Decline</button>
-                  </div>
-                </div>
-              </div>
+              <PendingVideoCard key={v.id} video={v} stones={stones} onApprove={(edits) => {
+                fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "approve", ...edits }) });
+                setVideos(prev => prev.map(vid => vid.id === v.id ? {...vid, status: "Live", published: 1, ...edits} : vid));
+              }} onDecline={() => {
+                fetch("/api/videos", { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: v.id, action: "decline" }) });
+                setVideos(prev => prev.filter(vid => vid.id !== v.id));
+              }} />
             ))}
           </div>
         </div>

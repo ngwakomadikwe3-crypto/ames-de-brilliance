@@ -404,13 +404,13 @@ export async function getPublishedVideos() {
     let stone = null, model = null;
     if (v.stone_id) { try { stone = await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id }); } catch {} }
     if (v.model_id) { try { model = await db.getDocument({ databaseId: DB_ID, collectionId: "models", documentId: v.model_id }); } catch {} }
-    return { ...v, published: true, stone_ref: stone?.ref || null, shape: stone?.shape || null, carat: stone?.carat || null, color: stone?.color || null, clarity: stone?.clarity || null, certification: stone?.certification || null, price: normPrice(stone?.price), stone_status: stone?.status || null, model_instagram: model?.instagram || null };
+    return { ...v, published: true, stone_ref: stone?.ref || null, shape: stone?.shape || null, carat: stone?.carat || null, color: stone?.color || null, clarity: stone?.clarity || null, certification: stone?.certification || null, price: normPrice(stone?.price), stone_status: stone?.status || null, model_instagram: model?.instagram || null, stone_photo: stone?.photo || null, house_note: v.house_note || '', featured_piece: v.featured_piece || null };
   }));
 }
 
 export async function addVideo(videoUrl: string, caption: string, stoneId: string | null): Promise<DbVideo> {
   await ensureReady(); const now = nowISO();
-  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: "", status: "Live", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, created_at: now } });
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: "", status: "Live", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, house_note: "", featured_piece: "", created_at: now } });
   return doc<DbVideo>(res);
 }
 
@@ -457,7 +457,7 @@ export async function addModel(name: string, whatsapp: string, instagram: string
 
 export async function addModelVideo(modelId: string, videoUrl: string, caption: string, stoneId: string | null): Promise<DbVideo> {
   await ensureReady();
-  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: modelId, status: "Pending", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, created_at: nowISO() } });
+  const res = await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "videos", documentId: ID.unique(), data: { video_url: videoUrl, caption, stone_id: stoneId || "", published: false, model_id: modelId, status: "Pending", tap_count: 0, reserve_count: 0, sales_count: 0, sales_value: 0, commission_earned: 0, likes_count: 0, house_note: "", featured_piece: "", created_at: nowISO() } });
   return doc<DbVideo>(res);
 }
 
@@ -507,8 +507,8 @@ export async function markModelPaid(modelId: string, amount: number): Promise<vo
   await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "models", documentId: modelId, data: { total_paid: model.total_paid + amount } });
 }
 
-export async function approveModelVideo(id: string): Promise<DbVideo | null> {
-  await ensureReady(); try { await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { status: "Live", published: true } }); return doc<DbVideo>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id })); } catch { return null; }
+export async function approveModelVideo(id: string, extra?: { house_note?: string; featured_piece?: string }): Promise<DbVideo | null> {
+  await ensureReady(); try { await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { status: "Live", published: true, ...extra } }); return doc<DbVideo>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id })); } catch { return null; }
 }
 
 export async function declineModelVideo(id: string): Promise<boolean> { await ensureReady(); try { await getDbSvc().deleteDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id }); return true; } catch { return false; } }

@@ -427,40 +427,60 @@ function ListItemsTab({ trader }: { trader: Trader }) {
 function SingleItemForm({ trader }: { trader: Trader }) {
   const [saved, setSaved] = useState<string | null>(null);
   const [lc, setLc] = useState<"Rough"|"Polished"|"Jewelry">("Polished");
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [photo0, setPhoto0] = useState<File | null>(null);
+  const [photo1, setPhoto1] = useState<File | null>(null);
+  const [photo2, setPhoto2] = useState<File | null>(null);
+  const [preview0, setPreview0] = useState<string>("");
+  const [preview1, setPreview1] = useState<string>("");
+  const [preview2, setPreview2] = useState<string>("");
   const [uploading, setUploading] = useState(false);
 
-  function handlePhotosChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []).slice(0, 6);
-    setPhotos(files);
-    const urls: string[] = [];
-    files.forEach(f => { urls.push(URL.createObjectURL(f)); });
-    setPhotoUrls(urls);
+  const slotLabels = ["Shot 1 \u2014 Front", "Shot 2 \u2014 Angle", "Shot 3 \u2014 On hand / worn"];
+  const slotShort = ["Front", "Angle", "On hand"];
+  const files = [photo0, photo1, photo2];
+  const previews = [preview0, preview1, preview2];
+  const fileSetters = [setPhoto0, setPhoto1, setPhoto2];
+  const prevSetters = [setPreview0, setPreview1, setPreview2];
+
+  const allFilled = files.every(f => f !== null);
+  const missing = slotShort.filter((_, i) => !files[i]);
+
+  function handleSlotChange(idx: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    fileSetters[idx](file);
+    prevSetters[idx](URL.createObjectURL(file));
   }
 
-  function removePhoto(idx: number) {
-    setPhotos(prev => prev.filter((_, i) => i !== idx));
-    setPhotoUrls(prev => prev.filter((_, i) => i !== idx));
+  function removeSlot(idx: number) {
+    fileSetters[idx](null);
+    prevSetters[idx]("");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!allFilled) return;
     setUploading(true);
     try {
+      const formData = new FormData();
+      (files as File[]).forEach(f => formData.append("photos", f));
+      const uploadRes = await fetch("/api/stones/photos", { method: "POST", body: formData });
       let allPhotoUrls: string[] = [];
-      if (photos.length > 0) {
-        const formData = new FormData();
-        photos.forEach(f => formData.append("photos", f));
-        const uploadRes = await fetch("/api/stones/photos", { method: "POST", body: formData });
-        if (uploadRes.ok) { const data = await uploadRes.json(); allPhotoUrls = data.urls; }
-      }
+      if (uploadRes.ok) { const data = await uploadRes.json(); allPhotoUrls = data.urls; }
+
       const fd = new FormData(e.currentTarget);
       fd.set("listing_category", lc);
       fd.set("stone_type", lc === "Rough" ? "rough" : "polished");
       fd.set("photo", allPhotoUrls.join("|"));
       const res = await fetch("/api/trader/" + trader.portal_code + "/stones", { method: "POST", body: fd });
-      if (res.ok) { const d = await res.json(); setSaved(d.ref); (e.target as HTMLFormElement).reset(); setLc("Polished"); setPhotos([]); setPhotoUrls([]); }
+      if (res.ok) {
+        const d = await res.json();
+        setSaved(d.ref);
+        (e.target as HTMLFormElement).reset();
+        setLc("Polished");
+        fileSetters.forEach(s => s(null));
+        prevSetters.forEach(s => s(""));
+      }
     } catch {}
     setUploading(false);
   }
@@ -468,7 +488,7 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   if (saved) return (
     <div className="p-6 text-center space-y-3">
       <p className="text-[13px] font-light" style={{ color: "#FAF8F4" }}><strong>{saved}</strong> submitted for review.</p>
-      <p className="text-[11px] font-light" style={{ color: "#9A938A" }}>The desk will review and publish your item.</p>
+      <p className="text-[11px] font-light" style={{ color: "#98989E" }}>The desk will review and publish your item.</p>
       <button onClick={() => setSaved(null)} className="text-[12px] font-light" style={{ color: "#C9A227" }}>List another</button>
     </div>
   );
@@ -476,26 +496,35 @@ function SingleItemForm({ trader }: { trader: Trader }) {
   return (
     <form onSubmit={handleSubmit} className="p-4 max-w-lg mx-auto w-full flex flex-col gap-4">
       <div>
-        <label className="block text-[11px] font-light mb-1.5" style={{ color: "#FAF8F4" }}>Photos (up to 6)</label>
+        <p className="text-[11px] mb-3" style={{ color: "#98989E" }}>Every piece is photographed three times &mdash; customers buy with their eyes.</p>
         <div className="grid grid-cols-3 gap-2 mb-2">
-          {photoUrls.map((url, idx) => (
-            <div key={idx} className="relative aspect-square overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-              <img src={url} alt="" className="w-full h-full object-cover" />
-              <button type="button" onClick={() => removePhoto(idx)}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
-                style={{ background: "rgba(0,0,0,0.5)" }}>×</button>
+          {slotLabels.map((label, idx) => (
+            <div key={idx}>
+              <p className="text-[9px] mb-1 text-center" style={{ color: "#98989E", letterSpacing: "0.04em" }}>{label}</p>
+              <label className="relative aspect-square flex items-center justify-center cursor-pointer overflow-hidden"
+                style={{ border: previews[idx] ? "1px solid rgba(255,255,255,0.08)" : "1px dashed " + (files[idx] ? "#98989E" : "#C9A227"), background: "#141416", borderRadius: 10 }}>
+                {previews[idx] ? (
+                  <>
+                    <img src={previews[idx]} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={(e) => { e.preventDefault(); removeSlot(idx); }}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px]"
+                      style={{ background: "rgba(0,0,0,0.6)" }}>&times;</button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A227" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
+                  </div>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleSlotChange(idx, e)} />
+              </label>
             </div>
           ))}
-          {photos.length < 6 && (
-            <label className="aspect-square flex flex-col items-center justify-center cursor-pointer"
-              style={{ border: "1px dashed #C9A227", color: "#C9A227" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14"/></svg>
-              <span className="text-[9px] mt-1">Add photo</span>
-              <input type="file" accept="image/*" multiple onChange={handlePhotosChange} className="hidden" />
-            </label>
-          )}
         </div>
-        <p className="text-[10px]" style={{ color: "#9A938A" }}>{photos.length}/6 photos selected</p>
+        {!allFilled && (
+          <p className="text-[10px] text-center" style={{ color: "#C9A227" }}>
+            Missing: {missing.join(", ")}
+          </p>
+        )}
       </div>
 
       <div>
@@ -555,14 +584,16 @@ function SingleItemForm({ trader }: { trader: Trader }) {
           style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#16181A", color: "#FAF8F4" }} placeholder="Any extra detail..." />
       </div>
 
-      <button type="submit" disabled={uploading}
+      <button type="submit" disabled={uploading || !allFilled}
         className="w-full py-2.5 text-white text-[13px] font-medium rounded-lg disabled:opacity-50 transition-opacity"
         style={{ background: "#1A1A1A" }}>
-        {uploading ? "Submitting..." : "Submit for Review"}
+        {uploading ? "Submitting..." : !allFilled ? `Add all 3 shots (${missing.length} missing)` : "Submit for Review"}
       </button>
     </form>
   );
 }
+
+
 
 function PasteListTab({ trader }: { trader: Trader }) {
   const [text, setText] = useState("");
