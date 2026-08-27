@@ -178,7 +178,7 @@ export default function RequestPage() {
           </div>
         )}
 
-        <button type="submit" disabled={submitting} className="w-full py-2 min-h-[44px] bg-[#C9A227] text-[#0B0C0D] text-[13px] font-medium cursor-default mt-1 disabled:opacity-50">
+        <button type="submit" disabled={submitting} className="w-full py-2 min-h-[44px] bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default mt-1 disabled:opacity-50">
           {submitting ? "Submitting..." : "Submit"}
         </button>
 

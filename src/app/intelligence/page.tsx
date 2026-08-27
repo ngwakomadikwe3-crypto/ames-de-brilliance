@@ -159,7 +159,7 @@ export default function IntelligencePage() {
                             <div className="text-[12px] font-medium text-[#1A1A1A]">{p.name}</div>
                             <div className="text-[11px] text-[#666] mt-0.5">{p.description}</div>
                           </div>
-                          <div className="text-[12px] font-light text-[#C9A227] whitespace-nowrap shrink-0">
+                          <div className="text-[12px] font-light text-[#A6A6AB] whitespace-nowrap shrink-0">
                             {p.price_label}
                           </div>
                         </div>
@@ -249,7 +249,7 @@ export default function IntelligencePage() {
                       Cancel
                     </button>
                     <button type="submit" disabled={submitting || !form.contact || !form.company || !form.email}
-                            className="px-4 py-2 bg-[#C9A227] text-white text-[11px] cursor-default disabled:opacity-50">
+                            className="px-4 py-2 bg-[#A6A6AB] text-white text-[11px] cursor-default disabled:opacity-50">
                       {submitting ? "Sending..." : "Submit request"}
                     </button>
                   </div>
@@ -275,7 +275,7 @@ export default function IntelligencePage() {
             </div>
             <a href="/api/intelligence/sample"
                target="_blank"
-               className="px-4 py-2 bg-[#C9A227] text-[11px] font-light tracking-wide text-white hover:bg-[#B8921F] transition-colors shrink-0 cursor-default whitespace-nowrap">
+               className="px-4 py-2 bg-[#A6A6AB] text-[11px] font-light tracking-wide text-white hover:bg-[#B8921F] transition-colors shrink-0 cursor-default whitespace-nowrap">
               Download Free
             </a>
           </div>

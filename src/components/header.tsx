@@ -22,39 +22,32 @@ export default function Header() {
   }
 
   return (
-    <header className="border-b border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] shrink-0 relative z-50">
+    <header className="border-b border-[rgba(23,23,23,0.08)] bg-[#FCFCFB] shrink-0 relative z-50">
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 md:px-6 py-3">
-        {/* Left: diamond + wordmark */}
         <a href="/" className="flex items-center shrink-0">
           <BrandMark variant="full" height={32} />
         </a>
 
-        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-4 text-[11px] font-light">
           {NAV.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className={isActive(link.href) ? "font-medium text-[#C9A227] border-b border-[#C9A227] pb-0.5" : "text-[#9A938A] hover:text-[#FAF8F4]"}
+              className={isActive(link.href) ? "font-medium text-[#8E8E93] border-b border-[#8E8E93] pb-0.5" : "text-[#6E6C69] hover:text-[#171717]"}
             >
               {link.label}
             </a>
           ))}
           <a
             href="/dashboard"
-className={isActive("/dashboard") ? "font-medium text-[#C9A227] border-b border-[#C9A227] pb-0.5" : "text-[#9A938A] hover:text-[#FAF8F4]"}
+            className={isActive("/dashboard") ? "font-medium text-[#8E8E93] border-b border-[#8E8E93] pb-0.5" : "text-[#6E6C69] hover:text-[#171717]"}
           >
             Dealer Login
           </a>
         </nav>
 
-        {/* Mobile hamburger */}
-        <button
-          onClick={() => setOpen(!open)}
-          className="md:hidden p-2 -mr-2 cursor-default"
-          aria-label="Toggle menu"
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#FAF8F4" strokeWidth="1.5">
+        <button onClick={() => setOpen(!open)} className="md:hidden p-2 -mr-2 cursor-default" aria-label="Toggle menu">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#171717" strokeWidth="1.5">
             {open ? (
               <>
                 <line x1="4" y1="4" x2="16" y2="16" />
@@ -71,16 +64,15 @@ className={isActive("/dashboard") ? "font-medium text-[#C9A227] border-b border-
         </button>
       </div>
 
-      {/* Mobile menu */}
       {open && (
-        <nav className="md:hidden border-t border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] px-4 pb-3">
+        <nav className="md:hidden border-t border-[rgba(23,23,23,0.08)] bg-[#FCFCFB] px-4 pb-3">
           {NAV.map((link) => (
             <a
               key={link.href}
               href={link.href}
               className={isActive(link.href)
-                ? "block py-2.5 text-[13px] font-medium text-[#FAF8F4] border-b border-[rgba(255,255,255,0.08)]"
-                : "block py-2.5 text-[13px] text-[#9A938A] border-b border-[rgba(255,255,255,0.08)]"
+                ? "block py-2.5 text-[13px] font-medium text-[#171717] border-b border-[rgba(23,23,23,0.08)]"
+                : "block py-2.5 text-[13px] text-[#6E6C69] border-b border-[rgba(23,23,23,0.08)]"
               }
             >
               {link.label}
@@ -89,8 +81,8 @@ className={isActive("/dashboard") ? "font-medium text-[#C9A227] border-b border-
           <a
             href="/dashboard"
             className={isActive("/dashboard")
-              ? "block py-2.5 text-[13px] font-medium text-[#FAF8F4]"
-              : "block py-2.5 text-[13px] text-[#9A938A]"
+              ? "block py-2.5 text-[13px] font-medium text-[#171717]"
+              : "block py-2.5 text-[13px] text-[#6E6C69]"
             }
           >
             Dealer Login

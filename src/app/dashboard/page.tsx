@@ -66,15 +66,15 @@ export default function Dashboard() {
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3">
           <BrandMark variant="full" height={28} />
-          <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#FAF8F4] whitespace-nowrap pb-2 cursor-default shrink-0">Logout</button>
+          <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#171717] whitespace-nowrap pb-2 cursor-default shrink-0">Logout</button>
         </div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
             {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
-              <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b border-[#1A1A1A] text-[#FAF8F4]":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[#C9A227] text-[#0B0C0D] rounded-full leading-none">{badge}</span>}</button>
+              <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b border-[#1A1A1A] text-[#171717]":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[#A6A6AB] text-[#EAE8E4] rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
-          <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#FAF8F4] whitespace-nowrap ml-3 pb-2 cursor-default shrink-0">Logout</button>
+          <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#171717] whitespace-nowrap ml-3 pb-2 cursor-default shrink-0">Logout</button>
         </div>
       </div>
       <div className="flex-1">
@@ -185,7 +185,7 @@ function RequestsTab() {
   }
 
   function statusColor(s: string) {
-    switch (s) { case "New": return "bg-blue-600 text-white"; case "Sourcing": return "bg-yellow-500 text-white"; case "Quoted": return "bg-green-700 text-white"; case "Closed": return "bg-[#9A938A] text-white"; default: return "bg-[#1a1c1e] text-[#FAF8F4]"; }
+    switch (s) { case "New": return "bg-blue-600 text-white"; case "Sourcing": return "bg-yellow-500 text-white"; case "Quoted": return "bg-green-700 text-white"; case "Closed": return "bg-[#6E6C69] text-white"; default: return "bg-[#1a1c1e] text-[#171717]"; }
   }
   const STATUSES: Request["status"][] = ["New", "Sourcing", "Quoted", "Closed"];
 
@@ -275,12 +275,12 @@ function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftR
         <div><span className="text-muted">Certification:</span> {r.certification}</div>
       </div>
       {r.notes&&<div><span className="text-muted">Notes:</span> {r.notes}</div>}
-      <pre className="font-mono text-[10px] leading-relaxed whitespace-pre-wrap bg-[#16181A] border border-border p-2 mt-2 select-all">{r.mandate}</pre>
+      <pre className="font-mono text-[10px] leading-relaxed whitespace-pre-wrap bg-[#FCFCFB] border border-border p-2 mt-2 select-all">{r.mandate}</pre>
       <div className="flex gap-2 flex-wrap">
-        <button onClick={()=>handleCopy(buildReqWA(r),r.id)} className="px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId===r.id?"Copied":"Copy WhatsApp"}</button>
+        <button onClick={()=>handleCopy(buildReqWA(r),r.id)} className="px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId===r.id?"Copied":"Copy WhatsApp"}</button>
         <button onClick={()=>handleParseAI(r)} disabled={ai?.parsing} className="px-3 py-1.5 md:py-1 border border-border text-[11px] cursor-default disabled:opacity-50 min-h-[36px]">{ai?.parsing?"Parsing...":"Parse AI"}</button>
         <button onClick={()=>handleDraftReply(r)} disabled={ai?.drafting} className="px-3 py-1.5 md:py-1 border border-border text-[11px] cursor-default disabled:opacity-50 min-h-[36px]">{ai?.drafting?"Drafting...":"Draft reply"}</button>
-        {ai?.draft&&<button onClick={()=>handleCopy(ai.draft,"draft-"+r.id)} className="px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId==="draft-"+r.id?"Copied":"Copy draft"}</button>}
+        {ai?.draft&&<button onClick={()=>handleCopy(ai.draft,"draft-"+r.id)} className="px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId==="draft-"+r.id?"Copied":"Copy draft"}</button>}
       </div>
       {ai?.error&&<div className="text-[10px] text-red-600 mt-1">Error: {ai.error}</div>}
       {ai?.parsed&&<div className="bg-surface border border-border p-2 mt-1"><div className="text-[10px] uppercase tracking-wider text-muted mb-1 font-medium">AI Parsed Output</div><pre className="font-mono text-[10px] whitespace-pre-wrap select-all">{JSON.stringify(ai.parsed,null,2)}</pre></div>}
@@ -294,8 +294,8 @@ function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftR
               <span className="text-[10px] uppercase tracking-wider text-muted font-medium">Saved Offer{r.offer_timestamp ? " — " + r.offer_timestamp.split("T")[0] : ""}</span>
               <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5">Quoted</span>
             </div>
-            <pre className="font-mono text-[10px] whitespace-pre-wrap bg-[#16181A] border border-border p-2 select-all">{r.offer_text}</pre>
-            <button onClick={()=>handleCopy(r.offer_text||"","offer-"+r.id)} className="mt-1 px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId==="offer-"+r.id?"Copied":"Copy offer"}</button>
+            <pre className="font-mono text-[10px] whitespace-pre-wrap bg-[#FCFCFB] border border-border p-2 select-all">{r.offer_text}</pre>
+            <button onClick={()=>handleCopy(r.offer_text||"","offer-"+r.id)} className="mt-1 px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">{copiedId==="offer-"+r.id?"Copied":"Copy offer"}</button>
           </div>
         ) : (
           <div>
@@ -305,9 +305,9 @@ function ExpandedRequest({ r, ai, offer, handleCopy, handleParseAI, handleDraftR
             {offer?.error&&<span className="text-[10px] text-red-600 ml-2">{offer.error}</span>}
             {offer?.text&&(
               <div className="mt-2">
-                <textarea value={offer.text} onChange={(e)=>setOffer(r.id,{text:e.target.value})} rows={12} className="w-full font-mono text-[10px] leading-relaxed border border-border p-2 bg-[#16181A] resize-y" />
+                <textarea value={offer.text} onChange={(e)=>setOffer(r.id,{text:e.target.value})} rows={12} className="w-full font-mono text-[10px] leading-relaxed border border-border p-2 bg-[#FCFCFB] resize-y" />
                 <div className="flex gap-2 mt-2 flex-wrap">
-                  <button onClick={()=>handleCopyOffer(offer.text||"",r.id)} className="px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">
+                  <button onClick={()=>handleCopyOffer(offer.text||"",r.id)} className="px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">
                     {offer.copied?"Copied":"Copy"}
                   </button>
                   <button onClick={()=>handleSaveOffer(r)} className="px-3 py-1.5 md:py-1 border border-border text-[11px] font-medium cursor-default min-h-[36px]">
@@ -361,7 +361,7 @@ function StonesTab() {
   }
 
   function statusColor(s: string) {
-    switch(s){case"Pending":return"bg-yellow-500 text-white";case"Available":return"bg-green-700 text-white";case"Reserved":return"bg-blue-600 text-white";case"Sold":return"bg-[#9A938A] text-white";case"Rejected":return"bg-red-600 text-white";default:return"bg-[#1a1c1e] text-[#FAF8F4]";}
+    switch(s){case"Pending":return"bg-yellow-500 text-white";case"Available":return"bg-green-700 text-white";case"Reserved":return"bg-blue-600 text-white";case"Sold":return"bg-[#6E6C69] text-white";case"Rejected":return"bg-red-600 text-white";default:return"bg-[#1a1c1e] text-[#171717]";}
   }
 
   async function handleApprove(s: Stone, edits: any) {
@@ -425,7 +425,7 @@ function StonesTab() {
         <div className="flex items-center gap-2">
           <input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Search ref, specs, trader..." className="field-input min-h-[36px] flex-1 text-[11px]" />
           <span className="text-[11px] text-muted font-mono shrink-0">{filtered.length}/{stones.length}</span>
-          <button onClick={()=>setShowFilters(!showFilters)} className={`px-2 py-1 text-[10px] whitespace-nowrap cursor-default min-h-[36px] ${showFilters?"bg-[#C9A227] text-[#0B0C0D]":"border border-border text-muted"}`}>{showFilters?"Hide filters":"Filters"}</button>
+          <button onClick={()=>setShowFilters(!showFilters)} className={`px-2 py-1 text-[10px] whitespace-nowrap cursor-default min-h-[36px] ${showFilters?"bg-[#A6A6AB] text-[#EAE8E4]":"border border-border text-muted"}`}>{showFilters?"Hide filters":"Filters"}</button>
           <button onClick={() => {
             const headers = ['Ref','Type','Specs','Color','Clarity','Cut','Cert','Category','Crystal','KP','Price','Status','Source','Trader','Commission%'];
             const rows = filtered.map(s => [s.ref, s.stone_type, specs(s), s.color, s.clarity, s.cut||'', s.certification||'', s.category||'', s.crystal_form||'', s.kp_status?'Yes':'No', s.price||'—', s.status, s.source, s.trader_name||'', s.commission]);
@@ -435,7 +435,7 @@ function StonesTab() {
         {/* Source pills — always visible */}
         <div className="flex gap-1 text-[11px] overflow-x-auto">
           {(["All","Own stock","Consigned"] as const).map((f)=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`px-2 py-0.5 whitespace-nowrap cursor-default ${filter===f?"bg-[#C9A227] text-[#0B0C0D] font-medium":"border border-border bg-[#16181A]"}`}>{f}</button>
+            <button key={f} onClick={()=>setFilter(f)} className={`px-2 py-0.5 whitespace-nowrap cursor-default ${filter===f?"bg-[#A6A6AB] text-[#EAE8E4] font-medium":"border border-border bg-[#FCFCFB]"}`}>{f}</button>
           ))}
         </div>
         {/* Advanced filters — toggleable */}
@@ -443,25 +443,25 @@ function StonesTab() {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted">Type:</span>
-              <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#16181A] cursor-default">
+              <select value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#FCFCFB] cursor-default">
                 <option value="All">All</option><option value="rough">Rough</option><option value="polished">Polished</option>
               </select>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted">Status:</span>
-              <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#16181A] cursor-default">
+              <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#FCFCFB] cursor-default">
                 <option value="All">All</option><option value="Pending">Pending</option><option value="Available">Available</option><option value="Reserved">Reserved</option><option value="Sold">Sold</option><option value="Rejected">Rejected</option>
               </select>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted">Cert:</span>
-              <select value={certFilter} onChange={(e)=>setCertFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#16181A] cursor-default">
+              <select value={certFilter} onChange={(e)=>setCertFilter(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#FCFCFB] cursor-default">
                 <option value="All">All</option><option value="GIA">GIA</option><option value="IGI">IGI</option><option value="HRD">HRD</option><option value="None">None</option>
               </select>
             </div>
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-muted">Sort:</span>
-              <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#16181A] cursor-default">
+              <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="text-[10px] border border-border px-1 py-0.5 bg-[#FCFCFB] cursor-default">
                 <option value="ref-asc">Ref A→Z</option><option value="ref-desc">Ref Z→A</option>
                 <option value="carat-asc">Carat ↑</option><option value="carat-desc">Carat ↓</option>
                 <option value="price-asc">Price ↑</option><option value="price-desc">Price ↓</option>
@@ -547,7 +547,7 @@ function StonesTab() {
       {saleModal&&<SaleModal stone={saleModal.stone} onConfirm={(p)=>{handleStatusChange(saleModal.stone.id,"Sold",p);setSaleModal(null);}} onCancel={()=>setSaleModal(null)} />}
       {approveModal && <ApproveModal stone={approveModal} onApprove={(edits)=>handleApprove(approveModal,edits)} onCancel={()=>setApproveModal(null)} />}
       {rejectModal && <RejectModal stone={rejectModal} onReject={(reason)=>handleReject(rejectModal,reason)} onCancel={()=>setRejectModal(null)} />}
-      {whatsAppMsg && <div className="fixed bottom-4 right-4 bg-[#C9A227] text-[#0B0C0D] text-[11px] px-3 py-2 rounded z-50">{whatsAppMsg}</div>}
+      {whatsAppMsg && <div className="fixed bottom-4 right-4 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] px-3 py-2 rounded z-50">{whatsAppMsg}</div>}
     </div>
   );
 }
@@ -559,7 +559,7 @@ function SaleModal({ stone, onConfirm, onCancel }: { stone: Stone; onConfirm: (p
   const commissionAmt = (saleNum*stone.commission)/100;
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#16181A] border border-border p-5 w-full max-w-md text-[12px]">
+      <div className="bg-[#FCFCFB] border border-border p-5 w-full max-w-md text-[12px]">
         <h3 className="font-medium mb-3">Record Sale {"\u2014"} {stone.ref}</h3>
         <div className="text-muted mb-3">Consigned by {stone.trader_name} · {stone.commission}% commission</div>
         <div className="mb-3">
@@ -575,7 +575,7 @@ function SaleModal({ stone, onConfirm, onCancel }: { stone: Stone; onConfirm: (p
         )}
         <div className="flex gap-2 justify-end">
           <button onClick={onCancel} className="px-3 py-1.5 md:py-1 border border-border cursor-default min-h-[40px]">Cancel</button>
-          <button onClick={handleSubmit} disabled={!saleNum} className="px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] font-medium cursor-default disabled:opacity-30 min-h-[40px]">Confirm Sale</button>
+          <button onClick={handleSubmit} disabled={!saleNum} className="px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] font-medium cursor-default disabled:opacity-30 min-h-[40px]">Confirm Sale</button>
         </div>
       </div>
     </div>
@@ -592,7 +592,7 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
   const [lc, setLc] = useState(stone.listing_category);
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#16181A] border border-border p-5 w-full max-w-md text-[12px]">
+      <div className="bg-[#FCFCFB] border border-border p-5 w-full max-w-md text-[12px]">
         <h3 className="font-medium mb-3">Approve {stone.ref}</h3>
         <div className="space-y-3">
           <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Shape</label><input value={shape} onChange={e=>setShape(e.target.value)} className="field-input min-h-[36px]" /></div>
@@ -623,7 +623,7 @@ function RejectModal({ stone, onReject, onCancel }: { stone: Stone; onReject: (r
   const [reason, setReason] = useState("");
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#16181A] border border-border p-5 w-full max-w-md text-[12px]">
+      <div className="bg-[#FCFCFB] border border-border p-5 w-full max-w-md text-[12px]">
         <h3 className="font-medium mb-3">Reject {stone.ref}</h3>
         <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Reason (optional)</label>
           <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={3} className="field-input resize-none" placeholder="Why is this being rejected?" /></div>
@@ -691,7 +691,7 @@ function AddStoneTab() {
         <label className="block text-[11px] font-medium mb-1">Paste trader text (auto-fill with AI)</label>
         <textarea value={traderText} onChange={(e)=>setTraderText(e.target.value)} rows={3} className="field-input resize-none mb-2" placeholder="Paste WhatsApp message or trader note here..." />
         <div className="flex items-center gap-2">
-          <button onClick={handleParseTrader} disabled={parsing||!traderText.trim()} className="px-3 py-1.5 md:py-1 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-50 min-h-[36px]">{parsing?"Parsing...":"Auto-fill from text"}</button>
+          <button onClick={handleParseTrader} disabled={parsing||!traderText.trim()} className="px-3 py-1.5 md:py-1 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-50 min-h-[36px]">{parsing?"Parsing...":"Auto-fill from text"}</button>
           {parseError&&<span className="text-[10px] text-red-600">{parseError}</span>}
         </div>
       </div>
@@ -699,8 +699,8 @@ function AddStoneTab() {
         <div>
           <label className="block text-[11px] font-medium mb-1">Stone Type</label>
           <div className="flex gap-2">
-            <button type="button" onClick={()=>{setStoneType("rough");setListingCategory("Rough");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="rough"?"bg-[#C9A227] text-[#0B0C0D] font-medium":"border border-border bg-[#16181A]"}`}>Rough</button>
-            <button type="button" onClick={()=>{setStoneType("polished");if(listingCategory==="Rough")setListingCategory("Polished");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="polished"?"bg-[#C9A227] text-[#0B0C0D] font-medium":"border border-border bg-[#16181A]"}`}>Polished</button>
+            <button type="button" onClick={()=>{setStoneType("rough");setListingCategory("Rough");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="rough"?"bg-[#A6A6AB] text-[#EAE8E4] font-medium":"border border-border bg-[#FCFCFB]"}`}>Rough</button>
+            <button type="button" onClick={()=>{setStoneType("polished");if(listingCategory==="Rough")setListingCategory("Polished");}} className={`px-3 py-1.5 md:py-1 text-[11px] cursor-default min-h-[36px] ${stoneType==="polished"?"bg-[#A6A6AB] text-[#EAE8E4] font-medium":"border border-border bg-[#FCFCFB]"}`}>Polished</button>
           </div>
         </div>
         <div>
@@ -754,7 +754,7 @@ function AddStoneTab() {
           </div>
         )}
         {source==="Own stock"&&<input type="hidden" name="traderName" value="" />}
-        <button type="submit" className="w-full py-2 bg-[#C9A227] text-[#0B0C0D] text-[13px] font-medium cursor-default mt-1 min-h-[40px]">Save Stone</button>
+        <button type="submit" className="w-full py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default mt-1 min-h-[40px]">Save Stone</button>
       </form>
     </div>
   );
@@ -882,7 +882,7 @@ function PasteInTab() {
       </div>
 
       {/* Parse button */}
-      <button onClick={handleParse} disabled={parsing || !stockText.trim()} className="w-full py-2 bg-[#C9A227] text-[#0B0C0D] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
+      <button onClick={handleParse} disabled={parsing || !stockText.trim()} className="w-full py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
         {parsing ? "Parsing..." : "Parse"}
       </button>
 
@@ -963,7 +963,7 @@ function PasteInTab() {
               <p>They are now visible on the <a href="/" className="underline">public stock page</a>.</p>
             </div>
           ) : (
-            <button onClick={handlePublish} disabled={!canPublish} className="w-full py-2 bg-[#C9A227] text-[#0B0C0D] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
+            <button onClick={handlePublish} disabled={!canPublish} className="w-full py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
               {publishing ? "Publishing..." : "Publish selected"}
             </button>
           )}
@@ -1074,7 +1074,7 @@ function TradersTab() {
       case "Pending": return "bg-yellow-500 text-white";
       case "Active": return "bg-green-700 text-white";
       case "Declined": return "bg-red-600 text-white";
-      default: return "bg-[#1a1c1e] text-[#FAF8F4]";
+      default: return "bg-[#1a1c1e] text-[#171717]";
     }
   }
 
@@ -1086,7 +1086,7 @@ function TradersTab() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[11px] font-mono text-muted">{traders.length} traders</div>
-          <button onClick={()=>setShowCreateForm(!showCreateForm)} className="px-3 py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">
+          <button onClick={()=>setShowCreateForm(!showCreateForm)} className="px-3 py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">
             {showCreateForm ? "Cancel" : "Create trader"}
           </button>
         </div>
@@ -1104,7 +1104,7 @@ function TradersTab() {
                 <input value={newPhone} onChange={e => setNewPhone(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="Phone number" />
               </div>
             </div>
-            <button onClick={handleCreateTrader} disabled={!newName.trim()} className="px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Create &amp; copy portal link</button>
+            <button onClick={handleCreateTrader} disabled={!newName.trim()} className="px-4 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Create &amp; copy portal link</button>
           </div>
         )}
       </div>
@@ -1137,10 +1137,10 @@ function TradersTab() {
                   <td className="px-3 py-1.5 font-mono text-muted text-right">{t.created_at.split("T")[0]}</td>
                   <td className="px-3 py-1.5 text-center">
                     {t.status === "Active" ? (
-                      <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase whitespace-nowrap cursor-default" style={t.preferred ? { background: "#C9A227", color: "#0B0C0D", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase whitespace-nowrap cursor-default" style={t.preferred ? { background: "#A6A6AB", color: "#EAE8E4", border: "none" } : { background: "#FCFCFB", color: "#6E6C69", border: "1px solid rgba(23,23,23,0.08)" }}>
                         {t.preferred ? "Preferred" : "Set Preferred"}
                       </button>
-                    ) : <span className="text-[10px]" style={{ color: "#9A938A" }}>—</span>}
+                    ) : <span className="text-[10px]" style={{ color: "#6E6C69" }}>—</span>}
                   </td>
                   <td className="px-3 py-1.5">
                     <div className="flex items-center gap-1">
@@ -1152,7 +1152,7 @@ function TradersTab() {
                         </>
                       )}
                       {t.status === "Active" && t.portal_code && (
-                        <button onClick={()=>copyPortalLink(t)} className="text-[10px] px-1.5 py-0.5 bg-[#C9A227] text-[#0B0C0D] hover:bg-black/80 cursor-default whitespace-nowrap">
+                        <button onClick={()=>copyPortalLink(t)} className="text-[10px] px-1.5 py-0.5 bg-[#A6A6AB] text-[#EAE8E4] hover:bg-black/80 cursor-default whitespace-nowrap">
                           {copiedAction===`link-${t.id}` ? "Copied ✓" : "Copy portal link"}
                         </button>
                       )}
@@ -1227,7 +1227,7 @@ function TradersTab() {
               <div className="text-[12px] font-medium">{t.name}</div>
               <div className="flex items-center gap-1.5">
                 {t.status === "Active" && (
-                  <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase cursor-default" style={t.preferred ? { background: "#C9A227", color: "#0B0C0D", border: "none" } : { background: "#16181A", color: "#9A938A", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <button onClick={() => togglePreferred(t)} className="px-1.5 py-0.5 text-[9px] font-semibold uppercase cursor-default" style={t.preferred ? { background: "#A6A6AB", color: "#EAE8E4", border: "none" } : { background: "#FCFCFB", color: "#6E6C69", border: "1px solid rgba(23,23,23,0.08)" }}>
                     {t.preferred ? "Preferred" : "Set Preferred"}
                   </button>
                 )}
@@ -1248,7 +1248,7 @@ function TradersTab() {
               </div>
             )}
             {t.status === "Active" && t.portal_code && (
-              <button onClick={()=>copyPortalLink(t)} className="mt-2 w-full py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[10px] font-medium cursor-default">
+              <button onClick={()=>copyPortalLink(t)} className="mt-2 w-full py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[10px] font-medium cursor-default">
                 {copiedAction===`link-${t.id}` ? "Copied ✓" : "Copy portal link + welcome message"}
               </button>
             )}
@@ -1353,8 +1353,8 @@ function OrdersTab() {
       case "Invoiced": return "bg-blue-600 text-white";
       case "Paid": return "bg-green-700 text-white";
       case "Shipped": return "bg-purple-600 text-white";
-      case "Closed": return "bg-[#9A938A] text-white";
-      default: return "bg-[#1a1c1e] text-[#FAF8F4]";
+      case "Closed": return "bg-[#6E6C69] text-white";
+      default: return "bg-[#1a1c1e] text-[#171717]";
     }
   }
   const STATUSES = ["Reserved", "Invoiced", "Paid", "Shipped", "Closed"];
@@ -1478,8 +1478,8 @@ function OrdersTab() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg flex items-center gap-2" style={{ background: '#1A1A1A', color: '#FAF8F4' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A227" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg flex items-center gap-2" style={{ background: '#1A1A1A', color: '#171717' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A6A6AB" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
           <span className="text-[11px] font-light whitespace-nowrap">{toast}</span>
         </div>
       )}
@@ -1662,7 +1662,7 @@ function VideosTab() {
             </select>
           </div>
         </div>
-        <button onClick={handleCreate} disabled={!url.trim()} className="px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Add video</button>
+        <button onClick={handleCreate} disabled={!url.trim()} className="px-4 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Add video</button>
       </div>
 
       {/* Pending model videos */}
@@ -1696,14 +1696,14 @@ function VideosTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${v.published ? "bg-green-700 text-white" : "bg-[#1a1c1e] text-[#FAF8F4]"}`}>{v.published ? "Published" : "Draft"}</span>
+                  <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 ${v.published ? "bg-green-700 text-white" : "bg-[#1a1c1e] text-[#171717]"}`}>{v.published ? "Published" : "Draft"}</span>
                   {v.stone_ref && <span className="text-[10px] text-muted font-mono">→ {v.stone_ref}</span>}
                   {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
                 </div>
                 <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
                 <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
                 <div className="flex gap-2 mt-2">
-                  <button onClick={() => togglePublish(v)} className={`text-[10px] px-2 py-1 cursor-default min-h-[32px] ${v.published ? "border border-border text-muted hover:bg-surface" : "bg-[#C9A227] text-[#0B0C0D]"}`}>{v.published ? "Unpublish" : "Publish"}</button>
+                  <button onClick={() => togglePublish(v)} className={`text-[10px] px-2 py-1 cursor-default min-h-[32px] ${v.published ? "border border-border text-muted hover:bg-surface" : "bg-[#A6A6AB] text-[#EAE8E4]"}`}>{v.published ? "Unpublish" : "Publish"}</button>
                   <button onClick={() => handleDelete(v)} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default hover:bg-red-50 min-h-[32px]">Delete</button>
                 </div>
               </div>
@@ -1827,7 +1827,7 @@ function ModelsTab() {
       {/* Payment modal */}
       {paymentModal && (
         <div className="fixed inset-0 z-50 bg-white/50 flex items-center justify-center p-4" onClick={() => setPaymentModal(null)}>
-          <div className="bg-[#16181A] border border-border max-w-lg w-full max-h-[80vh] overflow-y-auto p-4 space-y-3" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#FCFCFB] border border-border max-w-lg w-full max-h-[80vh] overflow-y-auto p-4 space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div className="text-[13px] font-bold">{paymentModal.name} — Payment Report</div>
               <button onClick={() => setPaymentModal(null)} className="text-[11px] text-muted cursor-default">Close</button>
@@ -1858,7 +1858,7 @@ function ModelsTab() {
                 )}
                 <div className="flex gap-2">
                   <button onClick={() => copyPaymentInstructions(paymentModal, report.total_due)} className="flex-1 py-2 border border-border text-[11px] font-medium cursor-default">Copy payment instructions</button>
-                  <button onClick={() => handleMarkPaid(paymentModal, report.total_due)} disabled={report.total_due <= 0} className="flex-1 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-40">Mark Paid (${report.total_due.toFixed(2)})</button>
+                  <button onClick={() => handleMarkPaid(paymentModal, report.total_due)} disabled={report.total_due <= 0} className="flex-1 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-40">Mark Paid (${report.total_due.toFixed(2)})</button>
                 </div>
               </div>
             ) : (
@@ -1878,7 +1878,7 @@ function ModelsTab() {
           {rosterFull && <span className="text-[10px] font-semibold uppercase px-2 py-0.5 bg-red-100 text-red-700">Roster full</span>}
         </div>
         {!rosterFull && (
-          <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default min-h-[36px]">
+          <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default min-h-[36px]">
             {showForm ? "Cancel" : "Invite model"}
           </button>
         )}
@@ -1902,7 +1902,7 @@ function ModelsTab() {
               <input value={instagram} onChange={e => setInstagram(e.target.value)} className="field-input min-h-[36px] text-[11px]" placeholder="handle" />
             </div>
           </div>
-          <button onClick={handleInvite} disabled={!name.trim()} className="px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Invite &amp; copy portal link</button>
+          <button onClick={handleInvite} disabled={!name.trim()} className="px-4 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Invite &amp; copy portal link</button>
         </div>
       )}
       <div className="text-[11px] text-muted font-mono mb-2">{models.length} models</div>
@@ -1934,7 +1934,7 @@ function ModelsTab() {
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
                       <button onClick={() => copyPortalLink(m)} className="text-[9px] px-1 py-0.5 border border-border hover:bg-surface cursor-default whitespace-nowrap">{copiedId === m.id ? "Copied" : "Link"}</button>
-                      <button onClick={() => openReport(m)} className="text-[9px] px-1 py-0.5 bg-[#C9A227] text-[#0B0C0D] hover:bg-black/80 cursor-default whitespace-nowrap">Report</button>
+                      <button onClick={() => openReport(m)} className="text-[9px] px-1 py-0.5 bg-[#A6A6AB] text-[#EAE8E4] hover:bg-black/80 cursor-default whitespace-nowrap">Report</button>
                     </div>
                   </td>
                 </tr>
@@ -1958,7 +1958,7 @@ function ModelsTab() {
             </div>
             <div className="flex gap-2 mt-2">
               <button onClick={() => copyPortalLink(m)} className="flex-1 py-1.5 border border-border text-[10px] text-muted cursor-default">{copiedId === m.id ? "Copied" : "Copy link"}</button>
-              <button onClick={() => openReport(m)} className="flex-1 py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[10px] cursor-default">Payment report</button>
+              <button onClick={() => openReport(m)} className="flex-1 py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[10px] cursor-default">Payment report</button>
             </div>
           </div>
         ))}
@@ -2047,7 +2047,7 @@ function IntelligenceTab() {
       <div className="mb-6">
         <h2 className="text-[14px] font-semibold mb-1">Generate Reports</h2>
         <div className="flex gap-3 mt-2 flex-wrap">
-          <button onClick={() => handleGenerate("ground_report")} disabled={!!generating} className="px-4 py-2 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
+          <button onClick={() => handleGenerate("ground_report")} disabled={!!generating} className="px-4 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
             {generating === "ground_report" ? "Generating..." : "Generate Ground Report"}
           </button>
           <button onClick={() => handleGenerate("compliance_briefing")} disabled={!!generating} className="px-4 py-2 border border-border text-[11px] cursor-default disabled:opacity-50 min-h-[40px]">
@@ -2115,7 +2115,7 @@ function IntelligenceTab() {
                   <td className="px-3 py-1.5 text-right font-mono">{o.charge ? "$" + o.charge.toLocaleString() : "\u2014"}</td>
                   <td className="px-3 py-1.5">
                     <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
-                            className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#9A938A] text-white")}>
+                            className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#6E6C69] text-white")}>
                       <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
                     </select>
                   </td>
@@ -2126,7 +2126,7 @@ function IntelligenceTab() {
                         <a href={buildOrderWaUrl(o)!} target="_blank" className="text-[9px] px-1.5 py-0.5 bg-[#25D366] text-white cursor-default">WA</a>
                       )}
                       {o.status === "Paid" && (
-                        <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="text-[9px] px-1.5 py-0.5 bg-[#C9A227] text-[#0B0C0D] cursor-default">Mark delivered</button>
+                        <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="text-[9px] px-1.5 py-0.5 bg-[#A6A6AB] text-[#EAE8E4] cursor-default">Mark delivered</button>
                       )}
                     </div>
                   </td>
@@ -2141,7 +2141,7 @@ function IntelligenceTab() {
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[11px] font-mono">{o.tier_label}</span>
                 <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)}
-                        className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#9A938A] text-white")}>
+                        className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default border-0 outline-none " + (o.status === "Requested" ? "bg-yellow-500 text-white" : o.status === "Invoiced" ? "bg-blue-600 text-white" : o.status === "Paid" ? "bg-green-700 text-white" : "bg-[#6E6C69] text-white")}>
                   <option>Requested</option><option>Invoiced</option><option>Paid</option><option>Delivered</option>
                 </select>
               </div>
@@ -2156,7 +2156,7 @@ function IntelligenceTab() {
                   <a href={buildOrderWaUrl(o)!} target="_blank" className="flex-1 py-1.5 bg-[#25D366] text-white text-[10px] font-medium text-center cursor-default">Send WA</a>
                 )}
                 {o.status === "Paid" && (
-                  <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="flex-1 py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[10px] cursor-default">Mark delivered</button>
+                  <button onClick={() => handleOrderStatus(o.id, "Delivered")} className="flex-1 py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[10px] cursor-default">Mark delivered</button>
                 )}
               </div>
             </div>
@@ -2190,7 +2190,7 @@ function BillingTab() {
     const b = await fetch("/api/balances").then(r => r.ok ? r.json() : []);
     setBalances(b || []); setEditingBalance(null); setService(""); setAmount(""); setNote("");
   }
-  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-[#9A938A]">Loading...</div>;
+  if (loading) return <div className="px-4 md:px-6 py-10 text-[12px] text-[#6E6C69]">Loading...</div>;
   const days = stats?.byDay ? Object.entries(stats.byDay).sort(([a]:any,[b]:any) => a.localeCompare(b)) : [];
   const maxCost = Math.max(...days.map(([,d]:any) => d.cost), 0.01);
   return (
@@ -2198,43 +2198,43 @@ function BillingTab() {
       <div>
         <h2 className="text-[12px] font-medium mb-3">This Month - DeepSeek Usage</h2>
         <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center">
-            <div className="text-[20px] font-light text-[#FAF8F4]">{stats?.totalCalls || 0}</div>
-            <div className="text-[9px] uppercase tracking-wider text-[#9A938A]">API Calls</div>
+          <div className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center">
+            <div className="text-[20px] font-light text-[#171717]">{stats?.totalCalls || 0}</div>
+            <div className="text-[9px] uppercase tracking-wider text-[#6E6C69]">API Calls</div>
           </div>
-          <div className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center">
-            <div className="text-[20px] font-light text-[#FAF8F4]">{stats?.totalTokens?.toLocaleString() || 0}</div>
-            <div className="text-[9px] uppercase tracking-wider text-[#9A938A]">Tokens</div>
+          <div className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center">
+            <div className="text-[20px] font-light text-[#171717]">{stats?.totalTokens?.toLocaleString() || 0}</div>
+            <div className="text-[9px] uppercase tracking-wider text-[#6E6C69]">Tokens</div>
           </div>
-          <div className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center">
-            <div className="text-[20px] font-light text-[#FAF8F4]">${stats?.totalCost?.toFixed(4) || "0.0000"}</div>
-            <div className="text-[9px] uppercase tracking-wider text-[#9A938A]">Est. Cost</div>
+          <div className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center">
+            <div className="text-[20px] font-light text-[#171717]">${stats?.totalCost?.toFixed(4) || "0.0000"}</div>
+            <div className="text-[9px] uppercase tracking-wider text-[#6E6C69]">Est. Cost</div>
           </div>
         </div>
         {days.length > 0 && (
-          <div className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-4">
-            <div className="text-[10px] uppercase tracking-wider text-[#9A938A] font-medium mb-3">Daily Usage</div>
+          <div className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-4">
+            <div className="text-[10px] uppercase tracking-wider text-[#6E6C69] font-medium mb-3">Daily Usage</div>
             <div className="flex items-end gap-1" style={{height:80}}>
               {days.map(([day, d]: any) => (
                 <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full rounded-t" style={{height: `${(d.cost/maxCost)*60}px`, background: "#C9A227", minHeight: 2}} title={`${day}: ${d.calls} calls, $${d.cost.toFixed(4)}`} />
-                  <span className="text-[7px] text-[#9A938A]">{day.slice(5)}</span>
+                  <div className="w-full rounded-t" style={{height: `${(d.cost/maxCost)*60}px`, background: "#A6A6AB", minHeight: 2}} title={`${day}: ${d.calls} calls, $${d.cost.toFixed(4)}`} />
+                  <span className="text-[7px] text-[#6E6C69]">{day.slice(5)}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
-        {days.length === 0 && <div className="text-[11px] text-[#9A938A]">No usage data this month.</div>}
+        {days.length === 0 && <div className="text-[11px] text-[#6E6C69]">No usage data this month.</div>}
       </div>
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-[12px] font-medium">Service Balances</h2>
-          <button onClick={() => setEditingBalance(editingBalance ? null : "new")} className="text-[10px] px-2 py-1 bg-[#C9A227] text-[#0B0C0D] cursor-default">
+          <button onClick={() => setEditingBalance(editingBalance ? null : "new")} className="text-[10px] px-2 py-1 bg-[#A6A6AB] text-[#EAE8E4] cursor-default">
             {editingBalance ? "Cancel" : "Edit Balance"}
           </button>
         </div>
         {editingBalance && (
-          <div className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 mb-3 space-y-2">
+          <div className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 mb-3 space-y-2">
             <div className="grid grid-cols-3 gap-2">
               <select value={service} onChange={e => setService(e.target.value)} className="field-input min-h-[32px] text-[11px]">
                 <option value="">Service...</option>
@@ -2245,45 +2245,45 @@ function BillingTab() {
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="Amount (USD)" className="field-input min-h-[32px] text-[11px]" />
               <input value={note} onChange={e => setNote(e.target.value)} placeholder="Note" className="field-input min-h-[32px] text-[11px]" />
             </div>
-            <button onClick={handleSaveBalance} className="px-4 py-1.5 bg-[#C9A227] text-[#0B0C0D] text-[11px] font-medium cursor-default">Save</button>
+            <button onClick={handleSaveBalance} className="px-4 py-1.5 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default">Save</button>
           </div>
         )}
-        <div className="border border-[rgba(255,255,255,0.08)]">
+        <div className="border border-[rgba(23,23,23,0.08)]">
           <table className="w-full text-[12px]">
-            <thead><tr className="text-left border-b border-[rgba(255,255,255,0.08)] bg-[#0B0C0D]">
-              <th className="px-3 py-1.5 font-medium text-[#9A938A]">Service</th>
-              <th className="px-3 py-1.5 font-medium text-[#9A938A] text-right">Balance</th>
-              <th className="px-3 py-1.5 font-medium text-[#9A938A]">Note</th>
-              <th className="px-3 py-1.5 font-medium text-[#9A938A]">Updated</th>
+            <thead><tr className="text-left border-b border-[rgba(23,23,23,0.08)] bg-[#EAE8E4]">
+              <th className="px-3 py-1.5 font-medium text-[#6E6C69]">Service</th>
+              <th className="px-3 py-1.5 font-medium text-[#6E6C69] text-right">Balance</th>
+              <th className="px-3 py-1.5 font-medium text-[#6E6C69]">Note</th>
+              <th className="px-3 py-1.5 font-medium text-[#6E6C69]">Updated</th>
             </tr></thead>
             <tbody>
               {balances.length === 0 ? (
-                <tr><td colSpan={4} className="px-3 py-4 text-[#9A938A] text-center">No balances set.</td></tr>
+                <tr><td colSpan={4} className="px-3 py-4 text-[#6E6C69] text-center">No balances set.</td></tr>
               ) : balances.map((b: any) => (
-                <tr key={b.id} className="border-b border-[rgba(255,255,255,0.08)]/60">
-                  <td className="px-3 py-1.5 font-medium text-[#FAF8F4]">{b.service}</td>
-                  <td className="px-3 py-1.5 text-right font-mono text-[#FAF8F4]">${b.amount?.toFixed(2) || "0"}</td>
-                  <td className="px-3 py-1.5 text-[#9A938A]">{b.note || "\u2014"}</td>
-                  <td className="px-3 py-1.5 text-[#9A938A] font-mono">{b.updated_at?.split("T")[0] || ""}</td>
+                <tr key={b.id} className="border-b border-[rgba(23,23,23,0.08)]/60">
+                  <td className="px-3 py-1.5 font-medium text-[#171717]">{b.service}</td>
+                  <td className="px-3 py-1.5 text-right font-mono text-[#171717]">${b.amount?.toFixed(2) || "0"}</td>
+                  <td className="px-3 py-1.5 text-[#6E6C69]">{b.note || "\u2014"}</td>
+                  <td className="px-3 py-1.5 text-[#6E6C69] font-mono">{b.updated_at?.split("T")[0] || ""}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="mt-3 border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3">
+        <div className="mt-3 border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3">
           <div className="flex justify-between items-center">
-            <span className="text-[10px] uppercase tracking-wider text-[#9A938A] font-medium">Monthly Estimated Total</span>
-            <span className="text-[14px] font-light text-[#FAF8F4]">${stats?.totalCost?.toFixed(4) || "0.0000"}</span>
+            <span className="text-[10px] uppercase tracking-wider text-[#6E6C69] font-medium">Monthly Estimated Total</span>
+            <span className="text-[14px] font-light text-[#171717]">${stats?.totalCost?.toFixed(4) || "0.0000"}</span>
           </div>
         </div>
       </div>
       <div>
         <h2 className="text-[12px] font-medium mb-3">Platform Links</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <a href="https://platform.deepseek.com/usage" target="_blank" rel="noopener noreferrer" className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center text-[11px] text-[#FAF8F4] font-light hover:border-[#C9A227] transition-colors">DeepSeek Usage</a>
-          <a href="https://jina.ai/dashboard" target="_blank" rel="noopener noreferrer" className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center text-[11px] text-[#FAF8F4] font-light hover:border-[#C9A227] transition-colors">Jina AI Dashboard</a>
-          <a href="https://vercel.com/dashboard/usage" target="_blank" rel="noopener noreferrer" className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center text-[11px] text-[#FAF8F4] font-light hover:border-[#C9A227] transition-colors">Vercel Usage</a>
-          <a href="https://cloud.appwrite.io" target="_blank" rel="noopener noreferrer" className="border border-[rgba(255,255,255,0.08)] bg-[#0B0C0D] p-3 text-center text-[11px] text-[#FAF8F4] font-light hover:border-[#C9A227] transition-colors">Appwrite Overview</a>
+          <a href="https://platform.deepseek.com/usage" target="_blank" rel="noopener noreferrer" className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center text-[11px] text-[#171717] font-light hover:border-[#A6A6AB] transition-colors">DeepSeek Usage</a>
+          <a href="https://jina.ai/dashboard" target="_blank" rel="noopener noreferrer" className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center text-[11px] text-[#171717] font-light hover:border-[#A6A6AB] transition-colors">Jina AI Dashboard</a>
+          <a href="https://vercel.com/dashboard/usage" target="_blank" rel="noopener noreferrer" className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center text-[11px] text-[#171717] font-light hover:border-[#A6A6AB] transition-colors">Vercel Usage</a>
+          <a href="https://cloud.appwrite.io" target="_blank" rel="noopener noreferrer" className="border border-[rgba(23,23,23,0.08)] bg-[#EAE8E4] p-3 text-center text-[11px] text-[#171717] font-light hover:border-[#A6A6AB] transition-colors">Appwrite Overview</a>
         </div>
       </div>
     </div>

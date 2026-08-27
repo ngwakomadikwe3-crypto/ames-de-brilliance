@@ -1,24 +1,21 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #000000;
-  --color-foreground: #FFFFFF;
-  --color-muted: #98989E;
-  --color-border: rgba(255,255,255,0.08);
-  --color-surface: #1C1C1E;
+  --color-background: #EAE8E4;
+  --color-foreground: #171717;
+  --color-muted: #6E6C69;
+  --color-border: rgba(23,23,23,0.08);
+  --color-surface: #FCFCFB;
   --color-positive: #065F46;
   --color-negative: #991B1B;
-  --color-highlight: #C9A227;
+  --color-accent: #8E8E93;
+  --color-silver: #A6A6AB;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
 }
 
-/* Reset: strip all decorative effects */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; }
 
 html {
   -webkit-font-smoothing: antialiased;
@@ -37,7 +34,6 @@ body {
   font-weight: 400;
 }
 
-/* Headings */
 h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
 
 /* Labels */
@@ -46,27 +42,18 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #98989E;
+  color: #6E6C69;
 }
 
-/* Tabular-nums for prices */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-/* Quartz glow pulse */
-@keyframes quartzPulse {
-  0%, 100% { opacity: 0.08; transform: scale(1); }
-  50% { opacity: 0.12; transform: scale(1.04); }
 }
 
 /* Shimmer loading */
@@ -75,7 +62,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   100% { background-position: 400px 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background: linear-gradient(90deg, transparent 25%, rgba(23,23,23,0.04) 50%, transparent 75%);
   background-size: 400px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -97,13 +84,7 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   .marquee-track { animation: none; overflow: hidden; }
 }
 
-/* Gold waveform send button pulse */
-@keyframes waveformPulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-/* Form fields: clean, luxury inputs */
+/* Form fields */
 .field-input {
   display: block;
   width: 100%;
@@ -112,65 +93,35 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   font-size: 12px;
   line-height: 1.4;
   min-height: 36px;
-  color: #FFFFFF;
-  background: #1C1C1E;
-  border: 1px solid rgba(255,255,255,0.08);
+  color: #171717;
+  background: #FCFCFB;
+  border: 1px solid rgba(23,23,23,0.08);
   border-radius: 8px;
   outline: none;
   transition: border-color 0.15s;
 }
-.field-input::placeholder {
-  color: #98989E;
-}
-.field-input:focus {
-  border-color: #C9A227;
-}
-.field-input.field-error {
-  border-color: #991B1B;
-}
-.field-input.field-error:focus {
-  border-color: #991B1B;
-}
-.field-input:disabled {
-  background: #1a1c1e;
-  color: #98989E;
-}
+.field-input::placeholder { color: #6E6C69; }
+.field-input:focus { border-color: #8E8E93; }
+.field-input.field-error { border-color: #991B1B; }
+.field-input:disabled { background: #F5F4F2; color: #6E6C69; }
 
-/* Scrollbar: minimal */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.12);
-  border-radius: 4px;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(23,23,23,0.10); border-radius: 4px; }
 
-/* Button base reset */
-button {
-  font-family: inherit;
-}
+button { font-family: inherit; }
 
-/* Disable heavy effects globally */
-.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl {
-  box-shadow: none !important;
-}
-
-/* Selection fix */
-::selection { background: #C9A227; color: #000000; }
+/* Selection */
+::selection { background: #A6A6AB; color: #FFFFFF; }
 
 /* Stone card radial glow */
-.stone-glow {
-  position: relative;
-}
+.stone-glow { position: relative; }
 .stone-glow::after {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 12px;
-  background: radial-gradient(ellipse at center, rgba(201,162,39,0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(142,142,147,0.06) 0%, transparent 70%);
   pointer-events: none;
 }

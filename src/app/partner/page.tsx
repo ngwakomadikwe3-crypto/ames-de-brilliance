@@ -216,7 +216,7 @@ export default function PartnerPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-[#16181A] text-[#FAF8F4] text-[12px] font-medium tracking-wide hover:bg-[#16181A]/90 disabled:opacity-50 cursor-default"
+            className="w-full py-3 bg-[#FCFCFB] text-[#171717] text-[12px] font-medium tracking-wide hover:bg-[#FCFCFB]/90 disabled:opacity-50 cursor-default"
           >
             {submitting ? "Submitting..." : "Submit application"}
           </button>

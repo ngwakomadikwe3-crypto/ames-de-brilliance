@@ -10,11 +10,11 @@ export async function GET() {
     page: { padding: 50, fontSize: 10, fontFamily: "Helvetica", color: "#1A1A1A" },
     cover: { display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100%" },
     title: { fontSize: 14, fontFamily: "Helvetica-Bold", letterSpacing: 2, marginBottom: 8 },
-    subtitle: { fontSize: 9, color: "#9A938A", marginBottom: 20 },
+    subtitle: { fontSize: 9, color: "#6E6C69", marginBottom: 20 },
     issue: { fontSize: 10, color: "#1A1A1A", marginBottom: 16 },
     heading: { fontSize: 12, fontFamily: "Helvetica-Bold", marginTop: 16, marginBottom: 6, color: "#1A1A1A" },
     para: { fontSize: 10, lineHeight: 1.6, marginBottom: 6, color: "#333333" },
-    footer: { position: "absolute", bottom: 30, left: 50, right: 50, fontSize: 8, color: "#9A938A", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#EAE4DA", paddingTop: 8 },
+    footer: { position: "absolute", bottom: 30, left: 50, right: 50, fontSize: 8, color: "#6E6C69", textAlign: "center", borderTopWidth: 0.5, borderTopColor: "#EAE4DA", paddingTop: 8 },
   });
 
   const sections = SAMPLE_MD.split(/^## /m).filter(Boolean).slice(1);
