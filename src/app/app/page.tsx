@@ -541,7 +541,7 @@ function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: 
   return <>
     <article className="boutique-vitrine">
       <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
-        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} />) : <div className="vitrine-placeholder"><span className="vitrine-loader" aria-hidden="true" /><strong>{name}</strong><small>{tagline}</small></div>}
+        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} />) : <div className="vitrine-placeholder"><strong>{name}</strong></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
       <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" ? <button onClick={() => arActivateRef.current?.()}>Try On</button> : <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button>}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
@@ -672,45 +672,8 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
     });
   }
 
-  const featured = stones[0];
-
   return (
     <div className="flex-1 flex flex-col min-h-0" style={{ background: "#080808" }}>
-
-      {/* ═══ SPOTLIGHT HERO ═══ */}
-      <div className="shrink-0 relative overflow-hidden" style={{ height: "46vh", minHeight: 300 }}>
-        {/* CSS light beam: cone from top center */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "radial-gradient(ellipse 50% 70% at 50% 0%, rgba(255,255,255,0.5) 0%, rgba(23,23,23,0.15) 40%, transparent 70%)",
-          pointerEvents: "none",
-        }} />
-        {/* Soft elliptical pool at base */}
-        <div style={{
-          position: "absolute", bottom: 0, left: "15%", right: "15%", height: "35%",
-          background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
-          pointerEvents: "none",
-        }} />
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          <div style={{ position: 'relative', width: '100%', height: 200, flexShrink: 0, background: 'transparent' }}>
-            <ModelViewer src="/models/house-ring.glb" poster="/ring-poster.jpg" pieceName="The House Ring" />
-          </div>
-
-          {/* ALL text below the stage — never overlapping the stone */}
-          <div style={{ textAlign: 'center', padding: '24px 24px 0', zIndex: 2, flexShrink: 0 }}>
-            <p style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 400, color: "#9A8F80", textTransform: "uppercase", marginBottom: 6 }}>The House Ring</p>
-            <h2 style={{ fontSize: 22, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.01em", lineHeight: 1.2, marginBottom: 12 }}>
-              Set with intention, worn with meaning.
-            </h2>
-            <button
-              onClick={() => { if (featured) setShowReserveId(featured.id); }}
-              style={{ fontSize: 12, color: "#9A8F80", background: "none", border: "none", padding: 0, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 400, textDecoration: "none", borderBottom: "1px solid rgba(110,108,105,0.3)", paddingBottom: 2 }}
-            >
-              Reserve
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
