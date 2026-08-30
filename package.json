@@ -19,7 +19,7 @@
     "nodemailer": "^9.0.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "three": "^0.185.1",
+    "three": "0.183.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
