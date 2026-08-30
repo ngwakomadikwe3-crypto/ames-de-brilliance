@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #EAE8E4;
-  --color-foreground: #171717;
-  --color-muted: #6E6C69;
-  --color-border: rgba(23,23,23,0.08);
-  --color-surface: #FCFCFB;
-  --color-positive: #065F46;
-  --color-negative: #991B1B;
-  --color-accent: #8E8E93;
-  --color-silver: #A6A6AB;
+  --color-background: #080808;
+  --color-foreground: #F4E9D5;
+  --color-muted: #9A8F80;
+  --color-border: rgba(244,233,213,0.14);
+  --color-surface: #151515;
+  --color-positive: #B9935A;
+  --color-negative: #B56B6B;
+  --color-accent: #C9A86A;
+  --color-silver: #D8C9AE;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'SF Mono', ui-monospace, 'Cascadia Code', monospace;
 }
@@ -30,7 +30,8 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: var(--color-background);
+  background: radial-gradient(ellipse at 50% -10%, #24201a 0%, #080808 52%, #000000 100%);
+  background-attachment: fixed;
   color: var(--color-foreground);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -135,9 +136,9 @@ button { font-family: inherit; }
    ═══════════════════════════════════════════ */
 
 /* Surfaces */
-.room { background: #EAE8E4; }
-.surface { background: #FCFCFB; }
-.hairline { border: 1px solid rgba(23,23,23,0.08); }
+.room { background: #080808; }
+.surface { background: #151515; }
+.hairline { border: 1px solid rgba(244,233,213,0.14); }
 
 /* Typography */
 .font-serif { font-family: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif; }
