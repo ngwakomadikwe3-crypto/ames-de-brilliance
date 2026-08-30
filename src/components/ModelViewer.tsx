@@ -7,12 +7,15 @@ type ModelViewerProps = {
   poster?: string;
   pieceName: string;
   className?: string;
+  onActivateAR?: (activate: () => void) => void;
 };
 
-export default function ModelViewer({ src, poster, pieceName, className = "" }: ModelViewerProps) {
+export default function ModelViewer({ src, poster, pieceName, className = "", onActivateAR }: ModelViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [failed, setFailed] = useState(false);
+  const activateRef = useRef<(() => void) | null>(null);
+  useEffect(() => { onActivateAR?.(() => activateRef.current?.()); }, [onActivateAR]);
 
   useEffect(() => {
     const node = containerRef.current;
@@ -51,6 +54,7 @@ export default function ModelViewer({ src, poster, pieceName, className = "" }: 
           loading: "lazy",
           reveal: "auto",
           onError: () => setFailed(true),
+          ref: (element: HTMLElement | null) => { activateRef.current = element ? () => (element as HTMLElement & { activateAR?: () => void }).activateAR?.() : null; },
           style: { width: "100%", height: "100%", background: "transparent" },
         })
       ) : (
