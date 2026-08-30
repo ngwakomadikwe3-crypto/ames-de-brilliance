@@ -341,7 +341,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       {chatStarted ? (
         /* === CHAT MODE === */
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 pt-10" aria-hidden="true"><DiamondViewer /></div>
+          <div className="shrink-0 pt-10 text-center"><DiamondViewer /><div className="mt-1 text-[9px] tracking-[0.08em] text-[#9A8F80]">3D diamond model by PatelDev via Sketchfab (CC BY)</div></div>
           {/* Mini header */}
           <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-3" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)', background: 'rgba(234,232,228,0.9)', backdropFilter: 'blur(12px)' }}>
             <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }}>
