@@ -1,6 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+export const SPLASH_PRELOADS = <><link rel="preload" as="video" href="/intro.mp4" type="video/mp4" /><link rel="preload" as="image" href="/splash-bg.jpg" /></>;
 
 const MAX_DURATION = 8000;
 const FALLBACK_DURATION = 1200;
@@ -70,9 +73,10 @@ export default function IntroSplash() {
 
   return (
     <div role="presentation" onClick={() => finish(true)} className={`intro-splash fixed inset-0 z-[9999] overflow-hidden bg-black transition-opacity duration-400 ${exiting ? "opacity-0" : "opacity-100"}`}>
+      {SPLASH_PRELOADS}
       {!fallback && phase === "video" && <video ref={videoRef} autoPlay muted playsInline preload="auto" src="/intro.mp4" onLoadedData={(e) => { e.currentTarget.muted = true; resumeVideo(); }} onCanPlay={(e) => { e.currentTarget.muted = true; resumeVideo(); }} onPause={() => resumeVideo()} onEnded={showEmblem} onError={handleError} disablePictureInPicture className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden="true" />}
       {phase === "emblem" && <div className="emblem-phase absolute inset-0 flex items-center justify-center overflow-hidden" aria-label="AMES emblem">
-        <img src="/splash-bg.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+        <Image src="/splash-bg.jpg" alt="" fill priority quality={80} sizes="100vw" className="absolute inset-0 h-full w-full object-cover opacity-45" onError={(event) => { event.currentTarget.style.display = "none"; }} />
         <div className="emblem-glow" />
         <div className="emblem-particles" aria-hidden="true">{Array.from({ length: 18 }, (_, i) => <i key={i} style={{ left: `${8 + ((i * 37) % 84)}%`, top: `${12 + ((i * 53) % 72)}%`, animationDelay: `${i * 90}ms` }} />)}</div>
         <svg className="ames-emblem" viewBox="0 0 720 420" role="img" aria-label="AMES" xmlns="http://www.w3.org/2000/svg">

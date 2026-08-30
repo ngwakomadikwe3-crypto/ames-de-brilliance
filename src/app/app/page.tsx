@@ -524,7 +524,7 @@ function BoutiqueVitrine({ name, src, onAsk }: { name: string; src: string; onAs
   return <>
     <article className="boutique-vitrine">
       <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
-        {mounted && <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" />}
+        {mounted ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" /> : <div className="vitrine-placeholder"><span className="vitrine-loader" aria-hidden="true" /><strong>{name}</strong><small>Viewing room preparing</small></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
       <div className="boutique-vitrine-footer"><h3>{name}</h3><button onClick={() => onAsk(name)}>Enquire via SAME</button></div>
@@ -739,7 +739,7 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
           <BoutiqueVitrine name="Sky Lady" src="https://hintspo.com/embed/4fc48834-9c38-47d6-9582-6e602396f27b" onAsk={onAskPiece} />
         </section>
 
-        {/* ═══ SECTION TITLE ═══ */}
+        {/* ═���═ SECTION TITLE ═══ */}
         <div className="px-5 pt-4 pb-2">
           <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
             {filter === "All" ? "New Arrivals" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
