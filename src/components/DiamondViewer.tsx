@@ -48,7 +48,12 @@ export default function DiamondViewer() {
       try {
         let gltf;
         for (const url of MODEL_URLS) {
-          try { gltf = await new GLTFLoader().loadAsync(url); break; } catch {}
+          try {
+            gltf = await new GLTFLoader().loadAsync(url);
+            break;
+          } catch (error) {
+            console.warn(`[diamond] unable to load ${url}; trying fallback`, error);
+          }
         }
         if (!disposed && gltf) {
           fallback.visible = false;
@@ -97,7 +102,12 @@ export default function DiamondViewer() {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let visible = true;
       let sparkleUntil = 0;
-      const pulse = () => { sparkleUntil = performance.now() + 420; };
+      let spinUntil = 0;
+      const pulse = () => {
+        const now = performance.now();
+        sparkleUntil = now + 520;
+        spinUntil = now + 520;
+      };
       const onReply = () => pulse();
       host.addEventListener("pointerdown", pulse);
       window.addEventListener("ames-reply", onReply);
@@ -112,7 +122,15 @@ export default function DiamondViewer() {
       renderer.domElement.addEventListener("pointermove", move);
       renderer.domElement.addEventListener("pointerup", up);
       let raf = 0;
-      const animate = (now: number) => { raf = requestAnimationFrame(animate); if (!visible) return; if (!reduced && !dragging) group.rotation.y += 0.0025; sparkleMaterial.opacity = Math.max(0, (sparkleUntil - now) / 420) * 0.95; renderer.render(scene, camera); };
+      const animate = (now: number) => {
+        raf = requestAnimationFrame(animate);
+        if (!visible) return;
+        if (!reduced && !dragging) group.rotation.y += now < spinUntil ? 0.035 : 0.0025;
+        const burst = Math.max(0, (sparkleUntil - now) / 520);
+        sparkleMaterial.opacity = burst * 0.95;
+        group.scale.setScalar(1 + burst * 0.035);
+        renderer.render(scene, camera);
+      };
       animate(performance.now());
       cleanup = () => { cancelAnimationFrame(raf); sizeObserver.disconnect(); visibilityObserver.disconnect(); host.removeEventListener("pointerdown", pulse); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const material = object.material; if (Array.isArray(material)) material.forEach((item) => item.dispose()); else material.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); renderer.dispose(); host.replaceChildren(); };
     };
