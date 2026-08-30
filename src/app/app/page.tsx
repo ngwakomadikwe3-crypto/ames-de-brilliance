@@ -129,7 +129,7 @@ export default function AppPage() {
       <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F4E9D5}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9A8F80;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F4E9D5}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9A8F80;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9A8F80}.house-privacy{margin:18px 0}.house-link{color:#F4E9D5;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F4E9D5;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
         :root`}</style>
       <style>{`
-        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #080808; }
+        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #b7a99d; }
         footer { display: none !important; }
       `}</style>
 
@@ -354,7 +354,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   }
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: '#080808', position: 'relative' }}>
+    <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#efe9e2', color: '#241d18', position: 'relative' }}>
 
       {chatStarted ? (
         /* === CHAT MODE === */
@@ -433,7 +433,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         </div>
       ) : (
         /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#080808' }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#efe9e2', color: '#241d18' }}>
 
           <div style={{ width: '100%', maxWidth: 360, height: 270, marginBottom: 18 }}>
             <DiamondViewer />
@@ -673,7 +673,7 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#080808" }}>
+    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#efe9e2", color: "#241d18" }}>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>

@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #080808;
-  --color-foreground: #F4E9D5;
-  --color-muted: #9A8F80;
-  --color-border: rgba(244,233,213,0.14);
-  --color-surface: #151515;
+  --color-background: #b7a99d;
+  --color-foreground: #241d18;
+  --color-muted: #5c524a;
+  --color-border: rgba(36,29,24,0.25);
+  --color-surface: #efe9e2;
   --color-positive: #f2efe6;
   --color-negative: #B56B6B;
   --color-accent: #f2efe6;
@@ -30,9 +30,9 @@ html {
 body {
   margin: 0;
   padding: 0;
-  background: radial-gradient(ellipse at 50% -10%, #24201a 0%, #080808 52%, #000000 100%);
+  background: #b7a99d;
   background-attachment: fixed;
-  color: var(--color-foreground);
+  color: #241d18;
   font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.4;
@@ -121,6 +121,21 @@ h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
 ::-webkit-scrollbar-thumb { background: rgba(23,23,23,0.10); border-radius: 4px; }
 
 button { font-family: inherit; }
+
+/* Handmade paper surface: purely procedural, no asset required. */
+body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 999; }
+body::before { opacity: .22; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.48'/%3E%3C/svg%3E"); mix-blend-mode:multiply; }
+body::after { box-shadow: inset 0 0 9vw 2vw rgba(239,233,226,.58); opacity: .8; background: radial-gradient(ellipse at center, transparent 72%, rgba(239,233,226,.26) 100%); }
+.house-settings, body:has(.house-settings) .house-settings-backdrop, body:has(.viewing-room) .viewing-room { color:#241d18 !important; }
+.house-settings { background:#efe9e2 !important; border-color:rgba(36,29,24,.25) !important; backdrop-filter:none !important; }
+.house-settings h2, .house-settings .house-link, .house-settings .house-setting-line { color:#241d18 !important; }
+.house-settings .house-choice button, .house-settings .house-link { border-color:rgba(36,29,24,.35) !important; color:#241d18 !important; }
+.house-settings .house-choice button.selected, .house-settings .house-toggle.on { border-color:#241d18 !important; }
+.house-settings .house-toggle { background:#b7a99d !important; border-color:rgba(36,29,24,.35) !important; }
+.house-settings .house-toggle.on span { background:#f2efe6 !important; }
+.house-settings-backdrop { background:rgba(36,29,24,.25) !important; }
+.chat-paper { background:#efe9e2 !important; color:#241d18 !important; }
+
 
 /* Selection */
 ::selection { background: #A6A6AB; color: #FFFFFF; }

@@ -98,7 +98,7 @@ export default function RequestPage() {
               </div>
             </Field>
             <Field label="Color" error={errors.color}>
-              <input name="color" className="field-input" placeholder="e.g. Near colourless, D, Yellowish" />
+              <input name="color" className="field-input" placeholder="e.g. Near colourless, D, Warm tone" />
             </Field>
             <Field label="Notes"><textarea name="notes" rows={3} className="field-input resize-none" placeholder="Category preference, crystal form, clarity notes, quantity..." /></Field>
 
