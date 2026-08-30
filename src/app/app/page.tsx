@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import ModelViewer from "@/components/ModelViewer";
 import IntroSplash from "@/components/IntroSplash";
+import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
 /* Native scroll-snap — no framer-motion needed */
 
@@ -417,8 +417,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#080808' }}>
 
-          <div style={{ width: '100%', maxWidth: 220, height: 220, marginBottom: 32 }}>
-            <ModelViewer src="/models/diamond.glb" poster="/diamond-poster.jpg" pieceName="Diamond" />
+          <div style={{ width: '100%', maxWidth: 360, height: 270, marginBottom: 18 }}>
+            <DiamondViewer />
           </div>
 
           {/* Serif time-of-day greeting */}
