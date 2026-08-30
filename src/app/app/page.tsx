@@ -521,18 +521,33 @@ function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: 
   const { name, src, kind, tagline } = product;
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [showTryOnGuide, setShowTryOnGuide] = useState(false);
+  const [cameraUnavailable, setCameraUnavailable] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const arActivateRef = useRef<(() => void) | null>(null);
   useEffect(() => { const node = ref.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setMounted(true); observer.disconnect(); } }, { rootMargin: "160px" }); observer.observe(node); return () => observer.disconnect(); }, []);
+  const openTryOn = async () => {
+    if (kind !== "hintspo") { setOpen(true); return; }
+    setTryOnOpen(true);
+    try {
+      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { setCameraUnavailable(true); return; }
+      const permission = await navigator.permissions?.query({ name: "camera" as PermissionName });
+      if (permission?.state === "denied") setCameraUnavailable(true);
+      if (sessionStorage.getItem("ames_tryon_guide_seen") !== "1") setShowTryOnGuide(true);
+    } catch { if (sessionStorage.getItem("ames_tryon_guide_seen") !== "1") setShowTryOnGuide(true); }
+  };
+  const dismissTryOnGuide = () => { try { sessionStorage.setItem("ames_tryon_guide_seen", "1"); } catch {} setShowTryOnGuide(false); };
   return <>
     <article className="boutique-vitrine">
       <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
         {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} />) : <div className="vitrine-placeholder"><span className="vitrine-loader" aria-hidden="true" /><strong>{name}</strong><small>{tagline}</small></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
-      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" && <button onClick={() => arActivateRef.current?.()}>Try On</button>}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
+      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" ? <button onClick={() => arActivateRef.current?.()}>Try On</button> : <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button>}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
     </article>
-    {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} />)}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
+    {tryOnOpen && <div className="viewing-room-backdrop" onClick={() => setTryOnOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`try-on-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Try On" onClick={() => setTryOnOpen(false)}>×</button><div className="viewing-room-frame"><iframe src={`${src}?tryon=1`} title={`${name} Try On`} referrerPolicy="no-referrer" allow="camera camera *" /></div>{cameraUnavailable ? <div className="try-on-fallback"><p>AR try-on needs your camera — or ask SAME to arrange a private viewing.</p><button className="viewing-ask" onClick={() => { setTryOnOpen(false); onAsk(name); }}>Ask SAME <span>→</span></button></div> : <h2 id={`try-on-${name.replace(/\\s/g, "-")}`}>{name}</h2>}{showTryOnGuide && !cameraUnavailable && <div className="try-on-guide"><p>Point your camera at your hand and move slowly.</p><button className="viewing-ask" onClick={dismissTryOnGuide}>Begin</button></div>}</section></div>}
+      {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} />)}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
   </>;
 }
 
