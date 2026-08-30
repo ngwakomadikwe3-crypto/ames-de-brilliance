@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import ModelViewer from "@/components/ModelViewer";
+import IntroSplash from "@/components/IntroSplash";
 /* Native scroll-snap — no framer-motion needed */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
@@ -110,6 +111,7 @@ export default function AppPage() {
 
   return (
     <>
+      <IntroSplash />
       <style>{`
         :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #EAE8E4; }
         footer { display: none !important; }
@@ -962,7 +964,7 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
   );
 }
 
-/* ═══════════════════════════════════════════
+/* ════════��══════════════════════════════════
    VIDEOS PANEL
    ═══════════════════════════════════════════ */
 
