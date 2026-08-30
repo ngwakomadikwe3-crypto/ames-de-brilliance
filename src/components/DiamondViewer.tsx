@@ -105,8 +105,13 @@ export default function DiamondViewer() {
       let spinStart = 0;
       let spinUntil = 0;
       let spinApplied = 0;
+      let flareTimer = 0;
       const pulse = () => {
         const now = performance.now();
+        const stage = host.parentElement;
+        stage?.classList.add("stage-flare");
+        window.clearTimeout(flareTimer);
+        flareTimer = window.setTimeout(() => stage?.classList.remove("stage-flare"), 900);
         sparkleUntil = now + 520;
         spinStart = now;
         spinUntil = now + 800;
@@ -164,7 +169,7 @@ export default function DiamondViewer() {
         renderer.render(scene, camera);
       };
       animate(performance.now());
-      cleanup = () => { cancelAnimationFrame(raf); sizeObserver.disconnect(); visibilityObserver.disconnect(); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const material = object.material; if (Array.isArray(material)) material.forEach((item) => item.dispose()); else material.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); renderer.dispose(); host.replaceChildren(); };
+      cleanup = () => { cancelAnimationFrame(raf); window.clearTimeout(flareTimer); host.parentElement?.classList.remove("stage-flare"); sizeObserver.disconnect(); visibilityObserver.disconnect(); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const material = object.material; if (Array.isArray(material)) material.forEach((item) => item.dispose()); else material.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); renderer.dispose(); host.replaceChildren(); };
     };
 
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { observer.disconnect(); void start(); } }, { rootMargin: "240px" });
@@ -172,5 +177,13 @@ export default function DiamondViewer() {
     return () => { disposed = true; observer.disconnect(); cleanup(); };
   }, []);
 
-  return <div ref={hostRef} aria-label="Interactive diamond" className="h-56 w-full" />;
+  const dust = [3, 11, 18, 27, 36, 44, 53, 61, 69, 76, 83, 89, 94, 98];
+  return (
+    <div className="diamond-stage" aria-label="Interactive diamond stage">
+      <div className="diamond-rays" aria-hidden="true" />
+      <div className="diamond-pool" aria-hidden="true" />
+      {dust.map((left, index) => <i key={left} className="diamond-dust" style={{ left: `${left}%`, animationDelay: `${index * -0.37}s`, animationDuration: `${2 + (index % 4)}s` }} aria-hidden="true" />)}
+      <div ref={hostRef} aria-label="Interactive diamond" className="diamond-canvas" />
+    </div>
+  );
 }

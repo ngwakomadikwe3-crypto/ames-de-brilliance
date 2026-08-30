@@ -211,6 +211,20 @@ button { font-family: inherit; }
 .input-field::placeholder { color: #6E6C69; }
 .input-field:focus { border-color: #A6A6AB; }
 
+/* Interactive diamond chat stage */
+.diamond-stage { position: relative; isolation: isolate; height: 14rem; width: 100%; overflow: visible; -webkit-box-reflect: below 0 linear-gradient(transparent 55%, rgba(0,0,0,.3)); }
+.diamond-canvas { position: relative; z-index: 2; height: 100%; width: 100%; }
+.diamond-rays { position: absolute; z-index: 0; inset: -35% 8% -10%; background: repeating-conic-gradient(from 0deg, rgba(255,255,255,0) 0deg 6deg, rgba(255,255,255,.14) 6deg 8deg); mask-image: radial-gradient(ellipse at 50% 78%, #000 0 12%, transparent 65%); -webkit-mask-image: radial-gradient(ellipse at 50% 78%, #000 0 12%, transparent 65%); filter: blur(2px); mix-blend-mode: screen; animation: diamond-rays 60s linear infinite; opacity: .72; }
+.diamond-pool { position: absolute; z-index: 1; left: 50%; bottom: 7%; width: 46%; height: 16%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(255,255,255,.82), transparent 70%); filter: blur(7px); opacity: .8; animation: diamond-breathe 4s ease-in-out infinite; }
+.diamond-dust { position: absolute; z-index: 3; bottom: 27%; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: 0; animation: diamond-twinkle 3s ease-in-out infinite; }
+.stage-flare .diamond-rays { opacity: 1; animation-duration: 15s; }
+.stage-flare .diamond-pool { transform: translateX(-50%) scale(1.15); opacity: 1; }
+.stage-flare .diamond-dust { animation-duration: 1.2s; }
+@keyframes diamond-rays { to { transform: rotate(360deg); } }
+@keyframes diamond-breathe { 0%,100% { transform: translateX(-50%) scale(1); opacity: .8; } 50% { transform: translateX(-50%) scale(1.08); opacity: 1; } }
+@keyframes diamond-twinkle { 0%,100% { opacity: 0; transform: translateY(8px); } 45% { opacity: 1; transform: translateY(-14px); } }
+@media (prefers-reduced-motion: reduce) { .diamond-rays, .diamond-pool, .diamond-dust { animation-play-state: paused; } .diamond-pool { opacity: .8; } }
+
 /* ═══════════════════════════════════════════
    BACK OFFICE — Graphite register
    ═══════════════════════════════════════════ */
