@@ -201,7 +201,7 @@ export default function AppPage() {
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
         <div className="flex h-full" style={{ width: '300dvw' }}>
           <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <BoutiquePanel highlightStone={highlightStone} />
+            <BoutiquePanel highlightStone={highlightStone} onAskPiece={(piece) => { setChatPrefill(`Tell me about ${piece}`); swipeTo(1); }} />
           </section>
           <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} />
@@ -230,7 +230,7 @@ export default function AppPage() {
 
 function SettingToggle({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) { return <div className="house-setting-line"><span>{label}</span><button className={`house-toggle ${value ? "on" : ""}`} aria-pressed={value} onClick={onChange}><span /></button></div>; }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════════���══
    CHAT PANEL
    ═══════════════════════════════════════════ */
 
@@ -516,7 +516,24 @@ const DEMO_STONE: StoreStone & { demo?: boolean } = {
   demo: true,
 };
 
-function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
+function BoutiqueVitrine({ name, src, onAsk }: { name: string; src: string; onAsk: (piece: string) => void }) {
+  const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { const node = ref.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setMounted(true); observer.disconnect(); } }, { rootMargin: "160px" }); observer.observe(node); return () => observer.disconnect(); }, []);
+  return <>
+    <article className="boutique-vitrine">
+      <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
+        {mounted && <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" />}
+        <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
+      </div>
+      <div className="boutique-vitrine-footer"><h3>{name}</h3><button onClick={() => onAsk(name)}>Enquire via SAME</button></div>
+    </article>
+    {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && <iframe src={src} title={name} referrerPolicy="no-referrer" />}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
+  </>;
+}
+
+function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string | null; onAskPiece: (piece: string) => void }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
@@ -716,6 +733,11 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
             })}
           </div>
         </div>
+
+        <section className="boutique-vitrine-grid" aria-label="AMES boutique viewing rooms">
+          <BoutiqueVitrine name="Crystal Tear" src="https://hintspo.com/embed/510a50d8-5578-4821-95ab-f87fe3b770c3" onAsk={onAskPiece} />
+          <BoutiqueVitrine name="Sky Lady" src="https://hintspo.com/embed/4fc48834-9c38-47d6-9582-6e602396f27b" onAsk={onAskPiece} />
+        </section>
 
         {/* ═══ SECTION TITLE ═══ */}
         <div className="px-5 pt-4 pb-2">
