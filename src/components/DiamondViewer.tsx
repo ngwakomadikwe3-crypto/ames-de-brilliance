@@ -102,37 +102,69 @@ export default function DiamondViewer() {
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let visible = true;
       let sparkleUntil = 0;
+      let spinStart = 0;
       let spinUntil = 0;
+      let spinApplied = 0;
       const pulse = () => {
         const now = performance.now();
         sparkleUntil = now + 520;
-        spinUntil = now + 520;
+        spinStart = now;
+        spinUntil = now + 800;
+        spinApplied = 0;
       };
       const onReply = () => pulse();
-      host.addEventListener("pointerdown", pulse);
       window.addEventListener("ames-reply", onReply);
-      const visibilityObserver = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0.01 });
+      const visibilityObserver = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0 });
       visibilityObserver.observe(host);
       let dragging = false;
       let lastX = 0;
-      const down = (event: PointerEvent) => { dragging = true; lastX = event.clientX; host.setPointerCapture(event.pointerId); };
-      const move = (event: PointerEvent) => { if (dragging) { group.rotation.y += (event.clientX - lastX) * 0.01; lastX = event.clientX; } };
-      const up = () => { dragging = false; };
+      let lastY = 0;
+      let downX = 0;
+      let downY = 0;
+      const down = (event: PointerEvent) => {
+        dragging = true;
+        lastX = downX = event.clientX;
+        lastY = downY = event.clientY;
+        host.setPointerCapture(event.pointerId);
+      };
+      const move = (event: PointerEvent) => {
+        if (!dragging) return;
+        group.rotation.y += (event.clientX - lastX) * 0.01;
+        group.rotation.x = THREE.MathUtils.clamp(group.rotation.x + (event.clientY - lastY) * 0.01, -0.6, 0.6);
+        lastX = event.clientX;
+        lastY = event.clientY;
+      };
+      const up = (event: PointerEvent) => {
+        if (!dragging) return;
+        dragging = false;
+        if (Math.hypot(event.clientX - downX, event.clientY - downY) < 6) pulse();
+        if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId);
+      };
       renderer.domElement.addEventListener("pointerdown", down);
       renderer.domElement.addEventListener("pointermove", move);
       renderer.domElement.addEventListener("pointerup", up);
       let raf = 0;
+      let previous = performance.now();
       const animate = (now: number) => {
         raf = requestAnimationFrame(animate);
+        const delta = Math.min(now - previous, 50);
+        previous = now;
         if (!visible) return;
-        if (!reduced && !dragging) group.rotation.y += now < spinUntil ? 0.035 : 0.0025;
+        if (!dragging) group.rotation.y += (reduced ? 0.05 : 0.3) * delta / 1000;
+        if (now < spinUntil) {
+          const progress = Math.min(1, (now - spinStart) / 800);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const target = eased * Math.PI * 2;
+          group.rotation.y += target - spinApplied;
+          spinApplied = target;
+        }
         const burst = Math.max(0, (sparkleUntil - now) / 520);
         sparkleMaterial.opacity = burst * 0.95;
         group.scale.setScalar(1 + burst * 0.035);
         renderer.render(scene, camera);
       };
       animate(performance.now());
-      cleanup = () => { cancelAnimationFrame(raf); sizeObserver.disconnect(); visibilityObserver.disconnect(); host.removeEventListener("pointerdown", pulse); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const material = object.material; if (Array.isArray(material)) material.forEach((item) => item.dispose()); else material.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); renderer.dispose(); host.replaceChildren(); };
+      cleanup = () => { cancelAnimationFrame(raf); sizeObserver.disconnect(); visibilityObserver.disconnect(); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const material = object.material; if (Array.isArray(material)) material.forEach((item) => item.dispose()); else material.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); renderer.dispose(); host.replaceChildren(); };
     };
 
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { observer.disconnect(); void start(); } }, { rootMargin: "240px" });
