@@ -212,6 +212,20 @@ button { font-family: inherit; }
 .input-field:focus { border-color: #A6A6AB; }
 
 /* Interactive diamond chat stage */
+.diamond-stage { perspective: 800px; }
+.diamond-backdrop { position: absolute; inset: -2rem -1rem -1rem; z-index: -3; background: radial-gradient(ellipse at 50% 45%, #6b6560 0%, #45413d 38%, #2b2926 100%); opacity: .9; }
+.diamond-spotlight { position: absolute; z-index: 0; top: -2rem; left: 50%; width: 70%; height: 75%; transform: translateX(-50%); clip-path: polygon(45% 0, 55% 0, 82% 100%, 18% 100%); background: linear-gradient(to bottom, rgba(255,255,255,.25), transparent); filter: blur(10px); mix-blend-mode: screen; animation: spotlight-flicker 6s ease-in-out infinite; }
+.diamond-pedestal { position: absolute; z-index: 1; left: 50%; bottom: 1.5rem; width: 250px; height: 76px; transform: translateX(-50%); }
+.pedestal-top, .pedestal-base { position: absolute; left: 50%; transform: translateX(-50%); border-radius: 50%; background: linear-gradient(#1a1a1a, #000); }
+.pedestal-top { top: 0; width: 220px; height: 34px; background: radial-gradient(ellipse at 35% 25%, #57514b, #1a1a1a 55%, #000); }
+.pedestal-ring { position: absolute; top: 28px; left: 15px; width: 220px; height: 3px; border-radius: 50%; background: linear-gradient(90deg, #8a6d3b, #d4af37, #8a6d3b); }
+.pedestal-base { top: 31px; width: 250px; height: 45px; z-index: -1; }
+.pedestal-shadow { position: absolute; bottom: -14px; left: 10%; width: 80%; height: 20px; border-radius: 50%; background: rgba(0,0,0,.55); filter: blur(9px); z-index: -2; }
+.diamond-showcase .diamond-canvas { transform: translateZ(30px) scale(1.35); transition: transform .8s cubic-bezier(.2,.8,.2,1); z-index: 5; }
+.diamond-canvas { transition: transform .8s cubic-bezier(.2,.8,.2,1); }
+@keyframes spotlight-flicker { 0%,100% { opacity: .68; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .diamond-showcase .diamond-canvas { transform: none; } .diamond-spotlight { animation: none; opacity: .7; } }
+
 .diamond-stage { position: relative; isolation: isolate; height: 14rem; width: 100%; overflow: visible; -webkit-box-reflect: below 0 linear-gradient(transparent 55%, rgba(0,0,0,.3)); }
 .diamond-canvas { position: relative; z-index: 2; height: 100%; width: 100%; }
 .diamond-rays { position: absolute; z-index: 0; inset: -35% 8% -10%; background: repeating-conic-gradient(from 0deg, rgba(255,255,255,0) 0deg 6deg, rgba(255,255,255,.14) 6deg 8deg); mask-image: radial-gradient(ellipse at 50% 78%, #000 0 12%, transparent 65%); -webkit-mask-image: radial-gradient(ellipse at 50% 78%, #000 0 12%, transparent 65%); filter: blur(2px); mix-blend-mode: screen; animation: diamond-rays 60s linear infinite; opacity: .72; }
@@ -225,7 +239,7 @@ button { font-family: inherit; }
 @keyframes diamond-twinkle { 0%,100% { opacity: 0; transform: translateY(8px); } 45% { opacity: 1; transform: translateY(-14px); } }
 @media (prefers-reduced-motion: reduce) { .diamond-rays, .diamond-pool, .diamond-dust { animation-play-state: paused; } .diamond-pool { opacity: .8; } }
 
-/* ═══════════════════════════════════════════
+/* ════════════════════════════════════���══════
    BACK OFFICE — Graphite register
    ═══════════════════════════════════════════ */
 .back-office {
