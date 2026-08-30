@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import ModelViewer from "@/components/ModelViewer";
+import IntroSplash from "@/components/IntroSplash";
 /* Native scroll-snap — no framer-motion needed */
-/* Sketchfab 3D embeds — PatelDev diamond + Busanello ring */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
@@ -110,6 +111,7 @@ export default function AppPage() {
 
   return (
     <>
+      <IntroSplash />
       <style>{`
         :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #EAE8E4; }
         footer { display: none !important; }
@@ -248,9 +250,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   const [mode, setMode] = useState<"instant" | "expert">("instant");
   const [deepThink, setDeepThink] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-  const [iframeOpacity, setIframeOpacity] = useState(0);
-  const [posterOpacity, setPosterOpacity] = useState(1);
-  const [diamondPlaying, setDiamondPlaying] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -320,7 +320,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       const assistantMsg: ChatMessage = await assistantRes.json();
       setMessages(p => [...p, assistantMsg]);
     } catch {
-      const fallback = "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
+      const fallback = "The desk is quiet right now — please try again shortly, or reach a human on WhatsApp: +267 72 839 152.";
       const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -403,7 +403,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
                 <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 15, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
                 <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
@@ -415,52 +415,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          {/* 3D Diamond — Sketchfab embed, poster-reveal, bare object on pearl */}
-          <div style={{ position: 'relative', width: '100%', maxWidth: 220, height: 220, marginBottom: 32, overflow: 'hidden', background: 'transparent' }}>
-            {/* Masked + blended iframe wrapper (behind poster) */}
-            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
-              <iframe
-                title="Diamond"
-                src="https://sketchfab.com/models/b508b33eb0844fcc91a4296cc53323c7/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-                style={{
-                  width: '135%', height: '135%',
-                  border: 'none',
-                  position: 'absolute', top: '-17.5%', left: '-17.5%',
-                  opacity: iframeOpacity, transition: 'opacity 0.6s ease-in-out',
-                  filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
-                }}
-                allow="autoplay; fullscreen"
-                loading="eager"
-                onLoad={() => { setIframeOpacity(1); setPosterOpacity(0); }}
-              />
-            </div>
-            {/* Poster image — fades out on iframe load */}
-            <img
-              src="/diamond-poster.jpg"
-              alt=""
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              style={{
-                position: 'absolute', inset: 0, width: '100%', height: '100%',
-                objectFit: 'contain', zIndex: 1,
-                opacity: posterOpacity, transition: 'opacity 0.6s ease-in-out',
-                pointerEvents: 'none',
-                background: 'transparent',
-                mixBlendMode: 'multiply',
-                maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
-                WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
-              }}
-            />
-            {/* Gesture overlay — captures swipes so they switch panels (removed in play mode) */}
-            {!diamondPlaying && <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />}
-            {/* Play / Done chip */}
-            <button
-              onClick={() => setDiamondPlaying(p => !p)}
-              className="flex items-center gap-1"
-              style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, padding: '4px 10px', borderRadius: 999, background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', fontSize: 11, color: '#6E6C69', cursor: 'pointer', fontWeight: 400 }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" /></svg>
-              {diamondPlaying ? 'Done' : 'Play'}
-            </button>
+          <div style={{ width: '100%', maxWidth: 220, height: 220, marginBottom: 32 }}>
+            <ModelViewer src="/models/diamond.glb" poster="/diamond-poster.jpg" pieceName="Diamond" />
           </div>
 
           {/* Serif time-of-day greeting */}
@@ -493,7 +449,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
               <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 15, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
               <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
@@ -545,9 +501,6 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
-  const [iframeOpacity, setIframeOpacity] = useState(0);
-  const [posterOpacity, setPosterOpacity] = useState(1);
-  const [ringPlaying, setRingPlaying] = useState(false);
   const [wishlist, setWishlist] = useState<Record<string, boolean>>(() => {
     if (typeof window !== "undefined") {
       try { return JSON.parse(localStorage.getItem("boutique_wishlist") || "{}"); } catch { return {}; }
@@ -662,57 +615,9 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           background: "radial-gradient(ellipse at center bottom, rgba(23,23,23,0.04) 0%, transparent 65%)",
           pointerEvents: "none",
         }} />
-        {/* Ring — Sketchfab embed, bare object on pearl, no backdrop */}
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: 24 }}>
-          {/* Ring container — 200px tall, 100% wide, scaled down, masked, shadowed */}
           <div style={{ position: 'relative', width: '100%', height: 200, flexShrink: 0, background: 'transparent' }}>
-            {/* Soft shadow ellipse beneath */}
-            <div style={{ position: 'absolute', bottom: -8, left: '20%', right: '20%', height: 14, background: 'radial-gradient(ellipse at center, rgba(23,23,23,0.18) 0%, transparent 75%)', filter: 'blur(12px)', pointerEvents: 'none', zIndex: 0 }} />
-            {/* Masked + blended iframe wrapper (behind poster) */}
-            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: 'transparent', mixBlendMode: 'multiply', maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)', WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)' }}>
-              <iframe
-                title="Black Diamond Ring"
-                src="https://sketchfab.com/models/5aa8c861617a431395e44a182d6cfa6b/embed?autostart=1&autospin=1&ui_theme=light&transparent=1&ui_infos=0&ui_controls=0&ui_hint=0&ui_settings=0&ui_vr=0&ui_fullscreen=0"
-                style={{
-                  width: '100%', height: '100%',
-                  border: 'none',
-                  position: 'absolute', inset: 0,
-                  transform: 'scale(0.9)',
-                  opacity: iframeOpacity, transition: 'opacity 0.6s ease-in-out',
-                  filter: 'brightness(1.18) contrast(1.12) saturate(1.06)',
-                }}
-                allow="autoplay; fullscreen"
-                loading="eager"
-                onLoad={() => { setIframeOpacity(1); setPosterOpacity(0); }}
-              />
-            </div>
-            {/* Poster image — fades out on iframe load */}
-            <img
-              src="/ring-poster.jpg"
-              alt=""
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              style={{
-                position: 'absolute', inset: 0, width: '100%', height: '100%',
-                objectFit: 'contain', zIndex: 1,
-                opacity: posterOpacity, transition: 'opacity 0.6s ease-in-out',
-                pointerEvents: 'none',
-                background: 'transparent',
-                mixBlendMode: 'multiply',
-                maskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
-                WebkitMaskImage: 'radial-gradient(closest-side, black 52%, transparent 96%)',
-              }}
-            />
-            {/* Gesture overlay — captures swipes so they switch panels (removed in play mode) */}
-            {!ringPlaying && <div style={{ position: 'absolute', inset: 0, zIndex: 2 }} />}
-            {/* Play / Done chip */}
-            <button
-              onClick={() => setRingPlaying(p => !p)}
-              className="flex items-center gap-1"
-              style={{ position: 'absolute', bottom: 8, right: 8, zIndex: 3, padding: '4px 10px', borderRadius: 999, background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', fontSize: 11, color: '#6E6C69', cursor: 'pointer', fontWeight: 400 }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2" /></svg>
-              {ringPlaying ? 'Done' : 'Play'}
-            </button>
+            <ModelViewer src="/models/house-ring.glb" poster="/ring-poster.jpg" pieceName="The House Ring" />
           </div>
 
           {/* ALL text below the stage — never overlapping the stone */}
@@ -853,10 +758,6 @@ function BoutiquePanel({ highlightStone }: { highlightStone: string | null }) {
           </div>
         </div>
 
-        {/* Sketchfab licence credit */}
-        <div className="text-center pb-4" style={{ fontSize: 9, color: '#9A9A9F', letterSpacing: '0.04em' }}>
-          3D: &lsquo;Diamond&rsquo; by PatelDev &middot; &lsquo;Black Diamond Ring&rsquo; by Busanello on Sketchfab
-        </div>
       </div>
 
       {/* Gallery */}
@@ -1063,7 +964,7 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
   );
 }
 
-/* ═══════════════════════════════════════════
+/* ════════��══════════════════════════════════
    VIDEOS PANEL
    ═══════════════════════════════════════════ */
 

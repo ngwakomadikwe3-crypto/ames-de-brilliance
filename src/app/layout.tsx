@@ -19,10 +19,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <head>
-        <link rel="preconnect" href="https://sketchfab.com" />
-        <link rel="dns-prefetch" href="https://sketchfab.com" />
-      </head>
       <body className={`${inter.variable} ${cormorant.variable} min-h-full flex flex-col bg-background text-white font-sans`}>
         <Header />
         <main className="flex-1">{children}</main>

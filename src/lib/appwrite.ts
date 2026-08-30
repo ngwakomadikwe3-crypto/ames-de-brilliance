@@ -8,9 +8,9 @@ import {
 } from "node-appwrite";
 
 /* ── Environment ── */
-const ENDPOINT = process.env.APPWRITE_ENDPOINT!;
-const PROJECT_ID = process.env.APPWRITE_PROJECT_ID!;
-const API_KEY = process.env.APPWRITE_API_KEY!;
+const ENDPOINT = process.env.APPWRITE_ENDPOINT?.trim() || "";
+const PROJECT_ID = process.env.APPWRITE_PROJECT_ID?.trim() || "";
+const API_KEY = process.env.APPWRITE_API_KEY?.trim() || "";
 
 export const DB_ID = "ames";
 export const MEDIA_BUCKET = "media";
@@ -24,27 +24,49 @@ let _storage: Storage | null = null;
 
 export function getClient(): Client {
   if (_client) return _client;
-  _client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
-  return _client;
+  if (!ENDPOINT || !PROJECT_ID || !API_KEY) return null as unknown as Client;
+  try {
+    _client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
+    return _client;
+  } catch (err) {
+    console.error("[appwrite] client initialization failed:", err);
+    return null as unknown as Client;
+  }
 }
 
 export function getDb(): Databases {
   if (_databases) return _databases;
-  _databases = new Databases(getClient());
-  return _databases;
+  const client = getClient();
+  if (!client) return null as unknown as Databases;
+  try {
+    _databases = new Databases(client);
+    return _databases;
+  } catch (err) {
+    console.error("[appwrite] database initialization failed:", err);
+    return null as unknown as Databases;
+  }
 }
 
 export function getStorage(): Storage {
   if (_storage) return _storage;
-  _storage = new Storage(getClient());
-  return _storage;
+  const client = getClient();
+  if (!client) return null as unknown as Storage;
+  try {
+    _storage = new Storage(client);
+    return _storage;
+  } catch (err) {
+    console.error("[appwrite] storage initialization failed:", err);
+    return null as unknown as Storage;
+  }
 }
 
 export function getMediaUrl(fileId: string): string {
+  if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
   return `${ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
 export function getLicenceUrl(fileId: string): string {
+  if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
   return `${ENDPOINT}/storage/buckets/${LICENCE_DOCS_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
@@ -77,6 +99,7 @@ export async function ensureReady(): Promise<void> {
   try {
     const db = getDb();
     const sto = getStorage();
+    if (!db || !sto) return;
 
     // 1. Create database
     try { await db.create({ databaseId: DB_ID, name: "AMES" }); } catch { /* exists */ }
