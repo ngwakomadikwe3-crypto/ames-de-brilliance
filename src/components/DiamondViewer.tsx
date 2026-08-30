@@ -103,8 +103,20 @@ export default function DiamondViewer() {
       animate(performance.now());
       cleanup = () => { cancelAnimationFrame(raf); window.clearTimeout(flareTimer); sizeObserver.disconnect(); visibilityObserver.disconnect(); window.removeEventListener("ames-reply", onReply); renderer.domElement.removeEventListener("pointerdown", down); renderer.domElement.removeEventListener("pointermove", move); renderer.domElement.removeEventListener("pointerup", up); scene.traverse((object) => { if (object instanceof THREE.Mesh) { object.geometry.dispose(); const current = object.material; if (Array.isArray(current)) current.forEach((item) => item.dispose()); else current.dispose(); } }); sparkleGeometry.dispose(); sparkleMaterial.dispose(); environment.texture.dispose(); pmrem.dispose(); renderer.dispose(); host.replaceChildren(); };
     };
-    void start();
-    return () => { disposed = true; cleanup(); };
+    let idle: number | ReturnType<typeof globalThis.setTimeout>;
+    let cancelIdle = () => {};
+    if ("requestIdleCallback" in window) {
+      idle = window.requestIdleCallback(() => { void start(); }, { timeout: 1200 });
+      cancelIdle = () => window.cancelIdleCallback(idle as number);
+    } else {
+      idle = globalThis.setTimeout(() => { void start(); }, 180);
+      cancelIdle = () => globalThis.clearTimeout(idle as ReturnType<typeof globalThis.setTimeout>);
+    }
+    return () => {
+      disposed = true;
+      cancelIdle();
+      cleanup();
+    };
   }, []);
 
   const dust = [3, 11, 18, 27, 36, 44, 53, 61, 69, 76, 83, 89, 94, 98];
