@@ -122,6 +122,7 @@ export default function DiamondViewer() {
       const visibilityObserver = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; }, { threshold: 0 });
       visibilityObserver.observe(host);
       let dragging = false;
+      let lastTap = 0;
       let lastX = 0;
       let lastY = 0;
       let downX = 0;
@@ -134,6 +135,11 @@ export default function DiamondViewer() {
       };
       const move = (event: PointerEvent) => {
         if (!dragging) return;
+        const showcase = host.parentElement?.classList.contains("diamond-showcase");
+        if (showcase && !reduced) {
+          group.rotation.z = THREE.MathUtils.clamp((event.clientX - host.getBoundingClientRect().left - host.clientWidth / 2) / host.clientWidth * 0.14, -0.07, 0.07);
+          group.rotation.x = THREE.MathUtils.clamp((event.clientY - host.getBoundingClientRect().top - host.clientHeight / 2) / host.clientHeight * 0.14, -0.07, 0.07);
+        }
         group.rotation.y += (event.clientX - lastX) * 0.01;
         group.rotation.x = THREE.MathUtils.clamp(group.rotation.x + (event.clientY - lastY) * 0.01, -0.6, 0.6);
         lastX = event.clientX;
@@ -142,7 +148,12 @@ export default function DiamondViewer() {
       const up = (event: PointerEvent) => {
         if (!dragging) return;
         dragging = false;
-        if (Math.hypot(event.clientX - downX, event.clientY - downY) < 6) pulse();
+        if (Math.hypot(event.clientX - downX, event.clientY - downY) < 6) {
+          const now = performance.now();
+          if (!reduced && now - lastTap < 320) host.parentElement?.classList.toggle("diamond-showcase");
+          lastTap = now;
+          pulse();
+        }
         if (host.hasPointerCapture(event.pointerId)) host.releasePointerCapture(event.pointerId);
       };
       renderer.domElement.addEventListener("pointerdown", down);
@@ -180,8 +191,11 @@ export default function DiamondViewer() {
   const dust = [3, 11, 18, 27, 36, 44, 53, 61, 69, 76, 83, 89, 94, 98];
   return (
     <div className="diamond-stage" aria-label="Interactive diamond stage">
+      <div className="diamond-backdrop" aria-hidden="true" />
+      <div className="diamond-spotlight" aria-hidden="true" />
       <div className="diamond-rays" aria-hidden="true" />
       <div className="diamond-pool" aria-hidden="true" />
+      <div className="diamond-pedestal" aria-hidden="true"><div className="pedestal-top" /><div className="pedestal-ring" /><div className="pedestal-base" /><div className="pedestal-shadow" /></div>
       {dust.map((left, index) => <i key={left} className="diamond-dust" style={{ left: `${left}%`, animationDelay: `${index * -0.37}s`, animationDuration: `${2 + (index % 4)}s` }} aria-hidden="true" />)}
       <div ref={hostRef} aria-label="Interactive diamond" className="diamond-canvas" />
     </div>
