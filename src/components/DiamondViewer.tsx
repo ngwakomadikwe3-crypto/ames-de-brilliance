@@ -44,6 +44,23 @@ export default function DiamondViewer() {
       group.add(fallback);
       const materials: MeshPhysicalMaterial[] = [fallbackMaterial];
       let modelRoot: Object3D | null = null;
+      const frameModel = (root: Object3D) => {
+        root.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(root);
+        const size = bounds.getSize(new THREE.Vector3());
+        const centre = bounds.getCenter(new THREE.Vector3());
+        const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+        const targetHeight = 1.05;
+        const scale = size.y > 0 ? targetHeight / size.y : 1;
+        root.scale.setScalar(scale);
+        root.position.x = -centre.x * scale;
+        root.position.y = -centre.y * scale + 0.35;
+        root.position.z = -centre.z * scale;
+        const radius = Math.max(sphere.radius * scale, 0.8);
+        camera.position.set(0, 0.08, radius * 2.2);
+        camera.lookAt(0, 0.08, 0);
+        camera.updateProjectionMatrix();
+      };
 
       try {
         let gltf;
@@ -62,8 +79,8 @@ export default function DiamondViewer() {
             if (!(object instanceof THREE.Mesh)) return;
             const source = object.material as MeshStandardMaterial;
             const material = new THREE.MeshPhysicalMaterial({
-              color: source.color?.getHex() ?? 0xffffff,
-              map: source.map ?? null,
+              color: 0xffffff,
+              map: null,
               transmission: 1,
               ior: 2.42,
               roughness: 0,
@@ -78,8 +95,11 @@ export default function DiamondViewer() {
             materials.push(material);
           });
           group.add(modelRoot);
+          frameModel(modelRoot);
         }
-      } catch {}
+      } catch (error) {
+        console.warn("[diamond] GLB parse failed; using procedural fallback", error);
+      }
 
       const sparkleGeometry = new THREE.BufferGeometry();
       const points = new Float32Array(180);
@@ -95,7 +115,15 @@ export default function DiamondViewer() {
       const sparkles = new THREE.Points(sparkleGeometry, sparkleMaterial);
       group.add(sparkles);
 
-      const resize = () => { const width = host.clientWidth || 1; const height = host.clientHeight || width; camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height, false); };
+      const resize = () => {
+        const width = host.clientWidth || 1;
+        const height = host.clientHeight || width;
+        camera.aspect = width / height;
+        renderer.setSize(width, height, false);
+        if (modelRoot) frameModel(modelRoot);
+        else { camera.position.set(0, 0.08, 2.6); camera.lookAt(0, 0.08, 0); }
+        camera.updateProjectionMatrix();
+      };
       resize();
       const sizeObserver = new ResizeObserver(resize);
       sizeObserver.observe(host);
