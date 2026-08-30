@@ -551,6 +551,28 @@ function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: 
   </>;
 }
 
+function BoutiqueShowcase({ onAskPiece }: { onAskPiece: (piece: string) => void }) {
+  const pieces = products.filter((product) => product.kind === "hintspo");
+  const [active, setActive] = useState(0);
+  const [preMounted, setPreMounted] = useState<number[]>([0]);
+  const touchStart = useRef<number | null>(null);
+  const activePiece = pieces[active];
+  useEffect(() => {
+    const idle = "requestIdleCallback" in window ? window.requestIdleCallback(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])])) : setTimeout(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])]), 160);
+    return () => { if ("cancelIdleCallback" in window && typeof idle === "number") window.cancelIdleCallback(idle); else window.clearTimeout(idle as number); };
+  }, [pieces.length]);
+  if (!activePiece) return null;
+  const change = (direction: number) => setActive((current) => (current + direction + pieces.length) % pieces.length);
+  return <section className="boutique-showcase" aria-label="AMES boutique showcase">
+    <div className="showcase-frame" onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) change(distance < 0 ? 1 : -1); touchStart.current = null; }}>
+      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
+      {pieces.length > 1 && <><button className="showcase-arrow left" onClick={() => change(-1)} aria-label="Previous piece">‹</button><button className="showcase-arrow right" onClick={() => change(1)} aria-label="Next piece">›</button></>}
+    </div>
+    <div className="showcase-caption"><div><p>{activePiece.tagline}</p><h2>{activePiece.name}</h2></div><div className="showcase-actions"><button onClick={() => onAskPiece(activePiece.name)}>Enquire via SAME</button><button onClick={() => onAskPiece(activePiece.name)}>Try On</button></div></div>
+    <div className="showcase-dots" role="tablist" aria-label="Showcase pieces">{pieces.map((piece, index) => <button key={piece.id} role="tab" aria-selected={index === active} aria-label={`View ${piece.name}`} className={index === active ? "active" : ""} onClick={() => setActive(index)} />)}</div>
+  </section>;
+}
+
 function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string | null; onAskPiece: (piece: string) => void }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -707,6 +729,8 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
           )}
         </div>
 
+        <BoutiqueShowcase onAskPiece={onAskPiece} />
+
         {/* ═══ FEATURED CATEGORIES ═══ */}
         <div className="px-5 pt-6 pb-2">
           <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 16 }}>
@@ -751,10 +775,6 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
             })}
           </div>
         </div>
-
-        <section className="boutique-vitrine-grid" aria-label="AMES boutique viewing rooms">
-          {products.map((product) => <BoutiqueVitrine key={product.id} product={product} onAsk={onAskPiece} />)}
-        </section>
 
         {/* ═���═ SECTION TITLE ═══ */}
         <div className="px-5 pt-4 pb-2">
@@ -1024,7 +1044,7 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
 
 /* ════════��══════════════════════════════════
    VIDEOS PANEL
-   ═══════════════════════════════════════════ */
+   ═══════��═══════════════════════════════════ */
 
 function VideosPanel({ onSeePiece, onAskAmes, onOpenBoutiqueDetail }: {
   onSeePiece: (id: string) => void;
