@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import IntroSplash from "@/components/IntroSplash";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
+import { products, type Product } from "@/data/products";
 /* Native scroll-snap — no framer-motion needed */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
@@ -516,20 +517,22 @@ const DEMO_STONE: StoreStone & { demo?: boolean } = {
   demo: true,
 };
 
-function BoutiqueVitrine({ name, src, onAsk }: { name: string; src: string; onAsk: (piece: string) => void }) {
+function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: string) => void }) {
+  const { name, src, kind, tagline } = product;
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const arActivateRef = useRef<(() => void) | null>(null);
   useEffect(() => { const node = ref.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setMounted(true); observer.disconnect(); } }, { rootMargin: "160px" }); observer.observe(node); return () => observer.disconnect(); }, []);
   return <>
     <article className="boutique-vitrine">
       <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
-        {mounted ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" /> : <div className="vitrine-placeholder"><span className="vitrine-loader" aria-hidden="true" /><strong>{name}</strong><small>Viewing room preparing</small></div>}
+        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} />) : <div className="vitrine-placeholder"><span className="vitrine-loader" aria-hidden="true" /><strong>{name}</strong><small>{tagline}</small></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
-      <div className="boutique-vitrine-footer"><h3>{name}</h3><button onClick={() => onAsk(name)}>Enquire via SAME</button></div>
+      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" && <button onClick={() => arActivateRef.current?.()}>Try On</button>}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
     </article>
-    {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && <iframe src={src} title={name} referrerPolicy="no-referrer" />}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
+    {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} />)}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
   </>;
 }
 
@@ -735,8 +738,7 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
         </div>
 
         <section className="boutique-vitrine-grid" aria-label="AMES boutique viewing rooms">
-          <BoutiqueVitrine name="Crystal Tear" src="https://hintspo.com/embed/510a50d8-5578-4821-95ab-f87fe3b770c3" onAsk={onAskPiece} />
-          <BoutiqueVitrine name="Sky Lady" src="https://hintspo.com/embed/4fc48834-9c38-47d6-9582-6e602396f27b" onAsk={onAskPiece} />
+          {products.map((product) => <BoutiqueVitrine key={product.id} product={product} onAsk={onAskPiece} />)}
         </section>
 
         {/* ═���═ SECTION TITLE ═══ */}
