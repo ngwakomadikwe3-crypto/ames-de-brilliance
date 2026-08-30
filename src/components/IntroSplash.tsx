@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const SESSION_KEY = "ames-intro-seen";
 const MAX_DURATION = 8000;
-const FALLBACK_DURATION = 1000;
+const FALLBACK_DURATION = 1200;
 
 export default function IntroSplash() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,7 +18,6 @@ export default function IntroSplash() {
     exitingRef.current = true;
     skipRef.current = skipped;
     setExiting(true);
-    try { sessionStorage.setItem(SESSION_KEY, "1"); } catch {}
     window.setTimeout(() => setVisible(false), 400);
   }, []);
 
@@ -30,14 +28,6 @@ export default function IntroSplash() {
   }, [finish]);
 
   useEffect(() => {
-    let seen = false;
-    try { seen = sessionStorage.getItem(SESSION_KEY) === "1"; } catch {}
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (seen || reduced) {
-      setVisible(false);
-      return;
-    }
-
     const timeout = window.setTimeout(finish, MAX_DURATION);
     return () => window.clearTimeout(timeout);
   }, [finish]);
@@ -51,6 +41,8 @@ export default function IntroSplash() {
   useEffect(() => {
     const video = videoRef.current;
     if (!video || fallback) return;
+    video.muted = true;
+    resumeVideo();
     const onTimeUpdate = () => {
       if (Number.isFinite(video.duration) && video.currentTime >= Math.max(0, video.duration - 1.2)) {
         setShowLetters(true);
@@ -66,7 +58,7 @@ export default function IntroSplash() {
     <div
       role="presentation"
       onClick={() => finish(true)}
-      className={`fixed inset-0 z-[200] overflow-hidden bg-black transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}
+      className={`fixed inset-0 z-[9999] overflow-hidden bg-black transition-opacity duration-400 ${exiting ? "opacity-0" : "opacity-100"}`}
     >
       {!fallback && (
         <video
@@ -75,9 +67,15 @@ export default function IntroSplash() {
           muted
           playsInline
           preload="auto"
-          src="/intro/intro.mp4"
-          onLoadedData={resumeVideo}
-          onCanPlay={resumeVideo}
+          src="/intro.mp4"
+          onLoadedData={(event) => {
+            event.currentTarget.muted = true;
+            resumeVideo();
+          }}
+          onCanPlay={(event) => {
+            event.currentTarget.muted = true;
+            resumeVideo();
+          }}
           onPause={() => { if (!skipRef.current && !exitingRef.current) resumeVideo(); }}
           onEnded={() => finish(false)}
           onError={handleError}
