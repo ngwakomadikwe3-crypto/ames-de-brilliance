@@ -12,13 +12,16 @@ export default function IntroSplash() {
   const [showLetters, setShowLetters] = useState(false);
   const [fallback, setFallback] = useState(false);
   const [exiting, setExiting] = useState(false);
-
-  const finish = useCallback(() => {
-    if (exiting) return;
+  const exitingRef = useRef(false);
+  const skipRef = useRef(false);
+  const finish = useCallback((skipped = false) => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+    skipRef.current = skipped;
     setExiting(true);
     try { sessionStorage.setItem(SESSION_KEY, "1"); } catch {}
-    window.setTimeout(() => setVisible(false), 500);
-  }, [exiting]);
+    window.setTimeout(() => setVisible(false), 400);
+  }, []);
 
   const handleError = useCallback(() => {
     setFallback(true);
@@ -39,6 +42,12 @@ export default function IntroSplash() {
     return () => window.clearTimeout(timeout);
   }, [finish]);
 
+  const resumeVideo = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || fallback || exitingRef.current) return;
+    void video.play().catch(() => {});
+  }, [fallback]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video || fallback) return;
@@ -56,7 +65,7 @@ export default function IntroSplash() {
   return (
     <div
       role="presentation"
-      onClick={finish}
+      onClick={() => finish(true)}
       className={`fixed inset-0 z-[200] overflow-hidden bg-black transition-opacity duration-500 ${exiting ? "opacity-0" : "opacity-100"}`}
     >
       {!fallback && (
@@ -67,9 +76,13 @@ export default function IntroSplash() {
           playsInline
           preload="auto"
           src="/intro/intro.mp4"
-          onEnded={finish}
+          onLoadedData={resumeVideo}
+          onCanPlay={resumeVideo}
+          onPause={() => { if (!skipRef.current && !exitingRef.current) resumeVideo(); }}
+          onEnded={() => finish(false)}
           onError={handleError}
-          className="absolute inset-0 h-full w-full object-cover"
+          disablePictureInPicture
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
           aria-hidden="true"
         />
       )}
