@@ -35,7 +35,7 @@ export default async function Home() {
         {/* Vitrine card centered */}
         <div className="relative w-full max-w-[420px] mb-8" style={{ background: '#1A1A1A', borderRadius: 16, border: '1px solid #A6A6AB', overflow: 'hidden' }}>
           <div style={{ height: 280, position: 'relative', overflow: 'hidden' }}>
-            {/* Radial gold glow */}
+            {/* Radial pearl glow */}
             <div className="hero-glow" />
             {/* Diamond glyph 140px centred */}
             <svg viewBox="0 0 24 24" fill="none" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 140, height: 140 }} aria-hidden="true">
