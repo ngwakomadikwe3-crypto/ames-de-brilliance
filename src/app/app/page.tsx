@@ -4,7 +4,7 @@ import { createElement, useState, useEffect, useCallback, useRef } from "react";
 import IntroSplash from "@/components/IntroSplash";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
-import JewelryViewer from "@/components/jewelry/JewelryViewer";
+import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
 import { products, type Product } from "@/data/products";
 /* Native scroll-snap — no framer-motion needed */
 
@@ -232,7 +232,7 @@ export default function AppPage() {
 
 function SettingToggle({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) { return <div className="house-setting-line"><span>{label}</span><button className={`house-toggle ${value ? "on" : ""}`} aria-pressed={value} onClick={onChange}><span /></button></div>; }
 
-/* ════════════════════════════════════════���══
+/* ════════════════════════════���═══════════���══
    CHAT PANEL
    ═══════════════════════════════════════════ */
 
@@ -568,14 +568,20 @@ function BoutiqueShowcase({ onAskPiece }: { onAskPiece: (piece: string) => void 
     observer.observe(node); return () => observer.disconnect();
   }, [jewelshopReady]);
   useEffect(() => {
-    const idle = "requestIdleCallback" in window ? window.requestIdleCallback(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])])) : setTimeout(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])]), 160);
+    const next = (active + 1) % pieces.length;
+    const idle = "requestIdleCallback" in window ? window.requestIdleCallback(() => { const product = pieces[next]; if (product.kind === "glb" && product.modelUrl) preloadJewelryModel(product.modelUrl); setPreMounted([active, next]); }) : setTimeout(() => setPreMounted([active, next]), 160);
     return () => { if ("cancelIdleCallback" in window && typeof idle === "number") window.cancelIdleCallback(idle); else window.clearTimeout(idle as number); };
+  }, [active, pieces]);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setInterval(() => setActive((current) => (current + 1) % pieces.length), 60000);
+    return () => window.clearInterval(timer);
   }, [pieces.length]);
   if (!activePiece) return null;
   const change = (direction: number) => setActive((current) => (current + direction + pieces.length) % pieces.length);
   return <section ref={showcaseRef} className="boutique-showcase" aria-label="AMES boutique showcase">
     <div className="showcase-frame" onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) change(distance < 0 ? 1 : -1); touchStart.current = null; }}>
-      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) ? (piece.kind === "hintspo" ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : piece.kind === "glb" ? <JewelryViewer modelUrl={piece.modelUrl || piece.src || ""} /> : createElement("jewelry-viewer", { gem: piece.gem, metal: piece.metal, ring: piece.ring, "aria-label": piece.name })) : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
+      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) && (piece.kind !== "glb" || index === active) ? (piece.kind === "hintspo" ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : piece.kind === "glb" ? <JewelryViewer modelUrl={piece.modelUrl || piece.src || ""} /> : createElement("jewelry-viewer", { gem: piece.gem, metal: piece.metal, ring: piece.ring, "aria-label": piece.name })) : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
       {pieces.length > 1 && <><button className="showcase-arrow left" onClick={() => change(-1)} aria-label="Previous piece">‹</button><button className="showcase-arrow right" onClick={() => change(1)} aria-label="Next piece">›</button></>}
     </div>
     <div className="showcase-caption"><div><p>{activePiece.tagline}</p><h2>{activePiece.name}</h2></div><div className="showcase-actions"><button onClick={() => onAskPiece(activePiece.name)}>Enquire via SAME</button>{activePiece.kind !== "jewelshop" && <button onClick={() => onAskPiece(activePiece.name)}>Try On</button>}</div></div>

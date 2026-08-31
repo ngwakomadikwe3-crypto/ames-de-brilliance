@@ -1,6 +1,8 @@
 export type JewelryViewerProps = {
   modelUrl: string;
   poster?: string;
+  image?: string;
+  caption?: string;
   className?: string;
   autoRotate?: boolean;
 };
