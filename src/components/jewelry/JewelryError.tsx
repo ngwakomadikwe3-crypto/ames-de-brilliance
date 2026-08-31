@@ -1,0 +1,1 @@
+export default function JewelryError({ image, caption = "Private viewing — not for sale" }: { image?: string; caption?: string }) { return <figure className="jewelry-viewer-fallback"><>{image && <img src={image} alt={caption} />}</><figcaption><strong>3D preview unavailable</strong><span>{caption}</span></figcaption></figure>; }

@@ -16,6 +16,18 @@ export const DB_ID = "ames";
 export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
+export const JEWELRY_3D_BUCKET = "jewelry-3d";
+
+/** Resolve a product model reference without exposing Appwrite credentials to the client. */
+export function getJewelryModelUrl(source: string): string {
+  if (!source) return "";
+  if (source.startsWith("appwrite:")) {
+    const fileId = source.slice("appwrite:".length);
+    if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
+    return `${ENDPOINT}/storage/buckets/${JEWELRY_3D_BUCKET}/files/${encodeURIComponent(fileId)}/view?project=${encodeURIComponent(PROJECT_ID)}`;
+  }
+  return source.startsWith("/") ? source : `/${source}`;
+}
 
 /* ── Singletons ── */
 let _client: Client | null = null;

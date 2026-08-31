@@ -1,0 +1,1 @@
+export default function JewelryLoading() { return <div className="jewelry-viewer-loading" role="status" aria-label="Preparing your AMES piece"><span>Preparing your AMES piece…</span><i aria-hidden="true" /></div>; }
