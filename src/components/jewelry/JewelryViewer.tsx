@@ -30,7 +30,6 @@ function Model({ modelUrl, autoRotate, onVariants, onReady }: { modelUrl: string
   const group = useRef<THREE.Group>(null);
   const { camera } = useThree();
   const fitted = useMemo(() => {
-    if (activeModelUrl && activeModelUrl !== modelUrl) { const previous = useGLTF(activeModelUrl); disposeObject(previous.scene); useGLTF.clear(activeModelUrl); }
     activeModelUrl = modelUrl;
     const clone = scene.clone(true);
     const box = new THREE.Box3().setFromObject(clone);
