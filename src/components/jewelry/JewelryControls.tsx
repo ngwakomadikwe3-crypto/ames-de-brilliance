@@ -1,0 +1,3 @@
+"use client";
+import type { RefObject } from "react";
+export default function JewelryControls({ reset, auto, fullscreen, autoRotate }: { reset: () => void; auto: () => void; fullscreen: () => void; autoRotate: boolean }) { return <div className="jewelry-controls" role="group" aria-label="3D preview controls"><button type="button" onClick={auto} aria-pressed={autoRotate} aria-label="Toggle automatic rotation">◉ Auto</button><button type="button" onClick={reset} aria-label="Reset 3D view">↺ Reset</button><button type="button" onClick={fullscreen} aria-label="Enter fullscreen">⛶ Fullscreen</button></div>; }
