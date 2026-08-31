@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { createElement, useState, useEffect, useCallback, useRef } from "react";
 import IntroSplash from "@/components/IntroSplash";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
@@ -541,34 +541,43 @@ function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: 
   return <>
     <article className="boutique-vitrine">
       <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
-        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} />) : <div className="vitrine-placeholder"><strong>{name}</strong></div>}
+        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <ModelViewer src={src || ""} pieceName={name} onActivateAR={(activate) => { arActivateRef.current = activate; }} /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name })) : <div className="vitrine-placeholder"><strong>{name}</strong></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
-      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" ? <button onClick={() => arActivateRef.current?.()}>Try On</button> : <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button>}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
+      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "glb" ? <button onClick={() => arActivateRef.current?.()}>Try On</button> : kind === "hintspo" ? <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button> : null}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
     </article>
     {tryOnOpen && <div className="viewing-room-backdrop" onClick={() => setTryOnOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`try-on-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Try On" onClick={() => setTryOnOpen(false)}>×</button><div className="viewing-room-frame"><iframe src={`${src}?tryon=1`} title={`${name} Try On`} referrerPolicy="no-referrer" allow="camera camera *" /></div>{cameraUnavailable ? <div className="try-on-fallback"><p>AR try-on needs your camera — or ask SAME to arrange a private viewing.</p><button className="viewing-ask" onClick={() => { setTryOnOpen(false); onAsk(name); }}>Ask SAME <span>→</span></button></div> : <h2 id={`try-on-${name.replace(/\\s/g, "-")}`}>{name}</h2>}{showTryOnGuide && !cameraUnavailable && <div className="try-on-guide"><p>Point your camera at your hand and move slowly.</p><button className="viewing-ask" onClick={dismissTryOnGuide}>Begin</button></div>}</section></div>}
-      {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : <ModelViewer src={src} pieceName={name} />)}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
+      {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <ModelViewer src={src || ""} pieceName={name} /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name }))}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
   </>;
 }
 
 function BoutiqueShowcase({ onAskPiece }: { onAskPiece: (piece: string) => void }) {
-  const pieces = products.filter((product) => product.kind === "hintspo");
+  const pieces = products;
+  const showcaseRef = useRef<HTMLElement>(null);
+  const [jewelshopReady, setJewelshopReady] = useState(false);
   const [active, setActive] = useState(0);
   const [preMounted, setPreMounted] = useState<number[]>([0]);
   const touchStart = useRef<number | null>(null);
   const activePiece = pieces[active];
+  useEffect(() => {
+    const node = showcaseRef.current;
+    if (!node || jewelshopReady) return;
+    const load = () => { if (document.querySelector('script[src="https://jewelshop.ai/embed/jewelry-viewer.js"]')) { setJewelshopReady(true); return; } const script = document.createElement("script"); script.src = "https://jewelshop.ai/embed/jewelry-viewer.js"; script.type = "module"; script.onload = () => setJewelshopReady(true); document.head.appendChild(script); observer.disconnect(); };
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) load(); }, { rootMargin: "200px" });
+    observer.observe(node); return () => observer.disconnect();
+  }, [jewelshopReady]);
   useEffect(() => {
     const idle = "requestIdleCallback" in window ? window.requestIdleCallback(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])])) : setTimeout(() => setPreMounted((current) => [...new Set([...current, ...pieces.map((_, index) => index)])]), 160);
     return () => { if ("cancelIdleCallback" in window && typeof idle === "number") window.cancelIdleCallback(idle); else window.clearTimeout(idle as number); };
   }, [pieces.length]);
   if (!activePiece) return null;
   const change = (direction: number) => setActive((current) => (current + direction + pieces.length) % pieces.length);
-  return <section className="boutique-showcase" aria-label="AMES boutique showcase">
+  return <section ref={showcaseRef} className="boutique-showcase" aria-label="AMES boutique showcase">
     <div className="showcase-frame" onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) change(distance < 0 ? 1 : -1); touchStart.current = null; }}>
-      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
+      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) ? (piece.kind === "hintspo" ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : piece.kind === "glb" ? <ModelViewer src={piece.src || ""} pieceName={piece.name} /> : createElement("jewelry-viewer", { gem: piece.gem, metal: piece.metal, ring: piece.ring, "aria-label": piece.name })) : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
       {pieces.length > 1 && <><button className="showcase-arrow left" onClick={() => change(-1)} aria-label="Previous piece">‹</button><button className="showcase-arrow right" onClick={() => change(1)} aria-label="Next piece">›</button></>}
     </div>
-    <div className="showcase-caption"><div><p>{activePiece.tagline}</p><h2>{activePiece.name}</h2></div><div className="showcase-actions"><button onClick={() => onAskPiece(activePiece.name)}>Enquire via SAME</button><button onClick={() => onAskPiece(activePiece.name)}>Try On</button></div></div>
+    <div className="showcase-caption"><div><p>{activePiece.tagline}</p><h2>{activePiece.name}</h2></div><div className="showcase-actions"><button onClick={() => onAskPiece(activePiece.name)}>Enquire via SAME</button>{activePiece.kind !== "jewelshop" && <button onClick={() => onAskPiece(activePiece.name)}>Try On</button>}</div></div>
     <div className="showcase-dots" role="tablist" aria-label="Showcase pieces">{pieces.map((piece, index) => <button key={piece.id} role="tab" aria-selected={index === active} aria-label={`View ${piece.name}`} className={index === active ? "active" : ""} onClick={() => setActive(index)} />)}</div>
   </section>;
 }
