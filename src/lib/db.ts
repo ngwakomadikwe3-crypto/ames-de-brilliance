@@ -295,7 +295,13 @@ async function enrichStones(stones: any[]): Promise<any[]> {
 }
 
 export async function getAllStones() { await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("$createdAt")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
-export async function getAvailableStones() { await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("status", "Available"), Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
+export async function getAvailableStones() {
+  await ensureReady();
+  // The live legacy table only provisions ref, stone_type and shape. Query
+  // Appwrite's built-in timestamp, then apply optional legacy fields locally.
+  const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("$createdAt")] });
+  return enrichStones(res.documents.map(d => doc<any>(d)).filter((stone: any) => !stone.status || stone.status === "Available"));
+}
 
 export async function getStoneById(id: string) {
   await ensureReady();
@@ -348,7 +354,7 @@ export async function getStoneStatusLog(stoneId: string): Promise<DbStoneStatusL
 }
 
 export async function getTraderStones(traderId: string) {
-  await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId), Query.orderDesc("created_at")] });
+  await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("trader_id", traderId), Query.orderDesc("$createdAt")] });
   return enrichStones(res.documents.map(d => doc<any>(d)));
 }
 
@@ -367,8 +373,8 @@ export function ensureUploadsDir(): string { return ""; }
 /* ── Store Queries ── */
 
 export async function getStoreStones() {
-  await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("status", "Available"), Query.orderDesc("created_at")] });
-  return enrichStones(res.documents.map(d => doc<any>(d)).filter((s: any) => s.listing_category === "Polished" || s.listing_category === "Jewelry"));
+  await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("$createdAt")] });
+  return enrichStones(res.documents.map(d => doc<any>(d)).filter((s: any) => (!s.status || s.status === "Available") && (!s.listing_category || s.listing_category === "Polished" || s.listing_category === "Jewelry")));
 }
 
 /* ── Order Queries ── */
