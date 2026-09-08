@@ -1,4 +1,11 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
 export default function Footer() {
+  const pathname = usePathname();
+  if (pathname === "/" || pathname === "/app") return null;
+
   return (
     <footer className="border-t border-[rgba(23,23,23,0.08)] px-4 md:px-6 py-4 text-[10px] text-[#6E6C69] leading-relaxed shrink-0 bg-[#EAE8E4]">
       <div className="max-w-5xl mx-auto space-y-2">

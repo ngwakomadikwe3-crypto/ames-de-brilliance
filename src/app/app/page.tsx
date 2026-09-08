@@ -143,11 +143,16 @@ function AppPageContent() {
     swipeTo(1);
   }
 
-  const NAV_ITEMS = [
-    { label: "Account", href: "/account" },
-    { label: "Settings", action: () => setHouseSettingsOpen(true) },
-    { label: "Billing", href: "/app/billing" },
-  ];
+  const NAV_ITEMS = activePanel === 0
+    ? [
+        { label: "Collections", action: () => swipeTo(0) },
+        { label: "Pricing", action: () => { setChatPrefill("Tell me about pricing"); swipeTo(1); } },
+        { label: "Compliance", href: "/compliance" },
+      ]
+    : [
+        { label: "Account", href: "/account" },
+        { label: "Favorites", href: "/account?tab=favorites" },
+      ];
 
   return (
     <>
@@ -221,7 +226,7 @@ function AppPageContent() {
               height: 6,
               background: activePanel === i ? '#A6A6AB' : '#38342D',
             }}
-            aria-label={['Boutique', 'Chat', 'Videos'][i]}
+            aria-label={['Boutique', 'Chat', 'Video'][i]}
           />
         ))}
       </div>
@@ -229,13 +234,13 @@ function AppPageContent() {
       <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
         <div className="flex h-full" style={{ width: '300dvw' }}>
-          <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
+          <section data-panel="0" aria-label="Boutique" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <BoutiquePanel active={activePanel===0} highlightStone={highlightStone} onAskPiece={(piece) => { setChatPrefill(`Tell me about ${piece}`); swipeTo(1); }} integration={amesIntegration} />
           </section>
-          <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
+          <section data-panel="1" aria-label="Chat" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} integration={amesIntegration} />
           </section>
-          <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+          <section data-panel="2" aria-label="Video" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
             <VideosPanel isPanelActive={activePanel === 2} onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
           </section>
         </div>
@@ -512,10 +517,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
 
 const CATEGORY_MAP: { label: string; key: string }[] = [
   { label: "Rings", key: "Ring" },
+  { label: "Watches", key: "Watch" },
+  { label: "Bracelets", key: "Bracelet" },
   { label: "Necklaces", key: "Necklace" },
   { label: "Earrings", key: "Earring" },
-  { label: "Bracelets", key: "Bracelet" },
-  { label: "Watches", key: "Watch" },
 ];
 
 function parsePhotos(photoStr: string | null | undefined): (string | null)[] {

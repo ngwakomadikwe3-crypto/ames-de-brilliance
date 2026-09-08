@@ -9,7 +9,7 @@ const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"
 
 export const metadata: Metadata = {
   title: "AMES DE BRILLIANTE",
-  description: "Licensed Diamond Dealer, Republic of Botswana",
+  description: "AMES Boutique, Chat and Video — an interactive luxury experience.",
   icons: {
     icon: "/favicon.svg",
     apple: "/favicon.svg",

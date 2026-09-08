@@ -6,3 +6,6 @@ out/
 *.tsbuildinfo
 outputs/
 *.log
+
+.vercel
+.env*
