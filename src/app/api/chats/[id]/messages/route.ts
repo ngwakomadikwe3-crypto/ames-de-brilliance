@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureReady, getDb, doc, nowISO, DB_ID } from "@/lib/appwrite";
 import { ID, Query } from "node-appwrite";
+import {chatAccess} from '@/lib/chat-access';
 
 export async function GET(
   _req: NextRequest,
@@ -8,6 +9,7 @@ export async function GET(
 ) {
   await ensureReady();
   const { id } = await params;
+  const access=await chatAccess(_req,id);if(access.response)return access.response;
   const db = getDb();
   const res = await db.listDocuments({
     databaseId: DB_ID,
@@ -18,7 +20,7 @@ export async function GET(
       Query.limit(500),
     ],
   });
-  return NextResponse.json(res.documents.map(d => doc(d)));
+  return NextResponse.json(res.documents.map(d => doc(d)),{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(
@@ -27,7 +29,9 @@ export async function POST(
 ) {
   await ensureReady();
   const { id } = await params;
+  const access=await chatAccess(req,id);if(access.response)return access.response;
   const body = await req.json();
+  if(!['user','assistant'].includes(body.role)||typeof body.text!=='string'||!body.text.trim()||body.text.length>20000||body.thinking!==undefined&&(typeof body.thinking!=='string'||body.thinking.length>20000))return NextResponse.json({error:'Invalid message'},{status:400});
   const db = getDb();
   const now = nowISO();
 
@@ -35,6 +39,7 @@ export async function POST(
     databaseId: DB_ID,
     collectionId: "chat_messages",
     documentId: ID.unique(),
+    permissions:[],
     data: {
       chat_id: id,
       role: body.role,

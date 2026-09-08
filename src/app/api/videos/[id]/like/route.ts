@@ -8,6 +8,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     const { delta } = await _req.json();
     if (delta !== 1 && delta !== -1) return NextResponse.json({ error: "delta must be 1 or -1" }, { status: 400 });
     const v = await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id });
+    if(!v.published||v.status!=='Live')return NextResponse.json({error:'Video unavailable'},{status:404});
     const newCount = Math.max(0, (v.likes_count || 0) + delta);
     await getDbSvc().updateDocument({ databaseId: DB_ID, collectionId: "videos", documentId: id, data: { likes_count: newCount } });
     return NextResponse.json({ likes_count: newCount });

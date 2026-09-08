@@ -1,11 +1,14 @@
 "use client";
 
 import { createElement, useState, useEffect, useCallback, useRef } from "react";
-import IntroSplash from "@/components/IntroSplash";
+import SplashExperience from "@/components/SplashExperience";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
 import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
 import { products, type Product } from "@/data/products";
+import { createAmesEngine, createAmesIntegration, canonicalAssetManifest, type AmesIntegration } from "@ames/engine";
+import { AmesBoutiqueSurface, AmesStoneTraySurface } from "@/components/AmesEngineSurfaces";
+import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
 /* Native scroll-snap — no framer-motion needed */
 
 const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
@@ -43,7 +46,9 @@ interface Comment {
    MAIN PAGE
    ═══════════════════════════════════════════ */
 
-export default function AppPage() {
+export default function AppPage(){return <CustomerProvider><AppPageContent/></CustomerProvider>;}
+function AppPageContent() {
+  const customer=useCustomer();
   const [activePanel, setActivePanel] = useState(1);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
   const [chatPrefill, setChatPrefill] = useState("");
@@ -51,6 +56,14 @@ export default function AppPage() {
   const [houseSettingsOpen, setHouseSettingsOpen] = useState(false);
   const [housePrefs, setHousePrefs] = useState({ appearance: "Midnight", glow: "Rich", sound: true, haptics: true });
   const [chatLoaded, setChatLoaded] = useState(false);
+  const [amesIntegration, setAmesIntegration] = useState<AmesIntegration | null>(null);
+
+  useEffect(() => {
+    const engine = createAmesEngine({ backend: { render() {}, setSize() {}, dispose() {} } });
+    const integration = createAmesIntegration({ engine });
+    integration.init(); setAmesIntegration(integration);
+    return () => { void integration.dispose(); };
+  }, []);
 
   useEffect(() => {
     try {
@@ -60,7 +73,9 @@ export default function AppPage() {
   function updateHousePref(key: keyof typeof housePrefs, value: string | boolean) {
     setHousePrefs((current) => ({ ...current, [key]: value }));
     try { localStorage.setItem(`ames_${key}`, String(value).toLowerCase()); } catch {}
+    if(customer.user)void customerRequest('preferences','PUT',{[key]:value}).catch(()=>window.dispatchEvent(new CustomEvent('ames:diagnostic',{detail:{code:'PREFERENCE_SAVE_FAILED'}})));
   }
+  useEffect(()=>{const prefs=customer.state.profile?.preferences;if(prefs)setHousePrefs(current=>({...current,...prefs}));},[customer.state.profile]);
   const [ringLoaded, setRingLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -91,16 +106,25 @@ export default function AppPage() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
+    let measuredWidth = window.innerWidth;
     function onScroll() {
+      if (measuredWidth !== window.innerWidth) return;
       const idx = Math.round(container!.scrollLeft / window.innerWidth);
       if (idx !== activePanel && idx >= 0 && idx <= 2) setActivePanel(idx);
     }
     container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll);
+    function onResize() {
+      measuredWidth = window.innerWidth;
+      container!.scrollTo({ left: activePanel * measuredWidth, behavior: 'instant' });
+    }
+    window.addEventListener('resize', onResize);
+    return () => { container.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize); };
   }, [activePanel]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey ||
+        (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable="true"]'))) return;
       if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
       if (e.key === "ArrowLeft") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
     }
@@ -120,18 +144,21 @@ export default function AppPage() {
   }
 
   const NAV_ITEMS = [
+    { label: "Account", href: "/account" },
     { label: "Settings", action: () => setHouseSettingsOpen(true) },
     { label: "Billing", href: "/app/billing" },
   ];
 
   return (
     <>
-      <IntroSplash />
+      <SplashExperience onComplete={() => swipeTo(1)} />
       <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F4E9D5}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9A8F80;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F4E9D5}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9A8F80;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9A8F80}.house-privacy{margin:18px 0}.house-link{color:#F4E9D5;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F4E9D5;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
         :root`}</style>
       <style>{`
         :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #b7a99d; }
         footer { display: none !important; }
+        body > header { display: none !important; }
+        html, body { overflow: hidden; overscroll-behavior: none; }
       `}</style>
 
       {/* Minimal transparent top bar */}
@@ -199,17 +226,17 @@ export default function AppPage() {
         ))}
       </div>
 
-      <div ref={scrollRef} className="h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+      <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
         <div className="flex h-full" style={{ width: '300dvw' }}>
           <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <BoutiquePanel highlightStone={highlightStone} onAskPiece={(piece) => { setChatPrefill(`Tell me about ${piece}`); swipeTo(1); }} />
+            <BoutiquePanel active={activePanel===0} highlightStone={highlightStone} onAskPiece={(piece) => { setChatPrefill(`Tell me about ${piece}`); swipeTo(1); }} integration={amesIntegration} />
           </section>
           <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} />
+            <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} integration={amesIntegration} />
           </section>
           <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <VideosPanel onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
+            <VideosPanel isPanelActive={activePanel === 2} onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
           </section>
         </div>
       </div>
@@ -261,7 +288,10 @@ function groupChats(chats: ChatHistory[]): { label: string; items: ChatHistory[]
   return groups;
 }
 
-function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: string; onPrefillConsumed: () => void; onBrowseBoutique: () => void }) {
+function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }: { prefill: string; onPrefillConsumed: () => void; onBrowseBoutique: () => void; integration: AmesIntegration | null }) {
+  const [selectedStoneId, setSelectedStoneId] = useState("stone-001");
+  const customer=useCustomer(),restoredStone=useRef(false);
+  useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved)setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -281,8 +311,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
   useEffect(() => {
-    fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
-  }, []);
+    setChats([]);setMessages([]);setActiveChatId(null);
+    if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+  }, [customer.user?.id]);
 
   useEffect(() => {
     if (!prefill) return;
@@ -300,29 +331,36 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
     setChatLoading(false);
   }
 
-  async function ensureChat(): Promise<string> {
+  async function ensureChat(): Promise<string|null> {
+    if(!customer.user)return null;
     if (activeChatId) return activeChatId;
     const res = await fetch("/api/chats", { method: "POST" });
+    if(!res.ok)throw new Error('Chat history unavailable');
     const chat: ChatHistory = await res.json();
     setChats(p => [chat, ...p]);
     setActiveChatId(chat.id);
     return chat.id;
+  }
+  async function appendMessage(chatId:string|null,role:'user'|'assistant',text:string,thinking=''){
+    let message={id:crypto.randomUUID(),role,text,thinking,created_at:new Date().toISOString()} as ChatMessage;
+    if(chatId){const response=await fetch(`/api/chats/${chatId}/messages`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,text,thinking})});if(!response.ok)throw new Error('Chat history unavailable');message=await response.json();}
+    setMessages(p=>[...p,message]);
   }
 
   async function handleSend(text?: string) {
     const msg = (text || input).trim();
     if (!msg) return;
     setInput("");
-    const chatId = await ensureChat();
-    const userRes = await fetch(`/api/chats/${chatId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "user", text: msg }),
-    });
-    const userMsg: ChatMessage = await userRes.json();
-    setMessages(p => [...p, userMsg]);
+    // Explicit catalog-ID command only. No AI output, URL or tier assertion can grant access.
+    const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase();
+    if (requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) {
+      setSelectedStoneId(requested);
+      return;
+    }
     setTyping(true);
     try {
+      const chatId = await ensureChat();
+      await appendMessage(chatId,'user',msg);
       const history = messages.map(m => ({ role: m.role, text: m.text }));
       const chatRes = await fetch("/api/chat", {
         method: "POST",
@@ -332,25 +370,13 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       const chatData = await chatRes.json();
       const replyText = chatData.reply || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
       const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
-      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "assistant", text: replyText, thinking }),
-      });
-      const assistantMsg: ChatMessage = await assistantRes.json();
-      setMessages(p => [...p, assistantMsg]);
+      await appendMessage(chatId,'assistant',replyText,thinking);
     } catch {
       const fallback = "The desk is quiet right now — please try again shortly, or reach a human on WhatsApp: +267 72 839 152.";
-      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "assistant", text: fallback }),
-      });
-      const assistantMsg: ChatMessage = await assistantRes.json();
-      setMessages(p => [...p, assistantMsg]);
+      await appendMessage(null,'assistant',customer.user?'Chat history is unavailable. Please sign in again or try shortly.':fallback);
     } finally {
       setTyping(false);
-      fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+      if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
     }
   }
 
@@ -360,7 +386,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
       {chatStarted ? (
         /* === CHAT MODE === */
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 pt-10 text-center"><DiamondViewer /><div className="mt-1 text-[9px] tracking-[0.08em] text-[#9A8F80]">3D diamond model by PatelDev via Sketchfab (CC BY)</div></div>
+          <div className="shrink-0 pt-10 text-center"><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
           {/* Mini header */}
           <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-3" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)', background: 'rgba(234,232,228,0.9)', backdropFilter: 'blur(12px)' }}>
             <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }}>
@@ -436,9 +462,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique }: { prefill: 
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#efe9e2', color: '#241d18' }}>
 
-          <div style={{ width: '100%', maxWidth: 360, height: 270, marginBottom: 18 }}>
-            <DiamondViewer />
-          </div>
+          <div style={{ width: '100%', maxWidth: 360, minHeight: 270, marginBottom: 18 }}><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
 
           {/* Serif time-of-day greeting */}
           <h2 style={{ fontSize: 26, fontWeight: 500, color: '#F4E9D5', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
@@ -589,20 +613,19 @@ function BoutiqueShowcase({ onAskPiece }: { onAskPiece: (piece: string) => void 
   </section>;
 }
 
-function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string | null; onAskPiece: (piece: string) => void }) {
+function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { highlightStone: string | null; onAskPiece: (piece: string) => void; integration: AmesIntegration | null; active:boolean }) {
   const [stones, setStones] = useState<StoreStone[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("All");
-  const [wishlist, setWishlist] = useState<Record<string, boolean>>(() => {
-    if (typeof window !== "undefined") {
-      try { return JSON.parse(localStorage.getItem("boutique_wishlist") || "{}"); } catch { return {}; }
-    }
-    return {};
-  });
+  const customer=useCustomer();
+  const wishlist:Record<string,boolean>=Object.fromEntries(customer.state.favorites.map(a=>[a.assetId,true]));
+  const [wishlistError,setWishlistError]=useState<string|null>(null);
+  const wishlistPending=useRef(false);
   const [showReserveId, setShowReserveId] = useState<string | null>(null);
   const [galleryPhotos, setGalleryPhotos] = useState<(string | null)[]>([null, null, null]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [boutiqueMenuOpen, setBoutiqueMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pullDist, setPullDist] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -680,16 +703,17 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
     return { ...cat, photo: photos[0] };
   });
 
-  function toggleWishlist(id: string) {
-    setWishlist(prev => {
-      const next = { ...prev, [id]: !prev[id] };
-      try { localStorage.setItem("boutique_wishlist", JSON.stringify(next)); } catch {}
-      return next;
-    });
+  async function toggleWishlist(id: string) {
+    if(!customer.user){window.location.assign('/account');return;}
+    if(wishlistPending.current)return;wishlistPending.current=true;setWishlistError(null);
+    try{await customerRequest('favorites',wishlist[id]?'DELETE':'PUT',{assetId:id});await customer.reloadState();}
+    catch(e){setWishlistError(e instanceof Error?e.message:'Favorite could not be saved');}
+    finally{wishlistPending.current=false;}
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0" style={{ background: "#efe9e2", color: "#241d18" }}>
+    <div className="flex-1 flex flex-col min-h-0 ames-boutique-panel" style={{ background: "#0b0d10", color: "#f4f5f6" }}>
+      {wishlistError&&<p role="status">{wishlistError}</p>}
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -708,12 +732,13 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
           )}
         </div>
 
-        <BoutiqueShowcase onAskPiece={onAskPiece} />
+        <header className="ames-boutique-topbar"><button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen((open) => !open)}><span /><span /><span /></button><div><p className="ames-boutique-eyebrow">AMES / BOUTIQUE</p><h2>Objects of permanence</h2></div><button className="ames-boutique-action" aria-label="Open collections">↗</button>{boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => setFilter("All")}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}</header>
+        <section className="ames-boutique-hero"><div className="ames-boutique-hero-copy"><p className="ames-boutique-kicker">THE CURRENT EDIT</p><h1>Quietly exceptional.</h1><p>Jewelry selected for proportion, material and the way it holds light.</p><button onClick={() => document.querySelector('.ames-engine-boutique-mount')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Explore <span>→</span></button></div><AmesBoutiqueSurface integration={integration} active={active} /></section>
 
         {/* ═══ FEATURED CATEGORIES ═══ */}
         <div className="px-5 pt-6 pb-2">
           <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 16 }}>
-            Featured Categories
+            Shop by category
           </h3>
           <div className="flex gap-5 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(0px, calc(50% - 200px))', paddingRight: 'max(0px, calc(50% - 200px))' }}>
             {categoryImages.map(cat => {
@@ -758,7 +783,7 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
         {/* ═���═ SECTION TITLE ═══ */}
         <div className="px-5 pt-4 pb-2">
           <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
-            {filter === "All" ? "New Arrivals" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
+            {filter === "All" ? "Curated pieces" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
           </h3>
         </div>
 
@@ -805,6 +830,9 @@ function BoutiquePanel({ highlightStone, onAskPiece }: { highlightStone: string 
         </div>
 
         {/* ═══ BOTTOM MARQUEE ═══ */}
+        <section className="ames-boutique-private"><p className="ames-boutique-kicker">ACCESS BY INVITATION</p><h2>Private collection</h2><p>Distinctive forms, held for members and collectors.</p><button onClick={() => onAskPiece("the private collection")}>Ask AMES <span>→</span></button></section>
+        <section className="ames-boutique-concierge"><p className="ames-boutique-kicker">AMES CONCIERGE</p><h2>Ask AMES to find or create something</h2><button onClick={() => onAskPiece("a piece to match my brief")}>Start a conversation <span>→</span></button></section>
+
         <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)", overflow: "hidden", padding: "10px 0" }}>
           <div className="marquee-track">
             {[...Array(4)].map((_, i) => (
@@ -1025,7 +1053,8 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
    VIDEOS PANEL
    ═══════��═══════════════════════════════════ */
 
-function VideosPanel({ onSeePiece, onAskAmes, onOpenBoutiqueDetail }: {
+function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetail }: {
+  isPanelActive: boolean;
   onSeePiece: (id: string) => void;
   onAskAmes: (ref: string, shape: string, carat: number, color: string, clarity: string) => void;
   onOpenBoutiqueDetail: (stoneId: string) => void;
@@ -1065,7 +1094,7 @@ function VideosPanel({ onSeePiece, onAskAmes, onOpenBoutiqueDetail }: {
     <>
       <div ref={feedRef} className="h-[100dvh] overflow-y-scroll snap-y snap-mandatory relative" style={{ scrollSnapType: "y mandatory", background: "#1A1A1A" }}>
         {videos.map((v, i) => (
-          <VideoSlide key={v.id} video={v} index={i} isActive={activeVideo === i}
+          <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i}
             onSeePiece={onSeePiece} onAskAmes={onAskAmes}
             onComments={() => setDrawerVideoId(v.id)}
             onOpenBoutiqueDetail={onOpenBoutiqueDetail}
@@ -1096,7 +1125,9 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments,
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (isActive) { v.play().catch(() => {}); } else { v.pause(); v.currentTime = 0; }
+    const sync = () => { if (isActive && !document.hidden) v.play().catch(() => {}); else v.pause(); };
+    sync(); document.addEventListener('visibilitychange', sync);
+    return () => { document.removeEventListener('visibilitychange', sync); v.pause(); };
   }, [isActive]);
 
   function toggleMute() { const v = videoRef.current; if (v) { v.muted = !v.muted; setMuted(v.muted); } }

@@ -1,0 +1,13 @@
+import {Client,Storage,TablesDB,Query} from 'node-appwrite';
+import {customerConfig} from '../src/lib/customer/config.mjs';
+import {writeFile,mkdir} from 'node:fs/promises';
+const c=customerConfig(),client=new Client().setEndpoint(c.endpoint).setProject(c.project).setKey(c.key),db=new TablesDB(client),s=new Storage(client);
+const names=['traders','stones','requests','orders','reports','stone_status_log','models','videos','comments','chats','chat_messages','report_issues','report_products','report_orders','staff','usage_log','balances'];
+async function pages(fn,key){const result=[];let cursor;do{const r=await fn([Query.limit(100),...(cursor?[Query.cursorAfter(cursor)]:[])]);result.push(...r[key]);if(r[key].length<100)break;cursor=r[key].at(-1).$id;}while(true);return result;}
+const report={at:new Date().toISOString(),tables:[],storage:{}};
+try{
+ const buckets=await s.listBuckets({queries:[Query.limit(100)]});report.storage.count=buckets.total;report.storage.buckets=buckets.buckets.map(b=>({id:b.$id,name:b.name,permissions:b.$permissions,fileSecurity:b.fileSecurity,enabled:b.enabled,maximumFileSize:b.maximumFileSize,allowedFileExtensions:b.allowedFileExtensions,encryption:b.encryption,antivirus:b.antivirus,compression:b.compression}));
+ report.storage.files=(await pages(q=>s.listFiles({bucketId:'media',queries:q}),'files')).map(f=>({id:f.$id,mimeType:f.mimeType,size:f.sizeOriginal,permissions:f.$permissions,signature:f.signature}));
+ for(const name of names){const p={databaseId:c.database,tableId:name};const t=await db.getTable(p);const cols=await db.listColumns({...p,queries:[Query.limit(100)]});const idx=await db.listIndexes({...p,queries:[Query.limit(100)]});const rows=await pages(q=>db.listRows({...p,queries:[...q,Query.select(['$id','$permissions'])]}),'rows');report.tables.push({id:name,name:t.name,permissions:t.$permissions,rowSecurity:t.rowSecurity,columns:cols.columns.map(a=>({key:a.key,type:a.type,size:a.size,status:a.status})),indexes:idx.indexes.map(a=>({key:a.key,columns:a.columns,status:a.status})),rows:rows.map(r=>({id:r.$id,permissions:r.$permissions}))});}
+}catch(e){report.error={code:e.code||null,type:e.type||e.cause?.code||e.name};process.exitCode=1;}
+await mkdir('outputs',{recursive:true});await writeFile('outputs/final-security-audit.json',JSON.stringify(report,null,2));console.log(JSON.stringify({...report,storage:{...report.storage,files:report.storage.files?.map(({signature,...f})=>f)},tables:report.tables.map(t=>({id:t.id,permissions:t.permissions,rowSecurity:t.rowSecurity,rows:t.rows.length,publicRows:t.rows.filter(r=>r.permissions.length).length,columns:t.columns.length,indexes:t.indexes.length}))}));

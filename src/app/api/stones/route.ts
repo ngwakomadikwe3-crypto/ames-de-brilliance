@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addStone, updateStone, getAllStones, getOrCreateTrader, savePhoto } from "@/lib/db";
+import {publicStone} from '@/lib/legacy-policy.mjs';
+import {staffIdentity,customerIdentity} from '@/lib/legacy-auth.mjs';
 
-export async function GET() {
-  return NextResponse.json(await getAllStones());
+export async function GET(req:NextRequest) {
+  const stones=await getAllStones();const admin=!!await staffIdentity(req)||(await customerIdentity(req))?.admin;
+  return NextResponse.json(admin?stones:stones.filter(s=>s.status==='Available').map(publicStone),{headers:{'Cache-Control':'no-store'}});
 }
 
 export async function POST(request: NextRequest) {

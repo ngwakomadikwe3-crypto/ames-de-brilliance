@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sessionSecret, sessionRole } from './src/lib/session-policy';
+import { legacyPolicy } from './src/lib/legacy-policy.mjs';
+import { customerIdentity, portalIdentity, sameOrigin } from './src/lib/legacy-auth.mjs';
 
-const SESSION_SECRET = process.env.SESSION_SECRET || "adb-session-secret-2026";
+const SESSION_SECRET = sessionSecret(process.env.SESSION_SECRET);
 
 async function verifySession(token: string): Promise<boolean> {
+  if (!SESSION_SECRET) return false;
   const parts = token.split(".");
   if (parts.length !== 2) return false;
   try {
@@ -20,19 +24,12 @@ async function verifySession(token: string): Promise<boolean> {
       keyData,
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign"]
+      ["verify"]
     );
 
     // Compute expected signature
-    const sigBuffer = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(payloadStr));
-    // Convert to base64url
-    const sigArray = new Uint8Array(sigBuffer);
-    const expectedSig = btoa(String.fromCharCode(...sigArray))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-    return signature === expectedSig;
+    const bytes = Uint8Array.from(atob(signature.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    return await crypto.subtle.verify('HMAC', cryptoKey, bytes, encoder.encode(payloadStr)) && sessionRole(JSON.parse(payloadStr)) !== null;
   } catch {
     return false;
   }
@@ -53,18 +50,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect dashboard and dashboard APIs
-  const needsAuth =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/api/requests") ||
-    pathname.startsWith("/api/traders");
-
-  if (!needsAuth) return NextResponse.next();
+  const policy=legacyPolicy(request.url,request.method);
+  if(policy==='handler') return NextResponse.next();
+  if(pathname.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(request.method)&&!sameOrigin(request))return NextResponse.json({error:'Origin denied'},{status:403});
+  if(policy==='public') return NextResponse.next();
 
   const token = getSessionCookie(request);
   if (token && (await verifySession(token))) {
     return NextResponse.next();
   }
+  try {
+    const customer=await customerIdentity(request);
+    if(customer?.admin||policy==='customer'&&customer)return NextResponse.next();
+    if(policy==='model'||policy==='trader'){
+      const portal=await portalIdentity(request,policy);
+      const code=pathname.split('/')[3];
+      if(portal&&(code==='profile'||pathname==='/api/videos/upload'||code===portal.code))return NextResponse.next();
+    }
+  }catch{return NextResponse.json({error:'Identity service unavailable'},{status:503});}
 
   // If it's an API route, return 401
   if (pathname.startsWith("/api/")) {
@@ -76,5 +79,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/requests/:path*", "/api/traders/:path*"],
+  matcher: ["/dashboard/:path*", "/api/:path*"],
 };

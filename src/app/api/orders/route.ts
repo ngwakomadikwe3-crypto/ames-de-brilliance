@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!stone) return NextResponse.json({ error: "Stone not found" }, { status: 404 });
     if (stone.status !== "Available") return NextResponse.json({ error: "Stone is not available" }, { status: 409 });
 
-    const order = await createOrder(stoneId, stone.ref, buyerName || "", buyerWhatsapp || "", price ?? stone.price);
+    const order = await createOrder(stoneId, stone.ref, buyerName || "", buyerWhatsapp || "", stone.price);
     return NextResponse.json({ order, message: "Reserved" });
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });

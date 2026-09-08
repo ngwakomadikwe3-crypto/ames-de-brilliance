@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
-import { ID } from "node-appwrite";
+import { ID,Permission,Role } from "node-appwrite";
+import {portalIdentity,staffIdentity,customerIdentity} from '@/lib/legacy-auth.mjs';
+import {publicUploadName} from '@/lib/public-upload.mjs';
 
 export async function POST(req: Request) {
   await ensureReady();
   try {
     const formData = await req.formData();
     const modelId = formData.get("modelId") as string;
+    const portal=await portalIdentity(req,'model');if(portal?.id!==modelId&&!await staffIdentity(req)&&!(await customerIdentity(req))?.admin)return NextResponse.json({error:'Access denied'},{status:403});
     const name = formData.get("name") as string;
     const instagram = formData.get("instagram") as string;
     const bio = formData.get("bio") as string;
@@ -23,11 +26,12 @@ export async function POST(req: Request) {
       const storage = getStorage();
       const fileName = `model-profile-${modelId}-${Date.now()}.${photo.name.split('.').pop()}`;
       const buffer = Buffer.from(await photo.arrayBuffer());
-      const file = InputFile.fromBuffer(buffer, fileName);
+      const file = InputFile.fromBuffer(buffer, publicUploadName(fileName,buffer));
       const res = await storage.createFile({
         bucketId: MEDIA_BUCKET,
         fileId: ID.unique(),
         file,
+        permissions:[Permission.read(Role.any())],
       });
       data.profile_photo = getMediaUrl(res.$id);
     }

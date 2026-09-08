@@ -1,0 +1,11 @@
+import {Client,Users,TablesDB,Storage,Query} from 'node-appwrite';
+import {customerConfig} from '../src/lib/customer/config.mjs';
+import {writeFile} from 'node:fs/promises';
+const c=customerConfig(),client=new Client().setEndpoint(c.endpoint).setProject(c.project).setKey(c.key),db=new TablesDB(client),storage=new Storage(client),users=new Users(client),report={at:new Date().toISOString(),tables:[],customerColumns:0,customerIndexes:0,qaAccountsRemaining:0};
+try{
+ const all=await db.listTables({databaseId:c.database,queries:[Query.limit(100)]});for(const t of all.tables){report.tables.push({id:t.$id,permissions:t.$permissions,rowSecurity:t.rowSecurity});if(Object.values(c.collections).includes(t.$id)){const p={databaseId:c.database,tableId:t.$id},columns=await db.listColumns(p),indexes=await db.listIndexes(p);report.customerColumns+=columns.total;report.customerIndexes+=indexes.total;if(columns.columns.some(v=>v.status!=='available')||indexes.indexes.some(v=>v.status!=='available'))throw Object.assign(new Error(),{type:'schema_not_ready'});}}
+ const b=await storage.listBuckets({queries:[Query.limit(100)]});report.storage={count:b.total,buckets:b.buckets.map(v=>({id:v.$id,name:v.name,permissions:v.$permissions,fileSecurity:v.fileSecurity,maximumFileSize:v.maximumFileSize,extensions:v.allowedFileExtensions})),files:(await storage.listFiles({bucketId:'media',queries:[Query.limit(1)]})).total};
+ let cursor;do{const page=await users.list({queries:[Query.limit(100),...(cursor?[Query.cursorAfter(cursor)]:[])]});report.qaAccountsRemaining+=page.users.filter(u=>u.name==='AMES temporary live QA'&&/^qa-[a-f0-9]{8}-[01]@example\.test$/.test(u.email)).length;if(page.users.length<100)break;cursor=page.users.at(-1).$id;}while(true);
+ report.privateTablesVerified=report.tables.length===26&&report.tables.every(t=>!t.permissions.length&&t.rowSecurity);if(!report.privateTablesVerified||report.qaAccountsRemaining||report.customerColumns!==45||report.customerIndexes!==36)throw Object.assign(new Error(),{type:'final_state_mismatch'});
+}catch(e){report.error={code:e.code||null,type:e.type||e.cause?.code||e.name};process.exitCode=1;}
+await writeFile('outputs/final-appwrite-state.json',JSON.stringify(report,null,2));console.log(JSON.stringify({...report,tables:report.tables.length}));

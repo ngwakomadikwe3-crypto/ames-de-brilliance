@@ -6,6 +6,7 @@ import {
   Permission,
   Role,
 } from "node-appwrite";
+import { customerDatabase } from './customer/database.mjs';
 
 /* ── Environment ── */
 const ENDPOINT = process.env.APPWRITE_ENDPOINT?.trim() || "";
@@ -22,9 +23,9 @@ export const JEWELRY_3D_BUCKET = "jewelry-3d";
 export function getJewelryModelUrl(source: string): string {
   if (!source) return "";
   if (source.startsWith("appwrite:")) {
-    const fileId = source.slice("appwrite:".length);
-    if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
-    return `${ENDPOINT}/storage/buckets/${JEWELRY_3D_BUCKET}/files/${encodeURIComponent(fileId)}/view?project=${encodeURIComponent(PROJECT_ID)}`;
+    // Private GLBs require a catalog identity and the customer delivery adapter.
+    // A bare storage file ID is intentionally insufficient to create a browser URL.
+    return "";
   }
   return source.startsWith("/") ? source : `/${source}`;
 }
@@ -51,7 +52,7 @@ export function getDb(): Databases {
   const client = getClient();
   if (!client) return null as unknown as Databases;
   try {
-    _databases = new Databases(client);
+    _databases = customerDatabase(client) as unknown as Databases;
     return _databases;
   } catch (err) {
     console.error("[appwrite] database initialization failed:", err);
@@ -91,6 +92,7 @@ export function doc<T extends Record<string, any>>(d: any): T {
   if (plain.$updatedAt !== undefined) plain.updated_at = plain.$updatedAt;
   delete plain.$id;
   delete plain.$collectionId;
+  delete plain.$tableId;
   delete plain.$databaseId;
   delete plain.$createdAt;
   delete plain.$updatedAt;
@@ -108,6 +110,8 @@ let _ready = false;
 export async function ensureReady(): Promise<void> {
   if (_ready) return;
   if (!ENDPOINT || !PROJECT_ID || !API_KEY) return;
+  // Production requests never provision infrastructure. Use reviewed migrations.
+  if (process.env.NODE_ENV === 'production' || process.env.APPWRITE_AUTO_PROVISION !== 'true') return;
   try {
     const db = getDb();
     const sto = getStorage();
@@ -123,7 +127,8 @@ export async function ensureReady(): Promise<void> {
           databaseId: DB_ID,
           collectionId: col.id,
           name: col.name,
-          permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
+          permissions: [],
+          documentSecurity: true,
         });
       } catch { /* exists */ }
       // Create missing attributes
@@ -142,7 +147,7 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: MEDIA_BUCKET,
         name: "Media",
-        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
+        permissions: [Permission.read(Role.any())],
         enabled: true,
         maximumFileSize: 10 * 1024 * 1024,
         allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "gif"],
@@ -154,7 +159,8 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: "reports",
         name: "Reports",
-        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
+        permissions: [],
+        fileSecurity: true,
         enabled: true,
         maximumFileSize: 50 * 1024 * 1024,
         allowedFileExtensions: ["pdf"],
@@ -166,7 +172,8 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: LICENCE_DOCS_BUCKET,
         name: "Licence Documents",
-        permissions: [Permission.write(Role.any())],
+        permissions: [],
+        fileSecurity: true,
         enabled: true,
         maximumFileSize: 20 * 1024 * 1024,
         allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc, doc, DB_ID } from "@/lib/appwrite";
 import { Query } from "node-appwrite";
+import {publicVideo} from '@/lib/legacy-policy.mjs';
 
 export async function GET(
   _req: Request,
@@ -19,6 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const m = modelRes.documents[0] as any;
+    if(m.status!=='Active')return NextResponse.json({error:'Not found'},{status:404});
     const safeModel = {
       name: m.name,
       instagram: m.instagram,
@@ -32,12 +34,13 @@ export async function GET(
       queries: [
         Query.equal("model_id", m.$id),
         Query.equal("status", "Live"),
+        Query.equal("published", true),
       ],
     });
 
     return NextResponse.json({
       model: safeModel,
-      videos: videoRes.documents,
+      videos: videoRes.documents.map(v=>publicVideo(doc(v))),
     });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

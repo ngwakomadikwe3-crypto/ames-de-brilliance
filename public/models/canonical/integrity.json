@@ -1,0 +1,27 @@
+[
+  {
+    "path": "/models/canonical/ames_round_brilliant_v1.glb",
+    "byteLength": 30964,
+    "sha256": "4788a83ad653aa6e6e357f304605ad786c04279ce7a2b6dbf8f73d5eec89965b"
+  },
+  {
+    "path": "/models/canonical/ames_oval_brilliant_v1.glb",
+    "byteLength": 12304,
+    "sha256": "e64462ba9de47dfd570ff927fa5104eb1a5d65c111e51aa665a81f0c881cec09"
+  },
+  {
+    "path": "/models/canonical/ames_emerald_cut_v1.glb",
+    "byteLength": 8904,
+    "sha256": "7567dea2c20c3412ea634d263363520283cdf25e37b628021afb0dfa5b6f0f22"
+  },
+  {
+    "path": "/models/canonical/ames_pear_brilliant_v1.glb",
+    "byteLength": 12196,
+    "sha256": "a1c5236ae2517336f92cc032caf0b98d5c038f964040fe3dea83094cbd36f2f3"
+  },
+  {
+    "path": "/models/canonical/ames_asscher_cut_v1.glb",
+    "byteLength": 8784,
+    "sha256": "a2b1b153938a37c42d3486909dc872e18e88cd8d7ff4c3f2ef39b187cc5284f7"
+  }
+]

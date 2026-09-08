@@ -2,8 +2,9 @@ import {
   ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, getLicenceUrl,
   doc, nowISO, DB_ID, MEDIA_BUCKET, LICENCE_DOCS_BUCKET,
 } from "./appwrite";
-import { ID, Query } from "node-appwrite";
+import { ID, Query, Permission, Role } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
+import {publicUploadName} from './public-upload.mjs';
 
 type DbService = NonNullable<ReturnType<typeof getDbSvc>>;
 const EMPTY_DB = new Proxy({} as DbService, {
@@ -293,7 +294,7 @@ async function enrichStones(stones: any[]): Promise<any[]> {
   return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null, trader_preferred: s.trader_id ? !!(traderMap.get(s.trader_id) as any)?.preferred : false }));
 }
 
-export async function getAllStones() { await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
+export async function getAllStones() { await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("$createdAt")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
 export async function getAvailableStones() { await ensureReady(); const res = await getSafeDb().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.equal("status", "Available"), Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
 
 export async function getStoneById(id: string) {
@@ -354,9 +355,9 @@ export async function getTraderStones(traderId: string) {
 /* ── Photo / Media Storage ── */
 
 export async function savePhoto(filename: string, buffer: Buffer): Promise<string> {
-  await ensureReady(); const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  await ensureReady(); const safeName = publicUploadName(filename,buffer);
   const file = InputFile.fromBuffer(buffer, `${Date.now()}_${safeName}`);
-  const res = await getSafeStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file });
+  const res = await getSafeStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file, permissions:[Permission.read(Role.any())] });
   return getMediaUrl(res.$id);
 }
 
@@ -538,7 +539,7 @@ export async function authenticateTrader(code: string, phone: string): Promise<D
   const trader = await getTraderByPortalCode(code);
   if (!trader) return null;
   const normalise = (s: string) => s.replace(/[^0-9+]/g, "");
-  if (normalise(trader.whatsapp) && normalise(phone) && normalise(trader.whatsapp) !== normalise(phone)) return null;
+  if (trader.status!=='Active'||!normalise(trader.whatsapp)||!normalise(phone)||normalise(trader.whatsapp)!==normalise(phone)) return null;
   return trader;
 }
 
@@ -546,7 +547,7 @@ export async function authenticateModel(code: string, phone: string): Promise<Db
   const model = await getModelByPortalCode(code);
   if (!model) return null;
   const normalise = (s: string) => s.replace(/[^0-9+]/g, "");
-  if (normalise(model.whatsapp) && normalise(phone) && normalise(model.whatsapp) !== normalise(phone)) return null;
+  if (model.status!=='Active'||!normalise(model.whatsapp)||!normalise(phone)||normalise(model.whatsapp)!==normalise(phone)) return null;
   return model;
 }
 

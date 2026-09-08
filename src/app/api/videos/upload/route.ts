@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStorage, getMediaUrl, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
-import { ID } from "node-appwrite";
+import { ID,Permission,Role } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
+import {publicUploadName} from '@/lib/public-upload.mjs';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,18 +20,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Max 100MB
-    if (file.size > 100 * 1024 * 1024) {
+    const bucket=await getStorage().getBucket({bucketId:MEDIA_BUCKET});
+    if (file.size > bucket.maximumFileSize) {
       return NextResponse.json(
-        { error: "File too large (max 100MB)" },
+        { error: `File too large (max ${Math.floor(bucket.maximumFileSize/1024/1024)} MB)` },
         { status: 400 }
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeName = publicUploadName(file.name,buffer,'video');
     const inputFile = InputFile.fromBuffer(buffer, `video_${Date.now()}_${safeName}`);
-    const res = await getStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file: inputFile });
+    const res = await getStorage().createFile({ bucketId: MEDIA_BUCKET, fileId: ID.unique(), file: inputFile,permissions:[Permission.read(Role.any())] });
 
     return NextResponse.json({
       url: getMediaUrl(res.$id),

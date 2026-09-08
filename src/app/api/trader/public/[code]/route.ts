@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc, doc, DB_ID } from "@/lib/appwrite";
 import { Query } from "node-appwrite";
+import {publicStone} from '@/lib/legacy-policy.mjs';
 
 export async function GET(
   _req: Request,
@@ -19,6 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const t = traderRes.documents[0] as any;
+    if(t.status!=='Active')return NextResponse.json({error:'Not found'},{status:404});
     const safeTrader = {
       name: t.name,
       company: t.company,
@@ -37,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({
       trader: safeTrader,
-      stones: stoneRes.documents,
+      stones: stoneRes.documents.map(s=>publicStone(doc(s))),
     });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

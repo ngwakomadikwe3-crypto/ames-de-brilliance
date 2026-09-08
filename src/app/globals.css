@@ -128,6 +128,10 @@ body::before { opacity: .22; background-image: url("data:image/svg+xml,%3Csvg xm
 body::after { box-shadow: inset 0 0 9vw 2vw rgba(239,233,226,.58); opacity: .8; background: radial-gradient(ellipse at center, transparent 72%, rgba(239,233,226,.26) 100%); }
 .house-settings, body:has(.house-settings) .house-settings-backdrop, body:has(.viewing-room) .viewing-room { color:#241d18 !important; }
 .house-settings { background:#efe9e2 !important; border-color:rgba(36,29,24,.25) !important; backdrop-filter:none !important; }
+
+/* AMES Engine integration surfaces: monochrome luxury-tech host shell. */
+.ames-engine-boutique-shell,.ames-engine-stone-tray{background:#0b0d10;color:#f4f5f6;border:1px solid #30343a;border-radius:16px;overflow:hidden;font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif)}
+.ames-engine-boutique-mount{min-height:250px}.ames-engine-boutique-shell .ames-boutique,.ames-engine-stone-tray .ames-stone-tray{background:#0b0d10;border:0;border-radius:0;color:#f4f5f6}.ames-engine-boutique-shell select,.ames-engine-boutique-shell button,.ames-engine-stone-tray select,.ames-engine-stone-tray button{background:#171a1f;border-color:#555b63;color:#f4f5f6}.ames-engine-boutique-shell p,.ames-engine-stone-tray p{color:#aeb4bc}
 .house-settings h2, .house-settings .house-link, .house-settings .house-setting-line { color:#241d18 !important; }
 .house-settings .house-choice button, .house-settings .house-link { border-color:rgba(36,29,24,.35) !important; color:#241d18 !important; }
 .house-settings .house-choice button.selected, .house-settings .house-toggle.on { border-color:#241d18 !important; }
@@ -300,3 +304,15 @@ body::after { box-shadow: inset 0 0 9vw 2vw rgba(239,233,226,.58); opacity: .8; 
 .back-office .surface { background: #1A1D21; }
 .back-office .card { background: #1A1D21; border-color: rgba(255,255,255,0.08); }
 .back-office .hairline { border-color: rgba(255,255,255,0.08); }
+
+/* Boutique visual system: graphite, silver and white only. */
+.ames-boutique-panel{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Arial,sans-serif)!important}.ames-boutique-topbar{position:relative;display:flex;align-items:center;gap:14px;padding:22px 22px 14px;border-bottom:1px solid #252a30}.ames-boutique-topbar h2{margin:2px 0 0;font-size:17px;font-weight:500;letter-spacing:-.02em;color:#f4f5f6}.ames-boutique-eyebrow,.ames-boutique-kicker{margin:0;color:#8c939c;font-size:9px;letter-spacing:.16em;text-transform:uppercase}.ames-boutique-menu,.ames-boutique-action{width:34px;height:34px;display:grid;place-items:center;border:1px solid #3b4148;border-radius:50%;background:#12151a;color:#d8dce1;cursor:pointer}.ames-boutique-menu{gap:3px;align-content:center}.ames-boutique-menu span{display:block;width:12px;height:1px;background:#d8dce1}.ames-boutique-action{margin-left:auto;font-size:16px}.ames-boutique-menu-popover{position:absolute;top:66px;left:18px;z-index:5;display:grid;min-width:180px;padding:8px;background:#15181d;border:1px solid #3b4148;border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.42)}.ames-boutique-menu-popover button,.ames-boutique-menu-popover a{padding:11px 13px;text-align:left;border:0;background:transparent;color:#d8dce1;font:inherit;text-decoration:none}.ames-boutique-menu-popover button:hover,.ames-boutique-menu-popover a:hover{background:#20242a}.ames-boutique-hero{padding:18px 18px 10px}.ames-boutique-hero-copy{padding:8px 4px 18px;max-width:360px}.ames-boutique-hero-copy h1{margin:8px 0;font-size:clamp(30px,8vw,52px);font-weight:500;line-height:1.02;letter-spacing:-.05em;color:#f4f5f6}.ames-boutique-hero-copy>p:not(.ames-boutique-kicker){margin:0 0 16px;max-width:300px;color:#aeb4bc;font-size:14px;line-height:1.5}.ames-boutique-hero-copy button,.ames-boutique-private button,.ames-boutique-concierge button{border:1px solid #69717a;border-radius:999px;background:#f4f5f6;color:#0b0d10;padding:10px 15px;font-size:12px}.ames-boutique-hero-copy button span,.ames-boutique-private button span,.ames-boutique-concierge button span{margin-left:14px}.ames-boutique-private,.ames-boutique-concierge{margin:18px;padding:24px;border:1px solid #30363d;border-radius:16px;background:#111419}.ames-boutique-private h2,.ames-boutique-concierge h2{margin:8px 0;color:#f4f5f6;font-size:23px;font-weight:500;letter-spacing:-.03em}.ames-boutique-private>p:not(.ames-boutique-kicker),.ames-boutique-concierge>p:not(.ames-boutique-kicker){margin:0 0 18px;color:#aeb4bc;font-size:13px}.ames-boutique-private button,.ames-boutique-concierge button{background:transparent;color:#e4e7eb;padding:8px 13px}.ames-boutique-panel .ames-engine-boutique-mount{min-height:300px}.ames-boutique-panel .ames-engine-boutique-shell{border-color:#30363d;box-shadow:0 16px 44px rgba(0,0,0,.26)}
+
+/* Keep the embedded tray within the existing mobile Chat layout. */
+.ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(150px,26dvh,230px)}
+.ames-engine-stone-tray select{max-width:100%;min-width:0;color-scheme:dark}
+/* Short screens/keyboard: keep all existing Chat controls reachable by vertical scroll. */
+@media(max-height:600px){
+  .chat-paper{display:block!important;overflow-y:auto!important;overscroll-behavior-y:contain}
+  .chat-paper>div:first-child{padding-top:54px;padding-bottom:20px}
+}

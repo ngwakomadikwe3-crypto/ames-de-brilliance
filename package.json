@@ -3,18 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate:deployment": "node scripts/validate-deployment.mjs",
+    "validate:session": "node scripts/validate-session-http.mjs",
+    "sync:engine-assets": "node scripts/sync-engine-assets.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@ames/engine": "file:vendor/ames-engine-0.1.0.tgz",
     "@google/model-viewer": "^4.3.1",
     "@react-pdf/renderer": "^4.8.1",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "@types/three": "^0.185.4",
-    "better-sqlite3": "^13.0.3",
     "framer-motion": "^13.1.1",
     "next": "16.3.2",
     "node-appwrite": "^28.0.0",
@@ -26,7 +30,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
