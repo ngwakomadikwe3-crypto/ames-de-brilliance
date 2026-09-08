@@ -306,8 +306,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
-  const [mode, setMode] = useState<"instant" | "expert">("instant");
-  const [deepThink, setDeepThink] = useState(false);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -360,8 +359,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     const msg = (text || input).trim();
     if (!msg) return;
     setInput("");
-    // Explicit catalog-ID command only. No AI output, URL or tier assertion can grant access.
-    const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase();
+    // Conversation controls the single displayed canonical stone. No AI output, URL or tier assertion can grant access.
+    const normalized = msg.toLowerCase();
+    const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase()
+      || (normalized.includes("oval") ? "stone-002" : null)
+      || (normalized.includes("asscher") ? "stone-005" : null)
+      || (normalized.includes("emerald") ? "stone-003" : null)
+      || (normalized.includes("pear") ? "stone-004" : null)
+      || (normalized.includes("round") || normalized.includes("brilliant") ? "stone-001" : null)
+      || (normalized.includes("rare") ? "stone-005" : null);
     if (requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) {
       setSelectedStoneId(requested);
       return;
@@ -378,8 +384,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       });
       const chatData = await chatRes.json();
       const replyText = chatData.reply || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
-      const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
-      await appendMessage(chatId,'assistant',replyText,thinking);
+      await appendMessage(chatId,'assistant',replyText,"");
     } catch {
       const fallback = "The desk is quiet right now — please try again shortly, or reach a human on WhatsApp: +267 72 839 152.";
       await appendMessage(null,'assistant',customer.user?'Chat history is unavailable. Please sign in again or try shortly.':fallback);
@@ -391,22 +396,17 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
 
   return (
     <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#0b0d10', color: '#eef2f6', position: 'relative' }}>
+      <header className="ames-chat-topbar">
+        <button className="ames-chat-menu" aria-label="Chat menu" aria-expanded={chatMenuOpen} onClick={() => setChatMenuOpen(open => !open)}><span /><span /><span /></button>
+        <span className="ames-chat-mark">AMES</span>
+        {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/account">Account</a><a href="/account?tab=favorites">Favorites</a></nav>}
+      </header>
 
       {chatStarted ? (
         /* === CHAT MODE === */
         <div className="flex-1 flex flex-col min-h-0">
           <div className="shrink-0 pt-10 text-center"><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
           {/* Mini header */}
-          <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-3" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)', background: 'rgba(234,232,228,0.9)', backdropFilter: 'blur(12px)' }}>
-            <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }}>
-              <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-            </div>
-            <div className="flex rounded-full p-[2px] ml-auto" style={{ background: '#202020' }}>
-              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F1F4F7" : "#9AA5B1" }}>Instant</button>
-              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F1F4F7" : "#9AA5B1" }}>Expert</button>
-            </div>
-          </div>
-
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
             <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
@@ -459,7 +459,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
                 <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
                 <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
@@ -487,23 +487,12 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       {!chatStarted && (
         <div className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))', position: 'relative', zIndex: 1 }}>
           <div className="mx-auto" style={{ maxWidth: 360 }}>
-            {/* Controls row: DeepThink + Instant/Expert */}
-            <div className="flex items-center gap-2 mb-2.5 px-1">
-              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#F1F4F7' : '#151515', color: deepThink ? '#151515' : '#9AA5B1', border: '1px solid rgba(23,23,23,0.08)' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                DeepThink
-              </button>
-              <div className="flex rounded-full p-[2px]" style={{ background: '#202020' }}>
-                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F1F4F7" : "#9AA5B1" }}>Instant</button>
-                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F1F4F7" : "#9AA5B1" }}>Expert</button>
-              </div>
-            </div>
             {/* Floating card */}
             <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
+              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
               <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
