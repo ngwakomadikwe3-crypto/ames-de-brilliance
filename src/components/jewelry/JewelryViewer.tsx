@@ -20,7 +20,7 @@ class ViewerBoundary extends React.Component<{ children: React.ReactNode; fallba
 
 function PlaceholderPiece() {
   const group = useRef<THREE.Group>(null);
-  const gold = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#b76e79", metalness: 0.92, roughness: 0.22 }), []);
+  const gold = useMemo(() => new THREE.MeshPhysicalMaterial({ color: "#d6dde6", metalness: 0.96, roughness: 0.16 }), []);
   const diamond = useMemo(() => createDiamondMaterial(), []);
   useEffect(() => () => { gold.dispose(); diamond.dispose(); }, [gold, diamond]);
   useFrame((_, delta) => { if (group.current) group.current.rotation.y += delta * 0.14; });

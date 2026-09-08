@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createAssetRegistry,mountBoutiqueViewer,type AmesIntegration,type BoutiqueMode } from "@ames/engine";
 import { useCustomer,customerRequest } from './CustomerState';
+import { createAMESDiamondMaterial } from '@/three/AMESDiamondMaterial';
+import JewelryViewer from './jewelry/JewelryViewer';
 
 function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" | "stone-tray", initialAssetId?: string, enabled = true) {
   const customer=useCustomer();
@@ -31,6 +33,22 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
     promise.then(async (value) => {
       if (cancelled) { await value.dispose(); return; }
       mounted = value;
+      if (kind === "stone-tray") {
+        const scene = value.viewer.engine.model?.asset.scene;
+        scene?.traverse((object) => {
+          if (!('isMesh' in object) || !object.isMesh) return;
+          const mesh = object as unknown as { material: unknown; geometry?: { computeVertexNormals?: () => void } };
+          const previous = mesh.material;
+          if (previous && !Array.isArray(previous) && typeof (previous as { dispose?: () => void }).dispose === "function") (previous as { dispose: () => void }).dispose();
+          mesh.material = createAMESDiamondMaterial();
+        });
+      }
+      // Customer presentation: keep the stone alive with a restrained idle turn.
+      // The engine remains the sole owner of camera, controls, optics and disposal.
+      const stoneMode = kind === "stone-tray" && "mode" in value ? (value as { mode?: { toggleTurntable?: () => Promise<unknown> } }).mode : undefined;
+      if (stoneMode?.toggleTurntable) {
+        void stoneMode.toggleTurntable().catch(() => undefined);
+      }
       if('mode' in value && 'toggleFavorite' in value.mode){
         const mode=value.mode as BoutiqueMode;let lastId:string|null=null;
         const hydrate=()=>{const id=mode.state.product?.id;if(!id||id===lastId)return;lastId=id;
@@ -52,17 +70,28 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
 }
 
 export function AmesBoutiqueSurface({ integration, active = true }: { integration: AmesIntegration | null; active?: boolean }) {
+  const customer = useCustomer();
   // Startup profiling found an unnecessary offscreen WebGL context before Chat.
   // Mount on first Boutique visit, then retain the viewer and its existing state.
   const [visited,setVisited]=useState(active);
   useEffect(()=>{if(active)setVisited(true);},[active]);
   const surface = useEngineSurface(integration, "boutique",undefined,visited);
-  return <div className="ames-engine-boutique-shell"><div ref={surface.ref} className="ames-engine-boutique-mount" />{surface.error && <p role="status">{surface.error}</p>}</div>;
+  const hasJewelry = customer.catalog.assets.some((asset) => asset.category !== 'stone');
+  return <div className="ames-engine-boutique-shell">
+    {!hasJewelry && <div className="ames-boutique-empty-stage" aria-label="AMES jewelry preview"><JewelryViewer modelUrl="placeholder:ames-signature-solitaire" caption="AMES current edit" /></div>}
+    <div ref={surface.ref} className={`ames-engine-boutique-mount${hasJewelry ? "" : " is-empty"}`} />{surface.error && <p role="status">{surface.error}</p>}
+  </div>;
 }
 
 export function AmesStoneTraySurface({ integration, assetId = "stone-001" }: { integration: AmesIntegration | null; assetId?: string }) {
   const customer=useCustomer();const [saveError,setSaveError]=useState<string|null>(null),[saving,setSaving]=useState(false);
   const surface = useEngineSurface(integration, "stone-tray", assetId);
   async function save(){if(!customer.user){window.location.assign('/account');return;}setSaving(true);setSaveError(null);try{const selected=surface.ref.current?.querySelector<HTMLSelectElement>('[data-stone]')?.value||assetId;await customerRequest('saved','PUT',{assetId:selected});await customer.reloadState();}catch(e){setSaveError(e instanceof Error?e.message:'Save failed');}finally{setSaving(false);}}
-  return <div className="ames-engine-stone-tray" data-stone-presentation="canonical-ames-webgl"><div ref={surface.ref} className="ames-engine-stone-mount" />{surface.error && <p role="status">AMES gemstone renderer unavailable: {surface.error}</p>}<button type="button" onClick={save} disabled={saving}>Save stone</button><span role="status">{saveError|| (customer.state.saved.some(a=>a.kind==='stone')?'Stone saved to your account':'')}</span></div>;
+  const identity: Record<string, string> = { "stone-001": "Round Brilliant", "stone-002": "Oval Brilliant", "stone-003": "Emerald Cut", "stone-004": "Pear Brilliant", "stone-005": "Asscher Cut" };
+  return <div className="ames-engine-stone-tray" data-stone-presentation="canonical-ames-webgl">
+    <div ref={surface.ref} className="ames-engine-stone-mount" />
+    <div className="ames-stone-identity"><strong>{identity[assetId] || "AMES stone"}</strong><span>Diamond</span></div>
+    {surface.error && <p role="status">AMES gemstone renderer unavailable: {surface.error}</p>}
+    <div className="ames-stone-actions"><button type="button" onClick={save} disabled={saving} aria-label={`Save ${identity[assetId] || "stone"}`}>{customer.state.saved.some(a=>a.assetId===assetId) ? "Saved" : "Save"}</button><span role="status">{saveError}</span></div>
+  </div>;
 }

@@ -155,6 +155,18 @@ body::after { box-shadow: inset 0 0 9vw 2vw rgba(239,233,226,.58); opacity: .8; 
   pointer-events: none;
 }
 
+/* Recovery visual contract: cool graphite surfaces replace the retired paper/gold theme. */
+:root { --color-background:#0b0d10; --color-foreground:#eef2f6; --color-surface:#11161c; --color-muted:#9aa5b1; --color-border:rgba(220,226,234,.18); --color-accent:#dce2ea; --color-silver:#dce2ea; }
+body { background:#0b0d10 !important; color:#eef2f6 !important; }
+body::before, body::after { display:none !important; }
+.chat-paper { background:#0b0d10 !important; color:#eef2f6 !important; }
+.chat-paper [style*="background: '#efe9e2'"] { background:#0b0d10 !important; }
+.house-settings { background:#11161c !important; color:#eef2f6 !important; border-color:rgba(220,226,234,.18) !important; }
+.house-settings h2,.house-settings .house-link,.house-settings .house-setting-line,.house-settings .house-choice button { color:#eef2f6 !important; }
+.house-settings .house-choice button,.house-settings .house-link { border-color:rgba(220,226,234,.28) !important; }
+.house-settings .house-toggle { background:#252d36 !important; border-color:rgba(220,226,234,.28) !important; }
+.house-settings-backdrop { background:rgba(4,6,8,.72) !important; }
+
 /* ═══════════════════════════════════════════
    AMES DESIGN SYSTEM TOKENS
    ═══════════════════════════════════════════ */
@@ -311,8 +323,40 @@ body::after { box-shadow: inset 0 0 9vw 2vw rgba(239,233,226,.58); opacity: .8; 
 /* Keep the embedded tray within the existing mobile Chat layout. */
 .ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(150px,26dvh,230px)}
 .ames-engine-stone-tray select{max-width:100%;min-width:0;color-scheme:dark}
+.ames-engine-stone-tray{position:relative;background:transparent;border:0;border-radius:0;overflow:visible}
+.ames-engine-stone-tray .ames-stone-tray{background:transparent;border:0;padding:0;color:#f4f5f6}
+.ames-engine-stone-tray .ames-stone-tray header,.ames-engine-stone-tray .ames-stone-tray .metadata,.ames-engine-stone-tray .ames-stone-tray .message,.ames-engine-stone-tray .ames-stone-tray .controls{display:none}
+.ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(220px,34dvh,360px);margin:0}
+.ames-engine-stone-tray .ames-stone-tray .viewport{opacity:1}
+.ames-stone-identity{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:2px 0 0;color:#f4f5f6}
+.ames-stone-identity strong{font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif);font-size:14px;font-weight:500;letter-spacing:.02em}
+.ames-stone-identity span{font-size:11px;color:#9da5af;letter-spacing:.12em;text-transform:uppercase}
+.ames-stone-actions{display:flex;justify-content:center;min-height:28px;margin-top:8px}
+.ames-stone-actions button{border:1px solid rgba(218,224,232,.25);border-radius:999px;background:rgba(255,255,255,.04);color:#dce2ea;padding:5px 13px;font-size:11px;letter-spacing:.06em}
+.ames-stone-actions [role=status]{font-size:11px;color:#ffb3ad;margin-left:8px;align-self:center}
+.ames-engine-boutique-mount .ames-boutique{background:transparent;border:0;padding:0}
+.ames-engine-boutique-mount .ames-boutique .layout{display:block}
+.ames-engine-boutique-mount .ames-boutique .details{display:none}
+.ames-engine-boutique-mount .ames-boutique .viewport{height:clamp(260px,40dvh,460px);width:100%}
+.ames-boutique-empty-stage{height:clamp(260px,40dvh,460px);position:relative;background:radial-gradient(ellipse at center,rgba(180,198,220,.12),transparent 58%);border-radius:14px;overflow:hidden}
+.ames-boutique-empty-stage .jewelry-viewer{height:100%;min-height:100%}
+.ames-boutique-empty-stage .jewelry-controls,.ames-boutique-empty-stage button{display:none!important}
+.ames-engine-boutique-mount.is-empty{display:none}
 /* Short screens/keyboard: keep all existing Chat controls reachable by vertical scroll. */
 @media(max-height:600px){
   .chat-paper{display:block!important;overflow-y:auto!important;overscroll-behavior-y:contain}
   .chat-paper>div:first-child{padding-top:54px;padding-bottom:20px}
 }
+
+/* Boutique visual recovery: editorial pause and bottom category strip */
+.ames-boutique-editorial{max-width:520px;margin:18px auto 10px;padding:16px 20px 20px;border-top:1px solid rgba(220,226,234,.14);text-align:center}
+.ames-boutique-editorial p{margin:0;color:#eef2f6;font:500 21px var(--font-cormorant,Georgia,serif);letter-spacing:.01em}
+.ames-boutique-editorial span{display:block;margin:8px auto 0;max-width:390px;color:#9aa5b1;font-size:12px;line-height:1.6}
+.ames-boutique-categories-bottom{padding:28px 20px 42px;border-top:1px solid rgba(220,226,234,.12)}
+.ames-boutique-section-kicker{margin:0 0 14px;color:#9aa5b1;font-size:10px;letter-spacing:.18em;text-transform:uppercase;text-align:center}
+.ames-boutique-category-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ames-boutique-category-strip button{min-height:62px;border:1px solid rgba(220,226,234,.18);border-radius:12px;background:#11161c;color:#eef2f6;text-align:left;padding:11px 10px}
+.ames-boutique-category-strip button.active{border-color:#dce2ea}
+.ames-boutique-category-strip span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.ames-boutique-category-strip small{display:block;margin-top:6px;color:#9aa5b1;font-size:10px}
+@media(max-width:640px){.ames-boutique-category-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.ames-boutique-category-strip button:last-child{grid-column:span 2}}

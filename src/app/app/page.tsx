@@ -160,10 +160,10 @@ function AppPageContent() {
       <SplashExperience onComplete={() => { setSplashComplete(true); swipeTo(1); }} />
       <div className={`ames-product-shell${splashComplete ? " is-ready" : ""}`} aria-hidden={!splashComplete}>
       <style>{`.ames-product-shell{opacity:0;pointer-events:none;visibility:hidden;transition:opacity 560ms cubic-bezier(.22,.61,.36,1),visibility 0s linear 560ms}.ames-product-shell.is-ready{opacity:1;pointer-events:auto;visibility:visible;transition-delay:0s}`}</style>
-      <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F4E9D5}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9A8F80;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F4E9D5}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9A8F80;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9A8F80}.house-privacy{margin:18px 0}.house-link{color:#F4E9D5;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F4E9D5;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
+      <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F1F4F7}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9AA5B1;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F1F4F7}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9AA5B1;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9AA5B1}.house-privacy{margin:18px 0}.house-link{color:#F1F4F7;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F1F4F7;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
         :root`}</style>
       <style>{`
-        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #b7a99d; }
+        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #0b0d10; }
         footer { display: none !important; }
         body > header { display: none !important; }
         html, body { overflow: hidden; overscroll-behavior: none; }
@@ -172,9 +172,9 @@ function AppPageContent() {
       {/* Minimal transparent top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => setDrawerOpen(!drawerOpen)} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu">
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
-          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F1F4F7' : '#9AA5B1', transition: 'all 0.3s' }} />
+          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F1F4F7' : '#9AA5B1', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F1F4F7' : '#9AA5B1', transition: 'all 0.3s' }} />
         </button>
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
@@ -195,7 +195,7 @@ function AppPageContent() {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
           <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#F4E9D5' }}>AMES</div>
+              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#F1F4F7' }}>AMES</div>
             </div>
             <div className="py-2">
               {NAV_ITEMS.map((item) => (
@@ -206,7 +206,7 @@ function AppPageContent() {
                     if (item.action) item.action(); else if (item.href) window.location.href = item.href;
                   }}
                   className="w-full text-left px-5 py-3 text-[13px] transition-colors"
-                  style={{ color: '#9A8F80', fontWeight: 400 }}
+                  style={{ color: '#9AA5B1', fontWeight: 400 }}
                 >
                   {item.label}
                 </button>
@@ -227,7 +227,7 @@ function AppPageContent() {
               pointerEvents: 'auto',
               width: activePanel === i ? 16 : 6,
               height: 6,
-              background: activePanel === i ? '#A6A6AB' : '#38342D',
+              background: activePanel === i ? '#A6A6AB' : '#2b323a',
             }}
             aria-label={['Boutique', 'Chat', 'Video'][i]}
           />
@@ -252,12 +252,12 @@ function AppPageContent() {
       {/* Desktop edge arrows */}
       {activePanel > 0 && (
         <button onClick={() => swipeTo(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#080808]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4E9D5" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F1F4F7" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
       {activePanel < 2 && (
         <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#080808]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4E9D5" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F1F4F7" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
       {houseSettingsOpen && <div className="house-settings-backdrop" onClick={() => setHouseSettingsOpen(false)}><section className="house-settings" role="dialog" aria-modal="true" aria-labelledby="house-settings-title" onClick={(event) => event.stopPropagation()}><button className="house-settings-close" aria-label="Close settings" onClick={() => setHouseSettingsOpen(false)}>×</button><p className="house-kicker">The House</p><h2 id="house-settings-title">Settings</h2><div className="house-setting-group"><h3>Appearance</h3><div className="house-choice"><button className={housePrefs.appearance === "Midnight" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Midnight")}>Midnight</button><button className={housePrefs.appearance === "Ivory" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Ivory")}>Ivory stage</button></div></div><div className="house-setting-group"><h3>Stone glow</h3><div className="house-choice"><button className={housePrefs.glow === "Subtle" ? "selected" : ""} onClick={() => updateHousePref("glow", "Subtle")}>Subtle</button><button className={housePrefs.glow === "Rich" ? "selected" : ""} onClick={() => updateHousePref("glow", "Rich")}>Rich</button></div></div><SettingToggle label="Sound" value={housePrefs.sound} onChange={() => updateHousePref("sound", !housePrefs.sound)} /><SettingToggle label="Haptics" value={housePrefs.haptics} onChange={() => updateHousePref("haptics", !housePrefs.haptics)} /><div className="house-setting-line"><span>Language</span><strong>EN</strong></div><p className="house-privacy">Your preferences stay on this device and are never shared by the House.</p><button className="house-link" onClick={() => { setHouseSettingsOpen(false); swipeTo(1); }}>Ask SAME <span>→</span></button><a className="house-link" href="https://ames-de-brilliance.vercel.app" target="_blank" rel="noreferrer">Visit the Website <span>↗</span></a><p className="house-about">About the House · AMES</p></section></div>}
@@ -390,7 +390,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   }
 
   return (
-    <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#efe9e2', color: '#241d18', position: 'relative' }}>
+    <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#0b0d10', color: '#eef2f6', position: 'relative' }}>
 
       {chatStarted ? (
         /* === CHAT MODE === */
@@ -402,8 +402,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
               <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
             </div>
             <div className="flex rounded-full p-[2px] ml-auto" style={{ background: '#202020' }}>
-              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F4E9D5" : "#9A8F80" }}>Instant</button>
-              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F4E9D5" : "#9A8F80" }}>Expert</button>
+              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F1F4F7" : "#9AA5B1" }}>Instant</button>
+              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F1F4F7" : "#9AA5B1" }}>Expert</button>
             </div>
           </div>
 
@@ -415,8 +415,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
                   {m.role === "assistant" && m.thinking && (
                     <div className="ml-2">
                       <details className="group">
-                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#9A8F80' }}>Reasoning</summary>
-                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#202020', border: '1px solid rgba(23,23,23,0.08)', color: '#9A8F80' }}>{m.thinking}</div>
+                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#9AA5B1' }}>Reasoning</summary>
+                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#202020', border: '1px solid rgba(23,23,23,0.08)', color: '#9AA5B1' }}>{m.thinking}</div>
                       </details>
                     </div>
                   )}
@@ -426,7 +426,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
                         <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
                       </div>
                     )}
-                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: '#F4E9D5', color: '#151515', borderRadius: '18px 18px 4px 18px' } : { background: '#151515', border: '1px solid rgba(23,23,23,0.08)', color: '#F4E9D5', borderRadius: '18px 18px 18px 4px' }) }}>
+                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: '#F1F4F7', color: '#151515', borderRadius: '18px 18px 4px 18px' } : { background: '#151515', border: '1px solid rgba(23,23,23,0.08)', color: '#F1F4F7', borderRadius: '18px 18px 18px 4px' }) }}>
                       {m.text}
                     </div>
                   </div>
@@ -457,10 +457,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
               )}
               <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A8F80" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F4E9D5', lineHeight: 1.4 }} />
-                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F4E9D5' : '#38342D' }}>
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
+                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>
@@ -469,15 +469,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         </div>
       ) : (
         /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#efe9e2', color: '#241d18' }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 chat-empty-state" style={{ background: '#0b0d10', color: '#eef2f6' }}>
 
           <div style={{ width: '100%', maxWidth: 360, minHeight: 270, marginBottom: 18 }}><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
 
           {/* Serif time-of-day greeting */}
-          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#F4E9D5', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
+          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#F1F4F7', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
             {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
           </h2>
-          <p style={{ fontSize: 14, fontWeight: 400, color: '#9A8F80', textAlign: 'center' }}>
+          <p style={{ fontSize: 14, fontWeight: 400, color: '#9AA5B1', textAlign: 'center' }}>
             How can I help you today?
           </p>
         </div>
@@ -489,22 +489,22 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
           <div className="mx-auto" style={{ maxWidth: 360 }}>
             {/* Controls row: DeepThink + Instant/Expert */}
             <div className="flex items-center gap-2 mb-2.5 px-1">
-              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#F4E9D5' : '#151515', color: deepThink ? '#151515' : '#9A8F80', border: '1px solid rgba(23,23,23,0.08)' }}>
+              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#F1F4F7' : '#151515', color: deepThink ? '#151515' : '#9AA5B1', border: '1px solid rgba(23,23,23,0.08)' }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                 DeepThink
               </button>
               <div className="flex rounded-full p-[2px]" style={{ background: '#202020' }}>
-                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F4E9D5" : "#9A8F80" }}>Instant</button>
-                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F4E9D5" : "#9A8F80" }}>Expert</button>
+                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F1F4F7" : "#9AA5B1" }}>Instant</button>
+                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F1F4F7" : "#9AA5B1" }}>Expert</button>
               </div>
             </div>
             {/* Floating card */}
             <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
               <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A8F80" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F4E9D5', lineHeight: 1.4 }} />
-              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F4E9D5' : '#38342D' }}>
+              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
+              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
             </div>
@@ -578,7 +578,7 @@ function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: 
         {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <JewelryViewer modelUrl={product.modelUrl || product.model3d || src || "placeholder:ames-signature-solitaire"} caption="Private viewing — not for sale" /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name })) : <div className="vitrine-placeholder"><strong>{name}</strong></div>}
         <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
       </div>
-      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "hintspo" ? <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button> : null}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
+      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9AA5B1]">{tagline}</p></div><div className="flex gap-2">{kind === "hintspo" ? <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button> : null}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
     </article>
     {tryOnOpen && <div className="viewing-room-backdrop" onClick={() => setTryOnOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`try-on-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Try On" onClick={() => setTryOnOpen(false)}>×</button><div className="viewing-room-frame"><iframe src={`${src}?tryon=1`} title={`${name} Try On`} referrerPolicy="no-referrer" allow="camera camera *" /></div>{cameraUnavailable ? <div className="try-on-fallback"><p>AR try-on needs your camera — or ask SAME to arrange a private viewing.</p><button className="viewing-ask" onClick={() => { setTryOnOpen(false); onAsk(name); }}>Ask SAME <span>→</span></button></div> : <h2 id={`try-on-${name.replace(/\\s/g, "-")}`}>{name}</h2>}{showTryOnGuide && !cameraUnavailable && <div className="try-on-guide"><p>Point your camera at your hand and move slowly.</p><button className="viewing-ask" onClick={dismissTryOnGuide}>Begin</button></div>}</section></div>}
       {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <JewelryViewer modelUrl={product.modelUrl || product.model3d || src || "placeholder:ames-signature-solitaire"} caption="Private viewing — not for sale" /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name }))}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
@@ -700,16 +700,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
     const shape = (s.shape || "").toLowerCase();
     const f = filter.toLowerCase();
     return cat.includes(f) || shape.includes(f);
-  });
 
-  const categoryImages = CATEGORY_MAP.map(cat => {
-    const match = stones.find(s => {
-      const shape = (s.shape || "").toLowerCase();
-      const category = (s.listing_category || "").toLowerCase();
-      return shape.includes(cat.key.toLowerCase()) || category.includes(cat.key.toLowerCase());
-    });
-    const photos = parsePhotos(match?.photo);
-    return { ...cat, photo: photos[0] };
   });
 
   async function toggleWishlist(id: string) {
@@ -734,7 +725,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
               <svg className={isRefreshing ? "animate-spin" : ""} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A6A6AB" strokeWidth="2" strokeLinecap="round">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
               </svg>
-              <span className="text-[10px]" style={{ color: isRefreshing ? "#F4E9D5" : "#9A8F80" }}>
+              <span className="text-[10px]" style={{ color: isRefreshing ? "#F1F4F7" : "#9AA5B1" }}>
                 {pullDist >= THRESHOLD ? (isRefreshing ? "Refreshing..." : "Release to refresh") : "Pull to refresh"}
               </span>
             </div>
@@ -744,54 +735,14 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
         <header className="ames-boutique-topbar"><button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen((open) => !open)}><span /><span /><span /></button><div><p className="ames-boutique-eyebrow">AMES / BOUTIQUE</p><h2>Objects of permanence</h2></div><button className="ames-boutique-action" aria-label="Open collections">↗</button>{boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => setFilter("All")}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}</header>
         <section className="ames-boutique-hero"><div className="ames-boutique-hero-copy"><p className="ames-boutique-kicker">THE CURRENT EDIT</p><h1>Quietly exceptional.</h1><p>Jewelry selected for proportion, material and the way it holds light.</p><button onClick={() => document.querySelector('.ames-engine-boutique-mount')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Explore <span>→</span></button></div><AmesBoutiqueSurface integration={integration} active={active} /></section>
 
-        {/* ═══ FEATURED CATEGORIES ═══ */}
-        <div className="px-5 pt-6 pb-2">
-          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 16 }}>
-            Shop by category
-          </h3>
-          <div className="flex gap-5 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(0px, calc(50% - 200px))', paddingRight: 'max(0px, calc(50% - 200px))' }}>
-            {categoryImages.map(cat => {
-              const hasImage = cat.photo && cat.photo.length > 10 && !cat.photo.startsWith("data:");
-              const isActive = filter === cat.key;
-              return (
-                <button key={cat.key} onClick={() => setFilter(isActive ? "All" : cat.key)} className="flex flex-col items-center gap-2 shrink-0" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                  <div style={{
-                    width: 64, height: 64, borderRadius: "50%",
-                    background: isActive ? "radial-gradient(circle, rgba(142,142,147,0.10) 0%, #151515 70%)" : "radial-gradient(circle, rgba(23,23,23,0.02) 0%, #151515 70%)",
-                    border: isActive ? "1.5px solid #8E8E93" : "1px solid rgba(23,23,23,0.08)",
-                    overflow: "hidden",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {hasImage ? (
-                      <img src={cat.photo!} alt={cat.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" style={{ width: 24, height: 24 }}>
-                        <defs><linearGradient id={`cat-${cat.key}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs>
-                        {cat.key === 'Watch' ? (
-                          /* Watch glyph: circle face + two lugs */
-                          <>
-                            <circle cx="12" cy="12" r="7" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" fill="none" />
-                            <line x1="12" y1="5" x2="12" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
-                            <line x1="12" y1="12" x2="16" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
-                            <rect x="10" y="2" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
-                            <rect x="10" y="19.5" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
-                          </>
-                        ) : (
-                          <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" />
-                        )}
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 10, letterSpacing: "0.1em", color: isActive ? "#F4E9D5" : "#9A8F80", textTransform: "uppercase", fontWeight: 400 }}>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="ames-boutique-editorial px-5" aria-label="Three dimensional viewing guidance">
+          <p>Explore every detail in three dimensions.</p>
+          <span>Rotate, zoom and inspect each piece from every angle before discovering the collection.</span>
         </div>
 
         {/* ═���═ SECTION TITLE ═══ */}
         <div className="px-5 pt-4 pb-2">
-          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
+          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F1F4F7", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
             {filter === "All" ? "Curated pieces" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
           </h3>
         </div>
@@ -814,9 +765,9 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-[12px] mb-4" style={{ color: "#9A8F80" }}>First pieces arriving soon</p>
+              <p className="text-[12px] mb-4" style={{ color: "#9AA5B1" }}>First pieces arriving soon</p>
               <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 12, color: "#9A8F80", border: "1px solid rgba(23,23,23,0.08)", padding: "6px 16px", borderRadius: 10, textDecoration: "none", display: "inline-block", background: "#151515" }}>
+                style={{ fontSize: 12, color: "#9AA5B1", border: "1px solid rgba(23,23,23,0.08)", padding: "6px 16px", borderRadius: 10, textDecoration: "none", display: "inline-block", background: "#151515" }}>
                 WhatsApp the desk to commission
               </a>
             </div>
@@ -834,13 +785,24 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
               ))}
             </div>
           )}
-          <p className="text-center mt-3 pb-2" style={{ fontSize: 10, color: "#9A8F80", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
+          <p className="text-center mt-3 pb-2" style={{ fontSize: 10, color: "#9AA5B1", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
           <div className="h-4" />
         </div>
 
         {/* ═══ BOTTOM MARQUEE ═══ */}
         <section className="ames-boutique-private"><p className="ames-boutique-kicker">ACCESS BY INVITATION</p><h2>Private collection</h2><p>Distinctive forms, held for members and collectors.</p><button onClick={() => onAskPiece("the private collection")}>Ask AMES <span>→</span></button></section>
         <section className="ames-boutique-concierge"><p className="ames-boutique-kicker">AMES CONCIERGE</p><h2>Ask AMES to find or create something</h2><button onClick={() => onAskPiece("a piece to match my brief")}>Start a conversation <span>→</span></button></section>
+
+        <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
+          <p className="ames-boutique-section-kicker">Browse the house</p>
+          <div className="ames-boutique-category-strip">
+            {CATEGORY_MAP.map(cat => (
+              <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} onClick={() => setFilter(cat.key)}>
+                <span>{cat.label}</span><small>Explore</small>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)", overflow: "hidden", padding: "10px 0" }}>
           <div className="marquee-track">
@@ -896,20 +858,20 @@ function ReserveModal({ stoneId, stone, onClose, onReserved }: { stoneId: string
       <div className="relative w-full rounded-t-2xl flex flex-col" style={{ background: "#151515", border: "1px solid rgba(23,23,23,0.08)", borderBottom: "none" }} onClick={e => e.stopPropagation()}>
         <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(23,23,23,0.12)" }} /></div>
         <div className="px-5 pb-4 pt-2">
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "#F4E9D5", marginBottom: 4 }}>Reserve {stone ? stone.ref : ""}</h3>
-          <p style={{ fontSize: 12, color: "#9A8F80", marginBottom: 16 }}>Our desk will send an invoice and payment details via WhatsApp within one business day.</p>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: "#F1F4F7", marginBottom: 4 }}>Reserve {stone ? stone.ref : ""}</h3>
+          <p style={{ fontSize: 12, color: "#9AA5B1", marginBottom: 16 }}>Our desk will send an invoice and payment details via WhatsApp within one business day.</p>
           <div className="space-y-3">
             <div>
-              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9A8F80", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Your Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
+              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9AA5B1", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Your Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F1F4F7" }} />
             </div>
             <div>
-              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9A8F80", textTransform: "uppercase", display: "block", marginBottom: 4 }}>WhatsApp Number</label>
-              <input value={wa} onChange={e => setWa(e.target.value)} placeholder="+267 ..." className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
+              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9AA5B1", textTransform: "uppercase", display: "block", marginBottom: 4 }}>WhatsApp Number</label>
+              <input value={wa} onChange={e => setWa(e.target.value)} placeholder="+267 ..." className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F1F4F7" }} />
             </div>
             <div className="flex gap-3 pt-2">
-              <button onClick={onClose} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default" style={{ border: "1px solid rgba(23,23,23,0.08)", color: "#9A8F80" }}>Cancel</button>
-              <button onClick={handleReserve} disabled={!name.trim() || sending} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default disabled:opacity-40" style={{ background: "#F4E9D5", color: "#151515" }}>
+              <button onClick={onClose} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default" style={{ border: "1px solid rgba(23,23,23,0.08)", color: "#9AA5B1" }}>Cancel</button>
+              <button onClick={handleReserve} disabled={!name.trim() || sending} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default disabled:opacity-40" style={{ background: "#F1F4F7", color: "#151515" }}>
                 {sending ? "Reserving..." : "Confirm Reserve"}
               </button>
             </div>
@@ -977,7 +939,7 @@ function PhotoGallery({ photos, initialIndex, onClose }: { photos: (string | nul
           {photos.map((_, idx) => (
             <button key={idx} onClick={() => setActive(idx)}
               className="rounded-full transition-all"
-              style={{ width: idx === active ? 16 : 6, height: 6, background: idx === active ? "#F4E9D5" : "rgba(23,23,23,0.15)" }} />
+              style={{ width: idx === active ? 16 : 6, height: 6, background: idx === active ? "#F1F4F7" : "rgba(23,23,23,0.15)" }} />
           ))}
         </div>
       )}
@@ -1018,7 +980,7 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
           <>
             <img src={photos[0]!} alt={stone.ref} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             {photos.some(Boolean) && (
-              <span className="absolute bottom-2 right-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.85)", color: "#9A8F80" }}>
+              <span className="absolute bottom-2 right-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.85)", color: "#9AA5B1" }}>
                 1/{photos.filter(Boolean).length || 3}
               </span>
             )}
@@ -1036,19 +998,19 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGa
         )}
       </div>
       <div className="p-3">
-        <p className="text-[13px] font-light truncate" style={{ color: "#F4E9D5", marginBottom: 2 }}>{stone.shape} {stone.carat}ct {stone.color}</p>
-        {spec && <p className="text-[11px] truncate" style={{ color: "#9A8F80", marginBottom: 8 }}>{spec}</p>}
+        <p className="text-[13px] font-light truncate" style={{ color: "#F1F4F7", marginBottom: 2 }}>{stone.shape} {stone.carat}ct {stone.color}</p>
+        {spec && <p className="text-[11px] truncate" style={{ color: "#9AA5B1", marginBottom: 8 }}>{spec}</p>}
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-medium tabular-nums" style={{ color: stone.price ? "#F4E9D5" : "#9A8F80" }}>
+          <span className="text-[13px] font-medium tabular-nums" style={{ color: stone.price ? "#F1F4F7" : "#9AA5B1" }}>
             {stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}
           </span>
           <div className="flex items-center gap-1.5">
             <button onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }} style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={wishlisted ? "#A6A6AB" : "none"} stroke={wishlisted ? "#A6A6AB" : "#9A8F80"} strokeWidth="2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={wishlisted ? "#A6A6AB" : "none"} stroke={wishlisted ? "#A6A6AB" : "#9AA5B1"} strokeWidth="2">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
             </button>
-            <button onClick={(e) => { e.stopPropagation(); onReserve(); }} className="text-[12px] font-medium" style={{ background: "#F4E9D5", color: "#151515", padding: "6px 14px", borderRadius: 10, border: "none", cursor: "pointer", lineHeight: 1 }}>
+            <button onClick={(e) => { e.stopPropagation(); onReserve(); }} className="text-[12px] font-medium" style={{ background: "#F1F4F7", color: "#151515", padding: "6px 14px", borderRadius: 10, border: "none", cursor: "pointer", lineHeight: 1 }}>
               Reserve
             </button>
           </div>
@@ -1089,12 +1051,12 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
     return () => obs.disconnect();
   }, [videos]);
 
-  if (loading) return <div className="h-full flex items-center justify-center" style={{ background: '#080808', color: '#9A8F80', fontSize: 12 }}>Loading videos...</div>;
+  if (loading) return <div className="h-full flex items-center justify-center" style={{ background: '#080808', color: '#9AA5B1', fontSize: 12 }}>Loading videos...</div>;
   if (!videos.length) return (
     <div className="h-full flex items-center justify-center" style={{ background: '#080808', fontSize: 12, textAlign: 'center', padding: 24 }}>
       <div>
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 32, height: 32, margin: '0 auto 12px' }}><defs><linearGradient id="vid-fb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#vid-fb)" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-        <p style={{ color: "#9A8F80" }}>No videos published yet.</p>
+        <p style={{ color: "#9AA5B1" }}>No videos published yet.</p>
       </div>
     </div>
   );
@@ -1265,30 +1227,30 @@ function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => v
       <div className="relative w-full max-h-[70dvh] rounded-t-2xl flex flex-col" style={{ background: "#151515" }} onClick={e => e.stopPropagation()}>
         <div className="flex justify-center py-2"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(23,23,23,0.12)" }} /></div>
         <div className="px-4 pb-2 flex items-center justify-between">
-          <span className="text-[13px] font-light" style={{ color: "#F4E9D5" }}>Comments</span>
-          <button onClick={onClose} className="text-[11px] cursor-default" style={{ color: "#9A8F80" }}>Close</button>
+          <span className="text-[13px] font-light" style={{ color: "#F1F4F7" }}>Comments</span>
+          <button onClick={onClose} className="text-[11px] cursor-default" style={{ color: "#9AA5B1" }}>Close</button>
         </div>
         <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }} />
         <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[100px] max-h-[45dvh]">
           {loading ? (
-            <div className="text-[11px] text-center py-4" style={{ color: "#9A8F80" }}>Loading...</div>
+            <div className="text-[11px] text-center py-4" style={{ color: "#9AA5B1" }}>Loading...</div>
           ) : comments.length === 0 ? (
-            <div className="text-[11px] text-center py-4" style={{ color: "#9A8F80" }}>No comments yet. Be the first.</div>
+            <div className="text-[11px] text-center py-4" style={{ color: "#9AA5B1" }}>No comments yet. Be the first.</div>
           ) : comments.map(c => (
             <div key={c.id} className="space-y-0.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-[11px] font-medium" style={{ color: "#F4E9D5" }}>{c.author}</span>
+                <span className="text-[11px] font-medium" style={{ color: "#F1F4F7" }}>{c.author}</span>
                 <span className="text-[9px]" style={{ color: "#A6A6AB" }}>{timeAgo(c.created_at)}</span>
               </div>
-              <p className="text-[12px] leading-relaxed" style={{ color: "#F4E9D5" }}>{c.text}</p>
+              <p className="text-[12px] leading-relaxed" style={{ color: "#F1F4F7" }}>{c.text}</p>
             </div>
           ))}
         </div>
         <div className="px-4 py-3 space-y-2" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
-          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
+          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F1F4F7" }} />
           <div className="flex gap-2">
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
-            <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40" style={{ background: "#F4E9D5", color: "#151515" }}>
+            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F1F4F7" }} />
+            <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40" style={{ background: "#F1F4F7", color: "#151515" }}>
               {sending ? "..." : "Post"}
             </button>
           </div>
@@ -1312,3 +1274,4 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 }
+
