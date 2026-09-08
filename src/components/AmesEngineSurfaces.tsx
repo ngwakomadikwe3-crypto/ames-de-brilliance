@@ -17,6 +17,9 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
     const started = performance.now();
     setError(null);
     const host = ref.current;
+    host.dataset.amesRenderer = "ames-webgl-gem-material";
+    host.dataset.amesFallback = "none";
+    host.dataset.amesAssetId = initialAssetId || "";
     const viewer={registry,access:{userId:customer.user?.id||null,entitlements:{canAccess:async(_userId:string|null,assetId:string)=>!!(await customerRequest('access/'+encodeURIComponent(assetId))).granted},delivery:{resolve:async(_userId:string|null,assetId:string)=>customerRequest('delivery/'+encodeURIComponent(assetId),'POST',{})}}};
     let hydrating=false,off:(()=>void)|undefined;
     const promise = kind === "boutique"
@@ -39,7 +42,8 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
       if (!cancelled) {
         setError(cause instanceof Error ? cause.message : String(cause));
         // Host logging hook deliberately excludes raw errors, URLs, tokens and chat content.
-        window.dispatchEvent(new CustomEvent('ames:diagnostic', { detail: { code: 'VIEWER_MOUNT_FAILED', surface: kind } }));
+        host.dataset.amesFallback = "renderer-failed";
+        window.dispatchEvent(new CustomEvent('ames:diagnostic', { detail: { code: 'VIEWER_MOUNT_FAILED', surface: kind, fallback: 'none' } }));
       }
     });
     return () => { cancelled = true; off?.();void mounted?.dispose(); };
@@ -60,5 +64,5 @@ export function AmesStoneTraySurface({ integration, assetId = "stone-001" }: { i
   const customer=useCustomer();const [saveError,setSaveError]=useState<string|null>(null),[saving,setSaving]=useState(false);
   const surface = useEngineSurface(integration, "stone-tray", assetId);
   async function save(){if(!customer.user){window.location.assign('/account');return;}setSaving(true);setSaveError(null);try{const selected=surface.ref.current?.querySelector<HTMLSelectElement>('[data-stone]')?.value||assetId;await customerRequest('saved','PUT',{assetId:selected});await customer.reloadState();}catch(e){setSaveError(e instanceof Error?e.message:'Save failed');}finally{setSaving(false);}}
-  return <div className="ames-engine-stone-tray"><div ref={surface.ref} className="ames-engine-stone-mount" />{surface.error && <p role="status">{surface.error}</p>}<button type="button" onClick={save} disabled={saving}>Save stone</button><span role="status">{saveError|| (customer.state.saved.some(a=>a.kind==='stone')?'Stone saved to your account':'')}</span></div>;
+  return <div className="ames-engine-stone-tray" data-stone-presentation="canonical-ames-webgl"><div ref={surface.ref} className="ames-engine-stone-mount" />{surface.error && <p role="status">AMES gemstone renderer unavailable: {surface.error}</p>}<button type="button" onClick={save} disabled={saving}>Save stone</button><span role="status">{saveError|| (customer.state.saved.some(a=>a.kind==='stone')?'Stone saved to your account':'')}</span></div>;
 }

@@ -57,6 +57,7 @@ function AppPageContent() {
   const [housePrefs, setHousePrefs] = useState({ appearance: "Midnight", glow: "Rich", sound: true, haptics: true });
   const [chatLoaded, setChatLoaded] = useState(false);
   const [amesIntegration, setAmesIntegration] = useState<AmesIntegration | null>(null);
+  const [splashComplete, setSplashComplete] = useState(false);
 
   useEffect(() => {
     const engine = createAmesEngine({ backend: { render() {}, setSize() {}, dispose() {} } });
@@ -156,7 +157,9 @@ function AppPageContent() {
 
   return (
     <>
-      <SplashExperience onComplete={() => swipeTo(1)} />
+      <SplashExperience onComplete={() => { setSplashComplete(true); swipeTo(1); }} />
+      <div className={`ames-product-shell${splashComplete ? " is-ready" : ""}`} aria-hidden={!splashComplete}>
+      <style>{`.ames-product-shell{opacity:0;pointer-events:none;visibility:hidden;transition:opacity 560ms cubic-bezier(.22,.61,.36,1),visibility 0s linear 560ms}.ames-product-shell.is-ready{opacity:1;pointer-events:auto;visibility:visible;transition-delay:0s}`}</style>
       <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F4E9D5}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9A8F80;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F4E9D5}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9A8F80;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9A8F80}.house-privacy{margin:18px 0}.house-link{color:#F4E9D5;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F4E9D5;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
         :root`}</style>
       <style>{`
@@ -258,6 +261,7 @@ function AppPageContent() {
         </button>
       )}
       {houseSettingsOpen && <div className="house-settings-backdrop" onClick={() => setHouseSettingsOpen(false)}><section className="house-settings" role="dialog" aria-modal="true" aria-labelledby="house-settings-title" onClick={(event) => event.stopPropagation()}><button className="house-settings-close" aria-label="Close settings" onClick={() => setHouseSettingsOpen(false)}>×</button><p className="house-kicker">The House</p><h2 id="house-settings-title">Settings</h2><div className="house-setting-group"><h3>Appearance</h3><div className="house-choice"><button className={housePrefs.appearance === "Midnight" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Midnight")}>Midnight</button><button className={housePrefs.appearance === "Ivory" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Ivory")}>Ivory stage</button></div></div><div className="house-setting-group"><h3>Stone glow</h3><div className="house-choice"><button className={housePrefs.glow === "Subtle" ? "selected" : ""} onClick={() => updateHousePref("glow", "Subtle")}>Subtle</button><button className={housePrefs.glow === "Rich" ? "selected" : ""} onClick={() => updateHousePref("glow", "Rich")}>Rich</button></div></div><SettingToggle label="Sound" value={housePrefs.sound} onChange={() => updateHousePref("sound", !housePrefs.sound)} /><SettingToggle label="Haptics" value={housePrefs.haptics} onChange={() => updateHousePref("haptics", !housePrefs.haptics)} /><div className="house-setting-line"><span>Language</span><strong>EN</strong></div><p className="house-privacy">Your preferences stay on this device and are never shared by the House.</p><button className="house-link" onClick={() => { setHouseSettingsOpen(false); swipeTo(1); }}>Ask SAME <span>→</span></button><a className="house-link" href="https://ames-de-brilliance.vercel.app" target="_blank" rel="noreferrer">Visit the Website <span>↗</span></a><p className="house-about">About the House · AMES</p></section></div>}
+      </div>
     </>
   );
 }
