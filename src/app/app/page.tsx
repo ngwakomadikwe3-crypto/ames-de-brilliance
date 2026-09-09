@@ -574,11 +574,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
       const r = await fetch("/api/stones");
       if (r.ok) {
         const all: StoreStone[] = await r.json();
-        const live = all.filter(s => s.status === "Available" && (s.listing_category === "Polished" || s.listing_category === "Jewelry"));
-        /* Seed the single demo piece (hidden once real stock exists or owner removed it) */
-        const demoRemoved = typeof window !== "undefined" && localStorage.getItem("boutique_demo_removed") === "1";
-        const hasDemo = live.some(s => s.id === "_demo_aurora");
-        if (!hasDemo && !demoRemoved && live.length === 0) live.unshift(DEMO_STONE);
+        const live = all.filter(s => s.id !== "_demo_aurora" && s.status === "Available" && s.listing_category === "Jewelry" && parsePhotos(s.photo).some(Boolean));
         setStones(live);
       }
     } catch {} finally { setLoading(false); }
@@ -587,6 +583,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
   useEffect(() => { fetchStones(); }, [fetchStones]);
 
   function handleTouchStart(e: React.TouchEvent) {
+    if (e.target instanceof Element && e.target.closest("canvas")) return;
     const el = scrollRef.current;
     if (!el || el.scrollTop > 5 || isRefreshing) return;
     pullStartRef.current = e.touches[0].clientY;
@@ -632,11 +629,11 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 ames-boutique-panel" style={{ background: "#0b0d10", color: "#f4f5f6" }}>
+    <div data-active={active} className="flex-1 flex flex-col min-h-0 ames-boutique-panel" style={{ background: "#0b0d10", color: "#f4f5f6" }}>
       {wishlistError&&<p role="status">{wishlistError}</p>}
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain ames-boutique-scroll" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
         {/* Pull-to-refresh */}
         <div className="overflow-hidden flex items-center justify-center" style={{ height: pullDist || 0, transition: isRefreshing ? "none" : "height 0.25s ease-out" }}>
@@ -652,87 +649,41 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           )}
         </div>
 
-        <header className="ames-boutique-topbar"><button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen((open) => !open)}><span /><span /><span /></button><div><p className="ames-boutique-eyebrow">AMES / BOUTIQUE</p><h2>Objects of permanence</h2></div><button className="ames-boutique-action" aria-label="Open collections">↗</button>{boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => setFilter("All")}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}</header>
-        <section className="ames-boutique-hero"><div className="ames-boutique-hero-copy"><p className="ames-boutique-kicker">THE CURRENT EDIT</p><h1>Quietly exceptional.</h1><p>Jewelry selected for proportion, material and the way it holds light.</p><button onClick={() => document.querySelector('.ames-engine-boutique-mount')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Explore <span>→</span></button></div><AmesBoutiqueSurface integration={integration} active={active} /></section>
-
-        <div className="ames-boutique-editorial px-5" aria-label="Three dimensional viewing guidance">
-          <p>Explore every detail in three dimensions.</p>
-          <span>Rotate, zoom and inspect each piece from every angle before discovering the collection.</span>
+        <header className="ames-boutique-topbar">
+          <button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen(open => !open)}><span /><span /><span /></button>
+          <span className="ames-boutique-brand">AMES<span>DE BRILLIANCE</span></span>
+          <button className="ames-boutique-action" aria-label="Browse collections" onClick={() => scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></button>
+          {boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => { setFilter("All"); setBoutiqueMenuOpen(false); scrollRef.current?.querySelector('.ames-boutique-arrivals')?.scrollIntoView({ behavior: 'smooth' }); }}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}
+        </header>
+        <section className="ames-boutique-hero" aria-label="Interactive jewelry hero">
+          <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => scrollRef.current?.querySelector(".ames-boutique-arrivals")?.scrollIntoView({ behavior: "smooth" })}>Explore the collection</button></div>
+          <AmesBoutiqueSurface integration={integration} active={active} />
+        </section>
+        <div className="ames-boutique-editorial" aria-label="Three dimensional viewing guidance">
+          <p>Experience every detail in three dimensions.</p>
+          <span>Rotate, inspect and explore each piece from every angle. Drag to turn. Pinch or scroll to move closer.</span>
         </div>
 
-        {/* ═���═ SECTION TITLE ═══ */}
-        <div className="px-5 pt-4 pb-2">
-          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F1F4F7", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
-            {filter === "All" ? "Curated pieces" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
-          </h3>
-        </div>
-
-        {/* Grid */}
-        <div className="px-5 pb-4">
-          {loading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ background: "#151515", borderRadius: 14, border: "1px solid rgba(23,23,23,0.08)", overflow: "hidden" }}>
-                  <div className="aspect-square relative" style={{ background: "#202020" }}>
-                    <div className="absolute inset-0 shimmer" />
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <div className="h-3 w-16 shimmer rounded" />
-                    <div className="h-2.5 w-3/4 shimmer rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-[12px] mb-4" style={{ color: "#9AA5B1" }}>First pieces arriving soon</p>
-              <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 12, color: "#9AA5B1", border: "1px solid rgba(23,23,23,0.08)", padding: "6px 16px", borderRadius: 10, textDecoration: "none", display: "inline-block", background: "#151515" }}>
-                WhatsApp the desk to commission
-              </a>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filtered.map(stone => (
-                <BoutiqueCard
-                  key={stone.id}
-                  stone={stone}
-                  wishlisted={!!wishlist[stone.id]}
-                  onToggleWishlist={() => toggleWishlist(stone.id)}
-                  onReserve={() => setShowReserveId(stone.id)}
-                  onOpenGallery={(photos, idx) => openGallery(photos, idx)}
-                />
-              ))}
-            </div>
-          )}
-          <p className="text-center mt-3 pb-2" style={{ fontSize: 10, color: "#9AA5B1", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
-          <div className="h-4" />
-        </div>
-
-        {/* ═══ BOTTOM MARQUEE ═══ */}
-        <section className="ames-boutique-private"><p className="ames-boutique-kicker">ACCESS BY INVITATION</p><h2>Private collection</h2><p>Distinctive forms, held for members and collectors.</p><button onClick={() => onAskPiece("the private collection")}>Ask AMES <span>→</span></button></section>
-        <section className="ames-boutique-concierge"><p className="ames-boutique-kicker">AMES CONCIERGE</p><h2>Ask AMES to find or create something</h2><button onClick={() => onAskPiece("a piece to match my brief")}>Start a conversation <span>→</span></button></section>
+        <section className="ames-boutique-arrivals" aria-label="New Arrivals">
+          <div className="ames-boutique-section-heading"><h2>{filter === "All" ? "New Arrivals" : CATEGORY_MAP.find(cat => cat.key === filter)?.label || filter}</h2>{filter !== "All" && <button onClick={() => setFilter("All")}>View all</button>}</div>
+          <div className="ames-boutique-product-grid">
+            {(filter === "All" || filter === "Ring") && <BoutiqueCollectionRing onView={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })} />}
+            {filtered.map(stone => <BoutiqueCard key={stone.id} stone={stone} wishlisted={!!wishlist[stone.id]} onToggleWishlist={() => toggleWishlist(stone.id)} onReserve={() => setShowReserveId(stone.id)} onOpenGallery={(photos, idx) => openGallery(photos, idx)} />)}
+          </div>
+          {!loading && !filtered.length && filter !== "All" && filter !== "Ring" && <p className="ames-boutique-collection-note">No {CATEGORY_MAP.find(cat => cat.key === filter)?.label.toLowerCase()} are available to view yet.</p>}
+        </section>
 
         <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
           <p className="ames-boutique-section-kicker">Browse the house</p>
           <div className="ames-boutique-category-strip">
             {CATEGORY_MAP.map(cat => (
-              <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} onClick={() => setFilter(cat.key)}>
-                <span>{cat.label}</span><small>Explore</small>
+              <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} onClick={() => { setFilter(cat.key); scrollRef.current?.querySelector(".ames-boutique-arrivals")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+                <span>{cat.label}</span>
               </button>
             ))}
           </div>
         </section>
 
-        <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)", overflow: "hidden", padding: "10px 0" }}>
-          <div className="marquee-track">
-            {[...Array(4)].map((_, i) => (
-              <span key={i} style={{ fontSize: 11, letterSpacing: "0.12em", color: "#A6A6AB", fontWeight: 400, whiteSpace: "nowrap", paddingRight: 32 }}>
-                KIMBERLEY PROCESS CERTIFIED &middot; BOTSWANA LICENSED TRADE &middot; EVERY STONE INSURED IN TRANSIT &middot;&nbsp;
-              </span>
-            ))}
-          </div>
-        </div>
 
       </div>
 
@@ -883,61 +834,35 @@ function PhotoGallery({ photos, initialIndex, onClose }: { photos: (string | nul
 }
 
 /* ── Boutique Card ── */
-function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGallery }: {
+function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onOpenGallery }: {
   stone: StoreStone; wishlisted: boolean;
   onToggleWishlist: () => void; onReserve: () => void;
   onOpenGallery: (photos: (string | null)[], index: number) => void;
 }) {
   const photos = parsePhotos(stone.photo);
-  const hasPhoto = photos[0] !== null;
-  const spec = [stone.cut || stone.shape, stone.carat ? `${stone.carat}ct` : "", stone.color].filter(Boolean).join(" \u00b7 ");
+  const [failed, setFailed] = useState(false);
+  const photoIndex = photos.findIndex(photo => !!photo && !photo.startsWith("/demo/"));
+  if (failed || photoIndex < 0) return null;
+  const name = stone.shape || stone.ref;
+  const detail = [stone.cut, stone.carat ? `${stone.carat} ct` : "", stone.color].filter(Boolean).join(" \u00b7 ");
+  return <article className="ames-boutique-product" data-stone-id={stone.id}>
+    <button className="ames-boutique-product-image" onClick={() => onOpenGallery(photos, photoIndex)} aria-label={`View ${name}`}>
+      <img src={photos[photoIndex]!} alt={name} onError={() => setFailed(true)} />
+    </button>
+    {<button className="ames-boutique-favorite" onClick={onToggleWishlist} aria-label={`${wishlisted ? "Remove" : "Add"} ${name} ${wishlisted ? "from" : "to"} favorites`} aria-pressed={wishlisted}><svg width="19" height="19" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg></button>}
+    <div className="ames-boutique-product-copy"><h3>{name}</h3><p>{detail}</p><div className="ames-boutique-product-footer"><span>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span><button onClick={() => onOpenGallery(photos, photoIndex)}>View <span aria-hidden="true">&rarr;</span></button></div></div>
+  </article>;
+}
 
-  return (
-    <div style={{ background: "#151515", borderRadius: 14, border: "1px solid rgba(23,23,23,0.08)", overflow: "hidden" }}>
-      <div className="aspect-square relative cursor-pointer" style={{ overflow: "hidden" }}
-        onClick={() => onOpenGallery(photos, 0)}>
-        {hasPhoto ? (
-          <>
-            <img src={photos[0]!} alt={stone.ref} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            {photos.some(Boolean) && (
-              <span className="absolute bottom-2 right-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.85)", color: "#9AA5B1" }}>
-                1/{photos.filter(Boolean).length || 3}
-              </span>
-            )}
-          </>
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#202020" }}>
-            <svg viewBox="0 0 24 24" fill="none" style={{ width: 40, height: 40 }}><defs><linearGradient id="card-fb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#card-fb)" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-          </div>
-        )}
-        {(stone as any).trader_preferred && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 text-[8px] font-medium uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-full" style={{ color: "#8E8E93", background: "rgba(252,252,251,0.9)", border: "1px solid rgba(23,23,23,0.08)" }}>
-            <svg viewBox="0 0 24 24" fill="none" style={{ width: 8, height: 8 }}><defs><linearGradient id="pref-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#pref-g)" strokeWidth="1.5" fill="none" /></svg>
-            Preferred
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        <p className="text-[13px] font-light truncate" style={{ color: "#F1F4F7", marginBottom: 2 }}>{stone.shape} {stone.carat}ct {stone.color}</p>
-        {spec && <p className="text-[11px] truncate" style={{ color: "#9AA5B1", marginBottom: 8 }}>{spec}</p>}
-        <div className="flex items-center justify-between">
-          <span className="text-[13px] font-medium tabular-nums" style={{ color: stone.price ? "#F1F4F7" : "#9AA5B1" }}>
-            {stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }} style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={wishlisted ? "#A6A6AB" : "none"} stroke={wishlisted ? "#A6A6AB" : "#9AA5B1"} strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onReserve(); }} className="text-[12px] font-medium" style={{ background: "#F1F4F7", color: "#151515", padding: "6px 14px", borderRadius: 10, border: "none", cursor: "pointer", lineHeight: 1 }}>
-              Reserve
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function BoutiqueCollectionRing({ onView }: { onView: () => void }) {
+  const [favorite, setFavorite] = useState(false);
+  useEffect(() => { try { setFavorite(localStorage.getItem("ames-boutique-pave-favorite") === "true"); } catch {} }, []);
+  function toggle() { setFavorite(value => { const next = !value; try { localStorage.setItem("ames-boutique-pave-favorite", String(next)); } catch {} return next; }); }
+  return <article className="ames-boutique-product ames-boutique-collection-ring">
+    <div className="ames-boutique-product-image"><img src="/models/jewelry/ames-pave-solitaire.png" alt="Pavé Solitaire ring" /></div>
+    <button className="ames-boutique-favorite" onClick={toggle} aria-label={favorite ? "Remove Pavé Solitaire from favorites on this device" : "Favorite Pavé Solitaire on this device"} aria-pressed={favorite}><svg width="17" height="17" viewBox="0 0 24 24" fill={favorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg></button>
+    <div className="ames-boutique-product-copy"><h3>Pavé Solitaire</h3><p>Round center · Pavé shoulders</p><div className="ames-boutique-product-footer"><span>AMES Collection</span><button onClick={onView}>View <span aria-hidden="true">&rarr;</span></button></div></div>
+  </article>;
 }
 
 /* ════════��══════════════════════════════════

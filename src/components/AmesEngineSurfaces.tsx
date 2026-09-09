@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createAssetRegistry,mountBoutiqueViewer,type AmesIntegration,type BoutiqueMode } from "@ames/engine";
 import { useCustomer,customerRequest } from './CustomerState';
 import { createAMESDiamondMaterial } from '@/three/AMESDiamondMaterial';
-import JewelryViewer from './jewelry/JewelryViewer';
+import BoutiqueJewelryStage from './jewelry/BoutiqueJewelryStage';
 import { Color, Mesh, Vector3 } from 'three';
 
 function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" | "stone-tray", initialAssetId?: string, enabled = true, gem = "diamond") {
@@ -84,18 +84,10 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
   return { ref, error };
 }
 
-export function AmesBoutiqueSurface({ integration, active = true }: { integration: AmesIntegration | null; active?: boolean }) {
-  const customer = useCustomer();
-  // Startup profiling found an unnecessary offscreen WebGL context before Chat.
-  // Mount on first Boutique visit, then retain the viewer and its existing state.
+export function AmesBoutiqueSurface({ active = true }: { integration: AmesIntegration | null; active?: boolean }) {
   const [visited,setVisited]=useState(active);
   useEffect(()=>{if(active)setVisited(true);},[active]);
-  const surface = useEngineSurface(integration, "boutique",undefined,visited);
-  const hasJewelry = customer.catalog.assets.some((asset) => asset.category !== 'stone');
-  return <div className="ames-engine-boutique-shell">
-    {!hasJewelry && <div className="ames-boutique-empty-stage" aria-label="AMES jewelry preview"><JewelryViewer modelUrl="placeholder:ames-signature-solitaire" caption="AMES current edit" /></div>}
-    <div ref={surface.ref} className={`ames-engine-boutique-mount${hasJewelry ? "" : " is-empty"}`} />{surface.error && <p role="status">{surface.error}</p>}
-  </div>;
+  return <div className="ames-engine-boutique-shell"><div className="ames-boutique-asset-stage">{visited && <BoutiqueJewelryStage active={active} />}</div></div>;
 }
 
 export function AmesStoneTraySurface({ integration, assetId = "stone-001", gem = "diamond" }: { integration: AmesIntegration | null; assetId?: string; gem?: string }) {

@@ -338,9 +338,9 @@ body::before, body::after { display:none !important; }
 .ames-engine-boutique-mount .ames-boutique .layout{display:block}
 .ames-engine-boutique-mount .ames-boutique .details{display:none}
 .ames-engine-boutique-mount .ames-boutique .viewport{height:clamp(260px,40dvh,460px);width:100%}
-.ames-boutique-empty-stage{height:clamp(260px,40dvh,460px);position:relative;background:radial-gradient(ellipse at center,rgba(180,198,220,.12),transparent 58%);border-radius:14px;overflow:hidden}
-.ames-boutique-empty-stage .jewelry-viewer{height:100%;min-height:100%}
-.ames-boutique-empty-stage .jewelry-controls,.ames-boutique-empty-stage button{display:none!important}
+.ames-boutique-asset-stage{height:clamp(260px,40dvh,460px);position:relative;background:radial-gradient(ellipse at center,rgba(180,198,220,.12),transparent 58%);border-radius:14px;overflow:hidden}
+.ames-boutique-asset-stage .jewelry-viewer{height:100%;min-height:100%}
+.ames-boutique-asset-stage .jewelry-controls,.ames-boutique-asset-stage button{display:none!important}
 .ames-engine-boutique-mount.is-empty{display:none}
 /* Short screens/keyboard: keep all existing Chat controls reachable by vertical scroll. */
 @media(max-height:600px){
@@ -403,6 +403,73 @@ body::before, body::after { display:none !important; }
 .ames-chat.has-messages .ames-stone-tray .stage{height:clamp(180px,32dvh,300px)}
 @media(max-height:600px){.ames-chat.chat-paper{padding-top:60px}.ames-chat .ames-chat-stage{margin-top:0;padding-block:0}.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage{height:24dvh;min-height:90px}.ames-chat-composer-wrap{padding-bottom:10px}.ames-chat-messages{padding-block:10px}}
 
+/* Boutique reference: references/boutique-reference.jpg */
+.ames-product-shell:has(.ames-boutique-panel[data-active="true"]) > .fixed.top-0{display:none}
+.ames-boutique-panel .ames-boutique-scroll{scrollbar-width:none;scroll-padding-top:24px;background:radial-gradient(ellipse at 90% 85%,#25282b55,transparent 45%),#070809}
+.ames-boutique-panel .ames-boutique-topbar{height:78px;max-width:1100px;margin:auto;padding:0 30px;justify-content:space-between;border-bottom:1px solid #ffffff1f;background:linear-gradient(100deg,#17191b,#0b0c0d 55%,#1c1e20)}
+.ames-boutique-panel .ames-boutique-brand{position:absolute;left:50%;top:12px;transform:translateX(-50%);text-align:center;font:400 23px/1 Georgia,serif;letter-spacing:.12em;color:#e5e6e7}
+.ames-boutique-brand>span{display:block;font:400 8px/1.6 var(--font-inter,Arial,sans-serif);letter-spacing:.22em;margin-top:4px}
+.ames-boutique-panel .ames-boutique-menu,.ames-boutique-panel .ames-boutique-action{border:0;background:transparent;width:44px;height:44px;border-radius:0;margin:0}
+.ames-boutique-panel .ames-boutique-hero{height:440px;max-width:1100px;margin:auto;position:relative;padding:0;isolation:isolate;background:radial-gradient(ellipse at 62% 95%,#777f8722,transparent 42%),#070809;overflow:hidden}
+.ames-boutique-hero:before{content:"";position:absolute;z-index:-1;inset:0 9% 5% 28%;background:radial-gradient(ellipse at 50% 0,#d3dbe52e,transparent 69%);filter:blur(24px)}
+.ames-boutique-hero:after{content:"";position:absolute;z-index:-1;width:47%;height:30px;left:38%;bottom:34px;border-radius:50%;background:#ccd4df65;filter:blur(13px);box-shadow:0 0 28px #cbd4e52a}
+.ames-boutique-panel .ames-boutique-hero-copy{position:absolute;left:6.5%;top:26%;z-index:2;padding:0;max-width:36%;pointer-events:none}
+.ames-boutique-panel .ames-boutique-hero-copy h1{font:400 clamp(23px,2.3vw,33px)/1.15 Georgia,serif;letter-spacing:-.02em;text-transform:uppercase;margin:0 0 8px;color:#f1f1f2}
+.ames-boutique-panel .ames-boutique-hero-copy .ames-boutique-hero-subtitle{font-size:13px;color:#c6c9cd;margin:0 0 16px;line-height:1.5}
+.ames-boutique-panel .ames-boutique-hero-copy button{pointer-events:auto;border:0;border-bottom:1px solid #a9b0b8;border-radius:0;background:transparent;padding:6px 0;color:#d7dce2;font-size:11px;min-height:36px}
+.ames-boutique-panel .ames-engine-boutique-shell{height:100%;width:65%;margin-left:30%;border:0;box-shadow:none;background:transparent;position:relative}
+.ames-boutique-panel .ames-boutique-asset-stage,.ames-boutique-panel .ames-engine-boutique-mount .ames-boutique .viewport{height:390px;background:transparent;border-radius:0;top:8px}
+.ames-boutique-panel .ames-boutique-editorial{height:210px;max-width:900px;margin:0 auto;border:0;display:flex;flex-direction:column;justify-content:center;padding:32px 30px;text-align:center}
+.ames-boutique-panel .ames-boutique-editorial p{font:400 28px/1.3 Georgia,serif;letter-spacing:-.015em;color:#e5e7eb}
+.ames-boutique-panel .ames-boutique-editorial span{max-width:465px;font-size:12px;line-height:1.8;color:#9ca3ac;margin-top:14px}
+.ames-boutique-panel .ames-boutique-arrivals{max-width:1000px;margin:0 auto;padding:0 24px 66px}
+.ames-boutique-section-heading{position:relative;text-align:center;margin:0 0 28px}
+.ames-boutique-section-heading h2{font:400 29px Georgia,serif;color:#e5e7eb}
+.ames-boutique-section-heading>button{position:absolute;right:0;top:0;font-size:11px;min-height:36px;color:#aeb6c0}
+.ames-boutique-product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.ames-boutique-product{position:relative;min-width:0;border:1px solid #8d949d66;border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#4a4e5155,#111315 70%)}
+.ames-boutique-product-image{display:grid;place-items:center;width:100%;height:auto;aspect-ratio:1/1.12;background:transparent;overflow:hidden;color:#9aa5b1}
+.ames-boutique-product-image>img{width:100%;height:100%;object-fit:contain}
+.ames-boutique-product-image .jewelry-viewer{width:100%;height:100%;min-height:0}
+.ames-boutique-collection-ring .jewelry-controls,.ames-boutique-collection-ring .jewelry-viewer button{display:none!important}
+.ames-boutique-favorite{position:absolute;right:4px;top:4px;width:40px;height:40px;display:grid;place-items:center;color:#d7dce4;background:transparent;border:0}
+.ames-boutique-product-copy{padding:12px 12px 8px}
+.ames-boutique-product-copy h3{font:400 11px/1.5 var(--font-inter,Arial,sans-serif);text-transform:uppercase;letter-spacing:.025em;margin:0 0 4px;color:#e6e9ee}
+.ames-boutique-product-copy p{font-size:10px;line-height:1.6;margin:0;color:#abb3be}
+.ames-boutique-product-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:9px;color:#9ca5b1;margin-top:9px}
+.ames-boutique-product-footer button{font-size:10px;min-height:36px;padding:8px 11px;border-radius:4px;color:#16191d;background:#d3d8df}
+.ames-boutique-product-footer button span{margin-left:6px}
+.ames-boutique-collection-note{color:#929ca8;text-align:center;font-size:12px;padding:40px 20px}
+.ames-boutique-panel .ames-boutique-categories-bottom{max-width:1052px;margin:0 auto 30px;padding:24px;border-top:1px solid #70798255;border-bottom:1px solid #70798233;background:linear-gradient(90deg,#191b1f88,#33383d66)}
+.ames-boutique-panel .ames-boutique-section-kicker{font-size:9px;margin-bottom:12px;letter-spacing:.2em;color:#a8b0ba}
+.ames-boutique-panel .ames-boutique-category-strip{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.ames-boutique-panel .ames-boutique-category-strip button{min-height:44px;border:0;border-radius:0;background:transparent;padding:8px 0;text-align:center}
+.ames-boutique-panel .ames-boutique-category-strip button.active{box-shadow:inset 0 -1px #d4dce6}
+.ames-boutique-panel .ames-boutique-category-strip span{font:400 17px Georgia,serif;text-transform:none;letter-spacing:0;color:#d7dde6}
+.ames-boutique-panel button:focus-visible{outline:1px solid #dde3ec;outline-offset:3px}
+@media(max-width:700px){
+.ames-boutique-panel .ames-boutique-topbar{height:72px;padding:0 12px}
+.ames-boutique-panel .ames-boutique-hero{height:360px}
+.ames-boutique-panel .ames-boutique-hero-copy{left:6%;top:12%;max-width:43%}
+.ames-boutique-panel .ames-boutique-hero-copy h1{font-size:21px;line-height:1.15}
+.ames-boutique-panel .ames-boutique-hero-copy .ames-boutique-hero-subtitle{font-size:10px;max-width:140px}
+.ames-boutique-panel .ames-boutique-hero-copy button{font-size:10px}
+.ames-boutique-panel .ames-engine-boutique-shell{width:74%;margin-left:24%;padding-top:54px}
+.ames-boutique-panel .ames-boutique-asset-stage,.ames-boutique-panel .ames-engine-boutique-mount .ames-boutique .viewport{height:260px;top:0}
+.ames-boutique-hero:after{left:35%;width:57%;bottom:29px;height:19px}
+.ames-boutique-panel .ames-boutique-editorial{height:190px;padding:26px 30px}
+.ames-boutique-panel .ames-boutique-editorial p{font-size:24px}
+.ames-boutique-panel .ames-boutique-editorial span{font-size:11px;max-width:320px}
+.ames-boutique-panel .ames-boutique-arrivals{padding:0 20px 40px}
+.ames-boutique-section-heading h2{font-size:26px}
+.ames-boutique-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ames-boutique-product-copy{padding:10px}
+.ames-boutique-product-footer{font-size:8px}
+.ames-boutique-panel .ames-boutique-categories-bottom{margin:0 16px 22px;padding:20px 8px}
+.ames-boutique-panel .ames-boutique-category-strip{gap:5px}
+.ames-boutique-panel .ames-boutique-category-strip span{font-size:12px}
+}
+
 /* Video-only presentation. Feed observer and media lifecycle stay unchanged. */
 .ames-product-shell:has(.ames-video-panel[data-active="true"]) > .fixed.top-0{display:none}
 .ames-video-panel{height:100dvh;background:#090b0e;color:#edf0f4;font-family:var(--font-inter,Arial,sans-serif);position:relative}
@@ -431,3 +498,7 @@ body::before, body::after { display:none !important; }
 .ames-video-empty p{font:400 28px Georgia,serif;color:#e4e8ee;margin-bottom:14px}
 .ames-video-panel button:focus-visible,.ames-video-panel a:focus-visible{outline:1px solid #e1e6ed;outline-offset:3px}
 @media(min-width:701px){.ames-video-frame{height:calc(100dvh - 98px);width:auto;aspect-ratio:9/16;margin-top:60px;max-width:100%}.ames-video-header{background:#090b0e}.ames-video-caption{padding-left:24px}.ames-video-menu-button{left:28px}}
+
+.ames-boutique-jewelry-stage{height:100%;width:100%;touch-action:none}
+
+.ames-boutique-panel .ames-boutique-category-strip button:last-child{grid-column:auto}
