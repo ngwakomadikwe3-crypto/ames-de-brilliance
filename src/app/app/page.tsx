@@ -1,6 +1,7 @@
 "use client";
 
 import { createElement, useState, useEffect, useCallback, useRef } from "react";
+import { CHAT_STONES, isChatStone, stoneRequest } from "@/lib/chat-stone-selection";
 import SplashExperience from "@/components/SplashExperience";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
@@ -302,7 +303,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [gem, setGem] = useState("diamond");
   const [composerMenuOpen, setComposerMenuOpen] = useState(false);
   const customer=useCustomer(),restoredStone=useRef(false);
-  useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved)setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
+  useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved && isChatStone(saved.assetId))setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -362,21 +363,12 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     if (!msg || typing) return;
     setInput("");
     // Conversation controls the single displayed canonical stone. No AI output, URL or tier assertion can grant access.
-    const normalized = msg.toLowerCase();
-    const gemRequest = /\b(diamond|sapphire|ruby|spinel|alexandrite|tanzanite|aquamarine|tourmaline|topaz|garnet)\b/.exec(normalized)?.[1]
-      || (/\b(?:make it|change to) emerald\b/.test(normalized) ? "emerald" : null);
-    const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase()
-      || (/\boval\b/.test(normalized) ? "stone-002" : null)
-      || (/\basscher\b/.test(normalized) ? "stone-005" : null)
-      || (/\bemerald(?: cut)?\b/.test(normalized) && gemRequest !== "emerald" ? "stone-003" : null)
-      || (/\bpear\b/.test(normalized) ? "stone-004" : null)
-      || (/\bround\b/.test(normalized) ? "stone-001" : null)
-      || (/\b(?:rare|obscure|unusual)\b/.test(normalized) ? "stone-005" : null);
-    if ((requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) || gemRequest) {
-      if (requested) setSelectedStoneId(requested);
-      if (gemRequest) setGem(gemRequest);
+    const selection = stoneRequest(msg);
+    if (selection) {
+      if (selection.assetId) setSelectedStoneId(selection.assetId);
+      if (selection.gem) setGem(selection.gem);
       await appendMessage(null, 'user', msg);
-      if (/\b(?:rare|obscure|unusual)\b/.test(normalized)) {
+      if (selection.rare) {
         await appendMessage(null, 'assistant', 'The current collection has five classic cuts. Here is Asscher, a less common step cut.');
       }
       return;
@@ -410,7 +402,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         <span className="ames-chat-mark">AMES</span>
         {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/account">Account</a><a href="/account?tab=favorites">Favorites</a></nav>}
       </header>
-      <div className="ames-chat-stage">
+      <div className="ames-chat-stage" aria-label="Gemstone showcase">
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
       </div>
       <div ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
@@ -418,14 +410,16 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
       </div>
       <div className="ames-chat-composer-wrap">
-        {composerMenuOpen && <div className="ames-composer-menu">
-          <button onClick={() => { setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setComposerMenuOpen(false); }}>New conversation</button>
+        {composerMenuOpen && <div className="ames-composer-menu" aria-label="Conversation options">
+          <span className="ames-composer-menu-label">Choose a stone</span>
+          {CHAT_STONES.map(stone => <button key={stone.id} aria-pressed={selectedStoneId === stone.id} onClick={() => { setSelectedStoneId(stone.id); setComposerMenuOpen(false); }}>{stone.name}</button>)}
+          <button disabled={typing} className="ames-new-conversation" onClick={() => { setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setComposerMenuOpen(false); }}>New conversation</button>
         </div>}
         <form className="ames-chat-composer" onSubmit={e => { e.preventDefault(); void handleSend(); }}>
           <button type="button" aria-label="Conversation options" aria-expanded={composerMenuOpen} onClick={() => setComposerMenuOpen(open => !open)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14" /></svg>
           </button>
-          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" />
+          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" autoComplete="off" enterKeyHint="send" />
           <button type="submit" aria-label="Send message" disabled={!input.trim() || typing} className="ames-chat-send">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
           </button>
