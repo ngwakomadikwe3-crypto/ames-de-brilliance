@@ -77,8 +77,11 @@ export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture) {
 
       vec3 lightFrom(vec3 localDirection) {
         vec3 worldDirection = normalize(mat3(worldFromLocal) * localDirection);
-        // Slight angular filtering keeps subpixel dispersion stable during interaction.
-        return textureCubeUV(studio, worldDirection, 0.12).rgb;
+        // Filter small panel edges during rotation, then retain highlight headroom
+        // from the bright studio softboxes. A low neutral fill opens dark facets
+        // without flattening their contrast or inventing screen-space sparkles.
+        vec3 studioLight = textureCubeUV(studio, worldDirection, 0.16).rgb;
+        return studioLight * 0.78 + vec3(0.022);
       }
       float fresnel(float cosI, float eta) {
         float sinT2 = eta * eta * max(0.0, 1.0 - cosI * cosI);

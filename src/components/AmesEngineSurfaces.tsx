@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createAssetRegistry,mountBoutiqueViewer,type AmesIntegration,type BoutiqueMode } from "@ames/engine";
 import { useCustomer,customerRequest } from './CustomerState';
 import { createAMESDiamondMaterial } from '@/three/AMESDiamondMaterial';
+import { createAMESStoneStage } from '@/three/AMESStoneStage';
 import BoutiqueJewelryStage from './jewelry/BoutiqueJewelryStage';
-import { Color, Mesh, Vector3 } from 'three';
+import { Mesh, Vector3, type Texture } from 'three';
 
 function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" | "stone-tray", initialAssetId?: string, enabled = true, gem = "diamond", attempt = 0) {
   const customer=useCustomer();
@@ -17,6 +18,7 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
   useEffect(() => {
     if (!enabled || !integration || !ref.current || !customer.ready) return;
     let mounted: { dispose(): Promise<void> } | undefined;
+    let stoneBackdrop: Texture | undefined;
     let cancelled = false;
     const started = performance.now();
     setError(null);
@@ -41,7 +43,8 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
       mounted = value;
       if (kind === "stone-tray") {
         host.dataset.amesRenderer = gem === "diamond" ? "ames-chat-facet-transport" : "ames-colored-gem-preview";
-        value.viewer.engine.scene.background = new Color('#0b0d10');
+        stoneBackdrop = createAMESStoneStage();
+        value.viewer.engine.scene.background = stoneBackdrop;
         const { camera, target } = value.viewer.engine;
         const distance = camera.position.distanceTo(target);
         camera.position.copy(new Vector3(0, 1, 0.22).normalize().multiplyScalar(distance).add(target));
@@ -87,7 +90,7 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
         window.dispatchEvent(new CustomEvent('ames:diagnostic', { detail: { code: 'VIEWER_MOUNT_FAILED', surface: kind, fallback: 'none' } }));
       }
     });
-    return () => { cancelled = true; off?.();host.remove();void mounted?.dispose(); };
+    return () => { cancelled = true; off?.();host.remove();void mounted?.dispose();stoneBackdrop?.dispose(); };
   }, [integration, kind, initialAssetId,registry,customer.ready,customer.user?.id,enabled,gem,attempt]);
   return { ref, error, ready };
 }
