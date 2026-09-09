@@ -357,6 +357,8 @@ body::before, body::after { display:none !important; }
 .ames-boutique-category-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
 .ames-boutique-category-strip button{min-height:62px;border:1px solid rgba(220,226,234,.18);border-radius:12px;background:#11161c;color:#eef2f6;text-align:left;padding:11px 10px}
 .ames-boutique-category-strip button.active{border-color:#dce2ea}
+.ames-boutique-category-strip button{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px}
+.ames-boutique-category-icon{width:20px;height:20px;color:#eef2f6;opacity:.82}
 .ames-boutique-category-strip span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
 .ames-boutique-category-strip small{display:block;margin-top:6px;color:#9aa5b1;font-size:10px}
 @media(max-width:640px){.ames-boutique-category-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.ames-boutique-category-strip button:last-child{grid-column:span 2}}
@@ -528,6 +530,87 @@ body::before, body::after { display:none !important; }
 .ames-boutique-panel .ames-boutique-editorial{min-height:146px;padding:18px 28px 14px}
 .ames-boutique-panel .ames-boutique-categories-bottom{margin:0 16px 16px;padding:4px 0 8px}
 .ames-boutique-panel .ames-boutique-category-strip{gap:5px}
+}
+
+/* AMES color-only pass: flat emerald shell and white typography. */
+html:has(.ames-product-shell),
+body:has(.ames-product-shell),
+.ames-product-shell,
+.ames-product-shell .ames-chat.chat-paper,
+.ames-product-shell .ames-boutique-panel,
+.ames-product-shell .ames-boutique-scroll,
+.ames-product-shell .ames-boutique-topbar,
+.ames-product-shell .ames-boutique-hero,
+.ames-product-shell .ames-video-panel,
+.ames-product-shell .ames-video-header,
+.ames-product-shell .ames-video-slide,
+.ames-product-shell .ames-video-frame {
+  background: #063c3b !important;
+}
+
+.ames-product-shell :is(h1, h2, h3, h4, h5, h6, p, label),
+.ames-product-shell .ames-chat-mark,
+.ames-product-shell .ames-chat-message,
+.ames-product-shell .ames-chat-composer input,
+.ames-product-shell .ames-boutique-brand,
+.ames-product-shell .ames-boutique-brand > span,
+.ames-product-shell .ames-video-brand {
+  color: #fff !important;
+}
+
+.ames-product-shell .ames-stone-identity,
+.ames-product-shell .ames-stone-identity strong,
+.ames-product-shell .ames-stone-identity span,
+.ames-product-shell .ames-chat-wait,
+.ames-product-shell .ames-stone-loading,
+.ames-product-shell .ames-stone-error,
+.ames-product-shell .ames-composer-menu-label,
+.ames-product-shell .ames-boutique-eyebrow,
+.ames-product-shell .ames-boutique-kicker,
+.ames-product-shell .ames-boutique-hero-subtitle,
+.ames-product-shell .ames-boutique-editorial span,
+.ames-product-shell .ames-boutique-product-copy p,
+.ames-product-shell .ames-boutique-product-footer,
+.ames-product-shell .ames-boutique-collection-note,
+.ames-product-shell .ames-boutique-section-kicker,
+.ames-product-shell .ames-video-kicker,
+.ames-product-shell .ames-video-empty,
+.ames-product-shell .house-kicker,
+.ames-product-shell .house-privacy,
+.ames-product-shell .house-about {
+  color: rgb(255 255 255 / 70%) !important;
+}
+
+.ames-product-shell .ames-chat-composer input::placeholder {
+  color: rgb(255 255 255 / 55%);
+}
+
+.ames-chat-recommendation{margin:0 0 18px;padding:14px 16px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(0,0,0,.16)}
+.ames-chat-recommendation-kicker{display:block;color:rgb(255 255 255 / 65%);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+.ames-chat-recommendation h3{margin:5px 0 3px;color:#fff;font:500 21px Georgia,serif}
+.ames-chat-recommendation p{margin:0;color:rgb(255 255 255 / 72%);font-size:11px}
+.ames-chat-recommendation strong{display:block;margin-top:8px;color:#fff;font-size:13px;font-weight:500}
+.ames-chat-recommendation small{display:block;margin-top:8px;color:rgb(255 255 255 / 68%);font-size:11px}
+.ames-chat-recommendation-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.ames-chat-recommendation-actions button{min-height:32px;padding:6px 10px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:transparent;color:#fff;font-size:10px}
+/* Shared app header identity across customer surfaces. */
+.ames-boutique-panel .ames-boutique-topbar{height:54px;padding:10px 16px;background:rgba(11,13,16,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(220,226,234,.08)}
+.ames-boutique-brand,.ames-video-brand{font:500 10px var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif)!important;letter-spacing:.24em!important;color:#dce2ea!important}
+.ames-boutique-brand{position:absolute;left:50%;transform:translateX(-50%)}
+.ames-video-header{height:54px;background:rgba(11,13,16,.82)!important;backdrop-filter:blur(14px)}
+.ames-video-brand{top:20px!important}
+
+/* Center the existing Boutique ring and its light on the hero midpoint. */
+.ames-boutique-panel .ames-boutique-hero .ames-engine-boutique-shell {
+  margin-inline: auto;
+}
+.ames-boutique-panel .ames-boutique-hero::before {
+  left: 18.5%;
+  right: 18.5%;
+}
+.ames-boutique-panel .ames-boutique-hero::after {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 /* Give the Boutique jewelry breathing room below the pagination dots. */

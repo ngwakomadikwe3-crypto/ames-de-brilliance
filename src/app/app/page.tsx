@@ -8,11 +8,11 @@ import DiamondViewer from "@/components/DiamondViewer";
 import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
 import { products, type Product } from "@/data/products";
 import { createAmesEngine, createAmesIntegration, canonicalAssetManifest, type AmesIntegration } from "@ames/engine";
+import { matchBoutiquePiece, updateBuyingIntent, type BuyingIntent, type BoutiqueRecommendation } from "@/lib/buying-intelligence";
 import { AmesBoutiqueSurface, AmesStoneTraySurface } from "@/components/AmesEngineSurfaces";
 import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
 /* Native scroll-snap — no framer-motion needed */
 
-const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -309,8 +309,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const conversationToken = useRef<string | null>(null);
+  const sending = useRef(false);
+  const conversationEpoch = useRef(0);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const [buyingIntent, setBuyingIntent] = useState<BuyingIntent>({ stage: 'BROWSING' });
+  const [recommendation, setRecommendation] = useState<BoutiqueRecommendation | null>(null);
+  const [recommendationNotice, setRecommendationNotice] = useState<string | null>(null);
+  const sourcingSent = useRef<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -322,9 +329,19 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
   useEffect(() => {
+    if (!customer.ready) return;
+    conversationEpoch.current++;
+    conversationToken.current = null;
     setChats([]);setMessages([]);setActiveChatId(null);
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('ames-dify:' + (customer.user?.id || 'guest')) || 'null');
+      if (saved && typeof saved.token === 'string' && Array.isArray(saved.messages)) {
+        conversationToken.current = saved.token;
+        setMessages(saved.messages);
+      }
+    } catch {}
     if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
-  }, [customer.user?.id]);
+  }, [customer.ready, customer.user?.id]);
 
   useEffect(() => {
     if (!prefill) return;
@@ -360,38 +377,79 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
 
   async function handleSend(text?: string) {
     const msg = (text || input).trim();
-    if (!msg || typing) return;
-    setInput("");
-    // Conversation controls the single displayed canonical stone. No AI output, URL or tier assertion can grant access.
-    const selection = stoneRequest(msg);
-    if (selection) {
-      if (selection.assetId) setSelectedStoneId(selection.assetId);
-      if (selection.gem) setGem(selection.gem);
-      await appendMessage(null, 'user', msg);
-      if (selection.rare) {
-        await appendMessage(null, 'assistant', 'The current collection has five classic cuts. Here is Asscher, a less common step cut.');
-      }
-      return;
-    }
+    if (!msg || sending.current) return;
+    sending.current = true;
+    const epoch = conversationEpoch.current;
     setTyping(true);
+    setInput("");
+    const selection = stoneRequest(msg);
+    if (selection?.assetId) setSelectedStoneId(selection.assetId);
+    if (selection?.gem) setGem(selection.gem);
+    const nextIntent = updateBuyingIntent(buyingIntent, msg);
+    setBuyingIntent(nextIntent);
+    const nextRecommendation = matchBoutiquePiece(customer.catalog, nextIntent);
+    if (nextRecommendation && nextRecommendation.id !== recommendation?.id) setRecommendation(nextRecommendation);
+    if (!nextRecommendation && nextIntent.category && nextIntent.category !== buyingIntent.category) setRecommendation(null);
+    if (nextRecommendation) setRecommendationNotice('This may be worth a closer look.');
     try {
-      const chatId = await ensureChat();
-      await appendMessage(chatId,'user',msg);
-      const history = messages.map(m => ({ role: m.role, text: m.text }));
-      const chatRes = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, history }),
+      await appendMessage(null, 'user', msg);
+      const response = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg, conversationToken: conversationToken.current }),
       });
-      const chatData = await chatRes.json();
-      const replyText = chatData.reply || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
-      await appendMessage(chatId,'assistant',replyText,"");
-    } catch {
-      const fallback = "The desk is quiet right now — please try again shortly, or reach a human on WhatsApp: +267 72 839 152.";
-      await appendMessage(null,'assistant',customer.user?'Chat history is unavailable. Please sign in again or try shortly.':fallback);
+      const data = await response.json();
+      if (epoch !== conversationEpoch.current) return;
+      if (!response.ok) throw new Error(data.error || 'AMES chat is unavailable. Please try again.');
+      if (typeof data.reply !== 'string' || typeof data.conversationToken !== 'string') throw new Error('AMES chat returned an incomplete response.');
+      conversationToken.current = data.conversationToken;
+      const selected = stoneRequest(data.reply);
+      if (selected?.assetId) setSelectedStoneId(selected.assetId);
+      if (selected?.gem) setGem(selected.gem);
+      const activePiece = nextRecommendation || recommendation;
+      const reserveRequested = /\b(reserve|hold|keep this|take it|secure this|i(?:'|’)?d like to speak to someone about this)\b/i.test(msg);
+      const deskRequested = /\b(human|someone|whatsapp|private consultation|pricing confirmation|legal|compliance|availability|available)\b/i.test(msg);
+      let assistantReply = data.reply;
+      const sourcingKey = JSON.stringify([nextIntent.category,nextIntent.budget,nextIntent.metal,nextIntent.shape,nextIntent.occasion]);
+      if (!activePiece && nextIntent.category && nextIntent.stage !== 'BROWSING' && sourcingSent.current !== sourcingKey) {
+        try {
+          await customerRequest('request','POST',{profile:nextIntent,notes:msg,conversationId:data.conversationToken});
+          sourcingSent.current = sourcingKey;
+          const label = [nextIntent.metal,nextIntent.shape,nextIntent.category,nextIntent.budget ? `around $${nextIntent.budget.toLocaleString()}` : ''].filter(Boolean).join(' ');
+          assistantReply = `Understood. You're looking for ${label}. We don't have a published match in the Boutique yet, but I can save the request for the desk and future jeweller inventory.`;
+        } catch { assistantReply = 'I understand what you are looking for. I can save the request for the desk while we source a published match.'; }
+      }
+      if (reserveRequested && activePiece) {
+        try {
+          await customerRequest('reserve','POST',{assetId:activePiece.id,conversationId:data.conversationToken,context:msg});
+          assistantReply = `I've prepared the reserve request for the ${activePiece.name}. The desk can confirm availability and settlement with you.`;
+        } catch { assistantReply = `I can prepare a reserve request for the ${activePiece.name}, but the desk will need to confirm availability.`; }
+      } else if (deskRequested) {
+        try {
+          const handoff=await customerRequest('handoff','POST',{assetId:activePiece?.id||'',intent:reserveRequested?'reserve':'enquiry',context:msg});
+          assistantReply = handoff.whatsappUrl ? 'I can connect you with the desk on WhatsApp to confirm the details.' : 'I can connect you with the desk to confirm the details. The WhatsApp contact will be configured by the AMES desk.';
+          if (handoff.whatsappUrl) window.open(handoff.whatsappUrl,'_blank','noopener,noreferrer');
+        } catch { assistantReply = 'I can connect you with the desk to confirm the details.'; }
+      }
+      await appendMessage(null, 'assistant', assistantReply);
+      try {
+        const stamp = new Date().toISOString();
+        sessionStorage.setItem('ames-dify:' + (customer.user?.id || 'guest'), JSON.stringify({ token: data.conversationToken, messages: [...messages, { id: crypto.randomUUID(), role: 'user', text: msg, created_at: stamp }, { id: crypto.randomUUID(), role: 'assistant', text: assistantReply, created_at: stamp }] }));
+      } catch {}
+      // Keep the existing account transcript store independent of Dify availability.
+      if (customer.user) {
+        try {
+          const chatId = await ensureChat();
+          for (const entry of [{ role: 'user', text: msg }, { role: 'assistant', text: assistantReply }]) {
+            const saved = await fetch(`/api/chats/${chatId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
+            if (!saved.ok) break;
+          }
+        } catch {}
+      }
+    } catch (error) {
+      if (epoch === conversationEpoch.current) await appendMessage(null, 'assistant', error instanceof Error ? error.message : 'AMES chat could not connect. Please try again.');
     } finally {
+      sending.current = false;
       setTyping(false);
-      if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
     }
   }
 
@@ -406,14 +464,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
       </div>
       <div ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
-        <div>{messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
+        <div>{recommendation && <ChatRecommendation piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
+        {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
         {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
       </div>
       <div className="ames-chat-composer-wrap">
         {composerMenuOpen && <div className="ames-composer-menu" aria-label="Conversation options">
           <span className="ames-composer-menu-label">Choose a stone</span>
           {CHAT_STONES.map(stone => <button key={stone.id} aria-pressed={selectedStoneId === stone.id} onClick={() => { setSelectedStoneId(stone.id); setComposerMenuOpen(false); }}>{stone.name}</button>)}
-          <button disabled={typing} className="ames-new-conversation" onClick={() => { setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setComposerMenuOpen(false); }}>New conversation</button>
+          <button disabled={typing} className="ames-new-conversation" onClick={() => { conversationEpoch.current++; conversationToken.current = null; try { sessionStorage.removeItem('ames-dify:' + (customer.user?.id || 'guest')); } catch {} setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setBuyingIntent({ stage: 'BROWSING' }); setRecommendation(null); setRecommendationNotice(null); setComposerMenuOpen(false); }}>New Chat</button>
         </div>}
         <form className="ames-chat-composer" onSubmit={e => { e.preventDefault(); void handleSend(); }}>
           <button type="button" aria-label="Conversation options" aria-expanded={composerMenuOpen} onClick={() => setComposerMenuOpen(open => !open)}>
@@ -427,6 +486,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       </div>
     </div>
   );
+}
+
+function ChatRecommendation({ piece, notice, onView, onSave, onReserve, onAsk }: { piece: BoutiqueRecommendation; notice: string; onView: () => void; onSave: () => void; onReserve: () => void; onAsk: () => void }) {
+  const data = piece as BoutiqueRecommendation & Record<string, unknown>;
+  const specs = typeof data.specs === 'string' ? data.specs : [data.metal, ...(piece.tags || [])].filter(Boolean).join(' · ');
+  return <article className="ames-chat-recommendation" aria-label={`Boutique recommendation ${piece.name}`}>
+    <div className="ames-chat-recommendation-copy"><span className="ames-chat-recommendation-kicker">A piece to consider</span><h3>{piece.name}</h3><p>{piece.category}{specs ? ` · ${specs}` : ''}</p><strong>{data.price ? `$${Number(data.price).toLocaleString()}` : 'Price on request'}</strong>{notice && <small>{notice}</small>}</div>
+    <div className="ames-chat-recommendation-actions"><button type="button" onClick={onView}>View in 3D</button><button type="button" onClick={onSave}>Save</button><button type="button" onClick={onReserve}>Reserve</button><button type="button" onClick={onAsk}>Ask SAME</button></div>
+  </article>;
 }
 
 /* ═══════════════════════════════════════════
@@ -645,7 +713,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
 
         <header className="ames-boutique-topbar">
           <button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen(open => !open)}><span /><span /><span /></button>
-          <span className="ames-boutique-brand">AMES<span>DE BRILLIANCE</span></span>
+          <span className="ames-boutique-brand">AMES</span>
           <button className="ames-boutique-action" aria-label="Browse collections" onClick={() => scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></button>
           {boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => { setFilter("All"); setBoutiqueMenuOpen(false); scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth' }); }}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}
         </header>
@@ -653,15 +721,11 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth" })}>Explore the collection</button></div>
           <AmesBoutiqueSurface integration={integration} active={active} />
         </section>
-        <div className="ames-boutique-editorial" aria-label="Three dimensional viewing guidance">
-          <p>Experience every detail in three dimensions.</p>
-          <span>Rotate, inspect and explore each piece from every angle. Drag to turn. Pinch or scroll to move closer.</span>
-        </div>
-
         <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
           <div className="ames-boutique-category-strip">
             {CATEGORY_MAP.map(cat => (
               <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} aria-expanded={filter === cat.key} onClick={() => { setFilter(current => current === cat.key ? "All" : cat.key); scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+                <CategoryIcon category={cat.key} />
                 <span>{cat.label}</span>
               </button>
             ))}
@@ -692,6 +756,11 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
       )}
     </div>
   );
+}
+
+function CategoryIcon({ category }: { category: string }) {
+  const paths: Record<string,string> = { Ring: 'M4 12c0-3 2-6 8-6s8 3 8 6-2 6-8 6-8-3-8-6Zm4 0a4 4 0 1 0 8 0', Watch: 'M8 4h8v4H8zM8 16h8v4H8zM6 8h12v8H6z', Bracelet: 'M5 7c2-3 12-3 14 0M5 17c2 3 12 3 14 0M5 7v10M19 7v10', Necklace: 'M5 5c1 6 3 10 7 14 4-4 6-8 7-14M8 8h8', Earring: 'M8 5a2 2 0 1 0 4 0v10a4 4 0 1 1-4-4' };
+  return <svg className="ames-boutique-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[category] || paths.Ring} /></svg>;
 }
 
 /* ── Reserve Modal ── */
