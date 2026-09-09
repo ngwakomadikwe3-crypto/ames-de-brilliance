@@ -5,7 +5,7 @@ import { createAssetRegistry,mountBoutiqueViewer,type AmesIntegration,type Bouti
 import { useCustomer,customerRequest } from './CustomerState';
 import { createAMESDiamondMaterial } from '@/three/AMESDiamondMaterial';
 import JewelryViewer from './jewelry/JewelryViewer';
-import { Color } from 'three';
+import { Color, Mesh, Vector3 } from 'three';
 
 function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" | "stone-tray", initialAssetId?: string, enabled = true, gem = "diamond") {
   const customer=useCustomer();
@@ -35,14 +35,24 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
       if (cancelled) { await value.dispose(); return; }
       mounted = value;
       if (kind === "stone-tray") {
+        host.dataset.amesRenderer = gem === "diamond" ? "ames-chat-facet-transport" : "ames-colored-gem-preview";
         value.viewer.engine.scene.background = new Color('#0b0d10');
+        const { camera, target } = value.viewer.engine;
+        const distance = camera.position.distanceTo(target);
+        camera.position.copy(new Vector3(0, 1, 0.22).normalize().multiplyScalar(distance).add(target));
+        camera.lookAt(target);
+        camera.updateMatrixWorld();
         const scene = value.viewer.engine.model?.asset.scene;
         scene?.traverse((object) => {
           if (!('isMesh' in object) || !object.isMesh) return;
-          const mesh = object as unknown as { material: unknown; geometry?: { computeVertexNormals?: () => void } };
+          const mesh = object as Mesh;
           const previous = mesh.material;
-          if (previous && !Array.isArray(previous) && typeof (previous as { dispose?: () => void }).dispose === "function") (previous as { dispose: () => void }).dispose();
-          mesh.material = createAMESDiamondMaterial();
+          if (gem === "diamond" && previous && !Array.isArray(previous) && typeof (previous as { dispose?: () => void }).dispose === "function") (previous as { dispose: () => void }).dispose();
+          if (gem === "diamond") {
+            const environment = value.viewer.engine.scene.environment;
+            if (!environment) throw new Error("Stone lighting unavailable");
+            mesh.material = createAMESDiamondMaterial(mesh, environment);
+          }
         });
       }
       if (kind === "stone-tray" && "execute" in value.mode) {
@@ -51,7 +61,7 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
           if (result.status !== "applied") throw new Error('Gem preview unavailable');
         }
         if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          await value.mode.execute({ type: "START_TURNTABLE" });
+          await value.mode.execute({ type: "START_TURNTABLE", radiansPerSecond: 0.10 });
         }
       }
       if('mode' in value && 'toggleFavorite' in value.mode){
