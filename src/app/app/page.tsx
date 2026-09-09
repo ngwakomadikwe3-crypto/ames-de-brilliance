@@ -647,10 +647,10 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           <button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen(open => !open)}><span /><span /><span /></button>
           <span className="ames-boutique-brand">AMES<span>DE BRILLIANCE</span></span>
           <button className="ames-boutique-action" aria-label="Browse collections" onClick={() => scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M5 5h5v5H5zM14 5h5v5h-5zM5 14h5v5H5zM14 14h5v5h-5z" /></svg></button>
-          {boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => { setFilter("All"); setBoutiqueMenuOpen(false); scrollRef.current?.querySelector('.ames-boutique-arrivals')?.scrollIntoView({ behavior: 'smooth' }); }}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}
+          {boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => { setFilter("All"); setBoutiqueMenuOpen(false); scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth' }); }}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}
         </header>
         <section className="ames-boutique-hero" aria-label="Interactive jewelry hero">
-          <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => scrollRef.current?.querySelector(".ames-boutique-arrivals")?.scrollIntoView({ behavior: "smooth" })}>Explore the collection</button></div>
+          <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth" })}>Explore the collection</button></div>
           <AmesBoutiqueSurface integration={integration} active={active} />
         </section>
         <div className="ames-boutique-editorial" aria-label="Three dimensional viewing guidance">
@@ -658,24 +658,21 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           <span>Rotate, inspect and explore each piece from every angle. Drag to turn. Pinch or scroll to move closer.</span>
         </div>
 
-        <section className="ames-boutique-arrivals" aria-label="New Arrivals">
-          <div className="ames-boutique-section-heading"><h2>{filter === "All" ? "New Arrivals" : CATEGORY_MAP.find(cat => cat.key === filter)?.label || filter}</h2>{filter !== "All" && <button onClick={() => setFilter("All")}>View all</button>}</div>
-          <div className="ames-boutique-product-grid">
-            {(filter === "All" || filter === "Ring") && <BoutiqueCollectionRing onView={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })} />}
-            {filtered.map(stone => <BoutiqueCard key={stone.id} stone={stone} wishlisted={!!wishlist[stone.id]} onToggleWishlist={() => toggleWishlist(stone.id)} onReserve={() => setShowReserveId(stone.id)} onOpenGallery={(photos, idx) => openGallery(photos, idx)} />)}
-          </div>
-          {!loading && !filtered.length && filter !== "All" && filter !== "Ring" && <p className="ames-boutique-collection-note">No {CATEGORY_MAP.find(cat => cat.key === filter)?.label.toLowerCase()} are available to view yet.</p>}
-        </section>
-
         <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
-          <p className="ames-boutique-section-kicker">Browse the house</p>
           <div className="ames-boutique-category-strip">
             {CATEGORY_MAP.map(cat => (
-              <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} onClick={() => { setFilter(cat.key); scrollRef.current?.querySelector(".ames-boutique-arrivals")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+              <button key={cat.key} className={filter.toLowerCase() === cat.key.toLowerCase() ? "active" : ""} aria-expanded={filter === cat.key} onClick={() => { setFilter(current => current === cat.key ? "All" : cat.key); scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
                 <span>{cat.label}</span>
               </button>
             ))}
           </div>
+          {filter !== "All" && <div className="ames-boutique-category-content" aria-label={`${filter} collection`}>
+          <div className="ames-boutique-product-grid">
+            {filter === "Ring" && <BoutiqueCollectionRing onView={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })} />}
+            {filtered.map(stone => <BoutiqueCard key={stone.id} stone={stone} wishlisted={!!wishlist[stone.id]} onToggleWishlist={() => toggleWishlist(stone.id)} onReserve={() => setShowReserveId(stone.id)} onOpenGallery={(photos, idx) => openGallery(photos, idx)} />)}
+          </div>
+          {!loading && !filtered.length && filter !== "All" && filter !== "Ring" && <p className="ames-boutique-collection-note">No {CATEGORY_MAP.find(cat => cat.key === filter)?.label.toLowerCase()} are available to view yet.</p>}
+          </div>}
         </section>
 
 

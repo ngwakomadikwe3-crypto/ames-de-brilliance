@@ -517,3 +517,15 @@ body::before, body::after { display:none !important; }
 .ames-chat .ames-composer-menu .ames-new-conversation{border-top:1px solid #343b44;border-radius:0;margin-top:5px}
 @media(max-height:600px){.ames-chat .ames-engine-stone-mount{min-height:max(90px,24dvh)}.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage,.ames-chat.has-messages .ames-stone-tray .stage{height:max(90px,24dvh)}}
 @media(prefers-reduced-motion:reduce){.ames-chat .ames-engine-stone-mount{transition:none}}
+
+/* Boutique spacing pass: retain the approved header and hero unchanged. */
+.ames-boutique-panel .ames-boutique-editorial{height:auto;min-height:128px;padding:24px 30px 18px}
+.ames-boutique-panel .ames-boutique-categories-bottom{margin:0 auto 20px;padding:4px 24px 12px;border:0;background:transparent}
+.ames-boutique-panel .ames-boutique-category-strip{gap:20px}
+.ames-boutique-panel .ames-boutique-category-content{padding-top:22px}
+.ames-boutique-panel .ames-boutique-category-content .ames-boutique-collection-note{padding:16px 0}
+@media(max-width:700px){
+.ames-boutique-panel .ames-boutique-editorial{min-height:146px;padding:18px 28px 14px}
+.ames-boutique-panel .ames-boutique-categories-bottom{margin:0 16px 16px;padding:4px 0 8px}
+.ames-boutique-panel .ames-boutique-category-strip{gap:5px}
+}
