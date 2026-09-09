@@ -75,7 +75,7 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   if (!visible) return null;
   return <div className={`splash-experience${exiting ? " is-exiting" : ""}`} role="presentation" aria-label="AMES opening">
     {SPLASH_PRELOADS}
-    {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" poster="/splash-bg.jpg" onEnded={complete} onError={() => { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
+    {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" onEnded={complete} onError={() => { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
     {fallback && <span className="splash-fallback" aria-hidden="true" />}
     <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#050607;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#050607}.splash-fallback{background:radial-gradient(ellipse at center,#171a1e 0%,#050607 68%)}@media(prefers-reduced-motion:reduce){.splash-experience{transition:none}}`}</style>
   </div>;
