@@ -529,3 +529,13 @@ body::before, body::after { display:none !important; }
 .ames-boutique-panel .ames-boutique-categories-bottom{margin:0 16px 16px;padding:4px 0 8px}
 .ames-boutique-panel .ames-boutique-category-strip{gap:5px}
 }
+
+/* Give the Boutique jewelry breathing room below the pagination dots. */
+.ames-boutique-panel .ames-boutique-hero .ames-boutique-asset-stage {
+  top: 32px;
+}
+@media (max-width: 700px) {
+  .ames-boutique-panel .ames-boutique-hero .ames-boutique-asset-stage {
+    top: 24px;
+  }
+}
