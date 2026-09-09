@@ -152,7 +152,7 @@ function AppPageContent() {
         { label: "Compliance", href: "/compliance" },
       ]
     : [
-        { label: "Account", href: "/account" },
+        { label: "Account", href: "/app" },
         { label: "Favorites", href: "/favorites" },
       ];
 
@@ -458,7 +458,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       <header className="ames-chat-topbar">
         <button className="ames-chat-menu" aria-label="Chat menu" aria-expanded={chatMenuOpen} onClick={() => setChatMenuOpen(open => !open)}><span /><span /><span /></button>
         <span className="ames-chat-mark">AMES</span>
-        {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/account">Account</a><a href="/favorites">Favorites</a></nav>}
+        {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/app">Account</a><a href="/favorites">Favorites</a></nav>}
       </header>
       <div className="ames-chat-stage" aria-label="Gemstone showcase">
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
@@ -960,7 +960,7 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
     <header className="ames-video-header">
       <button aria-label="Video menu" aria-expanded={videoMenuOpen} onClick={() => setVideoMenuOpen(open => !open)} className="ames-video-menu-button"><span /><span /></button>
       <span className="ames-video-brand">AMES</span>
-      {videoMenuOpen && <nav className="ames-video-menu" aria-label="Video navigation"><a href="/account">Account</a><a href="/favorites">Favorites</a></nav>}
+      {videoMenuOpen && <nav className="ames-video-menu" aria-label="Video navigation"><a href="/app">Account</a><a href="/favorites">Favorites</a></nav>}
     </header>
     {loading ? <div className="ames-video-empty" role="status">Loading films...</div> : !videos.length ? <div className="ames-video-empty"><p>Films from the house</p><span>No films published yet.</span></div> : <div ref={feedRef} className="ames-video-feed" style={{ scrollSnapType: "y mandatory" }}>
       {videos.map((v, i) => <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i} onSeePiece={onSeePiece} onAskAmes={onAskAmes} onComments={() => {}} onOpenBoutiqueDetail={onOpenBoutiqueDetail} totalVideos={videos.length} activeIndex={activeVideo} />)}
@@ -1081,4 +1081,6 @@ function timeAgo(dateStr: string): string {
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 }
+
+
 
