@@ -953,7 +953,7 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeVideo, setActiveVideo] = useState(0);
-  const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
+  const [videoMenuOpen, setVideoMenuOpen] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -971,30 +971,16 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
     return () => obs.disconnect();
   }, [videos]);
 
-  if (loading) return <div className="h-full flex items-center justify-center" style={{ background: '#080808', color: '#9AA5B1', fontSize: 12 }}>Loading videos...</div>;
-  if (!videos.length) return (
-    <div className="h-full flex items-center justify-center" style={{ background: '#080808', fontSize: 12, textAlign: 'center', padding: 24 }}>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" style={{ width: 32, height: 32, margin: '0 auto 12px' }}><defs><linearGradient id="vid-fb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#vid-fb)" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-        <p style={{ color: "#9AA5B1" }}>No videos published yet.</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <div ref={feedRef} className="h-[100dvh] overflow-y-scroll snap-y snap-mandatory relative" style={{ scrollSnapType: "y mandatory", background: "#1A1A1A" }}>
-        {videos.map((v, i) => (
-          <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i}
-            onSeePiece={onSeePiece} onAskAmes={onAskAmes}
-            onComments={() => setDrawerVideoId(v.id)}
-            onOpenBoutiqueDetail={onOpenBoutiqueDetail}
-            totalVideos={videos.length} activeIndex={activeVideo} />
-        ))}
-      </div>
-      {drawerVideoId && <CommentDrawer videoId={drawerVideoId} onClose={() => setDrawerVideoId(null)} />}
-    </>
-  );
+  return <div className="ames-video-panel" data-active={isPanelActive}>
+    <header className="ames-video-header">
+      <button aria-label="Video menu" aria-expanded={videoMenuOpen} onClick={() => setVideoMenuOpen(open => !open)} className="ames-video-menu-button"><span /><span /></button>
+      <span className="ames-video-brand">AMES</span>
+      {videoMenuOpen && <nav className="ames-video-menu" aria-label="Video navigation"><a href="/account">Account</a><a href="/account?tab=favorites">Favorites</a></nav>}
+    </header>
+    {loading ? <div className="ames-video-empty" role="status">Loading films...</div> : !videos.length ? <div className="ames-video-empty"><p>Films from the house</p><span>No films published yet.</span></div> : <div ref={feedRef} className="ames-video-feed" style={{ scrollSnapType: "y mandatory" }}>
+      {videos.map((v, i) => <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i} onSeePiece={onSeePiece} onAskAmes={onAskAmes} onComments={() => {}} onOpenBoutiqueDetail={onOpenBoutiqueDetail} totalVideos={videos.length} activeIndex={activeVideo} />)}
+    </div>}
+  </div>;
 }
 
 function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments, onOpenBoutiqueDetail, totalVideos, activeIndex }: {
@@ -1005,14 +991,6 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments,
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
-  const [liked, setLiked] = useState(() => typeof window !== "undefined" && !!localStorage.getItem(`liked_${video.id}`));
-  const [likes, setLikes] = useState(video.likes_count || 0);
-  const [commentCount, setCommentCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/videos/${video.id}/comments`).then(r => r.ok ? r.json() : []).then((c: Comment[]) => setCommentCount(c.length)).catch(() => {});
-  }, [video.id]);
-
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -1022,99 +1000,23 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments,
   }, [isActive]);
 
   function toggleMute() { const v = videoRef.current; if (v) { v.muted = !v.muted; setMuted(v.muted); } }
+  const stoneInfo = video.stone_id;
 
-  async function toggleLike() {
-    const delta = liked ? -1 : 1;
-    setLiked(!liked);
-    setLikes(l => Math.max(0, l + delta));
-    if (!liked) localStorage.setItem(`liked_${video.id}`, "1"); else localStorage.removeItem(`liked_${video.id}`);
-    try { await fetch(`/api/videos/${video.id}/like`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ delta }) }); } catch {}
-  }
-
-  function handleShare() {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = `${video.caption} \u2014 AMES`;
-    if (navigator.share) {
-      navigator.share({ title: "AMES", text, url }).catch(() => {});
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
-    }
-  }
-
-  const stoneInfo = video.stone_id ? { ref: video.stone_ref || "", shape: video.shape || "", carat: video.carat || 0, color: video.color || "", clarity: video.clarity || "", status: video.stone_status || null, photo: video.stone_photo || null, price: video.price } : null;
-
-  return (
-    <div data-video={index} className="h-[100dvh] snap-start snap-always relative flex items-center justify-center" style={{ background: "#1A1A1A" }}>
-      <video ref={videoRef} src={video.video_url} className="absolute inset-0 w-full h-full object-cover" loop muted={muted} playsInline preload={isActive ? "auto" : "metadata"} />
-      <button onClick={toggleMute} className="absolute inset-0 z-10" aria-label={muted ? "Tap to unmute" : "Tap to mute"} />
-
-      {/* Progress dots */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5">
-        {Array.from({ length: totalVideos }, (_, i) => (
-          <div key={i} className="rounded-full transition-all" style={{ width: i === activeIndex ? 4 : 3, height: i === activeIndex ? 12 : 3, background: i === activeIndex ? "#A6A6AB" : "rgba(255,255,255,0.25)" }} />
-        ))}
+  return <div data-video={index} className="ames-video-slide">
+    <div className="ames-video-frame">
+      <video ref={videoRef} src={video.video_url} className="ames-video-media" loop muted={muted} playsInline preload={isActive ? "auto" : "metadata"} />
+      <button onClick={toggleMute} className="ames-video-tap" aria-label={muted ? "Tap to unmute" : "Tap to mute"} />
+      <button onClick={toggleMute} className="ames-video-sound" aria-label={muted ? "Enable sound" : "Mute sound"} aria-pressed={!muted}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M11 5L6 9H3v6h3l5 4V5Z" />{muted ? <path d="m16 9 6 6m0-6-6 6" /> : <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />}</svg>
+      </button>
+      <div className="ames-video-caption">
+        <span className="ames-video-kicker">AMES FILMS</span>
+        {(video.house_note || video.caption) && <p>{video.house_note || video.caption}</p>}
+        {stoneInfo && <button onClick={() => onOpenBoutiqueDetail(video.stone_id!)} className="ames-video-piece">View piece <span aria-hidden="true">&rarr;</span></button>}
       </div>
-
-      {/* Right rail */}
-      <div className="absolute right-3 bottom-36 z-20 flex flex-col items-center gap-6">
-        <button onClick={(e) => { e.stopPropagation(); toggleLike(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill={liked ? "#A6A6AB" : "none"} stroke={liked ? "#A6A6AB" : "rgba(255,255,255,0.85)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span style={{ fontSize: 10, color: liked ? "#A6A6AB" : "rgba(255,255,255,0.85)" }}>{likes}</span>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onComments(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>{commentCount ?? "-"}</span>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Bottom overlay */}
-      <div className="absolute bottom-0 left-0 right-12 z-20 p-4 pb-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-        {video.model_instagram && (
-          <p style={{ fontSize: 11, letterSpacing: "0.12em", color: "#A6A6AB", fontWeight: 400, textTransform: "uppercase", marginBottom: 6 }}>
-            {video.model_instagram}
-          </p>
-        )}
-        {(video.house_note || video.caption) && (
-          <p style={{ fontSize: 15, fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontStyle: "italic", color: "#151515", marginBottom: 10, lineHeight: 1.4 }}>
-            <span style={{ fontWeight: 500, fontStyle: "normal" }}>AMES</span> &mdash; {video.house_note || video.caption}
-          </p>
-        )}
-        {stoneInfo && (
-          <button onClick={(e) => { e.stopPropagation(); onOpenBoutiqueDetail(video.stone_id!); }}
-            className="flex items-center gap-3 p-2 rounded-xl"
-            style={{ background: "rgba(23,23,23,0.08)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", maxWidth: 280 }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#080808", border: "1px solid rgba(255,255,255,0.1)" }}>
-              {stoneInfo.photo ? (
-                <img src={stoneInfo.photo} alt={stoneInfo.ref} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="truncate" style={{ fontSize: 12, color: "#151515", fontWeight: 500, marginBottom: 1 }}>
-                {stoneInfo.ref} &middot; {stoneInfo.shape} {stoneInfo.carat}ct
-              </p>
-              <span style={{ fontSize: 12, color: "#A6A6AB", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                {stoneInfo.price != null ? `$${stoneInfo.price.toLocaleString()}` : "Price on request"}
-              </span>
-            </div>
-            <span style={{ fontSize: 9, color: "#A6A6AB", letterSpacing: "0.06em", flexShrink: 0, textTransform: "uppercase" }}>View piece</span>
-          </button>
-        )}
-      </div>
+      {totalVideos > 1 && <div className="ames-video-position" aria-label={`Film ${activeIndex + 1} of ${totalVideos}`}>{Array.from({length:totalVideos},(_,i)=><span key={i} className={i === activeIndex ? "active" : ""} />)}</div>}
     </div>
-  );
+  </div>;
 }
 
 function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => void }) {

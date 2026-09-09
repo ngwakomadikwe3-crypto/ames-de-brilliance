@@ -402,3 +402,32 @@ body::before, body::after { display:none !important; }
 .ames-composer-menu button{background:none;border:0;color:#d7dadd;font-size:13px;padding:12px;cursor:pointer}
 .ames-chat.has-messages .ames-stone-tray .stage{height:clamp(180px,32dvh,300px)}
 @media(max-height:600px){.ames-chat.chat-paper{padding-top:60px}.ames-chat .ames-chat-stage{margin-top:0;padding-block:0}.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage{height:24dvh;min-height:90px}.ames-chat-composer-wrap{padding-bottom:10px}.ames-chat-messages{padding-block:10px}}
+
+/* Video-only presentation. Feed observer and media lifecycle stay unchanged. */
+.ames-product-shell:has(.ames-video-panel[data-active="true"]) > .fixed.top-0{display:none}
+.ames-video-panel{height:100dvh;background:#090b0e;color:#edf0f4;font-family:var(--font-inter,Arial,sans-serif);position:relative}
+.ames-video-header{position:absolute;inset:0 0 auto;height:72px;z-index:45;background:linear-gradient(#090b0e,rgba(9,11,14,.82),transparent)}
+.ames-video-brand{position:absolute;top:17px;left:50%;transform:translateX(-50%);font:500 22px Georgia,serif;letter-spacing:.24em;padding-left:.24em}
+.ames-video-menu-button{position:absolute;left:16px;top:9px;width:44px;height:44px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;color:#d6dbe1}
+.ames-video-menu-button span{height:1px;width:17px;background:currentColor}
+.ames-video-menu{position:absolute;left:20px;top:64px;width:180px;padding:8px;background:#11151b;border:1px solid #30353c;border-radius:4px;box-shadow:0 12px 32px #0006}
+.ames-video-menu a{display:block;padding:14px 12px;color:#dce1e7;font-size:13px}
+.ames-video-menu a:hover{background:#20252d}
+.ames-video-feed{height:100%;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:none}
+.ames-video-slide{height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:center;justify-content:center;background:#090b0e}
+.ames-video-frame{height:100%;width:100%;position:relative;overflow:hidden;background:#050607}
+.ames-video-media{width:100%;height:100%;object-fit:contain;position:absolute;inset:0}
+.ames-video-tap{position:absolute;inset:72px 0 0;z-index:10}
+.ames-video-sound{position:absolute;right:18px;bottom:max(26px,env(safe-area-inset-bottom));z-index:25;width:44px;height:44px;border:1px solid #ffffff24;border-radius:50%;background:#090b0e66;display:grid;place-items:center;color:#e5e8ed}
+.ames-video-caption{position:absolute;bottom:0;left:0;right:0;z-index:20;padding:90px 80px max(36px,env(safe-area-inset-bottom)) 26px;background:linear-gradient(transparent,#050607b3);pointer-events:none}
+.ames-video-kicker{font-size:9px;letter-spacing:.2em;color:#b9c0c9}
+.ames-video-caption p{font:400 27px/1.25 Georgia,serif;letter-spacing:-.015em;color:#f0f2f5;margin:12px 0 0;max-width:340px;text-wrap:balance}
+.ames-video-piece{pointer-events:auto;font-size:11px;letter-spacing:.04em;margin-top:14px;min-height:44px;color:#e2e6ec}
+.ames-video-piece span{margin-left:16px}
+.ames-video-position{position:absolute;right:15px;top:50%;display:flex;flex-direction:column;gap:7px;z-index:20}
+.ames-video-position span{height:3px;width:3px;border-radius:3px;background:#ffffff45}
+.ames-video-position span.active{height:14px;background:#d9dfe7}
+.ames-video-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;color:#8f98a4;font-size:12px}
+.ames-video-empty p{font:400 28px Georgia,serif;color:#e4e8ee;margin-bottom:14px}
+.ames-video-panel button:focus-visible,.ames-video-panel a:focus-visible{outline:1px solid #e1e6ed;outline-offset:3px}
+@media(min-width:701px){.ames-video-frame{height:calc(100dvh - 98px);width:auto;aspect-ratio:9/16;margin-top:60px;max-width:100%}.ames-video-header{background:#090b0e}.ames-video-caption{padding-left:24px}.ames-video-menu-button{left:28px}}
