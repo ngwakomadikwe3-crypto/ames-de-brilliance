@@ -3,6 +3,7 @@ import { Inter, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
+import PwaRegister from "@/components/PwaRegister";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--font-inter" });
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], display: "swap", variable: "--font-cormorant" });
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
       <body className={`${inter.variable} ${cormorant.variable} min-h-full flex flex-col bg-background text-white font-sans`}>
+        <PwaRegister />
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

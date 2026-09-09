@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionSecret, sessionRole } from './src/lib/session-policy';
 import { legacyPolicy } from './src/lib/legacy-policy.mjs';
 import { customerIdentity, portalIdentity, sameOrigin } from './src/lib/legacy-auth.mjs';
+import { chatOriginAllowed } from './src/lib/chat-origin.mjs';
 
 const SESSION_SECRET = sessionSecret(process.env.SESSION_SECRET);
 
@@ -52,7 +53,7 @@ export async function middleware(request: NextRequest) {
 
   const policy=legacyPolicy(request.url,request.method);
   if(policy==='handler') return NextResponse.next();
-  if(pathname.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(request.method)&&!sameOrigin(request))return NextResponse.json({error:'Origin denied'},{status:403});
+  if(pathname.startsWith('/api/')&&!['GET','HEAD','OPTIONS'].includes(request.method)&&!(pathname==='/api/chat'?chatOriginAllowed(request):sameOrigin(request)))return NextResponse.json({error:'Origin denied'},{status:403});
   if(policy==='public') return NextResponse.next();
 
   const token = getSessionCookie(request);

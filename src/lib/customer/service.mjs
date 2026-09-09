@@ -2,7 +2,8 @@ import { createHash,createHmac,timingSafeEqual,randomUUID } from 'node:crypto';
 import { createAssetRegistry,canonicalAssetManifest } from '@ames/engine';
 import { documentId } from './appwrite.mjs';
 export const TIERS=['PUBLIC','MEMBER','PREMIUM','COLLECTOR','PRIVATE'];
-export const EVENTS=['JEWELRY_VIEWED','STONE_VIEWED','SAVED','FAVORITED','COMPARED','PREMIUM_PREVIEWED','ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED'];
+export const EVENTS=['JEWELRY_VIEWED','STONE_VIEWED','SAVED','FAVORITED','COMPARED','PREMIUM_PREVIEWED','ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'];
+const REQUEST_STATUSES=['OPEN','MATCHED','CONTACTED','CLOSED','CANCELLED'];
 const error=(status,message)=>Object.assign(new Error(message),{status});
 const id=v=>{if(typeof v!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(v))throw error(400,'Invalid identifier');return v;};
 const sha=v=>createHash('sha256').update(v).digest('hex');
@@ -31,7 +32,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(asset.accessTier==='PRIVATE')return false;
     return (await gateway.list('subscriptions',{userId:user.id})).some(s=>s.status==='active'&&s.tier===asset.accessTier&&alive(s,clock()));
   }
-  async function audit(user,type,assetId=''){await gateway.put('events',randomUUID(),{userId:user?.id||'',assetId,kind:type,time:new Date(clock()).toISOString()});}
+  async function audit(user,type,assetId='',metadata={}){await gateway.put('events',randomUUID(),{userId:user?.id||'',assetId,kind:type,time:new Date(clock()).toISOString(),...metadata});}
   async function canAccess(userId,assetId){
     // Internal authority: callers must obtain userId from verified Appwrite identity.
     if(userId&&(await gateway.get('profiles',documentId(userId)))?.accountState==='disabled')return false;
@@ -71,6 +72,27 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       for(const asset of rows){if(asset.status!=='published')continue;if(asset.accessTier==='PRIVATE'&&!await allowed(user,asset))continue;assets.push(publicRecord(asset));}
       return json({schemaVersion:1,assets});
     }
+    if(route==='reserve'&&method==='POST'){
+      const b=await body(req),asset=await catalogAsset(b.assetId);if(!await allowed(user,asset))throw error(403,'This asset is locked');
+      const conversationId=typeof b.conversationId==='string'?b.conversationId.slice(0,256):'';
+      await audit(user,'RESERVE_REQUEST',asset.id,{status:'PENDING',conversationId,context:typeof b.context==='string'?b.context.slice(0,500):''});
+      return json({ok:true,status:'PENDING',assetId:asset.id});
+    }
+    if(route==='handoff'&&method==='POST'){
+      const b=await body(req),assetId=typeof b.assetId==='string'?b.assetId:'';let assetName='';if(assetId){const asset=await catalogAsset(assetId);if(!await allowed(user,asset))throw error(403,'This asset is locked');assetName=asset.name;}
+      const intent=['reserve','enquiry','consultation'].includes(b.intent)?b.intent:'enquiry';
+      await audit(user,'DESK_HANDOFF',assetId,{status:'REQUESTED',intent,context:typeof b.context==='string'?b.context.slice(0,500):''});
+      const number=(config.deskWhatsapp||'').replace(/[^0-9]/g,'');
+      const text=`Hello, I'm enquiring through AMES${assetName?` about the ${assetName}`:''}. I'd like to ${intent==='reserve'?'confirm availability and reserve the piece':'speak with the desk about this enquiry'}.`;
+      return json({ok:true,whatsappUrl:number?`https://wa.me/${number}?text=${encodeURIComponent(text)}`:null});
+    }
+    if(route==='request'&&method==='POST'){
+      const b=await body(req),profile=b.profile&&typeof b.profile==='object'?b.profile:{};
+      const clean=Object.fromEntries(['category','budget','metal','shape','occasion','recipient','size','timing','style'].filter(k=>typeof profile[k]==='string'||typeof profile[k]==='number').map(k=>[k,typeof profile[k]==='string'?profile[k].slice(0,120):profile[k]]));
+      if(!clean.category||typeof clean.category!=='string')throw error(400,'Request category required');
+      await audit(user,'SOURCING_REQUEST','',{status:'OPEN',profile:clean,notes:typeof b.notes==='string'?b.notes.slice(0,1000):'',conversationId:typeof b.conversationId==='string'?b.conversationId.slice(0,256):''});
+      return json({ok:true,status:'OPEN'});
+    }
     if(route==='access'&&method==='GET'){const asset=await catalogAsset(param);const granted=await allowed(user,asset);await audit(user,granted?'ACCESS_GRANTED':'ACCESS_DENIED',asset.id);return json({granted});}
     if(route==='delivery'&&method==='POST'){
       if(!user)throw error(401,'Sign in required');const asset=await catalogAsset(param);
@@ -106,7 +128,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       const b=await body(req),key=documentId(user.id,id(b.designId));
       if(method==='DELETE')await gateway.remove('designs',key);else {if(!b.spec||typeof b.spec!=='object'||!['ring','watch','bracelet','necklace','earring'].includes(b.spec.category)||JSON.stringify(b.spec).length>30000)throw error(400,'Invalid design specification');await gateway.put('designs',key,{userId:user.id,kind:'design',designId:b.designId,spec:b.spec,status:'draft'});}return json({ok:true});
     }
-    if(route==='events'&&method==='POST'){const b=await body(req);if(!EVENTS.includes(b.type)||['ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED'].includes(b.type))throw error(400,'Unsupported event');if(b.assetId)await catalogAsset(b.assetId);await audit(user,b.type,b.assetId||'');return json({ok:true});}
+    if(route==='events'&&method==='POST'){const b=await body(req);if(!EVENTS.includes(b.type)||['ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'].includes(b.type))throw error(400,'Unsupported event');if(b.assetId)await catalogAsset(b.assetId);await audit(user,b.type,b.assetId||'');return json({ok:true});}
     if(route==='admin'&&method==='PUT'){
       if(!user.admin)throw error(403,'Administrator required');const b=await body(req);
       if(param==='catalog'){
@@ -124,7 +146,26 @@ export function createCustomerService(config,gateway,clock=Date.now) {
         if(b.assetId)await catalogAsset(b.assetId);
         await gateway.put(param,documentId(b.userId,b.assetId||'',b.tier),{userId:b.userId,assetId:b.assetId||'',kind:param,tier:b.tier,effect:b.effect||'',status:b.status||'',expiresAt:b.expiresAt,issuer:user.id});
         if(param==='subscriptions'&&b.status==='active')await audit({id:b.userId},'SUBSCRIPTION_STARTED');
+      }else if(param==='requests'){
+        const requestId=typeof b.requestId==='string'?b.requestId:'';if(!requestId)throw error(400,'Request ID required');
+        const current=await gateway.get('events',requestId);if(!current||current.kind!=='SOURCING_REQUEST')throw error(404,'Request not found');
+        const status=b.status===undefined?current.status:(typeof b.status==='string'&&REQUEST_STATUSES.includes(b.status)?b.status:null);if(!status)throw error(400,'Invalid request status');
+        const matchingRefs=Array.isArray(b.matchingRefs)?b.matchingRefs.filter(v=>typeof v==='string').slice(0,10):current.matchingRefs||[];
+        for(const ref of matchingRefs){const asset=await catalogAsset(ref);if(asset.category==='stone')throw error(400,'Jewelry catalogue reference required');}
+        await gateway.put('events',requestId,{...current,status,notes:typeof b.notes==='string'?b.notes.slice(0,1000):current.notes||'',matchingRefs});
+        return json({ok:true,status,matchingRefs});
       }else throw error(404,'Not found');return json({ok:true});
+    }
+    if(route==='admin'&&param==='requests'&&method==='GET'){
+      if(!user?.admin)throw error(403,'Administrator required');
+      const rows=await gateway.list('events');
+      return json({requests:rows.filter(r=>r.kind==='SOURCING_REQUEST').filter(r=>!url.searchParams.get('status')||r.status===url.searchParams.get('status')).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))});
+    }
+    if(route==='admin'&&param==='events'&&method==='GET'){
+      if(!user?.admin)throw error(403,'Administrator required');
+      const rows=await gateway.list('events');
+      const kinds=new Set(['SOURCING_REQUEST','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SAVED','FAVORITED']);
+      return json({events:rows.filter(r=>kinds.has(r.kind)).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))});
     }
     throw error(404,'Not found');
   }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message},status);}}

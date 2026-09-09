@@ -5,7 +5,7 @@ export function customerConfig(env=process.env) {
   // (first the actual Vercel URL, later the custom domain). It is not a secret.
   // ASSET_DELIVERY_SECRET signs short-lived session-bound GLB leases. Owner supplied.
   const value=k=>env[k]?.trim()||'';
-  const config={endpoint:value('APPWRITE_ENDPOINT'),project:value('APPWRITE_PROJECT_ID'),key:value('APPWRITE_API_KEY'),database:value('APPWRITE_DATABASE_ID')||'ames',origin:value('AMES_APP_ORIGIN'),deliverySecret:value('ASSET_DELIVERY_SECRET'),collections:{},buckets:{}};
+  const config={endpoint:value('APPWRITE_ENDPOINT'),project:value('APPWRITE_PROJECT_ID'),key:value('APPWRITE_API_KEY'),database:value('APPWRITE_DATABASE_ID')||'ames',origin:value('AMES_APP_ORIGIN'),deliverySecret:value('ASSET_DELIVERY_SECRET'),deskWhatsapp:value('AMES_DESK_WHATSAPP')||value('WHATSAPP_DESK'),collections:{},buckets:{}};
   for(const [key,id] of Object.entries(COLLECTION_DEFAULTS))config.collections[key]=value('APPWRITE_COLLECTION_'+key.toUpperCase())||id;
   for(const [key,id] of Object.entries(BUCKET_DEFAULTS))config.buckets[key]=value('APPWRITE_BUCKET_'+key.toUpperCase())||id;
   return config;

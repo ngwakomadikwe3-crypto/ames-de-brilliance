@@ -617,6 +617,11 @@ body:has(.ames-product-shell),
 .ames-boutique-panel .ames-boutique-hero .ames-boutique-asset-stage {
   top: 32px;
 }
+.ames-boutique-panel .ames-boutique-topbar{z-index:20}
+.ames-boutique-panel .ames-boutique-hero::before,.ames-boutique-panel .ames-boutique-hero::after{pointer-events:none}
+.ames-boutique-panel .ames-boutique-hero .ames-engine-boutique-shell{z-index:1;pointer-events:none}
+.ames-boutique-panel .ames-boutique-hero .ames-boutique-jewelry-stage{pointer-events:auto}
+.ames-boutique-panel .ames-boutique-hero .ames-boutique-hero-copy{z-index:5}
 @media (max-width: 700px) {
   .ames-boutique-panel .ames-boutique-hero .ames-boutique-asset-stage {
     top: 24px;
