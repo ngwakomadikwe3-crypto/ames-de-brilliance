@@ -374,3 +374,31 @@ body::before, body::after { display:none !important; }
 .ames-engine-stone-tray .ames-stone-identity strong{font-size:12px;font-weight:400;letter-spacing:.04em}
 .ames-engine-stone-tray .ames-stone-identity span{font-size:10px;letter-spacing:.1em;color:#9aa5b1}
 @media(max-width:640px){.ames-chat-topbar{height:50px;padding-inline:14px}.ames-chat-mark{font-size:9px}.chat-empty-state{padding-top:50px}.ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(250px,38dvh,350px)}}
+/* Chat-only layout: the stage and composer retain their places through conversation. */
+.ames-chat.chat-paper{height:100dvh;display:flex!important;flex-direction:column;overflow:hidden!important;position:relative;padding-top:70px;background:#0b0d10;color:#eef2f6;font-family:var(--font-inter),Arial,sans-serif}
+.ames-chat .ames-chat-topbar{background:transparent;border:0;backdrop-filter:none;height:48px}
+.ames-chat .ames-chat-menu{border:0;background:transparent;width:36px;height:36px}
+.ames-chat .ames-chat-mark{position:absolute;left:50%;transform:translateX(-50%)}
+.ames-chat-stage{flex:none;width:100%;max-width:620px;margin:3dvh auto 0;padding:0 24px}
+.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(230px,43dvh,440px)}
+.ames-chat .ames-engine-stone-tray .ames-stone-tray{background:transparent}
+.ames-chat .ames-engine-stone-tray canvas{touch-action:none;display:block}
+.ames-chat .ames-stone-identity{display:block;margin:8px 0 0;text-align:center;font-size:12px;font-weight:400;letter-spacing:.025em;color:#a3a8af;line-height:20px}
+.ames-chat .ames-stone-error{text-align:center;font-size:12px}
+.ames-chat-messages{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px}
+.ames-chat-messages>div{max-width:620px;margin:auto}
+.ames-chat-message{width:fit-content;max-width:90%;font-size:14px;line-height:1.65;margin:0 0 14px;white-space:pre-wrap;overflow-wrap:anywhere;color:#d7dadd}
+.ames-chat-message.is-user{margin-left:auto;background:#1b1e22;border-radius:18px;padding:9px 16px}
+.ames-chat-wait{font-size:12px;color:#92989e}
+.ames-chat-composer-wrap{flex:none;width:100%;max-width:700px;align-self:center;padding:12px 20px max(22px,env(safe-area-inset-bottom));position:relative}
+.ames-chat-composer{display:flex;align-items:center;gap:8px;background:#1b1d21;border:1px solid #292c31;border-radius:30px;padding:8px;min-height:58px}
+.ames-chat-composer input{flex:1;min-width:0;width:0;background:transparent;border:0;outline:none;color:#eef2f6;font-size:16px;line-height:1.5}
+.ames-chat-composer input::placeholder{color:#92969d}
+.ames-chat-composer button{width:40px;height:40px;flex:none;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:#bfc3c9;cursor:pointer}
+.ames-chat-composer .ames-chat-send{background:#e0e2e5;color:#191b1f}
+.ames-chat-composer .ames-chat-send:disabled{background:#2b2e34;color:#92979e;cursor:default}
+.ames-chat button:focus-visible,.ames-chat a:focus-visible{outline:2px solid #bfc3c9;outline-offset:3px}
+.ames-composer-menu{position:absolute;bottom:94px;left:20px;padding:6px;border:1px solid #30343a;border-radius:14px;background:#191c20;z-index:10}
+.ames-composer-menu button{background:none;border:0;color:#d7dadd;font-size:13px;padding:12px;cursor:pointer}
+.ames-chat.has-messages .ames-stone-tray .stage{height:clamp(180px,32dvh,300px)}
+@media(max-height:600px){.ames-chat.chat-paper{padding-top:60px}.ames-chat .ames-chat-stage{margin-top:0;padding-block:0}.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage{height:24dvh;min-height:90px}.ames-chat-composer-wrap{padding-bottom:10px}.ames-chat-messages{padding-block:10px}}

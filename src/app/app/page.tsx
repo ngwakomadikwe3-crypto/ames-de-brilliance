@@ -170,7 +170,7 @@ function AppPageContent() {
       `}</style>
 
       {/* Minimal transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+      <div hidden={activePanel === 1} className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ display: activePanel === 1 ? 'none' : undefined, background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => setDrawerOpen(!drawerOpen)} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu">
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F1F4F7' : '#9AA5B1', transition: 'all 0.3s' }} />
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F1F4F7' : '#9AA5B1', transition: 'all 0.3s' }} />
@@ -299,6 +299,8 @@ function groupChats(chats: ChatHistory[]): { label: string; items: ChatHistory[]
 
 function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }: { prefill: string; onPrefillConsumed: () => void; onBrowseBoutique: () => void; integration: AmesIntegration | null }) {
   const [selectedStoneId, setSelectedStoneId] = useState("stone-001");
+  const [gem, setGem] = useState("diamond");
+  const [composerMenuOpen, setComposerMenuOpen] = useState(false);
   const customer=useCustomer(),restoredStone=useRef(false);
   useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved)setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
   const [chats, setChats] = useState<ChatHistory[]>([]);
@@ -315,7 +317,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const chatStarted = messages.length > 0;
   const hasAmesReply = messages.some(m => m.role === "assistant");
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
   useEffect(() => {
@@ -357,19 +359,26 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
 
   async function handleSend(text?: string) {
     const msg = (text || input).trim();
-    if (!msg) return;
+    if (!msg || typing) return;
     setInput("");
     // Conversation controls the single displayed canonical stone. No AI output, URL or tier assertion can grant access.
     const normalized = msg.toLowerCase();
+    const gemRequest = /\b(diamond|sapphire|ruby|spinel|alexandrite|tanzanite|aquamarine|tourmaline|topaz|garnet)\b/.exec(normalized)?.[1]
+      || (/\b(?:make it|change to) emerald\b/.test(normalized) ? "emerald" : null);
     const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase()
-      || (normalized.includes("oval") ? "stone-002" : null)
-      || (normalized.includes("asscher") ? "stone-005" : null)
-      || (normalized.includes("emerald") ? "stone-003" : null)
-      || (normalized.includes("pear") ? "stone-004" : null)
-      || (normalized.includes("round") || normalized.includes("brilliant") ? "stone-001" : null)
-      || (normalized.includes("rare") ? "stone-005" : null);
-    if (requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) {
-      setSelectedStoneId(requested);
+      || (/\boval\b/.test(normalized) ? "stone-002" : null)
+      || (/\basscher\b/.test(normalized) ? "stone-005" : null)
+      || (/\bemerald(?: cut)?\b/.test(normalized) && gemRequest !== "emerald" ? "stone-003" : null)
+      || (/\bpear\b/.test(normalized) ? "stone-004" : null)
+      || (/\bround\b/.test(normalized) ? "stone-001" : null)
+      || (/\b(?:rare|obscure|unusual)\b/.test(normalized) ? "stone-005" : null);
+    if ((requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) || gemRequest) {
+      if (requested) setSelectedStoneId(requested);
+      if (gemRequest) setGem(gemRequest);
+      await appendMessage(null, 'user', msg);
+      if (/\b(?:rare|obscure|unusual)\b/.test(normalized)) {
+        await appendMessage(null, 'assistant', 'The current collection has five classic cuts. Here is Asscher, a less common step cut.');
+      }
       return;
     }
     setTyping(true);
@@ -395,111 +404,33 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   }
 
   return (
-    <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#0b0d10', color: '#eef2f6', position: 'relative' }}>
+    <div className={`chat-paper ames-chat${chatStarted ? " has-messages" : ""}`}>
       <header className="ames-chat-topbar">
         <button className="ames-chat-menu" aria-label="Chat menu" aria-expanded={chatMenuOpen} onClick={() => setChatMenuOpen(open => !open)}><span /><span /><span /></button>
         <span className="ames-chat-mark">AMES</span>
         {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/account">Account</a><a href="/account?tab=favorites">Favorites</a></nav>}
       </header>
-
-      {chatStarted ? (
-        /* === CHAT MODE === */
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 pt-10 text-center"><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
-          {/* Mini header */}
-          {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
-            <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-              {messages.map((m) => (
-                <div key={m.id} className="space-y-2">
-                  {m.role === "assistant" && m.thinking && (
-                    <div className="ml-2">
-                      <details className="group">
-                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#9AA5B1' }}>Reasoning</summary>
-                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#202020', border: '1px solid rgba(23,23,23,0.08)', color: '#9AA5B1' }}>{m.thinking}</div>
-                      </details>
-                    </div>
-                  )}
-                  <div className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    {m.role === "assistant" && (
-                      <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#202020', border: '1px solid rgba(23,23,23,0.08)' }}>
-                        <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
-                      </div>
-                    )}
-                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: '#F1F4F7', color: '#151515', borderRadius: '18px 18px 4px 18px' } : { background: '#151515', border: '1px solid rgba(23,23,23,0.08)', color: '#F1F4F7', borderRadius: '18px 18px 18px 4px' }) }}>
-                      {m.text}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {typing && (
-                <div className="flex justify-start">
-                  <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#202020', border: '1px solid rgba(23,23,23,0.08)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
-                  </div>
-                  <div style={{ background: '#151515', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', display: 'flex', gap: 4, border: '1px solid rgba(23,23,23,0.08)' }}>
-                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "0ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "150ms" }} />
-                    <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Composer — floating Claude-style card */}
-          <div className="shrink-0 px-4 pb-4 pt-2" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-            <div className="mx-auto" style={{ maxWidth: 680 }}>
-              {hasAmesReply && (
-                <div className="text-center mb-2">
-                  <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#A6A6AB', textDecoration: 'none', fontWeight: 400 }}>Talk to a human on WhatsApp</a>
-                </div>
-              )}
-              <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
-                </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
-                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6 chat-empty-state" style={{ background: '#0b0d10', color: '#eef2f6' }}>
-
-          <div style={{ width: '100%', maxWidth: 360, minHeight: 270, marginBottom: 18 }}><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
-
-          {/* Serif time-of-day greeting */}
-          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#F1F4F7', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
-            {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
-          </h2>
-          <p style={{ fontSize: 14, fontWeight: 400, color: '#9AA5B1', textAlign: 'center' }}>
-            How can I help you today?
-          </p>
-        </div>
-      )}
-
-      {/* Floating bottom input card — Claude style */}
-      {!chatStarted && (
-        <div className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))', position: 'relative', zIndex: 1 }}>
-          <div className="mx-auto" style={{ maxWidth: 360 }}>
-            {/* Floating card */}
-            <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9AA5B1" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
-              </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask AMES anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F1F4F7', lineHeight: 1.4 }} />
-              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F1F4F7' : '#2b323a' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="ames-chat-stage">
+        <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
+      </div>
+      <div ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
+        <div>{messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
+        {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
+      </div>
+      <div className="ames-chat-composer-wrap">
+        {composerMenuOpen && <div className="ames-composer-menu">
+          <button onClick={() => { setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setComposerMenuOpen(false); }}>New conversation</button>
+        </div>}
+        <form className="ames-chat-composer" onSubmit={e => { e.preventDefault(); void handleSend(); }}>
+          <button type="button" aria-label="Conversation options" aria-expanded={composerMenuOpen} onClick={() => setComposerMenuOpen(open => !open)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" />
+          <button type="submit" aria-label="Send message" disabled={!input.trim() || typing} className="ames-chat-send">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
