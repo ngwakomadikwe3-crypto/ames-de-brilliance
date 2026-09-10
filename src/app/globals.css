@@ -587,6 +587,13 @@ body:has(.ames-product-shell),
 }
 
 /* Approved emerald background treatment. Keep content surfaces and stages intact. */
+@keyframes ames-silk-drift {
+  0%, 100% { background-position: 48% 50%; }
+  50% { background-position: 52% 48%; }
+}
+
+body,
+body > main > main,
 html:has(.ames-product-shell),
 body:has(.ames-product-shell),
 .ames-product-shell,
@@ -600,10 +607,32 @@ body:has(.ames-product-shell),
 .ames-product-shell .ames-video-slide,
 .ames-product-shell .ames-video-frame {
   background-image: url('/splash-bg.jpg') !important;
-  background-size: cover;
-  background-position: center center;
+  background-size: 104% 104%;
+  background-position: 48% 50%;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  animation: ames-silk-drift 26s ease-in-out infinite;
+  will-change: background-position;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  body > main > main,
+  html:has(.ames-product-shell),
+  body:has(.ames-product-shell),
+  .ames-product-shell,
+  .ames-product-shell .ames-chat.chat-paper,
+  .ames-product-shell .ames-boutique-panel,
+  .ames-product-shell .ames-boutique-scroll,
+  .ames-product-shell .ames-boutique-topbar,
+  .ames-product-shell .ames-boutique-hero,
+  .ames-product-shell .ames-video-panel,
+  .ames-product-shell .ames-video-header,
+  .ames-product-shell .ames-video-slide,
+  .ames-product-shell .ames-video-frame {
+    animation: none;
+    will-change: auto;
+  }
 }
 
 .ames-chat-recommendation{margin:0 0 18px;padding:14px 16px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(0,0,0,.16)}
