@@ -394,7 +394,7 @@ body::before, body::after { display:none !important; }
 .ames-chat-messages{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px}
 .ames-chat-messages>div{max-width:620px;margin:auto}
 .ames-chat-message{width:fit-content;max-width:90%;font-size:14px;line-height:1.65;margin:0 0 14px;white-space:pre-wrap;overflow-wrap:anywhere;color:#fff}
-.ames-chat-message.is-assistant{font-family:var(--font-cormorant,Georgia,serif);font-size:16px;line-height:1.5;color:#fff;border:1px solid rgba(220,226,234,.2);border-radius:14px;padding:10px 14px}
+.ames-chat-message.is-assistant{font-family:var(--font-cormorant,Georgia,serif);font-size:16px;line-height:1.5;color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px 14px}
 .ames-chat-messages[data-language="ar"] .ames-chat-message.is-assistant{font-family:var(--font-inter),"Noto Sans Arabic","Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.7}
 .ames-chat-messages[data-language="zh"] .ames-chat-message.is-assistant{font-family:var(--font-inter),"Noto Sans SC","PingFang SC","Microsoft YaHei","Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.7}
 .ames-chat-message.is-user{margin-left:auto;background:#1b1e22;border-radius:18px;padding:9px 16px}

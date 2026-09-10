@@ -67,9 +67,13 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
       if (!readyRef.current) { readyRef.current = true; performance.mark("ames-splash-video-ready"); performance.measure("ames-splash-load", "ames-splash-start", "ames-splash-video-ready"); }
       void video.play().catch(() => { if (!cancelled && !completionRef.current) { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); } });
     };
+    const bridge = () => {
+      if (Number.isFinite(video.duration) && video.duration - video.currentTime <= 0.75) complete();
+    };
     video.addEventListener("canplay", attempt, { once: true });
+    video.addEventListener("timeupdate", bridge);
     attempt();
-    return () => { cancelled = true; video.removeEventListener("canplay", attempt); };
+    return () => { cancelled = true; video.removeEventListener("canplay", attempt); video.removeEventListener("timeupdate", bridge); };
   }, [complete, fallback]);
 
   if (!visible) return null;
@@ -77,6 +81,6 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
     {SPLASH_PRELOADS}
     {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" onEnded={complete} onError={() => { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
     {fallback && <span className="splash-fallback" aria-hidden="true" />}
-    <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#063c3b}.splash-fallback{background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat}@media(prefers-reduced-motion:reduce){.splash-experience{transition:none}}`}</style>
+    <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#063c3b;transition:opacity 560ms cubic-bezier(.22,.61,.36,1)}.splash-experience.is-exiting video{opacity:0}.splash-fallback{background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat}@media(prefers-reduced-motion:reduce){.splash-experience,.splash-experience video{transition:none}}`}</style>
   </div>;
 }
