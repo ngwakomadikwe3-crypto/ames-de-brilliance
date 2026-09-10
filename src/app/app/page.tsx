@@ -487,7 +487,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
           <button type="button" aria-label="Conversation options" aria-expanded={composerMenuOpen} onClick={() => setComposerMenuOpen(open => !open)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14" /></svg>
           </button>
-          <input dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" autoComplete="off" enterKeyHint="send" />
+          <input dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Tell me what you’re looking for..." aria-label="Message AMES" autoComplete="off" enterKeyHint="send" />
           <button type="submit" aria-label="Send message" disabled={!input.trim() || typing} className="ames-chat-send">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
           </button>
