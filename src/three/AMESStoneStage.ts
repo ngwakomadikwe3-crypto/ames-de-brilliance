@@ -1,4 +1,4 @@
-import { DataTexture, LinearFilter, RGBAFormat, SRGBColorSpace } from 'three';
+import { DataTexture, LinearFilter, RGBAFormat, SRGBColorSpace, TextureLoader } from 'three';
 
 /** Opaque-canvas backdrop: exact app emerald at every edge, quiet studio lift within. */
 export function createAMESStoneStage() {
@@ -19,6 +19,17 @@ export function createAMESStoneStage() {
   }
   const texture = new DataTexture(pixels, size, size, RGBAFormat);
   texture.name = 'AMES emerald stone backdrop';
+  texture.colorSpace = SRGBColorSpace;
+  texture.minFilter = LinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** Loads the shared silk image for the opaque WebGL canvas so its edges blend with the app shell. */
+export async function loadAMESStoneStage(url = '/ames-silk-bg.webp') {
+  const texture = await new TextureLoader().loadAsync(url);
+  texture.name = 'AMES emerald silk stone backdrop';
   texture.colorSpace = SRGBColorSpace;
   texture.minFilter = LinearFilter;
   texture.magFilter = LinearFilter;

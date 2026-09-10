@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createAssetRegistry,mountBoutiqueViewer,type AmesIntegration,type BoutiqueMode } from "@ames/engine";
 import { useCustomer,customerRequest } from './CustomerState';
 import { createAMESDiamondMaterial } from '@/three/AMESDiamondMaterial';
-import { createAMESStoneStage } from '@/three/AMESStoneStage';
+import { loadAMESStoneStage } from '@/three/AMESStoneStage';
 import BoutiqueJewelryStage from './jewelry/BoutiqueJewelryStage';
 import { Mesh, Vector3, type Texture } from 'three';
 
@@ -43,7 +43,7 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
       mounted = value;
       if (kind === "stone-tray") {
         host.dataset.amesRenderer = gem === "diamond" ? "ames-chat-facet-transport" : "ames-colored-gem-preview";
-        stoneBackdrop = createAMESStoneStage();
+        stoneBackdrop = await loadAMESStoneStage();
         value.viewer.engine.scene.background = stoneBackdrop;
         const { camera, target } = value.viewer.engine;
         const distance = camera.position.distanceTo(target);

@@ -586,7 +586,13 @@ body:has(.ames-product-shell),
   color: rgb(255 255 255 / 55%);
 }
 
-/* Approved deep emerald shell. The splash artwork remains splash-only. */
+/* Approved emerald silk shell. The splash artwork remains splash-only. */
+@keyframes ames-silk-drift {
+  0%, 100% { background-position: 48% 50%; }
+  50% { background-position: 52% 48%; }
+}
+
+body > main > main,
 html:has(.ames-product-shell),
 body:has(.ames-product-shell),
 .ames-product-shell,
@@ -599,7 +605,14 @@ body:has(.ames-product-shell),
 .ames-product-shell .ames-video-header,
 .ames-product-shell .ames-video-slide,
 .ames-product-shell .ames-video-frame {
-  background: #063c3b !important;
+  background-image: url('/ames-silk-bg.webp') !important;
+  background-color: #063c3b !important;
+  background-size: 104% 104%;
+  background-position: 48% 50%;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  animation: ames-silk-drift 26s ease-in-out infinite;
+  will-change: background-position;
 }
 
 /* The engine canvas is intentionally kept, but its host must disappear into the shell. */
@@ -614,8 +627,29 @@ body:has(.ames-product-shell),
   box-shadow: none !important;
 }
 
-body > main > main {
-  background: #063c3b !important;
+.ames-chat .ames-engine-stone-tray canvas {
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 0 42%, transparent 62%);
+  mask-image: radial-gradient(ellipse at center, #000 0 42%, transparent 62%);
+  mix-blend-mode: luminosity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body > main > main,
+  html:has(.ames-product-shell),
+  body:has(.ames-product-shell),
+  .ames-product-shell,
+  .ames-product-shell .ames-chat.chat-paper,
+  .ames-product-shell .ames-boutique-panel,
+  .ames-product-shell .ames-boutique-scroll,
+  .ames-product-shell .ames-boutique-topbar,
+  .ames-product-shell .ames-boutique-hero,
+  .ames-product-shell .ames-video-panel,
+  .ames-product-shell .ames-video-header,
+  .ames-product-shell .ames-video-slide,
+  .ames-product-shell .ames-video-frame {
+    animation: none;
+    will-change: auto;
+  }
 }
 
 .ames-chat-recommendation{margin:0 0 18px;padding:14px 16px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(0,0,0,.16)}
@@ -628,10 +662,29 @@ body > main > main {
 .ames-chat-recommendation-actions button{min-height:32px;padding:6px 10px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:transparent;color:#fff;font-size:10px}
 /* Shared app header identity across customer surfaces. */
 .ames-boutique-panel .ames-boutique-topbar{height:54px;padding:10px 16px;background:rgba(11,13,16,.82);backdrop-filter:blur(14px);border-bottom:1px solid rgba(220,226,234,.08)}
-.ames-boutique-brand,.ames-video-brand{font:500 10px var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif)!important;letter-spacing:.24em!important;color:#dce2ea!important}
-.ames-boutique-brand{position:absolute;left:50%;transform:translateX(-50%)}
+.ames-chat .ames-chat-mark,.ames-boutique-brand,.ames-video-brand{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif)!important;font-size:10px!important;font-weight:500!important;line-height:1!important;letter-spacing:.24em!important;color:#dce2ea!important}
+.ames-boutique-brand,.ames-video-brand{position:absolute;left:50%;top:20px;transform:translateX(-50%)}
+.ames-chat .ames-chat-mark{top:20px}
 .ames-video-header{height:54px;background:rgba(11,13,16,.82)!important;backdrop-filter:blur(14px)}
-.ames-video-brand{top:20px!important}
+.ames-screen-scroller{scroll-behavior:smooth}
+
+@keyframes ames-content-in {
+  from { opacity: 0; transform: translate3d(0, 5px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.ames-chat-message,
+.ames-chat-recommendation {
+  animation: ames-content-in 180ms cubic-bezier(.22,.61,.36,1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ames-chat-message,
+  .ames-chat-recommendation {
+    animation: none;
+  }
+  .ames-screen-scroller { scroll-behavior: auto; }
+}
 
 /* Center the existing Boutique ring and its light on the hero midpoint. */
 .ames-boutique-panel .ames-boutique-hero .ames-engine-boutique-shell {
