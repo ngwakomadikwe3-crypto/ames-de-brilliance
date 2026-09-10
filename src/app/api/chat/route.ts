@@ -7,7 +7,7 @@ import { stoneRequest } from '@/lib/chat-stone-selection';
 export const runtime = 'nodejs';
 export const maxDuration = 50;
 export async function POST(req: NextRequest) {
-  const headers = { 'Cache-Control': 'no-store' };
+  const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
   if (!chatOriginAllowed(req)) return NextResponse.json({ error: 'Origin denied' }, { status: 403, headers });
   try {
     const config = difyConfig();
@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
     const secure = new URL(process.env.AMES_APP_ORIGIN || req.url).protocol === 'https:';
     const cookieName = secure ? '__Host-ames_dify_guest' : 'ames_dify_guest';
     const identity = difyIdentity(account?.id, cookieValue(req, cookieName), config.secret);
+    const difyStarted = Date.now();
     const result = await sendDify({ message: body.message, conversationToken: body.conversationToken, user: identity.user }, config);
+    headers['Server-Timing'] = `dify;dur=${Date.now() - difyStarted}`;
     const response = NextResponse.json({ ...result, stone: stoneRequest(result.reply) }, { headers });
     if (identity.guestToken) response.cookies.set(cookieName, identity.guestToken, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 86400 });
     return response;

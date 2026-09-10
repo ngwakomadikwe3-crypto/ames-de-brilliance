@@ -404,10 +404,13 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     if (nextIntent.category && nextIntent.category !== buyingIntent.category) setRecommendation(null);
     try {
       await appendMessage(null, 'user', msg);
+      performance.mark('ames-chat-request-start');
       const response = await fetch("/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: msg, conversationToken: conversationToken.current }),
       });
+      performance.mark('ames-chat-request-end');
+      performance.measure('ames-chat-api', 'ames-chat-request-start', 'ames-chat-request-end');
       const data = await response.json();
       if (epoch !== conversationEpoch.current) return;
       if (!response.ok) throw new Error(data.error || 'AMES chat is unavailable. Please try again.');
@@ -673,7 +676,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
     } catch {} finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchStones(); }, [fetchStones]);
+  useEffect(() => { if (active) fetchStones(); }, [active, fetchStones]);
 
   function handleTouchStart(e: React.TouchEvent) {
     if (e.target instanceof Element && e.target.closest("canvas")) return;
@@ -973,8 +976,9 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
   const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isPanelActive) return;
     fetch("/api/videos?published=1").then(r => r.ok ? r.json() : []).then(d => setVideos(d)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  }, [isPanelActive]);
 
   useEffect(() => {
     const f = feedRef.current;

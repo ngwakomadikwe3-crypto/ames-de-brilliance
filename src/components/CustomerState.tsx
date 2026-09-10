@@ -10,8 +10,10 @@ export function CustomerProvider({children}:{children:ReactNode}){
   const [user,setUser]=useState<CustomerUser|null>(null),[state,setState]=useState(empty),[catalog,setCatalog]=useState<AssetManifest>(canonicalAssetManifest),[ready,setReady]=useState(false),[error,setError]=useState<string|null>(null);
   async function reloadState(){setState(await customerRequest('state'));}
   useEffect(()=>{const controller=new AbortController();let active=true;(async()=>{try{
-    const account=await customerRequest('session','GET',undefined,controller.signal);if(!active)return;setUser(account.user);
-    const manifest=await customerRequest('catalog','GET',undefined,controller.signal);if(!active)return;
+    const [account,manifest]=await Promise.all([
+      customerRequest('session','GET',undefined,controller.signal),
+      customerRequest('catalog','GET',undefined,controller.signal),
+    ]);if(!active)return;setUser(account.user);
     const merged=new Map(canonicalAssetManifest.assets.map(a=>[a.id,a]));for(const a of manifest.assets)merged.set(a.id,a);setCatalog({schemaVersion:1,assets:[...merged.values()]});
     if(account.user){const data=await customerRequest('state','GET',undefined,controller.signal);if(active)setState(data);}
   }catch(e){if(active)setError(e instanceof Error?e.message:'Account service unavailable');}finally{if(active)setReady(true);}})();return()=>{active=false;controller.abort();};},[]);
