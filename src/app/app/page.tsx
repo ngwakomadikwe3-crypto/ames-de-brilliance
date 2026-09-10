@@ -346,6 +346,11 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         conversationToken.current = saved.token;
         setMessages(saved.messages);
       }
+      const memory = (customer.state.profile?.preferences as Record<string, unknown> | undefined)?.memory as Record<string, unknown> | undefined;
+      const rememberedLanguage = memory?.language;
+      if (rememberedLanguage === 'en' || rememberedLanguage === 'zh' || rememberedLanguage === 'ar') setConversationLanguage(rememberedLanguage);
+      const rememberedRequest = memory?.lastSourcingRequest as Record<string, unknown> | undefined;
+      if (rememberedRequest && typeof rememberedRequest.category === 'string') setBuyingIntent({ stage: 'CONSIDERING', category: rememberedRequest.category as BuyingIntent['category'], budget: typeof rememberedRequest.budget === 'number' ? rememberedRequest.budget : undefined, metal: typeof rememberedRequest.metal === 'string' ? rememberedRequest.metal : undefined, shape: typeof rememberedRequest.shape === 'string' ? rememberedRequest.shape : undefined });
     } catch {}
     if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
   }, [customer.ready, customer.user?.id]);
@@ -440,6 +445,18 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         } catch { assistantReply = language === 'zh' ? '我可以为您联系专属顾问确认细节。' : language === 'ar' ? 'يمكنني وصلك بالمستشار الخاص لتأكيد التفاصيل.' : 'I can connect you with the desk to confirm the details.'; }
       }
       await appendMessage(null, 'assistant', assistantReply);
+      if (customer.user) {
+        const priorMemory = ((customer.state.profile?.preferences as Record<string, unknown> | undefined)?.memory || {}) as Record<string, unknown>;
+        const list = (key: string, value: string | undefined) => Array.from(new Set([...(Array.isArray(priorMemory[key]) ? priorMemory[key] as unknown[] : []).filter((item): item is string => typeof item === 'string'), ...(value ? [value] : [])])).slice(-8);
+        const memory = {
+          categories: list('categories', nextIntent.category), shapes: list('shapes', nextIntent.shape), metals: list('metals', nextIntent.metal),
+          occasions: list('occasions', nextIntent.occasion), recentInterests: list('recentInterests', nextIntent.category || nextIntent.shape),
+          budgetRange: nextIntent.budget ? { latest: nextIntent.budget } : priorMemory.budgetRange,
+          language, lastConversationContext: msg.slice(0, 300),
+          ...(nextIntent.stage !== 'BROWSING' && nextIntent.category ? { lastSourcingRequest: { category: nextIntent.category, budget: nextIntent.budget, metal: nextIntent.metal, shape: nextIntent.shape } } : {}),
+        };
+        void customerRequest('preferences', 'PUT', { memory }).catch(() => window.dispatchEvent(new CustomEvent('ames:diagnostic', { detail: { code: 'MEMORY_SAVE_FAILED' } })));
+      }
       try {
         const stamp = new Date().toISOString();
         sessionStorage.setItem('ames-dify:' + (customer.user?.id || 'guest'), JSON.stringify({ token: data.conversationToken, messages: [...messages, { id: crypto.randomUUID(), role: 'user', text: msg, created_at: stamp }, { id: crypto.randomUUID(), role: 'assistant', text: assistantReply, created_at: stamp }] }));

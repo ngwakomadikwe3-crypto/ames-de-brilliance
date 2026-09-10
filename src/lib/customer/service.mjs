@@ -121,7 +121,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       return json({ok:true});
     }
     if(route==='preferences'&&method==='PUT'){
-      const b=await body(req),preferences={};for(const k of Object.keys(b)){if(!['appearance','glow','sound','haptics'].includes(k))throw error(400,'Unsupported preference');if(['sound','haptics'].includes(k)?typeof b[k]!=='boolean':typeof b[k]!=='string'||!['Midnight','Ivory','Rich','Subtle'].includes(b[k]))throw error(400,'Invalid preference');preferences[k]=b[k];}
+      const b=await body(req),preferences={};for(const k of Object.keys(b)){if(k==='memory'){if(!b.memory||typeof b.memory!=='object'||Array.isArray(b.memory)||JSON.stringify(b.memory).length>5000)throw error(400,'Invalid customer memory');const allowedKeys=['categories','shapes','metals','budgetRange','occasions','recentInterests','lastSourcingRequest','lastConversationContext','language'];for(const key of Object.keys(b.memory)){if(!allowedKeys.includes(key))throw error(400,'Unsupported memory field');}preferences.memory=b.memory;continue;}if(!['appearance','glow','sound','haptics'].includes(k))throw error(400,'Unsupported preference');if(['sound','haptics'].includes(k)?typeof b[k]!=='boolean':typeof b[k]!=='string'||!['Midnight','Ivory','Rich','Subtle'].includes(b[k]))throw error(400,'Invalid preference');preferences[k]=b[k];}
       const old=await gateway.get('profiles',documentId(user.id));await gateway.put('profiles',documentId(user.id),{userId:user.id,kind:'profile',accountState:old?.accountState||'active',preferences:{...old?.preferences,...preferences}});return json({ok:true});
     }
     if(route==='designs'&&['PUT','DELETE'].includes(method)){

@@ -5,7 +5,7 @@ import { difyConfig, difyIdentity, sendDify } from '@/lib/dify.mjs';
 import { stoneRequest } from '@/lib/chat-stone-selection';
 
 export const runtime = 'nodejs';
-export const maxDuration = 100;
+export const maxDuration = 50;
 export async function POST(req: NextRequest) {
   const headers = { 'Cache-Control': 'no-store' };
   if (!chatOriginAllowed(req)) return NextResponse.json({ error: 'Origin denied' }, { status: 403, headers });

@@ -674,6 +674,7 @@ body:has(.ames-product-shell),
 .ames-chat .ames-chat-mark{top:20px}
 .ames-video-header{height:54px;background:rgba(11,13,16,.82)!important;backdrop-filter:blur(14px)}
 .ames-screen-scroller{scroll-behavior:smooth}
+.ames-screen-scroller{overscroll-behavior-x:contain;scroll-snap-type:x proximity}
 
 @keyframes ames-content-in {
   from { opacity: 0; transform: translate3d(0, 5px, 0); }

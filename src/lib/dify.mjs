@@ -72,13 +72,19 @@ export async function sendDify({ message, conversationToken, user }, config, fet
   if (conversationToken && (!previous || previous.user !== user || typeof previous.conversationId !== 'string'))
     throw fail(409, 'This conversation has expired. Start a new conversation.');
   let response;
-  try {
-    response = await fetcher(config.url + '/chat-messages', {
-      method: 'POST', headers: { Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inputs: detectDifyLanguage(message) === 'English' ? {} : { language: detectDifyLanguage(message) }, query: message.trim(), response_mode: 'blocking', conversation_id: previous?.conversationId || '', user }),
-      cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(90000),
-    });
-  } catch { throw fail(502, 'AMES chat could not connect. Please try again.'); }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await fetcher(config.url + '/chat-messages', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs: detectDifyLanguage(message) === 'English' ? {} : { language: detectDifyLanguage(message) }, query: message.trim(), response_mode: 'blocking', conversation_id: previous?.conversationId || '', user }),
+        cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(45000),
+      });
+      break;
+    } catch (cause) {
+      if (attempt === 1) throw fail(502, 'AMES chat could not connect. Please try again.');
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
   if (!response.ok) throw fail(response.status === 404 && previous ? 409 : 502, response.status === 404 && previous ? 'This conversation is unavailable. Start a new conversation.' : 'AMES chat is temporarily unavailable. Please try again.');
   let data;
   try { data = await response.json(); } catch { throw fail(502, 'AMES chat returned an incomplete response. Please try again.'); }
