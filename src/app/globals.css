@@ -678,6 +678,41 @@ body:has(.ames-product-shell),
   animation: ames-content-in 180ms cubic-bezier(.22,.61,.36,1) both;
 }
 
+/* Mobile hero emphasis: a local light bed keeps the existing stone presentation
+   legible against the moving silk without introducing a panel or stage edge. */
+@media (max-width:640px) {
+  .ames-chat-stage {
+    position:relative;
+    margin-top:5dvh;
+  }
+  .ames-chat-stage::before {
+    content:"";
+    position:absolute;
+    z-index:0;
+    top:9%;
+    left:50%;
+    width:92%;
+    height:74%;
+    transform:translateX(-50%);
+    pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 45%, rgba(2,18,18,.42) 0%, rgba(3,30,29,.22) 37%, transparent 72%),
+      radial-gradient(ellipse at 50% 77%, rgba(44,130,112,.16) 0%, transparent 55%);
+  }
+  .ames-chat .ames-engine-stone-mount {
+    position:relative;
+    z-index:1;
+  }
+  .ames-chat .ames-engine-stone-tray canvas {
+    transform:scale(1.12);
+    transform-origin:50% 46%;
+  }
+  .ames-chat .ames-stone-identity {
+    position:relative;
+    z-index:1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ames-chat-message,
   .ames-chat-recommendation {
