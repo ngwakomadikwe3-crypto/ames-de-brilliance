@@ -401,10 +401,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     if (selection?.gem) setGem(selection.gem);
     const nextIntent = updateBuyingIntent(buyingIntent, msg);
     setBuyingIntent(nextIntent);
-    const nextRecommendation = matchBoutiquePiece(customer.catalog, nextIntent);
-    if (nextRecommendation && nextRecommendation.id !== recommendation?.id) setRecommendation(nextRecommendation);
-    if (!nextRecommendation && nextIntent.category && nextIntent.category !== buyingIntent.category) setRecommendation(null);
-    if (nextRecommendation) setRecommendationNotice('This may be worth a closer look.');
+    if (nextIntent.category && nextIntent.category !== buyingIntent.category) setRecommendation(null);
     try {
       await appendMessage(null, 'user', msg);
       const response = await fetch("/api/chat", {
@@ -419,12 +416,15 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       const selected = stoneRequest(data.reply);
       if (selected?.assetId) setSelectedStoneId(selected.assetId);
       if (selected?.gem) setGem(selected.gem);
-      const activePiece = nextRecommendation || recommendation;
+      // Product matching is deliberately deferred until SAME has answered.
+      // Broad interest stays conversational; only a complete, high-intent request can surface one real match.
+      const candidateRecommendation = nextIntent.stage === 'HIGH_INTENT' ? matchBoutiquePiece(customer.catalog, nextIntent) : null;
+      const activePiece = candidateRecommendation || recommendation;
       const reserveRequested = /\b(reserve|hold|keep this|take it|secure this|i(?:'|’)?d like to speak to someone about this)\b|预订|预定|保留|留着|(?:احجز|حجز|احتفظ)/i.test(msg);
       const deskRequested = /\b(human|someone|whatsapp|private consultation|pricing confirmation|legal|compliance|availability|available)\b|人工|顾问|微信|咨询|有货|(?:موظف|شخص|واتساب|استشارة|التوفر|متاح)/i.test(msg);
       let assistantReply = data.reply;
       const sourcingKey = JSON.stringify([nextIntent.category,nextIntent.budget,nextIntent.metal,nextIntent.shape,nextIntent.occasion]);
-      if (!activePiece && nextIntent.category && nextIntent.stage !== 'BROWSING' && sourcingSent.current !== sourcingKey) {
+      if (!activePiece && nextIntent.category && nextIntent.stage === 'HIGH_INTENT' && sourcingSent.current !== sourcingKey) {
         try {
           await customerRequest('request','POST',{profile:nextIntent,notes:msg,conversationId:data.conversationToken});
           sourcingSent.current = sourcingKey;
@@ -445,6 +445,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         } catch { assistantReply = language === 'zh' ? '我可以为您联系专属顾问确认细节。' : language === 'ar' ? 'يمكنني وصلك بالمستشار الخاص لتأكيد التفاصيل.' : 'I can connect you with the desk to confirm the details.'; }
       }
       await appendMessage(null, 'assistant', assistantReply);
+      if (candidateRecommendation && candidateRecommendation.id !== recommendation?.id) {
+        setRecommendation(candidateRecommendation);
+        setRecommendationNotice('This may be worth a closer look.');
+      }
       if (customer.user) {
         const priorMemory = ((customer.state.profile?.preferences as Record<string, unknown> | undefined)?.memory || {}) as Record<string, unknown>;
         const list = (key: string, value: string | undefined) => Array.from(new Set([...(Array.isArray(priorMemory[key]) ? priorMemory[key] as unknown[] : []).filter((item): item is string => typeof item === 'string'), ...(value ? [value] : [])])).slice(-8);
@@ -490,8 +494,9 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
       </div>
       <div dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} data-language={conversationLanguage} ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
-        <div>{recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
+        <div>
         {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
+        {recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a reserve request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
         {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
       </div>
       <div className="ames-chat-composer-wrap">
