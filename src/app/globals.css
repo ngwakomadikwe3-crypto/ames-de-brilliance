@@ -403,6 +403,7 @@ body::before, body::after { display:none !important; }
 .ames-composer-menu{position:absolute;bottom:94px;left:20px;padding:6px;border:1px solid #30343a;border-radius:14px;background:#191c20;z-index:10}
 .ames-composer-menu button{background:none;border:0;color:#d7dadd;font-size:13px;padding:12px;cursor:pointer}
 .ames-chat.has-messages .ames-stone-tray .stage{height:clamp(180px,32dvh,300px)}
+.ames-screen-scroller{overscroll-behavior-x:contain}
 @media(max-height:600px){.ames-chat.chat-paper{padding-top:60px}.ames-chat .ames-chat-stage{margin-top:0;padding-block:0}.ames-chat .ames-engine-stone-tray .ames-stone-tray .stage{height:24dvh;min-height:90px}.ames-chat-composer-wrap{padding-bottom:10px}.ames-chat-messages{padding-block:10px}}
 
 /* Boutique reference: references/boutique-reference.jpg */
@@ -583,6 +584,26 @@ body:has(.ames-product-shell),
 
 .ames-product-shell .ames-chat-composer input::placeholder {
   color: rgb(255 255 255 / 55%);
+}
+
+/* Approved emerald background treatment. Keep content surfaces and stages intact. */
+html:has(.ames-product-shell),
+body:has(.ames-product-shell),
+.ames-product-shell,
+.ames-product-shell .ames-chat.chat-paper,
+.ames-product-shell .ames-boutique-panel,
+.ames-product-shell .ames-boutique-scroll,
+.ames-product-shell .ames-boutique-topbar,
+.ames-product-shell .ames-boutique-hero,
+.ames-product-shell .ames-video-panel,
+.ames-product-shell .ames-video-header,
+.ames-product-shell .ames-video-slide,
+.ames-product-shell .ames-video-frame {
+  background-image: url('/splash-bg.jpg') !important;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 .ames-chat-recommendation{margin:0 0 18px;padding:14px 16px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(0,0,0,.16)}
