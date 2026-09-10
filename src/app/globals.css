@@ -393,12 +393,12 @@ body::before, body::after { display:none !important; }
 .ames-chat .ames-stone-error{text-align:center;font-size:12px}
 .ames-chat-messages{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px}
 .ames-chat-messages>div{max-width:620px;margin:auto}
-.ames-chat-message{width:fit-content;max-width:90%;font-size:14px;line-height:1.65;margin:0 0 14px;white-space:pre-wrap;overflow-wrap:anywhere;color:#d7dadd}
-.ames-chat-message.is-assistant{font-family:var(--font-cormorant,Georgia,serif);font-size:16px;line-height:1.5;color:#d7dde6}
+.ames-chat-message{width:fit-content;max-width:90%;font-size:14px;line-height:1.65;margin:0 0 14px;white-space:pre-wrap;overflow-wrap:anywhere;color:#fff}
+.ames-chat-message.is-assistant{font-family:var(--font-cormorant,Georgia,serif);font-size:16px;line-height:1.5;color:#fff;border:1px solid rgba(220,226,234,.2);border-radius:14px;padding:10px 14px}
 .ames-chat-messages[data-language="ar"] .ames-chat-message.is-assistant{font-family:var(--font-inter),"Noto Sans Arabic","Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.7}
 .ames-chat-messages[data-language="zh"] .ames-chat-message.is-assistant{font-family:var(--font-inter),"Noto Sans SC","PingFang SC","Microsoft YaHei","Segoe UI",Arial,sans-serif;font-size:14px;line-height:1.7}
 .ames-chat-message.is-user{margin-left:auto;background:#1b1e22;border-radius:18px;padding:9px 16px}
-.ames-chat-wait{font-family:var(--font-cormorant,Georgia,serif);font-size:15px;color:#9aa5b1;letter-spacing:.01em}
+.ames-chat-wait{font-family:var(--font-cormorant,Georgia,serif);font-size:15px;color:#fff;letter-spacing:.01em}
 .ames-chat-composer-wrap{flex:none;width:100%;max-width:700px;align-self:center;padding:12px 20px max(22px,env(safe-area-inset-bottom));position:relative}
 .ames-chat-composer{display:flex;align-items:center;gap:8px;background:#1b1d21;border:1px solid #292c31;border-radius:30px;padding:8px;min-height:58px}
 .ames-chat-composer input{flex:1;min-width:0;width:0;background:transparent;border:0;outline:none;color:#eef2f6;font-size:16px;line-height:1.5}
@@ -660,11 +660,11 @@ body:has(.ames-product-shell),
 }
 
 .ames-chat-recommendation{margin:0 0 18px;padding:14px 16px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(0,0,0,.16)}
-.ames-chat-recommendation-kicker{display:block;color:rgb(255 255 255 / 65%);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+.ames-chat-recommendation-kicker{display:block;color:rgb(255 255 255 / 82%);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
 .ames-chat-recommendation h3{margin:5px 0 3px;color:#fff;font:500 21px Georgia,serif}
-.ames-chat-recommendation p{margin:0;color:rgb(255 255 255 / 72%);font-size:11px}
+.ames-chat-recommendation p{margin:0;color:rgb(255 255 255 / 88%);font-size:11px}
 .ames-chat-recommendation strong{display:block;margin-top:8px;color:#fff;font-size:13px;font-weight:500}
-.ames-chat-recommendation small{display:block;margin-top:8px;color:rgb(255 255 255 / 68%);font-size:11px}
+.ames-chat-recommendation small{display:block;margin-top:8px;color:rgb(255 255 255 / 84%);font-size:11px}
 .ames-chat-recommendation-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
 .ames-chat-recommendation-actions button{min-height:32px;padding:6px 10px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:transparent;color:#fff;font-size:10px}
 /* Shared app header identity across customer surfaces. */

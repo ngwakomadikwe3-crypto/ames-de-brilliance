@@ -500,7 +500,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         <div>
         {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
         {recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a reserve request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
-        {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
+        {typing && <p className="ames-chat-wait" role="status">SAME is thinking...</p>}</div>
       </div>
       <div className="ames-chat-composer-wrap">
         {composerMenuOpen && <div className="ames-composer-menu" aria-label="Conversation options">
