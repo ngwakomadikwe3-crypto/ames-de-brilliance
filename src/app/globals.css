@@ -378,6 +378,10 @@ body::before, body::after { display:none !important; }
 @media(max-width:640px){.ames-chat-topbar{height:50px;padding-inline:14px}.ames-chat-mark{font-size:9px}.chat-empty-state{padding-top:50px}.ames-engine-stone-tray .ames-stone-tray .stage{height:clamp(250px,38dvh,350px)}}
 /* Chat-only layout: the stage and composer retain their places through conversation. */
 .ames-chat.chat-paper{height:100dvh;display:flex!important;flex-direction:column;overflow:hidden!important;position:relative;padding-top:70px;background:#0b0d10;color:#eef2f6;font-family:var(--font-inter),Arial,sans-serif}
+.ames-chat-messages[data-language="ar"]{font-family:var(--font-inter),"Noto Sans Arabic","Noto Sans SC","Segoe UI",Arial,sans-serif}
+.ames-chat-messages[data-language="zh"]{font-family:var(--font-inter),"Noto Sans SC","PingFang SC","Microsoft YaHei","Segoe UI",Arial,sans-serif}
+.ames-chat-messages[data-language="ar"] .ames-chat-message{direction:rtl;text-align:right}
+.ames-chat .ames-chat-composer:has(input[dir="rtl"]){direction:rtl}
 .ames-chat .ames-chat-topbar{background:transparent;border:0;backdrop-filter:none;height:48px}
 .ames-chat .ames-chat-menu{border:0;background:transparent;width:36px;height:36px}
 .ames-chat .ames-chat-mark{position:absolute;left:50%;transform:translateX(-50%)}
@@ -588,8 +592,8 @@ body:has(.ames-product-shell),
 
 /* Approved emerald silk shell. The splash artwork remains splash-only. */
 @keyframes ames-silk-drift {
-  0%, 100% { background-position: 48% 50%; }
-  50% { background-position: 52% 48%; }
+  0%, 100% { background-position: 46% 52%; background-size:102% 102%; }
+  50% { background-position: 54% 48%; background-size:106% 106%; }
 }
 
 body > main > main,
@@ -607,12 +611,12 @@ body:has(.ames-product-shell),
 .ames-product-shell .ames-video-frame {
   background-image: url('/ames-silk-bg.webp') !important;
   background-color: #063c3b !important;
-  background-size: 104% 104%;
-  background-position: 48% 50%;
+  background-size: 102% 102%;
+  background-position: 46% 52%;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
   animation: ames-silk-drift 26s ease-in-out infinite;
-  will-change: background-position;
+  will-change: background-position, background-size;
 }
 
 /* The engine canvas is intentionally kept, but its host must disappear into the shell. */

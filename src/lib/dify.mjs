@@ -1,6 +1,11 @@
 ﻿import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
+export function detectDifyLanguage(message) {
+  if (/[؀-ۿ]/.test(message)) return 'Arabic';
+  if (/[㐀-鿿]/.test(message)) return 'Chinese';
+  return 'English';
+}
 export function difyConfig(env = process.env) {
   if (!env.DIFY_API_URL || !env.DIFY_API_KEY || !env.DIFY_SESSION_SECRET || env.DIFY_SESSION_SECRET.length < 32)
     throw fail(503, 'AMES chat is not configured yet.');
@@ -42,12 +47,21 @@ export function amesIdentityCopy(message, answer) {
   // Apply product copy only after a successful, filtered Dify response.
   // Whole-message matches leave mixed requests and stone instructions intact.
   const question = message.trim().toLowerCase().replace(/[.!?]+$/, '').trim();
-  if (/^(?:hello|hi|hey)(?:[, ]+(?:ames|same))?$/.test(question))
-    return 'Hello. I’m AMES. How may I assist you today?';
+  const language = detectDifyLanguage(message);
+  if (/^(?:hello|hi|hey)(?:[, ]+(?:ames|same))?$/.test(question) || /^(?:你好|您好|嗨|哈喽)$/.test(question) || /^(?:مرحبا|مرحباً|السلام عليكم)$/.test(question))
+    return language === 'Chinese' ? '您好，我是 AMES。今天我可以如何协助您？' : language === 'Arabic' ? 'مرحباً، أنا AMES. كيف يمكنني مساعدتك اليوم؟' : 'Hello. I’m AMES. How may I assist you today?';
   if (/^(?:what|who) are you$/.test(question))
     return 'I’m AMES, the jewelry intelligence and concierge app by AMES DE BRILLIANTE.';
+  if (/^(?:你是谁|你是什么)$/.test(question))
+    return '我是 AMES，AMES DE BRILLIANTE 的珠宝智能与礼宾应用。';
+  if (/^(?:من أنت|ما أنت)$/.test(question))
+    return 'أنا AMES، تطبيق الذكاء والكونسيرج للمجوهرات من AMES DE BRILLIANTE.';
   if (/^who (?:made|created|developed) you$/.test(question))
     return 'AMES is developed by AMES DE BRILLIANTE.';
+  if (/^(?:谁开发了你|谁创造了你)$/.test(question))
+    return 'تم تطوير AMES بواسطة AMES DE BRILLIANTE.';
+  if (/^(?:من طورك|من أنشأك)$/.test(question))
+    return 'تم تطوير AMES بواسطة AMES DE BRILLIANTE.';
   if (question === 'what is ames de brilliante')
     return 'AMES DE BRILLIANTE is the company behind AMES.';
   return answer.replace(/\b(I am|I['’]m|my name is)\s+(?:SAME|AMES DE BRILLIANTE)\b/gi, '$1 AMES');
@@ -61,7 +75,7 @@ export async function sendDify({ message, conversationToken, user }, config, fet
   try {
     response = await fetcher(config.url + '/chat-messages', {
       method: 'POST', headers: { Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ inputs: {}, query: message.trim(), response_mode: 'blocking', conversation_id: previous?.conversationId || '', user }),
+      body: JSON.stringify({ inputs: detectDifyLanguage(message) === 'English' ? {} : { language: detectDifyLanguage(message) }, query: message.trim(), response_mode: 'blocking', conversation_id: previous?.conversationId || '', user }),
       cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(90000),
     });
   } catch { throw fail(502, 'AMES chat could not connect. Please try again.'); }

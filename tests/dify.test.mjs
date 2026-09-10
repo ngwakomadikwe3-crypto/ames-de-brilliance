@@ -1,9 +1,15 @@
 ﻿import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { difyConfig, difyIdentity, seal, unseal, sendDify, finalDifyAnswer } from '../src/lib/dify.mjs';
+import { difyConfig, difyIdentity, seal, unseal, sendDify, finalDifyAnswer, detectDifyLanguage, amesIdentityCopy } from '../src/lib/dify.mjs';
 import { stoneRequest } from '../src/lib/chat-stone-selection.ts';
 const config = { url: 'https://dify.example/v1', key: 'fixture-key', secret: 'fixture-only-secret-with-more-than-32-characters' };
 const reply = (answer = 'Hello', conversation_id = 'conversation-1') => new Response(JSON.stringify({ answer, conversation_id }));
+test('language detection and identity copy support Chinese and Arabic', () => {
+  assert.equal(detectDifyLanguage('我想找一枚戒指'), 'Chinese');
+  assert.equal(detectDifyLanguage('أبحث عن خاتم'), 'Arabic');
+  assert.equal(amesIdentityCopy('你好', 'I am SAME.'), '您好，我是 AMES。今天我可以如何协助您？');
+  assert.equal(amesIdentityCopy('hello', 'I am SAME.'), 'Hello. I’m AMES. How may I assist you today?');
+});
 test('identity copy distinguishes product and company after calling Dify', async () => {
   for (const [message, expected] of [
     ['hello', 'Hello. I’m AMES. How may I assist you today?'],

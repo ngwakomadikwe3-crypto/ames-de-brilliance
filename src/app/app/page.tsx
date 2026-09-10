@@ -9,7 +9,7 @@ import DiamondViewer from "@/components/DiamondViewer";
 import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
 import { products, type Product } from "@/data/products";
 import type { AmesIntegration } from "@ames/engine";
-import { matchBoutiquePiece, updateBuyingIntent, type BuyingIntent, type BoutiqueRecommendation } from "@/lib/buying-intelligence";
+import { detectMessageLanguage, matchBoutiquePiece, updateBuyingIntent, type BuyingIntent, type BoutiqueRecommendation, type ConversationLanguage } from "@/lib/buying-intelligence";
 const AmesBoutiqueSurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesBoutiqueSurface), { ssr: false });
 const AmesStoneTraySurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesStoneTraySurface), { ssr: false });
 import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
@@ -321,6 +321,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [buyingIntent, setBuyingIntent] = useState<BuyingIntent>({ stage: 'BROWSING' });
+  const [conversationLanguage, setConversationLanguage] = useState<ConversationLanguage>('en');
   const [recommendation, setRecommendation] = useState<BoutiqueRecommendation | null>(null);
   const [recommendationNotice, setRecommendationNotice] = useState<string | null>(null);
   const sourcingSent = useRef<string | null>(null);
@@ -385,6 +386,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     const msg = (text || input).trim();
     if (!msg || sending.current) return;
     sending.current = true;
+    const language = detectMessageLanguage(msg);
+    setConversationLanguage(language);
     const epoch = conversationEpoch.current;
     setTyping(true);
     setInput("");
@@ -412,8 +415,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       if (selected?.assetId) setSelectedStoneId(selected.assetId);
       if (selected?.gem) setGem(selected.gem);
       const activePiece = nextRecommendation || recommendation;
-      const reserveRequested = /\b(reserve|hold|keep this|take it|secure this|i(?:'|’)?d like to speak to someone about this)\b/i.test(msg);
-      const deskRequested = /\b(human|someone|whatsapp|private consultation|pricing confirmation|legal|compliance|availability|available)\b/i.test(msg);
+      const reserveRequested = /\b(reserve|hold|keep this|take it|secure this|i(?:'|’)?d like to speak to someone about this)\b|预订|预定|保留|留着|(?:احجز|حجز|احتفظ)/i.test(msg);
+      const deskRequested = /\b(human|someone|whatsapp|private consultation|pricing confirmation|legal|compliance|availability|available)\b|人工|顾问|微信|咨询|有货|(?:موظف|شخص|واتساب|استشارة|التوفر|متاح)/i.test(msg);
       let assistantReply = data.reply;
       const sourcingKey = JSON.stringify([nextIntent.category,nextIntent.budget,nextIntent.metal,nextIntent.shape,nextIntent.occasion]);
       if (!activePiece && nextIntent.category && nextIntent.stage !== 'BROWSING' && sourcingSent.current !== sourcingKey) {
@@ -421,20 +424,20 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
           await customerRequest('request','POST',{profile:nextIntent,notes:msg,conversationId:data.conversationToken});
           sourcingSent.current = sourcingKey;
           const label = [nextIntent.metal,nextIntent.shape,nextIntent.category,nextIntent.budget ? `around $${nextIntent.budget.toLocaleString()}` : ''].filter(Boolean).join(' ');
-          assistantReply = `Understood. You're looking for ${label}. We don't have a published match in the Boutique yet, but I can save the request for the desk and future jeweller inventory.`;
-        } catch { assistantReply = 'I understand what you are looking for. I can save the request for the desk while we source a published match.'; }
+          assistantReply = language === 'zh' ? `明白了，您在寻找${label}。Boutique 目前还没有公开匹配款式，但我可以将需求交给专属顾问，并留意后续上架。` : language === 'ar' ? `فهمت ما تبحث عنه: ${label}. لا توجد مطابقة منشورة في Boutique حالياً، ويمكنني حفظ الطلب لدى المستشار الخاص ومتابعة القطع الجديدة.` : `Understood. You're looking for ${label}. We don't have a published match in the Boutique yet, but I can save the request for the desk and future jeweller inventory.`;
+        } catch { assistantReply = language === 'zh' ? '明白了。我可以将您的需求交给专属顾问，并为您寻找合适的公开款式。' : language === 'ar' ? 'فهمت طلبك. يمكنني حفظه لدى المستشار الخاص والبحث عن قطعة منشورة مناسبة.' : 'I understand what you are looking for. I can save the request for the desk while we source a published match.'; }
       }
       if (reserveRequested && activePiece) {
         try {
           await customerRequest('reserve','POST',{assetId:activePiece.id,conversationId:data.conversationToken,context:msg});
-          assistantReply = `I've prepared the reserve request for the ${activePiece.name}. The desk can confirm availability and settlement with you.`;
-        } catch { assistantReply = `I can prepare a reserve request for the ${activePiece.name}, but the desk will need to confirm availability.`; }
+          assistantReply = language === 'zh' ? `我已为您准备好 ${activePiece.name} 的预订请求。专属顾问会与您确认库存和结算方式。` : language === 'ar' ? `أعددت طلب حجز ${activePiece.name}. سيؤكد المستشار الخاص التوفر وتسوية الشراء معك.` : `I've prepared the reserve request for the ${activePiece.name}. The desk can confirm availability and settlement with you.`;
+        } catch { assistantReply = language === 'zh' ? `我可以为您准备 ${activePiece.name} 的预订请求，但仍需由专属顾问确认库存。` : language === 'ar' ? `يمكنني إعداد طلب حجز ${activePiece.name}، لكن سيحتاج المستشار الخاص إلى تأكيد التوفر.` : `I can prepare a reserve request for the ${activePiece.name}, but the desk will need to confirm availability.`; }
       } else if (deskRequested) {
         try {
           const handoff=await customerRequest('handoff','POST',{assetId:activePiece?.id||'',intent:reserveRequested?'reserve':'enquiry',context:msg});
-          assistantReply = handoff.whatsappUrl ? 'I can connect you with the desk on WhatsApp to confirm the details.' : 'I can connect you with the desk to confirm the details. The WhatsApp contact will be configured by the AMES desk.';
+          assistantReply = language === 'zh' ? (handoff.whatsappUrl ? '我可以通过 WhatsApp 为您联系专属顾问，以确认细节。' : '我可以为您联系专属顾问确认细节，WhatsApp 联系方式将由 AMES 顾问提供。') : language === 'ar' ? (handoff.whatsappUrl ? 'يمكنني وصلك بالمستشار الخاص عبر WhatsApp لتأكيد التفاصيل.' : 'يمكنني وصلك بالمستشار الخاص لتأكيد التفاصيل. سيحدد مستشار AMES وسيلة WhatsApp المناسبة.') : (handoff.whatsappUrl ? 'I can connect you with the desk on WhatsApp to confirm the details.' : 'I can connect you with the desk to confirm the details. The WhatsApp contact will be configured by the AMES desk.');
           if (handoff.whatsappUrl) window.open(handoff.whatsappUrl,'_blank','noopener,noreferrer');
-        } catch { assistantReply = 'I can connect you with the desk to confirm the details.'; }
+        } catch { assistantReply = language === 'zh' ? '我可以为您联系专属顾问确认细节。' : language === 'ar' ? 'يمكنني وصلك بالمستشار الخاص لتأكيد التفاصيل.' : 'I can connect you with the desk to confirm the details.'; }
       }
       await appendMessage(null, 'assistant', assistantReply);
       try {
@@ -469,7 +472,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       <div className="ames-chat-stage" aria-label="Gemstone showcase">
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
       </div>
-      <div ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
+      <div dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} data-language={conversationLanguage} ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
         <div>{recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
         {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
         {typing && <p className="ames-chat-wait" role="status">AMES is thinking...</p>}</div>
@@ -478,13 +481,13 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         {composerMenuOpen && <div className="ames-composer-menu" aria-label="Conversation options">
           <span className="ames-composer-menu-label">Choose a stone</span>
           {CHAT_STONES.map(stone => <button key={stone.id} aria-pressed={selectedStoneId === stone.id} onClick={() => { setSelectedStoneId(stone.id); setComposerMenuOpen(false); }}>{stone.name}</button>)}
-          <button disabled={typing} className="ames-new-conversation" onClick={() => { conversationEpoch.current++; conversationToken.current = null; try { sessionStorage.removeItem('ames-dify:' + (customer.user?.id || 'guest')); } catch {} setMessages([]); setActiveChatId(null); setSelectedStoneId("stone-001"); setGem("diamond"); setBuyingIntent({ stage: 'BROWSING' }); setRecommendation(null); setRecommendationNotice(null); setComposerMenuOpen(false); }}>New Chat</button>
+          <button disabled={typing} className="ames-new-conversation" onClick={() => { conversationEpoch.current++; conversationToken.current = null; try { sessionStorage.removeItem('ames-dify:' + (customer.user?.id || 'guest')); } catch {} setMessages([]); setActiveChatId(null); setConversationLanguage('en'); setSelectedStoneId("stone-001"); setGem("diamond"); setBuyingIntent({ stage: 'BROWSING' }); setRecommendation(null); setRecommendationNotice(null); setComposerMenuOpen(false); }}>New Chat</button>
         </div>}
         <form className="ames-chat-composer" onSubmit={e => { e.preventDefault(); void handleSend(); }}>
           <button type="button" aria-label="Conversation options" aria-expanded={composerMenuOpen} onClick={() => setComposerMenuOpen(open => !open)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 5v14M5 12h14" /></svg>
           </button>
-          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" autoComplete="off" enterKeyHint="send" />
+          <input dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} ref={inputRef} value={input} onChange={e => setInput(e.target.value)} placeholder="Ask AMES anything..." aria-label="Message AMES" autoComplete="off" enterKeyHint="send" />
           <button type="submit" aria-label="Send message" disabled={!input.trim() || typing} className="ames-chat-send">
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
           </button>
