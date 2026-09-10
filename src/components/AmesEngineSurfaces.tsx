@@ -60,7 +60,8 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
           if (gem === "diamond") {
             const environment = value.viewer.engine.scene.environment;
             if (!environment) throw new Error("Stone lighting unavailable");
-            mesh.material = createAMESDiamondMaterial(mesh, environment);
+            const mobile = window.matchMedia('(max-width: 1024px) and (pointer: coarse)').matches;
+            mesh.material = createAMESDiamondMaterial(mesh, environment, mobile);
           }
         });
       }

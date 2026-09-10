@@ -1,4 +1,5 @@
 import { Matrix4, Mesh, ShaderMaterial, Texture, Vector3, Vector4 } from 'three';
+import type { WebGLRenderer } from 'three';
 
 /** Exact support planes of a convex canonical mesh. Read-only: no vertex/index mutation. */
 export function canonicalFacetPlanes(mesh: Mesh) {
@@ -32,13 +33,14 @@ export function canonicalFacetPlanes(mesh: Mesh) {
 }
 
 /** Chat's single diamond path: deterministic transport through canonical facet planes. */
-export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture) {
+export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture, mobile = false) {
   const { planes, scale, opticalCount, interiorRadius } = canonicalFacetPlanes(mesh);
   const image = environment.image as { height: number };
   const maxMip = Math.log2(image.height) - 2;
   const material = new ShaderMaterial({
     name: 'AMES Chat Facet Transport',
     defines: {
+      ...(mobile ? { AMES_MOBILE: 1 } : {}),
       ENVMAP_TYPE_CUBE_UV: '',
       FACET_COUNT: planes.length,
       OPTICAL_FACET_COUNT: opticalCount,
@@ -81,7 +83,11 @@ export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture) {
         // from the bright studio softboxes. A low neutral fill opens dark facets
         // without flattening their contrast or inventing screen-space sparkles.
         vec3 studioLight = textureCubeUV(studio, worldDirection, 0.16).rgb;
-        return studioLight * 0.78 + vec3(0.022);
+        #ifdef AMES_MOBILE
+          return studioLight * 0.78 + vec3(0.035);
+        #else
+          return studioLight * 0.78 + vec3(0.022);
+        #endif
       }
       float fresnel(float cosI, float eta) {
         float sinT2 = eta * eta * max(0.0, 1.0 - cosI * cosI);
@@ -150,7 +156,15 @@ export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture) {
           direction = normalize(reflect(direction, n));
           origin = point + direction * rayEpsilon;
         }
-        // Unescaped energy at the finite transport limit is not invented light.
+        #ifdef AMES_MOBILE
+          // Bounded approximation for energy remaining after the finite trace.
+          // Only the uncollected branch receives broad studio illumination;
+          // resolved exits and their directional contrast remain authoritative.
+          vec3 residualDirection = normalize(mat3(worldFromLocal) * direction);
+          vec3 residual = textureCubeUV(studio, residualDirection, 0.6).rgb;
+          radiance += throughput * clamp(residual * 0.12, vec3(0.025), vec3(0.12));
+        #endif
+        // Desktop keeps the original finite-transport result.
         return radiance;
       }
       void main() {
@@ -165,16 +179,77 @@ export function createAMESDiamondMaterial(mesh: Mesh, environment: Texture) {
     `,
   });
   const cameraWorld = new Vector3();
+  const quality = mobile ? createMobileDiamondQuality() : null;
   const before = mesh.onBeforeRender;
   mesh.onBeforeRender = (renderer, scene, camera, geometry, activeMaterial, group) => {
     before.call(mesh, renderer, scene, camera, geometry, activeMaterial, group);
+    quality?.frame(renderer);
     material.uniforms.worldFromLocal.value.copy(mesh.matrixWorld);
     material.uniforms.localFromWorld.value.copy(mesh.matrixWorld).invert();
     camera.getWorldPosition(cameraWorld);
     material.uniforms.cameraLocal.value.copy(cameraWorld).applyMatrix4(material.uniforms.localFromWorld.value);
   };
   material.addEventListener('dispose', () => {
+    quality?.dispose();
     mesh.onBeforeRender = before;
   });
   return material;
+}
+
+/** Resolution only: optical transport, geometry and controls never change tier. */
+function createMobileDiamondQuality() {
+  let renderer: WebGLRenderer | undefined;
+  let pending = 0, timer = 0, last = 0, elapsed = 0, frames = 0;
+  let ceiling = 1.5, fastWindows = 0, interacting = false, disposed = false;
+  const pointers = new Set<number>();
+  const apply = () => {
+    if (pending || disposed) return;
+    pending = requestAnimationFrame(() => {
+      pending = 0;
+      if (!renderer || disposed) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, interacting ? 1 : ceiling);
+      if (renderer.getPixelRatio() !== ratio) renderer.setPixelRatio(ratio);
+    });
+  };
+  const down = (event: PointerEvent) => {
+    pointers.add(event.pointerId);
+    clearTimeout(timer); interacting = true; apply();
+  };
+  const up = (event: PointerEvent) => {
+    if (!pointers.delete(event.pointerId)) return;
+    if (pointers.size) return;
+    clearTimeout(timer);
+    timer = window.setTimeout(() => { interacting = false; last = 0; apply(); }, 250);
+  };
+  return {
+    frame(activeRenderer: WebGLRenderer) {
+      if (!renderer) {
+        renderer = activeRenderer;
+        renderer.domElement.addEventListener('pointerdown', down, { passive: true });
+        window.addEventListener('pointerup', up, { passive: true });
+        window.addEventListener('pointercancel', up, { passive: true });
+        apply();
+      }
+      const now = performance.now(), gap = now - last;
+      last = now;
+      // Ignore background pauses and interaction; evaluate actual rendered frames.
+      if (document.hidden || interacting || gap <= 0 || gap > 250) {
+        elapsed = 0; frames = 0; return;
+      }
+      elapsed += gap; frames++;
+      if (elapsed < 1500) return;
+      const fps = frames * 1000 / elapsed;
+      if (fps < 43) { ceiling = Math.max(1, ceiling - 0.25); fastWindows = 0; }
+      else if (fps > 57 && ++fastWindows >= 4) { ceiling = Math.min(1.5, ceiling + 0.25); fastWindows = 0; }
+      else if (fps <= 57) fastWindows = 0;
+      elapsed = 0; frames = 0; apply();
+    },
+    dispose() {
+      disposed = true;
+      cancelAnimationFrame(pending); clearTimeout(timer);
+      renderer?.domElement.removeEventListener('pointerdown', down);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    },
+  };
 }

@@ -1,15 +1,17 @@
 "use client";
 
 import { createElement, useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { CHAT_STONES, isChatStone, stoneRequest } from "@/lib/chat-stone-selection";
 import SplashExperience from "@/components/SplashExperience";
 import ModelViewer from "@/components/ModelViewer";
 import DiamondViewer from "@/components/DiamondViewer";
 import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
 import { products, type Product } from "@/data/products";
-import { createAmesEngine, createAmesIntegration, canonicalAssetManifest, type AmesIntegration } from "@ames/engine";
+import type { AmesIntegration } from "@ames/engine";
 import { matchBoutiquePiece, updateBuyingIntent, type BuyingIntent, type BoutiqueRecommendation } from "@/lib/buying-intelligence";
-import { AmesBoutiqueSurface, AmesStoneTraySurface } from "@/components/AmesEngineSurfaces";
+const AmesBoutiqueSurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesBoutiqueSurface), { ssr: false });
+const AmesStoneTraySurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesStoneTraySurface), { ssr: false });
 import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
 /* Native scroll-snap — no framer-motion needed */
 
@@ -61,11 +63,15 @@ function AppPageContent() {
   const [splashComplete, setSplashComplete] = useState(false);
 
   useEffect(() => {
-    const engine = createAmesEngine({ backend: { render() {}, setSize() {}, dispose() {} } });
-    const integration = createAmesIntegration({ engine });
-    integration.init(); setAmesIntegration(integration);
-    return () => { void integration.dispose(); };
-  }, []);
+    if (!splashComplete) return;
+    let disposed = false; let integration: AmesIntegration | null = null;
+    void import("@ames/engine").then(({createAmesEngine,createAmesIntegration}) => {
+      if (disposed) return;
+      const engine = createAmesEngine({ backend: { render() {}, setSize() {}, dispose() {} } });
+      integration = createAmesIntegration({ engine }); integration.init(); setAmesIntegration(integration);
+    });
+    return () => { disposed = true; if (integration) void integration.dispose(); };
+  }, [splashComplete]);
 
   useEffect(() => {
     try {
@@ -235,7 +241,7 @@ function AppPageContent() {
         ))}
       </div>
 
-      <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+      <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto ames-screen-scroller" style={{ scrollSnapType: 'x proximity', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
         <div className="flex h-full" style={{ width: '300dvw' }}>
           <section data-panel="0" aria-label="Boutique" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
