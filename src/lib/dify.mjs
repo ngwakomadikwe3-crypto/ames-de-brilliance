@@ -81,11 +81,11 @@ export async function sendDify({ message, conversationToken, user }, config, fet
       });
       break;
     } catch (cause) {
-      if (attempt === 1) throw fail(502, 'AMES chat could not connect. Please try again.');
+      if (attempt === 1) { console.error('[AMES_DIFY] transport failure after retry'); throw fail(502, 'AMES chat could not connect. Please try again.'); }
       await new Promise(resolve => setTimeout(resolve, 250));
     }
   }
-  if (!response.ok) throw fail(response.status === 404 && previous ? 409 : 502, response.status === 404 && previous ? 'This conversation is unavailable. Start a new conversation.' : 'AMES chat is temporarily unavailable. Please try again.');
+  if (!response.ok) { console.error(`[AMES_DIFY] upstream HTTP ${response.status}`); throw fail(response.status === 404 && previous ? 409 : 502, response.status === 404 && previous ? 'This conversation is unavailable. Start a new conversation.' : 'AMES chat is temporarily unavailable. Please try again.'); }
   let data;
   try { data = await response.json(); } catch { throw fail(502, 'AMES chat returned an incomplete response. Please try again.'); }
   if (!data || typeof data !== 'object' || typeof data.answer !== 'string' || !data.answer.trim() || typeof data.conversation_id !== 'string' || !data.conversation_id || data.event === 'workflow_paused')
