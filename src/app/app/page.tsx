@@ -452,7 +452,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         setRecommendation(candidateRecommendation);
         setRecommendationNotice('This may be worth a closer look.');
       }
-      if (customer.user) {
+      if (customer.user || customer.guest) {
         const priorMemory = ((customer.state.profile?.preferences as Record<string, unknown> | undefined)?.memory || {}) as Record<string, unknown>;
         const list = (key: string, value: string | undefined) => Array.from(new Set([...(Array.isArray(priorMemory[key]) ? priorMemory[key] as unknown[] : []).filter((item): item is string => typeof item === 'string'), ...(value ? [value] : [])])).slice(-8);
         const memory = {
@@ -499,7 +499,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       <div dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} data-language={conversationLanguage} ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
         <div>
         {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
-        {recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a reserve request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
+        {recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user && !customer.guest) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); await customer.reloadState(); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a reserve request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
         {typing && <p className="ames-chat-wait" role="status">SAME is thinking...</p>}</div>
       </div>
       <div className="ames-chat-composer-wrap">
@@ -717,7 +717,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
   });
 
   async function toggleWishlist(id: string) {
-    if(!customer.user){window.location.assign('/account');return;}
+    if(!customer.user&&!customer.guest){window.location.assign('/account');return;}
     if(wishlistPending.current)return;wishlistPending.current=true;setWishlistError(null);
     try{await customerRequest('favorites',wishlist[id]?'DELETE':'PUT',{assetId:id});await customer.reloadState();}
     catch(e){setWishlistError(e instanceof Error?e.message:'Favorite could not be saved');}

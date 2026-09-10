@@ -9,12 +9,16 @@ const id=v=>{if(typeof v!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(
 const sha=v=>createHash('sha256').update(v).digest('hex');
 const alive=(record,now)=>record&&(!record.expiresAt||Number.isFinite(Date.parse(record.expiresAt))&&Date.parse(record.expiresAt)>now);
 export function createCustomerService(config,gateway,clock=Date.now) {
-  const secure=new URL(config.origin).protocol==='https:',cookieName=secure?'__Host-ames_customer':'ames_customer';
+  const secure=new URL(config.origin).protocol==='https:',cookieName=secure?'__Host-ames_customer':'ames_customer',guestCookieName=secure?'__Host-ames_guest':'ames_guest';
   const json=(value,status=200,headers={})=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
   const session=req=>{const found=(req.headers.get('cookie')||'').split(';').map(v=>v.trim()).filter(v=>v.startsWith(cookieName+'='));if(found.length!==1)return '';try{return decodeURIComponent(found[0].slice(cookieName.length+1));}catch{return '';}};
   const cookie=(secret,seconds)=>`${cookieName}=${encodeURIComponent(secret)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${secure?'; Secure':''}`;
-  async function identity(req,required=false){const token=session(req);if(!token){if(required)throw error(401,'Sign in required');return null;}
-    try {const user=await gateway.user(token);if(!user.status)throw error(401,'Account unavailable');const profile=await gateway.get('profiles',documentId(user.$id));if(profile?.accountState==='disabled')throw error(403,'Account unavailable');return {id:user.$id,name:user.name,email:user.email,admin:user.labels?.includes('amesadmin')===true};}
+  const guestCookie=(token,seconds)=>`${guestCookieName}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${secure?'; Secure':''}`;
+  const guestSeal=guestId=>{const payload=Buffer.from(JSON.stringify({guestId,expires:clock()+31536000000})).toString('base64url');return payload+'.'+createHmac('sha256',config.deliverySecret).update(payload).digest('base64url');};
+  const guestUnseal=token=>{try{if(typeof token!=='string'||token.length>512)return null;const [payload,sig,extra]=token.split('.');if(extra||!sig)return null;const expected=createHmac('sha256',config.deliverySecret).update(payload).digest(),actual=Buffer.from(sig,'base64url');if(actual.length!==expected.length||!timingSafeEqual(actual,expected))return null;const data=JSON.parse(Buffer.from(payload,'base64url').toString());return typeof data.guestId==='string'&&/^[a-f0-9-]{36}$/.test(data.guestId)&&data.expires>clock()?data:null;}catch{return null;}};
+  const guestToken=req=>{const raw=(req.headers.get('cookie')||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(guestCookieName+'='));if(!raw)return null;try{return decodeURIComponent(raw.slice(guestCookieName.length+1));}catch{return null;}};
+  async function identity(req,required=false,createGuest=false){const token=session(req);if(!token){const existing=guestUnseal(guestToken(req));if(existing)return {id:'guest:'+existing.guestId,guest:true,name:'',email:'',admin:false};if(createGuest){const guestId=randomUUID();return {id:'guest:'+guestId,guest:true,name:'',email:'',admin:false,guestToken:guestSeal(guestId)};}if(required)throw error(401,'Sign in required');return null;}
+    try {const user=await gateway.user(token);if(!user.status)throw error(401,'Account unavailable');const profile=await gateway.get('profiles',documentId(user.$id));if(profile?.accountState==='disabled')throw error(403,'Account unavailable');return {id:user.$id,name:user.name,email:user.email,admin:user.labels?.includes('amesadmin')===true,guest:false};}
     catch(e){if([401,403].includes(e.status)||[401,403,404].includes(e.code))throw error(401,'Session expired');throw e;}
   }
   async function catalogAsset(assetId){const record=await gateway.get('catalog',documentId(id(assetId)));if(!record||record.status!=='published')throw error(404,'Asset unavailable');return record;}
@@ -33,6 +37,16 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     return (await gateway.list('subscriptions',{userId:user.id})).some(s=>s.status==='active'&&s.tier===asset.accessTier&&alive(s,clock()));
   }
   async function audit(user,type,assetId='',metadata={}){await gateway.put('events',randomUUID(),{userId:user?.id||'',assetId,kind:type,time:new Date(clock()).toISOString(),...metadata});}
+  async function mergeGuest(guest,account){
+    if(!guest?.guest)return;
+    const guestId=guest.id,accountId=account.id;
+    const [guestProfile,accountProfile]=await Promise.all([gateway.get('profiles',documentId(guestId)),gateway.get('profiles',documentId(accountId))]);
+    const gm=guestProfile?.preferences?.memory,am=accountProfile?.preferences?.memory;
+    if(gm){const merged={...gm,...(am||{})};for(const key of ['categories','shapes','metals','occasions','recentInterests']){const values=[...(Array.isArray(gm[key])?gm[key]:[]),...(Array.isArray(am?.[key])?am[key]:[])].filter(v=>typeof v==='string');if(values.length)merged[key]=[...new Set(values)].slice(-8);}if(!am?.budgetRange&&gm.budgetRange)merged.budgetRange=gm.budgetRange;if(!am?.language&&gm.language)merged.language=gm.language;await gateway.put('profiles',documentId(accountId),{userId:accountId,kind:'profile',accountState:accountProfile?.accountState||'active',preferences:{...(accountProfile?.preferences||{}),memory:merged}});}
+    for(const route of ['favorites','saved']) for(const row of await gateway.list(route,{userId:guestId})) await gateway.put(route,documentId(accountId,row.assetId),{...row,userId:accountId});
+    for(const row of await gateway.list('events',{userId:guestId})) await gateway.put('events',row.id,{...row,userId:accountId});
+    await gateway.put('profiles',documentId(guestId),{userId:guestId,kind:'profile',accountState:'merged',preferences:{...(guestProfile?.preferences||{}),mergedInto:accountId}});
+  }
   async function canAccess(userId,assetId){
     // Internal authority: callers must obtain userId from verified Appwrite identity.
     if(userId&&(await gateway.get('profiles',documentId(userId)))?.accountState==='disabled')return false;
@@ -55,6 +69,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(method!=='GET'&&req.headers.get('origin')!==config.origin)throw error(403,'Origin denied');
     const [route,param]=segments;
     if(['login','register'].includes(route)&&method==='POST'){
+      const guestBefore=await identity(req,false,false);
       const b=await body(req);if(typeof b.email!=='string'||b.email.length>254||!b.email.includes('@')||typeof b.password!=='string'||b.password.length<8||b.password.length>256)throw error(400,'Valid email and password required');
       await rate(req,b.email);
       if(route==='register')await gateway.register(b.email,b.password,typeof b.name==='string'?b.name.slice(0,100):'');
@@ -62,11 +77,16 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       if(typeof result.secret!=='string'||!result.secret||result.secret.length>2048||!/^[A-Za-z0-9._~+/=-]+$/.test(result.secret)||!Number.isSafeInteger(seconds)||seconds<=0)throw error(503,'Session unavailable');
       const account=await gateway.user(result.secret),profileId=documentId(account.$id);
       if(!await gateway.get('profiles',profileId)){try{await gateway.put('profiles',profileId,{userId:account.$id,kind:'profile',accountState:'active',preferences:{}},true);}catch(e){if(e.code!==409)throw e;}}
-      return json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});
+      try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Keep account creation available if migration is temporarily unavailable. */}
+      const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
     }
     if(route==='logout'&&method==='POST'){const token=session(req);if(token){try{await gateway.logout(token);}catch(e){if(![401,404].includes(e.code))throw e;}}return json({ok:true},200,{'Set-Cookie':cookie('',0)});}
-    const user=await identity(req);
-    if(route==='session'&&method==='GET')return json({user});
+    const user=await identity(req,false,route==='session');
+    if(route==='session'&&method==='GET'){
+      const guest=user?.guest?user:null;
+      if(guest?.guestToken)await gateway.put('profiles',documentId(guest.id),{userId:guest.id,kind:'profile',accountState:'active',preferences:{}},true).catch(e=>{if(e.code!==409)throw e;});
+      return json({user:guest?.guest?null:user,guest:Boolean(guest?.guest)},200,guest?.guestToken?{'Set-Cookie':guestCookie(guest.guestToken,31536000)}:{});
+    }
     if(route==='catalog'&&method==='GET'){
       const rows=await gateway.list('catalog');const assets=[];
       for(const asset of rows){if(asset.status!=='published')continue;if(asset.accessTier==='PRIVATE'&&!await allowed(user,asset))continue;assets.push(publicRecord(asset));}
@@ -95,7 +115,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     }
     if(route==='access'&&method==='GET'){const asset=await catalogAsset(param);const granted=await allowed(user,asset);await audit(user,granted?'ACCESS_GRANTED':'ACCESS_DENIED',asset.id);return json({granted});}
     if(route==='delivery'&&method==='POST'){
-      if(!user)throw error(401,'Sign in required');const asset=await catalogAsset(param);
+      if(!user||user.guest)throw error(401,'Sign in required');const asset=await catalogAsset(param);
       if(!await allowed(user,asset)){await audit(user,'ACCESS_DENIED',asset.id);throw error(403,'This asset is locked');}
       const exp=clock()+60000;await audit(user,'ACCESS_GRANTED',asset.id);
       return json({url:`${config.origin}/api/customer/assets/${encodeURIComponent(asset.id)}.glb?expires=${exp}&signature=${signature(asset,user,session(req),exp)}`,expiresAt:exp});
@@ -103,7 +123,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(route==='assets'&&method==='GET'){
       const asset=await catalogAsset(param?.replace(/\.glb$/,''));
       if(asset.accessTier!=='PUBLIC'){
-        if(!user)throw error(401,'Sign in required');const exp=Number(url.searchParams.get('expires')),sig=url.searchParams.get('signature')||'',expected=signature(asset,user,session(req),exp);
+        if(!user||user.guest)throw error(401,'Sign in required');const exp=Number(url.searchParams.get('expires')),sig=url.searchParams.get('signature')||'',expected=signature(asset,user,session(req),exp);
         if(!Number.isSafeInteger(exp)||exp<=clock()||exp>clock()+60000||!/^[A-Za-z0-9_-]{43}$/.test(sig)||sig.length!==expected.length||!timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))throw error(403,'Asset lease expired or invalid');
       }
       if(!await allowed(user,asset))throw error(403,'This asset is locked');
