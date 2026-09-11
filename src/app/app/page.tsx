@@ -421,13 +421,14 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       if (selected?.gem) setGem(selected.gem);
       // Product matching is deliberately deferred until SAME has answered.
       // Broad interest stays conversational; only a complete, high-intent request can surface one real match.
-      const candidateRecommendation = nextIntent.stage === 'HIGH_INTENT' ? matchBoutiquePiece(customer.catalog, nextIntent) : null;
+      const recommendationReady = nextIntent.confidenceMode === 'HIGH_INTENT' || nextIntent.confidenceMode === 'READY';
+      const candidateRecommendation = recommendationReady ? matchBoutiquePiece(customer.catalog, nextIntent) : null;
       const activePiece = candidateRecommendation || recommendation;
       const reserveRequested = /\b(reserve|hold|keep this|take it|secure this|i(?:'|’)?d like to speak to someone about this)\b|预订|预定|保留|留着|(?:احجز|حجز|احتفظ)/i.test(msg);
       const deskRequested = /\b(human|someone|whatsapp|private consultation|pricing confirmation|legal|compliance|availability|available)\b|人工|顾问|微信|咨询|有货|(?:موظف|شخص|واتساب|استشارة|التوفر|متاح)/i.test(msg);
       let assistantReply = data.reply;
       const sourcingKey = JSON.stringify([nextIntent.category,nextIntent.budget,nextIntent.metal,nextIntent.shape,nextIntent.occasion]);
-      if (!activePiece && nextIntent.category && nextIntent.stage === 'HIGH_INTENT' && sourcingSent.current !== sourcingKey) {
+      if (!activePiece && nextIntent.category && recommendationReady && sourcingSent.current !== sourcingKey) {
         try {
           await customerRequest('request','POST',{profile:nextIntent,notes:msg,conversationId:data.conversationToken});
           sourcingSent.current = sourcingKey;
@@ -455,12 +456,16 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       if (customer.user || customer.guest) {
         const priorMemory = ((customer.state.profile?.preferences as Record<string, unknown> | undefined)?.memory || {}) as Record<string, unknown>;
         const list = (key: string, value: string | undefined) => Array.from(new Set([...(Array.isArray(priorMemory[key]) ? priorMemory[key] as unknown[] : []).filter((item): item is string => typeof item === 'string'), ...(value ? [value] : [])])).slice(-8);
+        const reliable = (field: string) => (nextIntent.confidence?.[field as keyof typeof nextIntent.confidence] || 0) >= .75;
         const memory = {
-          categories: list('categories', nextIntent.category), shapes: list('shapes', nextIntent.shape), metals: list('metals', nextIntent.metal),
-          occasions: list('occasions', nextIntent.occasion), recentInterests: list('recentInterests', nextIntent.category || nextIntent.shape),
-          budgetRange: nextIntent.budget ? { latest: nextIntent.budget } : priorMemory.budgetRange,
+          categories: reliable('category') ? list('categories', nextIntent.category) : priorMemory.categories,
+          shapes: reliable('shape') ? list('shapes', nextIntent.shape) : priorMemory.shapes,
+          metals: reliable('metal') ? list('metals', nextIntent.metal) : priorMemory.metals,
+          occasions: reliable('purpose') ? list('occasions', nextIntent.occasion) : priorMemory.occasions,
+          recentInterests: reliable('category') || reliable('shape') ? list('recentInterests', nextIntent.category || nextIntent.shape) : priorMemory.recentInterests,
+          budgetRange: reliable('budget_min') && nextIntent.budget ? { latest: nextIntent.budget } : priorMemory.budgetRange,
           language, lastConversationContext: msg.slice(0, 300),
-          ...(nextIntent.stage !== 'BROWSING' && nextIntent.category ? { lastSourcingRequest: { category: nextIntent.category, budget: nextIntent.budget, metal: nextIntent.metal, shape: nextIntent.shape } } : {}),
+          ...(recommendationReady && nextIntent.category ? { lastSourcingRequest: { category: nextIntent.category, budget: nextIntent.budget, metal: nextIntent.metal, shape: nextIntent.shape } } : {}),
         };
         void customerRequest('preferences', 'PUT', { memory }).catch(() => window.dispatchEvent(new CustomEvent('ames:diagnostic', { detail: { code: 'MEMORY_SAVE_FAILED' } })));
       }

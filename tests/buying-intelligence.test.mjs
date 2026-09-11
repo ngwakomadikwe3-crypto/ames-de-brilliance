@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectMessageLanguage, matchBoutiquePiece, updateBuyingIntent } from '../src/lib/buying-intelligence.ts';
+import { detectMessageLanguage, matchBoutiquePiece, nextBestQuestion, updateBuyingIntent } from '../src/lib/buying-intelligence.ts';
 
 const assets = names => ({ schemaVersion: 1, assets: names.map(([id, name, category, price, metal = 'platinum']) => ({ id, name, category, price, metal, tags: [metal], specs: `${metal} · ${price} USD`, assetPath: `/api/customer/assets/${id}.glb`, previewPath: null, materialSlots: [], stoneReferences: [], metalCompatibility: [metal], accessTier: 'PUBLIC', status: 'published' })) });
 test('vague browsing stays browsing and never surfaces a product', () => { const intent = updateBuyingIntent({ stage: 'BROWSING' }, "I'm just looking"); assert.equal(intent.stage, 'BROWSING'); assert.equal(matchBoutiquePiece(assets([['aurora','Aurora Solitaire','ring',6800]]), intent), null); });
@@ -18,4 +18,22 @@ test('Chinese and Arabic reserve and sourcing language keeps the shared modes', 
   assert.equal(updateBuyingIntent({ stage: 'BROWSING' }, 'أريد حجز هذا الخاتم').mode, 'reserving');
   assert.equal(updateBuyingIntent({ stage: 'BROWSING' }, '请咨询是否有货').mode, 'enquiring');
   assert.equal(updateBuyingIntent({ stage: 'BROWSING' }, 'هل القطعة متاحة؟').mode, 'enquiring');
+});
+test('confidence mode asks for one missing high-value detail and gates explicit intent', () => {
+  const exploring = updateBuyingIntent({ stage: 'BROWSING' }, 'Hi');
+  assert.equal(exploring.confidenceMode, 'EXPLORING');
+  const discovering = updateBuyingIntent({ stage: 'BROWSING' }, 'I need a ring');
+  assert.equal(discovering.confidenceMode, 'EXPLORING');
+  assert.equal(nextBestQuestion(discovering), 'Do you have a budget range in mind?');
+  const precise = updateBuyingIntent({ stage: 'BROWSING' }, 'I want an oval platinum engagement ring around $6,000');
+  assert.ok((precise.confidence?.category || 0) >= .88);
+  assert.ok((precise.confidence?.shape || 0) >= .88);
+  assert.ok((precise.overallConfidence || 0) >= .7);
+  assert.ok(['NARROWING','HIGH_INTENT','READY'].includes(precise.confidenceMode));
+});
+test('new explicit preference supersedes the previous active value', () => {
+  let intent = updateBuyingIntent({ stage: 'BROWSING' }, 'I want a yellow gold ring');
+  intent = updateBuyingIntent(intent, 'Actually, make that platinum');
+  assert.equal(intent.metal, 'platinum');
+  assert.ok((intent.confidence?.metal || 0) >= .88);
 });

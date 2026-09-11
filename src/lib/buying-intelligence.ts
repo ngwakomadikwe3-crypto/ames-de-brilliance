@@ -1,8 +1,13 @@
 import type { AssetManifest, AssetRecord } from '@ames/engine';
 
 export type IntentStage = 'BROWSING' | 'INTERESTED' | 'CONSIDERING' | 'HIGH_INTENT' | 'READY_TO_RESERVE';
+export type IntentConfidenceMode = 'EXPLORING' | 'DISCOVERING' | 'NARROWING' | 'HIGH_INTENT' | 'READY';
+export type IntentField = 'category'|'jewelry_type'|'purpose'|'recipient'|'style'|'shape'|'metal'|'budget_min'|'budget_max'|'currency'|'carat_preference'|'color_preference'|'clarity_preference'|'certification_preference'|'urgency'|'dislikes'|'location'|'sourcing_intent'|'reserve_intent'|'comparison_intent'|'human_desk_intent'|'language';
 export type BuyingIntent = {
   stage: IntentStage;
+  confidenceMode?: IntentConfidenceMode;
+  overallConfidence?: number;
+  confidence?: Partial<Record<IntentField, number>>;
   occasion?: string;
   recipient?: string;
   category?: AssetRecord['category'];
@@ -13,6 +18,23 @@ export type BuyingIntent = {
   timing?: string;
   style?: string;
   mode?: 'browsing' | 'comparing' | 'enquiring' | 'reserving';
+  jewelry_type?: AssetRecord['category'];
+  purpose?: string;
+  budget_min?: number;
+  budget_max?: number;
+  currency?: string;
+  carat_preference?: string;
+  color_preference?: string;
+  clarity_preference?: string;
+  certification_preference?: string;
+  urgency?: string;
+  dislikes?: string[];
+  location?: string;
+  sourcing_intent?: boolean;
+  reserve_intent?: boolean;
+  comparison_intent?: boolean;
+  human_desk_intent?: boolean;
+  language?: ConversationLanguage;
 };
 
 export type BoutiqueRecommendation = AssetRecord & { price?: number; metal?: string; specs?: string };
@@ -32,6 +54,7 @@ const categories: Record<string, AssetRecord['category']> = { ring: 'ring', ring
 const metals: Record<string, string> = { '铂金': 'platinum', '白金': 'white gold', '黄金': 'yellow gold', '玫瑰金': 'rose gold', '银': 'silver', 'البلاتين': 'platinum', 'ذهب أبيض': 'white gold', 'ذهب أصفر': 'yellow gold', 'ذهب وردي': 'rose gold', 'فضة': 'silver' };
 const shapes: Record<string, string> = { '椭圆': 'oval', '椭圆形': 'oval', '圆形': 'round', '祖母绿': 'emerald', '梨形': 'pear', 'بيضاوي': 'oval', 'دائري': 'round', 'زمردي': 'emerald', 'كمثري': 'pear' };
 
+/* CONFIDENCE_ENGINE_START */
 export function updateBuyingIntent(previous: BuyingIntent, message: string): BuyingIntent {
   const value = message.toLowerCase();
   const next: BuyingIntent = { ...previous };
@@ -54,8 +77,41 @@ export function updateBuyingIntent(previous: BuyingIntent, message: string): Buy
   else if (/\b(just looking|browsing)\b|随便看看|浏览|(?:مجرد مشاهدة|أتصفح)/i.test(value)) next.mode = 'browsing';
   if (/\bcheaper|less expensive|lower budget\b|便宜|预算低|أرخص|ميزانية أقل/i.test(value) && next.budget) next.budget = Math.round(next.budget * 0.75);
   const hasSpecifics = !!next.category && (!!next.budget || !!next.metal || !!next.shape);
+  const confidence: Partial<Record<IntentField, number>> = { ...(previous.confidence || {}) };
+  const mark = (field: IntentField, present: boolean, inferred = false) => { if (!present) return; const prior = confidence[field] || 0; confidence[field] = Math.min(1, Math.max(inferred ? 0.58 : 0.88, prior + (prior ? 0.06 : 0))); };
+  if (next.category) { next.jewelry_type = next.category; mark('category', true); mark('jewelry_type', true); }
+  if (next.budget) { next.budget_min = next.budget; next.budget_max = next.budget; next.currency = 'USD'; mark('budget_min', true); mark('budget_max', true); mark('currency', true); }
+  if (next.metal) mark('metal', true);
+  if (next.shape) mark('shape', true);
+  if (next.occasion) { next.purpose = next.occasion; mark('purpose', true); }
+  if (next.recipient) mark('recipient', true);
+  if (next.timing) { next.urgency = next.timing; mark('urgency', true); }
+  const style = value.match(/\b(solitaire|halo|minimal|classic|vintage|simple|three[- ]stone)\b/i); if (style) { next.style = style[0]; mark('style', true); }
+  const carat = value.match(/\b(\d+(?:\.\d+)?)\s*(?:ct|carat|carats)\b/i); if (carat) { next.carat_preference = `${carat[1]} ct`; mark('carat_preference', true); }
+  const clarity = value.match(/\b(FL|IF|VVS1|VVS2|VS1|VS2|SI1|SI2)\b/i); if (clarity) { next.clarity_preference = clarity[1].toUpperCase(); mark('clarity_preference', true); }
+  const color = value.match(/\b(?:colour|color)\s*([D-Z])\b|\b([D-Z])\s*(?:colour|color)\b/i); if (color) { next.color_preference = (color[1] || color[2]).toUpperCase(); mark('color_preference', true); }
+  const cert = value.match(/\b(GIA|IGI|AGS)\b/i); if (cert) { next.certification_preference = cert[1].toUpperCase(); mark('certification_preference', true); }
+  const reserveIntent = next.mode === 'reserving'; if (reserveIntent) { next.reserve_intent = true; mark('reserve_intent', true); }
+  const comparisonIntent = next.mode === 'comparing'; if (comparisonIntent) { next.comparison_intent = true; mark('comparison_intent', true); }
+  const sourcingIntent = /\b(source|sourcing|find for me|special order|bespoke)\b|定制|寻找|(?:توريد|ابحث لي|مخصص)/i.test(value); if (sourcingIntent) { next.sourcing_intent = true; mark('sourcing_intent', true); }
+  const humanIntent = /\b(human|someone|whatsapp|private consultation|pricing confirmation)\b|人工|顾问|微信|咨询|(?:موظف|شخص|واتساب|استشارة)/i.test(value); if (humanIntent) { next.human_desk_intent = true; mark('human_desk_intent', true); }
+  const weights: [IntentField, number][] = [['category', .25], ['budget_min', .2], ['purpose', .15], ['shape', .15], ['metal', .15], ['urgency', .1]];
+  const overall = Math.min(1, weights.reduce((sum, [field, weight]) => sum + (confidence[field] || 0) * weight, 0));
+  next.confidence = confidence;
+  next.overallConfidence = Number(overall.toFixed(2));
+  next.confidenceMode = overall >= .9 ? 'READY' : overall >= .75 ? 'HIGH_INTENT' : overall >= .55 ? 'NARROWING' : overall >= .3 ? 'DISCOVERING' : 'EXPLORING';
+  // Keep the established stage contract for downstream flows; confidenceMode is the finer-grained gate.
   next.stage = next.mode === 'reserving' ? 'READY_TO_RESERVE' : hasSpecifics && next.budget ? 'HIGH_INTENT' : hasSpecifics ? 'CONSIDERING' : next.category || next.shape ? 'INTERESTED' : 'BROWSING';
+  next.language = detectMessageLanguage(message);
   return next;
+}
+
+export function nextBestQuestion(intent: BuyingIntent): string | null {
+  const confidence = intent.confidence || {};
+  if ((confidence.budget_min || 0) < .65) return intent.language === 'zh' ? '您心中的预算范围是多少？' : intent.language === 'ar' ? 'ما النطاق التقريبي للميزانية؟' : 'Do you have a budget range in mind?';
+  if ((confidence.shape || 0) < .65 && intent.category === 'ring') return intent.language === 'zh' ? '您偏好哪一种钻石形状？' : intent.language === 'ar' ? 'أي شكل من الألماس تفضل؟' : 'Which diamond shape speaks to you?';
+  if ((confidence.metal || 0) < .65) return intent.language === 'zh' ? '您偏好哪一种金属？' : intent.language === 'ar' ? 'أي معدن تفضل؟' : 'Do you have a preferred metal?';
+  return null;
 }
 
 function numeric(value: unknown): number | undefined {
