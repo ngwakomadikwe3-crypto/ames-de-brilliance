@@ -1,4 +1,4 @@
-export const COLLECTION_DEFAULTS = Object.freeze({profiles:'user_profiles',favorites:'favorites',saved:'saved_assets',designs:'generated_designs',entitlements:'entitlements',subscriptions:'subscriptions',catalog:'catalog_assets',events:'analytics_events',limits:'auth_rate_limits'});
+export const COLLECTION_DEFAULTS = Object.freeze({profiles:'user_profiles',favorites:'favorites',saved:'saved_assets',designs:'generated_designs',entitlements:'entitlements',subscriptions:'subscriptions',catalog:'catalog_assets',events:'analytics_events',limits:'auth_rate_limits',jewellers:'jeweller_sources',sourcingMatches:'sourcing_matches'});
 export const BUCKET_DEFAULTS = Object.freeze({jewelry:'media',stones:'media',previews:'media',generated:'media'});
 export function customerConfig(env=process.env) {
   // Server only: AMES_APP_ORIGIN is the exact trusted HTTPS deployment origin
@@ -6,7 +6,7 @@ export function customerConfig(env=process.env) {
   // ASSET_DELIVERY_SECRET signs short-lived session-bound GLB leases. Owner supplied.
   const value=k=>env[k]?.trim()||'';
   const config={endpoint:value('APPWRITE_ENDPOINT'),project:value('APPWRITE_PROJECT_ID'),key:value('APPWRITE_API_KEY'),database:value('APPWRITE_DATABASE_ID')||'ames',origin:value('AMES_APP_ORIGIN'),deliverySecret:value('ASSET_DELIVERY_SECRET'),deskWhatsapp:value('AMES_DESK_WHATSAPP')||value('WHATSAPP_DESK'),collections:{},buckets:{}};
-  for(const [key,id] of Object.entries(COLLECTION_DEFAULTS))config.collections[key]=value('APPWRITE_COLLECTION_'+key.toUpperCase())||id;
+  for(const [key,id] of Object.entries(COLLECTION_DEFAULTS)){const envKey=key==='sourcingMatches'?'APPWRITE_COLLECTION_SOURCING_MATCHES':'APPWRITE_COLLECTION_'+key.toUpperCase();config.collections[key]=value(envKey)||id;}
   for(const [key,id] of Object.entries(BUCKET_DEFAULTS))config.buckets[key]=value('APPWRITE_BUCKET_'+key.toUpperCase())||id;
   return config;
 }

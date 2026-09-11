@@ -1,6 +1,7 @@
 import { createHash,createHmac,timingSafeEqual,randomUUID } from 'node:crypto';
 import { createAssetRegistry,canonicalAssetManifest } from '@ames/engine';
 import { documentId } from './appwrite.mjs';
+import { rankJewellers } from '../jeweller-matching.ts';
 export const TIERS=['PUBLIC','MEMBER','PREMIUM','COLLECTOR','PRIVATE'];
 export const EVENTS=['JEWELRY_VIEWED','STONE_VIEWED','SAVED','FAVORITED','COMPARED','PREMIUM_PREVIEWED','ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'];
 const REQUEST_STATUSES=['OPEN','MATCHED','CONTACTED','CLOSED','CANCELLED'];
@@ -108,9 +109,13 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     }
     if(route==='request'&&method==='POST'){
       const b=await body(req),profile=b.profile&&typeof b.profile==='object'?b.profile:{};
-      const clean=Object.fromEntries(['category','budget','metal','shape','occasion','recipient','size','timing','style'].filter(k=>typeof profile[k]==='string'||typeof profile[k]==='number').map(k=>[k,typeof profile[k]==='string'?profile[k].slice(0,120):profile[k]]));
+      const clean=Object.fromEntries(['category','jewelry_type','budget','budget_min','budget_max','currency','metal','shape','occasion','recipient','size','timing','urgency','style','purpose','motive','friction','sourcing_intent','certification_preference','location','language','overallConfidence','confidence'].filter(k=>typeof profile[k]==='string'||typeof profile[k]==='number'||typeof profile[k]==='boolean'||(k==='confidence'&&profile[k]&&typeof profile[k]==='object')).map(k=>[k,typeof profile[k]==='string'?profile[k].slice(0,120):profile[k]]));
       if(!clean.category||typeof clean.category!=='string')throw error(400,'Request category required');
-      await audit(user,'SOURCING_REQUEST','',{status:'OPEN',profile:clean,notes:typeof b.notes==='string'?b.notes.slice(0,1000):'',conversationId:typeof b.conversationId==='string'?b.conversationId.slice(0,256):''});
+      let profiles=[];try{profiles=await gateway.list('jewellers');}catch{/* The approved network is optional; an empty list remains a valid sourcing state. */}
+      const matches=rankJewellers(clean,profiles,{country:typeof clean.location==='string'?clean.location:undefined,requiredCertification:typeof clean.certification_preference==='string'?clean.certification_preference:undefined}).slice(0,3);
+      const requestId=randomUUID();
+      await gateway.put('events',requestId,{userId:user?.id||'',assetId:'',kind:'SOURCING_REQUEST',time:new Date(clock()).toISOString(),status:'OPEN',profile:clean,notes:typeof b.notes==='string'?b.notes.slice(0,1000):'',conversationId:typeof b.conversationId==='string'?b.conversationId.slice(0,256):'',matches:matches.map(match=>({...match,status:'CANDIDATE'}))});
+      for(const match of matches) await gateway.put('sourcingMatches',documentId(requestId,match.jewellerId),{userId:user?.id||'',assetId:requestId,kind:'SOURCING_MATCH',requestId,...match});
       return json({ok:true,status:'OPEN'});
     }
     if(route==='access'&&method==='GET'){const asset=await catalogAsset(param);const granted=await allowed(user,asset);await audit(user,granted?'ACCESS_GRANTED':'ACCESS_DENIED',asset.id);return json({granted});}
