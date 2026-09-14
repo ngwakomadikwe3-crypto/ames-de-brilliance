@@ -1,11 +1,11 @@
-import {cookies} from 'next/headers';
+﻿import {cookies} from 'next/headers';
 import Link from 'next/link';
 import {customerConfig} from '@/lib/customer/config.mjs';
 import {createAppwriteGateway} from '@/lib/customer/appwrite.mjs';
 import {createCustomerService} from '@/lib/customer/service.mjs';
 import InventorySection from './InventorySection';
 export const dynamic='force-dynamic';
-function Shell({children}:{children:React.ReactNode}){return <main className="min-h-screen bg-[#0d1115] px-5 py-12 text-[#f0ede7]"><div className="mx-auto max-w-4xl"><Link href="/" className="text-xs tracking-[.24em] text-[#b9aa84]">AMES DE BRILLIANTE</Link><div className="mt-16">{children}</div></div></main>}
+function Shell({children}:{children:React.ReactNode}){return <main className="min-h-screen bg-[#0d1115] px-5 py-8 text-[#f0ede7]"><div className="mx-auto max-w-4xl"><Link href="/" className="text-xs tracking-[.24em] text-[#dce2ea]">AMES</Link><div className="mt-10">{children}</div></div></main>}
 export default async function JewellerPortal(){
  const cookie=(await cookies()).toString();let response:Response;
  try{const config=customerConfig();response=await createCustomerService(config,createAppwriteGateway(config)).handle(new Request(`${config.origin}/api/customer/jewellers/me`,{headers:{cookie}}));}catch{return <Shell><p>Portal service is temporarily unavailable.</p></Shell>}
@@ -14,3 +14,4 @@ export default async function JewellerPortal(){
  if(!response.ok)return <Shell><p>Portal service is temporarily unavailable.</p></Shell>;
  const {application}=await response.json();return <Shell><p className="text-xs uppercase tracking-[.2em] text-[#b9aa84]">Private workspace</p><h1 className="mt-3 text-3xl font-light">{application.businessName}</h1><p className="mt-3 text-sm text-[#aeb5bc]">Verification status: <strong className="text-[#f0ede7]">{application.verificationStatus}</strong></p><div className="mt-10 grid gap-4 sm:grid-cols-2">{['Profile management','Sourcing leads','Response status','Quote submission','Analytics'].map(v=><div key={v} className="border border-white/10 p-5"><h2>{v}</h2><p className="mt-2 text-xs text-[#8f979f]">Available in the private workspace.</p></div>)}</div><div className="mt-6"><InventorySection enabled={application.verificationStatus==='VERIFIED'}/></div></Shell>
 }
+
