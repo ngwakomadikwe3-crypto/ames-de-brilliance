@@ -17,7 +17,8 @@ export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  if (pathname === "/" || pathname === "/app" || pathname === "/favorites") return null;
+  const modern = ["/app", "/account", "/favorites", "/jewellers/apply", "/jewellers/portal", "/admin"];
+  if (modern.some(route => pathname === route || pathname.startsWith(route + "/"))) return null;
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
