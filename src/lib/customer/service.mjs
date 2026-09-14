@@ -6,6 +6,8 @@ export const TIERS=['PUBLIC','MEMBER','PREMIUM','COLLECTOR','PRIVATE'];
 export const EVENTS=['JEWELRY_VIEWED','STONE_VIEWED','SAVED','FAVORITED','COMPARED','PREMIUM_PREVIEWED','ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'];
 const REQUEST_STATUSES=['OPEN','MATCHED','CONTACTED','CLOSED','CANCELLED'];
 const JEWELLER_STATUSES=['APPLIED','UNDER_REVIEW','VERIFIED','REJECTED','SUSPENDED'];
+const INVENTORY_STATUSES=['DRAFT','PENDING_REVIEW','APPROVED','REJECTED','CHANGES_REQUESTED','SUSPENDED','SOLD','ARCHIVED'];
+const LEAD_STATUSES=['NEW','ROUTED','ACCEPTED','QUOTED','RESERVED','SOLD','DECLINED','EXPIRED'];
 const error=(status,message)=>Object.assign(new Error(message),{status});
 const id=v=>{if(typeof v!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(v))throw error(400,'Invalid identifier');return v;};
 const sha=v=>createHash('sha256').update(v).digest('hex');
@@ -23,7 +25,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     try {const user=await gateway.user(token);if(!user.status)throw error(401,'Account unavailable');const profile=await gateway.get('profiles',documentId(user.$id));if(profile?.accountState==='disabled')throw error(403,'Account unavailable');return {id:user.$id,name:user.name,email:user.email,admin:user.labels?.includes('amesadmin')===true,guest:false};}
     catch(e){if([401,403].includes(e.status)||[401,403,404].includes(e.code))throw error(401,'Session expired');throw e;}
   }
-  async function catalogAsset(assetId){const record=await gateway.get('catalog',documentId(id(assetId)));if(!record||record.status!=='published')throw error(404,'Asset unavailable');return record;}
+  async function catalogAsset(assetId){const record=await gateway.get('catalog',documentId(id(assetId)));if(!record||record.status!=='published'||(record.kind==='JEWELLER_INVENTORY'&&record.inventoryStatus!=='APPROVED'))throw error(404,'Asset unavailable');return record;}
   async function allowed(user,asset){
     if(asset.status!=='published'||!TIERS.includes(asset.accessTier))return false;
     const grants=user?await gateway.list('entitlements',{userId:user.id}):[];
@@ -104,19 +106,21 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     }
     if(route==='catalog'&&method==='GET'){
       const rows=await gateway.list('catalog');const assets=[];
-      for(const asset of rows){if(asset.status!=='published')continue;if(asset.accessTier==='PRIVATE'&&!await allowed(user,asset))continue;assets.push(publicRecord(asset));}
+      for(const asset of rows){if(asset.status!=='published')continue;if(asset.kind==='JEWELLER_INVENTORY'&&asset.inventoryStatus!=='APPROVED')continue;if(asset.accessTier==='PRIVATE'&&!await allowed(user,asset))continue;assets.push(publicRecord(asset));}
       return json({schemaVersion:1,assets});
     }
     if(route==='reserve'&&method==='POST'){
       const b=await body(req),asset=await catalogAsset(b.assetId);if(!await allowed(user,asset))throw error(403,'This asset is locked');
       const conversationId=typeof b.conversationId==='string'?b.conversationId.slice(0,256):'';
-      await audit(user,'RESERVE_REQUEST',asset.id,{status:'PENDING',conversationId,context:typeof b.context==='string'?b.context.slice(0,500):''});
+      await audit(user,'RESERVE_REQUEST',asset.id,{status:'PENDING',conversationId,context:typeof b.context==='string'?b.context.slice(0,500):'',jewellerId:asset.jewellerId||'',intentSummary:typeof b.intentSummary==='string'?b.intentSummary.slice(0,1000):'',confidence:b.confidence&&typeof b.confidence==='object'?b.confidence:undefined});
+      if(asset.kind==='JEWELLER_INVENTORY') await gateway.put('events',randomUUID(),{userId:user?.id||'',assetId:asset.id,kind:'INVENTORY_LEAD',leadStatus:'NEW',jewellerId:asset.jewellerId||'',inventoryId:asset.id,conversationId,context:typeof b.context==='string'?b.context.slice(0,500):'',time:new Date(clock()).toISOString()});
       return json({ok:true,status:'PENDING',assetId:asset.id});
     }
     if(route==='handoff'&&method==='POST'){
       const b=await body(req),assetId=typeof b.assetId==='string'?b.assetId:'';let assetName='';if(assetId){const asset=await catalogAsset(assetId);if(!await allowed(user,asset))throw error(403,'This asset is locked');assetName=asset.name;}
       const intent=['reserve','enquiry','consultation'].includes(b.intent)?b.intent:'enquiry';
-      await audit(user,'DESK_HANDOFF',assetId,{status:'REQUESTED',intent,context:typeof b.context==='string'?b.context.slice(0,500):''});
+      await audit(user,'DESK_HANDOFF',assetId,{status:'REQUESTED',intent,context:typeof b.context==='string'?b.context.slice(0,500):'',jewellerId:assetId?(await catalogAsset(assetId)).jewellerId||'':''});
+      if(assetId){const asset=await catalogAsset(assetId);if(asset.kind==='JEWELLER_INVENTORY') await gateway.put('events',randomUUID(),{userId:user?.id||'',assetId,kind:'INVENTORY_LEAD',leadStatus:'NEW',jewellerId:asset.jewellerId||'',inventoryId:assetId,context:typeof b.context==='string'?b.context.slice(0,500):'',time:new Date(clock()).toISOString()});}
       const number=(config.deskWhatsapp||'').replace(/[^0-9]/g,'');
       const text=`Hello, I'm enquiring through AMES${assetName?` about the ${assetName}`:''}. I'd like to ${intent==='reserve'?'confirm availability and reserve the piece':'speak with the desk about this enquiry'}.`;
       return json({ok:true,whatsappUrl:number?`https://wa.me/${number}?text=${encodeURIComponent(text)}`:null});
@@ -152,6 +156,24 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       return new Response(response.body,{headers:{'Content-Type':'model/gltf-binary','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
     }
     if(!user)throw error(401,'Sign in required');
+    if(route==='jewellers'&&param==='inventory'){
+      if(user.guest)throw error(401,'Sign in required');
+      const rows=await gateway.list('jewellers'),own=rows.find(r=>r.kind==='JEWELLER_APPLICATION'&&String(r.email||'').toLowerCase()===String(user.email||'').toLowerCase());
+      if(!own||own.verificationStatus!=='VERIFIED')throw error(403,'Verified jeweller required');
+      const inventory=await gateway.list('catalog');
+      if(method==='GET')return json({items:inventory.filter(r=>r.kind==='JEWELLER_INVENTORY'&&r.jewellerId===own.id).map(({internalNotes,...safe})=>safe)});
+      const b=await body(req),now=new Date(clock()).toISOString(),clean={};
+      const text=(k,max=300)=>typeof b[k]==='string'?b[k].trim().slice(0,max):'';
+      clean.name=text('name',180);clean.category=text('category',60).toLowerCase();clean.jewelryType=text('jewelryType',80);clean.diamondShape=text('diamondShape',60);clean.carat=Number.isFinite(b.carat)?b.carat:undefined;clean.metal=text('metal',60);clean.color=text('color',30);clean.clarity=text('clarity',30);clean.certification=text('certification',80);clean.certificationReference=text('certificationReference',160);clean.price=Number.isFinite(b.price)&&b.price>=0?b.price:undefined;clean.currency=text('currency',12).toUpperCase();clean.location=text('location',120);clean.availability=text('availability',80);clean.leadTime=text('leadTime',100);clean.bespoke=typeof b.bespoke==='boolean'?b.bespoke:undefined;clean.reserve=typeof b.reserve==='boolean'?b.reserve:undefined;clean.deliveryRegions=Array.isArray(b.deliveryRegions)?[...new Set(b.deliveryRegions.filter(v=>typeof v==='string').map(v=>v.trim()).filter(Boolean))].slice(0,30):[];clean.provenanceNotes=text('provenanceNotes',1000);for(const k of ['images','video','glb'])clean[k]=Array.isArray(b[k])?b[k].filter(v=>typeof v==='string').slice(0,12):typeof b[k]==='string'?b[k].slice(0,500):'';
+      if(!clean.name||!clean.category)throw error(400,'Item name and category are required');
+      const itemId=segments[2]?id(segments[2]):randomUUID();const existing=segments[2]?inventory.find(r=>r.id===itemId&&r.jewellerId===own.id):null;if(segments[2]&&!existing)throw error(404,'Inventory item not found');
+      const row={...(existing||{}),...clean,userId:user.id,assetId:itemId,kind:'JEWELLER_INVENTORY',jewellerId:own.id,jewellerName:own.businessName,inventoryStatus:'PENDING_REVIEW',status:'draft',accessTier:'PUBLIC',revision:(existing?.revision||0)+1,updatedAt:now,createdAt:existing?.createdAt||now,internalNotes:existing?.internalNotes||''};
+      row.tags=[clean.category,clean.jewelryType,clean.diamondShape,clean.metal,clean.color,clean.clarity].filter(Boolean);row.specs=[clean.metal,clean.diamondShape,clean.carat?`${clean.carat} ct`:'',clean.color,clean.clarity].filter(Boolean).join(' · ');row.assetPath=`/api/customer/assets/${itemId}.glb`;row.previewPath=null;row.materialSlots=[];row.stoneReferences=[];row.metalCompatibility=clean.metal?[clean.metal]:[];
+      await gateway.put('catalog',documentId(itemId),row,!existing);return json({ok:true,item:{...row,internalNotes:undefined}},existing?200:201);
+    }
+    if(route==='jewellers'&&param==='leads'&&method==='GET'){
+      if(user.guest)throw error(401,'Sign in required');const apps=await gateway.list('jewellers'),own=apps.find(r=>r.kind==='JEWELLER_APPLICATION'&&String(r.email||'').toLowerCase()===String(user.email||'').toLowerCase());if(!own||own.verificationStatus!=='VERIFIED')throw error(403,'Verified jeweller required');const rows=await gateway.list('events');return json({leads:rows.filter(r=>r.kind==='INVENTORY_LEAD'&&r.jewellerId===own.id)});
+    }
     if(route==='jewellers'&&param==='me'&&method==='GET'){
       if(user.guest)throw error(401,'Sign in required');
       const rows=await gateway.list('jewellers'),own=rows.find(row=>row.kind==='JEWELLER_APPLICATION'&&String(row.email||'').toLowerCase()===String(user.email||'').toLowerCase());
@@ -185,6 +207,8 @@ export function createCustomerService(config,gateway,clock=Date.now) {
         const file=await gateway.fileInfo(asset.storage);if(file.$permissions?.length||file.mimeType!=='model/gltf-binary'&& !file.name?.endsWith('.glb'))throw error(400,'GLB must have private permissions');
         const old=await gateway.get('catalog',documentId(asset.id));if(old&&asset.revision<=old.revision)throw error(409,'Revision must increase');
         await gateway.put('catalog',documentId(asset.id),{...asset,assetPath:`/api/customer/assets/${asset.id}.glb`,userId:'',assetId:asset.id,kind:asset.category});
+      }else if(param==='inventory'){
+        const inventoryId=typeof b.inventoryId==='string'?b.inventoryId:'';if(!inventoryId)throw error(400,'Inventory ID required');const current=await gateway.get('catalog',documentId(inventoryId));if(!current||current.kind!=='JEWELLER_INVENTORY')throw error(404,'Inventory item not found');const status=typeof b.status==='string'&&INVENTORY_STATUSES.includes(b.status)?b.status:null;if(!status)throw error(400,'Invalid inventory status');const jeweller=await gateway.get('jewellers',documentId(current.jewellerId));if(status==='APPROVED'&&(!jeweller||jeweller.verificationStatus!=='VERIFIED'))throw error(400,'Jeweller must be verified');const published=status==='APPROVED';await gateway.put('catalog',documentId(inventoryId),{...current,inventoryStatus:status,status:published?'published':status==='ARCHIVED'?'archived':'draft',updatedAt:new Date(clock()).toISOString(),internalNotes:typeof b.internalNotes==='string'?b.internalNotes.slice(0,4000):current.internalNotes||''});return json({ok:true,status});
       }else if(['entitlements','subscriptions'].includes(param)){
         id(b.userId);if(!TIERS.includes(b.tier)||!Number.isFinite(Date.parse(b.expiresAt))||Date.parse(b.expiresAt)<=clock())throw error(400,'Tier and future expiry required');
         if(param==='entitlements'&&!['allow','deny'].includes(b.effect)||param==='subscriptions'&&!['active','canceled','past_due'].includes(b.status))throw error(400,'Invalid access state');
@@ -216,12 +240,15 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(route==='admin'&&param==='events'&&method==='GET'){
       if(!user?.admin)throw error(403,'Administrator required');
       const rows=await gateway.list('events');
-      const kinds=new Set(['SOURCING_REQUEST','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SAVED','FAVORITED']);
+      const kinds=new Set(['SOURCING_REQUEST','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','INVENTORY_LEAD','SAVED','FAVORITED']);
       return json({events:rows.filter(r=>kinds.has(r.kind)).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))});
     }
     if(route==='admin'&&param==='jewellers'&&method==='GET'){
       if(!user?.admin)throw error(403,'Administrator required');
       const rows=await gateway.list('jewellers');return json({applications:rows.filter(r=>r.kind==='JEWELLER_APPLICATION').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))});
+    }
+    if(route==='admin'&&param==='inventory'&&method==='GET'){
+      if(!user?.admin)throw error(403,'Administrator required');const rows=await gateway.list('catalog');return json({items:rows.filter(r=>r.kind==='JEWELLER_INVENTORY').map(({internalNotes,...safe})=>({...safe,internalNotes:undefined}))});
     }
     throw error(404,'Not found');
   }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message},status);}}
