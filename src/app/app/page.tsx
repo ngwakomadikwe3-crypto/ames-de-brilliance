@@ -757,7 +757,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           {boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => { setFilter("All"); setBoutiqueMenuOpen(false); scrollRef.current?.querySelector('.ames-boutique-categories-bottom')?.scrollIntoView({ behavior: 'smooth' }); }}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}
         </header>
         <section className="ames-boutique-hero" aria-label="Interactive jewelry hero">
-          <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth" })}>Explore the collection</button></div>
+          <div className="ames-boutique-hero-copy"><h1>Eclipse Collection</h1><p className="ames-boutique-hero-subtitle">Unveiling timeless brilliance</p><button onClick={() => { setFilter("Ring"); scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Explore the collection</button></div>
           <AmesBoutiqueSurface integration={integration} active={active} />
         </section>
         <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
@@ -799,7 +799,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
 
 function CategoryIcon({ category }: { category: string }) {
   const paths: Record<string,string> = { Ring: 'M4 12c0-3 2-6 8-6s8 3 8 6-2 6-8 6-8-3-8-6Zm4 0a4 4 0 1 0 8 0', Watch: 'M8 4h8v4H8zM8 16h8v4H8zM6 8h12v8H6z', Bracelet: 'M5 7c2-3 12-3 14 0M5 17c2 3 12 3 14 0M5 7v10M19 7v10', Necklace: 'M5 5c1 6 3 10 7 14 4-4 6-8 7-14M8 8h8', Earring: 'M8 5a2 2 0 1 0 4 0v10a4 4 0 1 1-4-4' };
-  return <svg className="ames-boutique-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[category] || paths.Ring} /></svg>;
+  return <svg className="ames-boutique-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[category] || paths.Ring} /></svg>;
 }
 
 /* ── Reserve Modal ── */
