@@ -501,7 +501,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       <div className="ames-chat-stage" aria-label="Gemstone showcase">
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
       </div>
-      <div dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} data-language={conversationLanguage} ref={scrollRef} className="ames-chat-messages" role="log" aria-label="Conversation" aria-live="polite">
+      <div dir={conversationLanguage === 'ar' ? 'rtl' : 'ltr'} data-language={conversationLanguage} ref={scrollRef} className="ames-chat-messages ames-chat-conversation-panel" role="log" aria-label="Conversation" aria-live="polite">
         <div>
         {messages.map(m => <p key={m.id} className={`ames-chat-message is-${m.role}`}>{m.text}</p>)}
         {recommendation && <ChatRecommendation key={recommendation.id} piece={recommendation} notice={recommendationNotice || ''} onView={onBrowseBoutique} onSave={async () => { if (!customer.user && !customer.guest) { window.location.assign('/account'); return; } try { await customerRequest('favorites', 'PUT', { assetId: recommendation.id }); await customer.reloadState(); setRecommendationNotice('Saved to your favorites.'); } catch { setRecommendationNotice('I could not save that piece just now.'); } }} onReserve={() => { setInput('Reserve this'); setRecommendationNotice('I can prepare a reserve request while you decide.'); inputRef.current?.focus(); }} onAsk={() => { setInput(`Tell me more about ${recommendation.name}.`); inputRef.current?.focus(); }} />}
