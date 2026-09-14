@@ -16,7 +16,10 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   const onCompleteRef = useRef(onComplete);
   const completionRef = useRef(false);
   const readyRef = useRef(false);
-  const timeoutRef = useRef<number | null>(null);
+  const watchdogRef = useRef<number | null>(null);
+  const bridgeRef = useRef<number | null>(null);
+  const exitRef = useRef<number | null>(null);
+  const bridgeStartedRef = useRef(false);
   const [visible, setVisible] = useState(true);
   const [exiting, setExiting] = useState(false);
   const [bridging, setBridging] = useState(false);
@@ -28,14 +31,15 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   const finish = useCallback(() => {
     if (completionRef.current) return;
     completionRef.current = true;
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
+    if (bridgeRef.current) window.clearTimeout(bridgeRef.current);
     performance.mark("ames-splash-transition-start");
     try { sessionStorage.setItem(sessionKey, "1"); } catch {}
     onCompleteRef.current?.();
     setExiting(true);
-    timeoutRef.current = window.setTimeout(() => { performance.mark("ames-splash-transition-end"); performance.measure("ames-splash-transition", "ames-splash-transition-start", "ames-splash-transition-end"); setVisible(false); }, 560);
+    exitRef.current = window.setTimeout(() => { performance.mark("ames-splash-transition-end"); performance.measure("ames-splash-transition", "ames-splash-transition-start", "ames-splash-transition-end"); setVisible(false); }, 560);
   }, [sessionKey]);
-  const complete = useCallback(() => { if (completionRef.current || bridging) return; setBridging(true); onCompleteRef.current?.(); timeoutRef.current = window.setTimeout(finish, 900); }, [bridging, finish]);
+  const complete = useCallback(() => { if (completionRef.current || bridgeStartedRef.current) return; bridgeStartedRef.current = true; setBridging(true); onCompleteRef.current?.(); bridgeRef.current = window.setTimeout(finish, 900); }, [finish]);
 
   useEffect(() => {
     if (replayPerSession) return;
@@ -53,21 +57,21 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
     if (completionRef.current) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) { complete(); return; }
-    timeoutRef.current = window.setTimeout(complete, 12000);
-    return () => { if (timeoutRef.current) window.clearTimeout(timeoutRef.current); };
+    watchdogRef.current = window.setTimeout(complete, 12000);
+    return () => { if (watchdogRef.current) window.clearTimeout(watchdogRef.current); };
   }, [complete]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || fallback || completionRef.current) return;
     // A failed request can complete before React hydration attaches onError.
-    if (video.error) { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); return; }
+    if (video.error) { setFallback(true); if (watchdogRef.current) window.clearTimeout(watchdogRef.current); bridgeRef.current = window.setTimeout(complete, 650); return; }
     video.muted = true;
     let cancelled = false;
     const attempt = () => {
       if (cancelled || completionRef.current || video.readyState < 3) return;
       if (!readyRef.current) { readyRef.current = true; performance.mark("ames-splash-video-ready"); performance.measure("ames-splash-load", "ames-splash-start", "ames-splash-video-ready"); }
-      void video.play().catch(() => { if (!cancelled && !completionRef.current) { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); } });
+      void video.play().catch(() => { if (!cancelled && !completionRef.current) { setFallback(true); if (watchdogRef.current) window.clearTimeout(watchdogRef.current); bridgeRef.current = window.setTimeout(complete, 650); } });
     };
     const bridge = () => {
       if (Number.isFinite(video.duration) && video.duration - video.currentTime <= 0.75) complete();
@@ -81,7 +85,7 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   if (!visible) return null;
   return <div className={`splash-experience${bridging ? " is-bridging" : ""}${exiting ? " is-exiting" : ""}`} role="presentation" aria-label="AMES opening">
     {SPLASH_PRELOADS}
-    {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" onEnded={complete} onError={() => { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
+    {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" onEnded={complete} onError={() => { setFallback(true); if (watchdogRef.current) window.clearTimeout(watchdogRef.current); bridgeRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
     {fallback && <span className="splash-fallback" aria-hidden="true" />}
     <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-bridging{background-position:center;}.splash-experience.is-bridging video{opacity:.35;transform:scale(1.01)}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#063c3b;transition:opacity 900ms cubic-bezier(.22,.61,.36,1),transform 900ms cubic-bezier(.22,.61,.36,1)}.splash-experience.is-exiting video{opacity:0}.splash-fallback{background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat}@media(prefers-reduced-motion:reduce){.splash-experience,.splash-experience video{transition:none}}`}</style>
   </div>;
