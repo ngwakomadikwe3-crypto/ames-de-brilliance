@@ -756,3 +756,21 @@ body:has(.ames-product-shell),
     top: 24px;
   }
 }
+
+/* Jeweller application: quiet editorial treatment, scoped to the application route. */
+.ames-jeweller-apply{font-family:var(--font-inter,-apple-system,BlinkMacSystemFont,"Inter","Helvetica Neue",Arial,sans-serif);color:#f4f6f8}
+.ames-jeweller-apply .apply-wordmark{font-weight:400;letter-spacing:.32em;color:#e4e8ed}
+.ames-jeweller-apply .apply-kicker{font-weight:400;letter-spacing:.34em;color:#aeb7c0}
+.ames-jeweller-apply .apply-title{font-family:var(--font-cormorant,"Cormorant Garamond",Georgia,serif);font-size:clamp(2.75rem,7vw,4.5rem);font-weight:400;line-height:.98;letter-spacing:-.025em;color:#f7f8fa}
+.ames-jeweller-apply .apply-intro{font-weight:300;line-height:1.9;color:#c0c8d0}
+.ames-jeweller-apply form{row-gap:2.75rem}
+.ames-jeweller-apply form label{font-weight:300}
+.ames-jeweller-apply form label>span{display:block;margin-bottom:.35rem;font-size:10px;font-weight:400;letter-spacing:.1em;color:#e6ebef}
+.ames-jeweller-apply form input,.ames-jeweller-apply form select{box-sizing:border-box;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:rgba(0,0,0,.06);padding:.78rem .8rem;color:#f7f8fa;font-weight:300;line-height:1.4}
+.ames-jeweller-apply form input::placeholder{color:rgba(220,227,234,.48)}
+.ames-jeweller-apply form input:focus,.ames-jeweller-apply form select:focus{border-color:rgba(255,255,255,.55)}
+.ames-jeweller-apply form select{color-scheme:dark}
+.ames-jeweller-apply form fieldset{border-color:rgba(255,255,255,.16)}
+.ames-jeweller-apply form legend{font-weight:300;color:#aeb7c0}
+.ames-jeweller-apply form button{font-weight:400;color:#f4f6f8;border-color:rgba(255,255,255,.3)}
+.ames-jeweller-apply form p{font-weight:300;color:#aeb7c0}
