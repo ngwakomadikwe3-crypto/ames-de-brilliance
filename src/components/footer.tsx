@@ -18,6 +18,7 @@ export default function Footer() {
           <a href="/terms" className="underline hover:text-[#171717]">Terms of Use</a>
           <a href="/privacy" className="underline hover:text-[#171717]">Privacy Policy</a>
           <a href="/compliance" className="underline hover:text-[#171717]">Compliance &amp; Kimberley Process</a>
+          <a href="/jewellers/apply" className="underline hover:text-[#171717]">For Jewellers</a>
         </div>
         <div>All rough diamond exports are conducted under the Kimberley Process Certification Scheme.</div>
         <div>© 2026 AMES DE BRILLIANTE (Pty) Ltd</div>

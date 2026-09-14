@@ -21,6 +21,7 @@ export type JewellerProfile = {
   afterSales?: boolean;
   returns?: boolean;
   verified?: boolean;
+  verificationStatus?: 'APPLIED'|'UNDER_REVIEW'|'VERIFIED'|'REJECTED'|'SUSPENDED';
   responseReliability?: number;
   responseTimeHours?: number;
   fulfillmentSuccess?: number;
@@ -28,6 +29,12 @@ export type JewellerProfile = {
   inventoryFreshness?: number;
   lastVerifiedAt?: string;
 };
+
+export function isMatchingEligible(profile: JewellerProfile): boolean {
+  // Status is authoritative for onboarded jewellers. `verified` preserves
+  // compatibility with approved profiles created before onboarding existed.
+  return profile.verificationStatus ? profile.verificationStatus === 'VERIFIED' : profile.verified === true;
+}
 
 export type JewellerMatch = {
   jewellerId: string;

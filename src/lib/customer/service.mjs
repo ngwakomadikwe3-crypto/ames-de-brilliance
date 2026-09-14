@@ -1,10 +1,11 @@
 import { createHash,createHmac,timingSafeEqual,randomUUID } from 'node:crypto';
 import { createAssetRegistry,canonicalAssetManifest } from '@ames/engine';
 import { documentId } from './appwrite.mjs';
-import { rankJewellers } from '../jeweller-matching.ts';
+import { isMatchingEligible,rankJewellers } from '../jeweller-matching.ts';
 export const TIERS=['PUBLIC','MEMBER','PREMIUM','COLLECTOR','PRIVATE'];
 export const EVENTS=['JEWELRY_VIEWED','STONE_VIEWED','SAVED','FAVORITED','COMPARED','PREMIUM_PREVIEWED','ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'];
 const REQUEST_STATUSES=['OPEN','MATCHED','CONTACTED','CLOSED','CANCELLED'];
+const JEWELLER_STATUSES=['APPLIED','UNDER_REVIEW','VERIFIED','REJECTED','SUSPENDED'];
 const error=(status,message)=>Object.assign(new Error(message),{status});
 const id=v=>{if(typeof v!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(v))throw error(400,'Invalid identifier');return v;};
 const sha=v=>createHash('sha256').update(v).digest('hex');
@@ -69,6 +70,19 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(!['GET','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
     if(method!=='GET'&&req.headers.get('origin')!==config.origin)throw error(403,'Origin denied');
     const [route,param]=segments;
+    if(route==='jewellers'&&param==='apply'&&method==='POST'){
+      const b=await body(req),text=(key,max=500)=>typeof b[key]==='string'?b[key].trim().slice(0,max):'',list=(key,max=30)=>Array.isArray(b[key])?[...new Set(b[key].filter(v=>typeof v==='string').map(v=>v.trim()).filter(Boolean))].slice(0,max):[];
+      const businessName=text('businessName',160),legalEntityName=text('legalEntityName',200),email=text('email',254).toLowerCase(),phone=text('phone',60),website=text('website',500);
+      if(!businessName||!legalEntityName||!email||!email.includes('@')||!phone)throw error(400,'Business name, legal entity, valid email and phone are required');
+      let domain='';if(website){try{const parsed=new URL(/^https?:\/\//i.test(website)?website:`https://${website}`);domain=parsed.hostname.toLowerCase().replace(/^www\./,'');}catch{throw error(400,'Website must be valid');}}
+      const norm=v=>v.toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]/gu,''),phoneKey=phone.replace(/\D/g,''),keys={legal:norm(legalEntityName),email,phone:phoneKey,domain};
+      const existing=await gateway.list('jewellers');
+      if(existing.some(row=>row.duplicateKeys&&Object.entries(keys).some(([key,value])=>value&&row.duplicateKeys[key]===value)))throw error(409,'An application with matching business contact details already exists');
+      const applicationId=randomUUID(),now=new Date(clock()).toISOString();
+      const capabilities={languages:list('languages'),countriesServed:list('countriesServed'),categories:list('categories'),shapes:list('diamondShapes'),metals:list('metals'),priceBands:Array.isArray(b.priceBands)?b.priceBands.filter(v=>v&&typeof v==='object').slice(0,10).map(v=>({...(Number.isFinite(v.min)?{min:v.min}:{}),...(Number.isFinite(v.max)?{max:v.max}:{}),...(typeof v.currency==='string'&&v.currency.trim()?{currency:v.currency.trim().slice(0,12)}:{})})).filter(v=>Object.keys(v).length):[],bespoke:typeof b.bespoke==='boolean'?b.bespoke:undefined,looseDiamonds:typeof b.looseDiamonds==='boolean'?b.looseDiamonds:undefined,certifications:list('certificationSupport'),provenance:typeof b.provenance==='boolean'?b.provenance:undefined,reserve:typeof b.reserve==='boolean'?b.reserve:undefined,delivery:typeof b.delivery==='boolean'?b.delivery:undefined,leadTime:text('leadTimes',200)||undefined,afterSales:typeof b.afterSales==='boolean'?b.afterSales:undefined,returns:typeof b.returns==='boolean'?b.returns:undefined};
+      await gateway.put('jewellers',applicationId,{userId:'',assetId:'',kind:'JEWELLER_APPLICATION',applicationId,businessName,legalEntityName,country:text('country',120),city:text('city',120),contactPerson:text('contactPerson',160),email,phone,website,socialLinks:list('socialLinks',10),capabilities,duplicateKeys:keys,verificationStatus:'APPLIED',verified:false,matchingEligible:false,internalNotes:'',verificationDate:null,createdAt:now,updatedAt:now},true);
+      return json({ok:true,applicationId,status:'APPLIED'},201);
+    }
     if(['login','register'].includes(route)&&method==='POST'){
       const guestBefore=await identity(req,false,false);
       const b=await body(req);if(typeof b.email!=='string'||b.email.length>254||!b.email.includes('@')||typeof b.password!=='string'||b.password.length<8||b.password.length>256)throw error(400,'Valid email and password required');
@@ -111,7 +125,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       const b=await body(req),profile=b.profile&&typeof b.profile==='object'?b.profile:{};
       const clean=Object.fromEntries(['category','jewelry_type','budget','budget_min','budget_max','currency','metal','shape','occasion','recipient','size','timing','urgency','style','purpose','motive','friction','sourcing_intent','certification_preference','location','language','overallConfidence','confidence'].filter(k=>typeof profile[k]==='string'||typeof profile[k]==='number'||typeof profile[k]==='boolean'||(k==='confidence'&&profile[k]&&typeof profile[k]==='object')).map(k=>[k,typeof profile[k]==='string'?profile[k].slice(0,120):profile[k]]));
       if(!clean.category||typeof clean.category!=='string')throw error(400,'Request category required');
-      let profiles=[];try{profiles=await gateway.list('jewellers');}catch{/* The approved network is optional; an empty list remains a valid sourcing state. */}
+      let profiles=[];try{profiles=(await gateway.list('jewellers')).filter(isMatchingEligible);}catch{/* The approved network is optional; an empty list remains a valid sourcing state. */}
       const matches=rankJewellers(clean,profiles,{country:typeof clean.location==='string'?clean.location:undefined,requiredCertification:typeof clean.certification_preference==='string'?clean.certification_preference:undefined}).slice(0,3);
       const requestId=randomUUID();
       await gateway.put('events',requestId,{userId:user?.id||'',assetId:'',kind:'SOURCING_REQUEST',time:new Date(clock()).toISOString(),status:'OPEN',profile:clean,notes:typeof b.notes==='string'?b.notes.slice(0,1000):'',conversationId:typeof b.conversationId==='string'?b.conversationId.slice(0,256):'',matches:matches.map(match=>({...match,status:'CANDIDATE'}))});
@@ -138,6 +152,12 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       return new Response(response.body,{headers:{'Content-Type':'model/gltf-binary','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
     }
     if(!user)throw error(401,'Sign in required');
+    if(route==='jewellers'&&param==='me'&&method==='GET'){
+      if(user.guest)throw error(401,'Sign in required');
+      const rows=await gateway.list('jewellers'),own=rows.find(row=>row.kind==='JEWELLER_APPLICATION'&&String(row.email||'').toLowerCase()===String(user.email||'').toLowerCase());
+      if(!own)throw error(404,'No jeweller application is linked to this account');
+      const safe={...own};delete safe.internalNotes;delete safe.duplicateKeys;return json({application:safe});
+    }
     if(route==='state'&&method==='GET')return json({profile:await gateway.get('profiles',documentId(user.id)),favorites:await gateway.list('favorites',{userId:user.id}),saved:await gateway.list('saved',{userId:user.id}),designs:await gateway.list('designs',{userId:user.id}),entitlements:await gateway.list('entitlements',{userId:user.id}),subscriptions:await gateway.list('subscriptions',{userId:user.id})});
     if(['favorites','saved'].includes(route)&&['PUT','DELETE'].includes(method)){
       const b=await body(req),asset=await catalogAsset(b.assetId);if(!await allowed(user,asset))throw error(403,'This asset is locked');
@@ -179,6 +199,13 @@ export function createCustomerService(config,gateway,clock=Date.now) {
         for(const ref of matchingRefs){const asset=await catalogAsset(ref);if(asset.category==='stone')throw error(400,'Jewelry catalogue reference required');}
         await gateway.put('events',requestId,{...current,status,notes:typeof b.notes==='string'?b.notes.slice(0,1000):current.notes||'',matchingRefs});
         return json({ok:true,status,matchingRefs});
+      }else if(param==='jewellers'){
+        const applicationId=typeof b.applicationId==='string'?b.applicationId:'';if(!applicationId)throw error(400,'Application ID required');
+        const current=await gateway.get('jewellers',applicationId);if(!current||current.kind!=='JEWELLER_APPLICATION')throw error(404,'Application not found');
+        const status=typeof b.status==='string'&&JEWELLER_STATUSES.includes(b.status)?b.status:null;if(!status)throw error(400,'Invalid verification status');
+        const now=new Date(clock()).toISOString(),verified=status==='VERIFIED',verificationDate=verified?(current.verificationDate||now):current.verificationDate||null;
+        await gateway.put('jewellers',applicationId,{...current,verificationStatus:status,verified,matchingEligible:verified,internalNotes:typeof b.internalNotes==='string'?b.internalNotes.slice(0,4000):current.internalNotes||'',verificationDate,updatedAt:now,lastVerifiedAt:verificationDate||undefined,...current.capabilities,location:[current.city,current.country].filter(Boolean).join(', ')||undefined,deliveryCountries:current.capabilities?.delivery===true?current.capabilities?.countriesServed:undefined});
+        return json({ok:true,status,matchingEligible:verified,verificationDate});
       }else throw error(404,'Not found');return json({ok:true});
     }
     if(route==='admin'&&param==='requests'&&method==='GET'){
@@ -191,6 +218,10 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       const rows=await gateway.list('events');
       const kinds=new Set(['SOURCING_REQUEST','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SAVED','FAVORITED']);
       return json({events:rows.filter(r=>kinds.has(r.kind)).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||'')))});
+    }
+    if(route==='admin'&&param==='jewellers'&&method==='GET'){
+      if(!user?.admin)throw error(403,'Administrator required');
+      const rows=await gateway.list('jewellers');return json({applications:rows.filter(r=>r.kind==='JEWELLER_APPLICATION').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))});
     }
     throw error(404,'Not found');
   }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message},status);}}
