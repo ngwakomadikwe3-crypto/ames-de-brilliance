@@ -1,68 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { customerRequest } from "@/components/CustomerState";
 
-export default function SignInPage() {
+export default function LoginPage() {
+  const [mode, setMode] = useState<"signin" | "register">("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true); setError("");
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        window.location.href = "/dashboard";
-      } else {
-        setError("Wrong password.");
-      }
-    } catch {
-      setError("Connection error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      await customerRequest(mode === "register" ? "register" : "login", "POST", { email, password, ...(mode === "register" ? { name } : {}) });
+      window.location.assign("/app");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We could not complete that request.");
+    } finally { setLoading(false); }
   }
 
-  return (
-    <div className="px-4 md:px-6 py-16 max-w-sm mx-auto w-full" style={{ background: '#101214', minHeight: '100vh', color: '#EAE8E4' }}>
-      <div className="border p-6" style={{ borderColor: 'rgba(255,255,255,0.08)', background: '#1A1D21' }}>
-        <h2 className="text-[13px] font-bold mb-1">Dealer Sign In</h2>
-        <p className="text-[11px] text-muted mb-6">Enter the dealer password to access the dashboard.</p>
-
-        {error && (
-          <div className="border border-[#991B1B] bg-[rgba(239,68,68,0.1)] p-3 mb-4 text-[11px] text-[#EF4444]">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-[11px] font-medium mb-1">Password</label>
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="field-input"
-              placeholder="Enter password"
-              autoFocus
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 min-h-[44px] bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
+  return <main className="ames-account"><div className="ames-account-panel ames-auth-panel"><header><a href="/app">AMES</a><a href="/account">Account</a></header><p className="profile-label">{mode === "register" ? "Create account" : "Sign in"}</p><h1>{mode === "register" ? "Create your AMES account" : "Welcome back"}</h1><p>{mode === "register" ? "Keep your preferences and saved pieces close." : "Continue with your AMES preferences and saved pieces."}</p>{error && <p role="alert" className="auth-error">{error}</p>}<form onSubmit={submit}>{mode === "register" && <label>Name<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" required /></label>}<label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></label><label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={8} required /></label><button type="submit" disabled={loading}>{loading ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}</button></form><p className="auth-switch">{mode === "register" ? "Already have an account?" : "New to AMES?"} <button type="button" onClick={() => { setMode(mode === "register" ? "signin" : "register"); setError(""); }}>{mode === "register" ? "Sign in" : "Create account"}</button></p></div></main>;
 }

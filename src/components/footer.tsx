@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 export default function Footer() {
   const pathname = usePathname();
-  const modern = ["/app", "/account", "/favorites", "/jewellers/apply", "/jewellers/portal", "/admin"];
+  const modern = ["/app", "/account", "/favorites", "/login", "/jewellers/apply", "/jewellers/portal", "/admin"];
   if (modern.some(route => pathname === route || pathname.startsWith(route + "/"))) return null;
 
   return (
