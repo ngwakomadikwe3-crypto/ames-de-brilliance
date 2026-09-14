@@ -308,7 +308,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [selectedStoneId, setSelectedStoneId] = useState("stone-001");
   const [gem, setGem] = useState("diamond");
   const [composerMenuOpen, setComposerMenuOpen] = useState(false);
-  const customer=useCustomer(),restoredStone=useRef(false);
+  const customer=useCustomer(),restoredStone=useRef(false); const [jewellerVerified,setJewellerVerified]=useState(false); useEffect(()=>{if(!customer.user){setJewellerVerified(false);return;} customerRequest('jewellers/me').then(d=>setJewellerVerified(d.application?.verificationStatus==='VERIFIED')).catch(()=>setJewellerVerified(false));},[customer.user]);
   useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved && isChatStone(saved.assetId))setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -496,7 +496,7 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
       <header className="ames-chat-topbar">
         <button className="ames-chat-menu" aria-label="Chat menu" aria-expanded={chatMenuOpen} onClick={() => setChatMenuOpen(open => !open)}><span /><span /><span /></button>
         <span className="ames-chat-mark">AMES</span>
-        {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/app">Account</a><a href="/favorites">Favorites</a></nav>}
+        {chatMenuOpen && <nav className="ames-chat-menu-popover" aria-label="Chat navigation"><a href="/account">Account</a><a href="/favorites">Favorites</a>{customer.user?.admin&&<a href="/admin">Admin</a>}{jewellerVerified&&<a href="/jewellers/portal">Jeweller Dashboard</a>}</nav>}
       </header>
       <div className="ames-chat-stage" aria-label="Gemstone showcase">
         <AmesStoneTraySurface integration={integration} assetId={selectedStoneId} gem={gem} />
@@ -974,6 +974,7 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
   onAskAmes: (ref: string, shape: string, carat: number, color: string, clarity: string) => void;
   onOpenBoutiqueDetail: (stoneId: string) => void;
 }) {
+  const customer=useCustomer(); const [jewellerVerified,setJewellerVerified]=useState(false); useEffect(()=>{if(!customer.user){setJewellerVerified(false);return;} customerRequest('jewellers/me').then(d=>setJewellerVerified(d.application?.verificationStatus==='VERIFIED')).catch(()=>setJewellerVerified(false));},[customer.user]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeVideo, setActiveVideo] = useState(0);
@@ -1000,7 +1001,7 @@ function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetai
     <header className="ames-video-header">
       <button aria-label="Video menu" aria-expanded={videoMenuOpen} onClick={() => setVideoMenuOpen(open => !open)} className="ames-video-menu-button"><span /><span /></button>
       <span className="ames-video-brand">AMES</span>
-      {videoMenuOpen && <nav className="ames-video-menu" aria-label="Video navigation"><a href="/app">Account</a><a href="/favorites">Favorites</a></nav>}
+      {videoMenuOpen && <nav className="ames-video-menu" aria-label="Video navigation"><a href="/account">Account</a><a href="/favorites">Favorites</a>{customer.user?.admin&&<a href="/admin">Admin</a>}{jewellerVerified&&<a href="/jewellers/portal">Jeweller Dashboard</a>}</nav>}
     </header>
     {loading ? <div className="ames-video-empty" role="status">Loading films...</div> : !videos.length ? <div className="ames-video-empty"><p>Films from the house</p><span>No films published yet.</span></div> : <div ref={feedRef} className="ames-video-feed" style={{ scrollSnapType: "y mandatory" }}>
       {videos.map((v, i) => <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i} onSeePiece={onSeePiece} onAskAmes={onAskAmes} onComments={() => {}} onOpenBoutiqueDetail={onOpenBoutiqueDetail} totalVideos={videos.length} activeIndex={activeVideo} />)}
