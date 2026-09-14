@@ -97,7 +97,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Keep account creation available if migration is temporarily unavailable. */}
       const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
     }
-    if(route==='logout'&&method==='POST'){const token=session(req);if(token){try{await gateway.logout(token);}catch(e){if(![401,404].includes(e.code))throw e;}}return json({ok:true},200,{'Set-Cookie':cookie('',0)});}
+    if(route==='logout'&&method==='POST'){const token=session(req);if(token){try{await gateway.logout(token);}catch(e){if(![401,404].includes(e.code))throw e;}}const response=json({ok:true},200,{'Set-Cookie':cookie('',0)});response.headers.append('Set-Cookie',guestCookie('',0));return response;}
     const user=await identity(req,false,route==='session');
     if(route==='session'&&method==='GET'){
       const guest=user?.guest?user:null;
