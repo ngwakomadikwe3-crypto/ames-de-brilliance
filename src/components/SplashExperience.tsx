@@ -19,12 +19,13 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   const timeoutRef = useRef<number | null>(null);
   const [visible, setVisible] = useState(true);
   const [exiting, setExiting] = useState(false);
+  const [bridging, setBridging] = useState(false);
   const [fallback, setFallback] = useState(false);
 
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
   useEffect(() => { performance.mark("ames-splash-start"); }, []);
 
-  const complete = useCallback(() => {
+  const finish = useCallback(() => {
     if (completionRef.current) return;
     completionRef.current = true;
     if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
@@ -34,6 +35,7 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
     setExiting(true);
     timeoutRef.current = window.setTimeout(() => { performance.mark("ames-splash-transition-end"); performance.measure("ames-splash-transition", "ames-splash-transition-start", "ames-splash-transition-end"); setVisible(false); }, 560);
   }, [sessionKey]);
+  const complete = useCallback(() => { if (completionRef.current || bridging) return; setBridging(true); onCompleteRef.current?.(); timeoutRef.current = window.setTimeout(finish, 900); }, [bridging, finish]);
 
   useEffect(() => {
     if (replayPerSession) return;
@@ -77,10 +79,10 @@ export default function SplashExperience({ onComplete, sessionKey = "ames-intro-
   }, [complete, fallback]);
 
   if (!visible) return null;
-  return <div className={`splash-experience${exiting ? " is-exiting" : ""}`} role="presentation" aria-label="AMES opening">
+  return <div className={`splash-experience${bridging ? " is-bridging" : ""}${exiting ? " is-exiting" : ""}`} role="presentation" aria-label="AMES opening">
     {SPLASH_PRELOADS}
     {!fallback && <video ref={videoRef} src="/intro.mp4" autoPlay muted playsInline preload="auto" onEnded={complete} onError={() => { setFallback(true); if (timeoutRef.current) window.clearTimeout(timeoutRef.current); timeoutRef.current = window.setTimeout(complete, 650); }} disablePictureInPicture aria-hidden="true" />}
     {fallback && <span className="splash-fallback" aria-hidden="true" />}
-    <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#063c3b;transition:opacity 560ms cubic-bezier(.22,.61,.36,1)}.splash-experience.is-exiting video{opacity:0}.splash-fallback{background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat}@media(prefers-reduced-motion:reduce){.splash-experience,.splash-experience video{transition:none}}`}</style>
+    <style>{`.splash-experience{position:fixed;inset:0;z-index:9999;overflow:hidden;background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat;opacity:1;transition:opacity 560ms cubic-bezier(.22,.61,.36,1);contain:paint}.splash-experience.is-bridging{background-position:center;}.splash-experience.is-bridging video{opacity:.35;transform:scale(1.01)}.splash-experience.is-exiting{opacity:0;pointer-events:none}.splash-experience video,.splash-fallback{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#063c3b;transition:opacity 900ms cubic-bezier(.22,.61,.36,1),transform 900ms cubic-bezier(.22,.61,.36,1)}.splash-experience.is-exiting video{opacity:0}.splash-fallback{background:#063c3b url('/ames-silk-bg.webp') center/cover no-repeat}@media(prefers-reduced-motion:reduce){.splash-experience,.splash-experience video{transition:none}}`}</style>
   </div>;
 }
