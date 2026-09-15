@@ -1,3 +1,4 @@
+import {InputFile} from 'node-appwrite/file';
 import { Client, Account, Storage, Query } from 'node-appwrite';
 import { createHash, randomUUID } from 'node:crypto';
 import { assertConfigured } from './config.mjs';
@@ -34,11 +35,16 @@ export function createAppwriteGateway(config) {
       return {id,...data};
     },
     async remove(k,id){try{await db.deleteDocument({...path(k),documentId:id});}catch(e){if(e.code!==404)throw e;}},
+    async uploadMedia({bytes,name,bucketId}){
+      const bucket=await storage.getBucket({bucketId});if(!bucket.enabled||!bucket.fileSecurity||bucket.$permissions?.length)throw Object.assign(new Error('Private media storage required'),{status:503});if(bytes.length>Math.min(bucket.maximumFileSize,4*1024*1024))throw Object.assign(new Error('File exceeds storage limit'),{status:413});
+      return storage.createFile({bucketId,fileId:randomUUID(),file:InputFile.fromBuffer(bytes,name),permissions:[]});
+    },
     async fileInfo(ref){return storage.getFile({bucketId:ref.bucketId,fileId:ref.fileId});},
-    async stream(ref,signal){
+    async stream(ref,signal,range){
       const [bucket,file]=await Promise.all([storage.getBucket({bucketId:ref.bucketId}),storage.getFile({bucketId:ref.bucketId,fileId:ref.fileId})]);
       if(!bucket.enabled||!bucket.fileSecurity||bucket.$permissions?.length||file.$permissions?.length)throw Object.assign(new Error('Asset storage permissions are unsafe'),{status:503});
-      const response=await fetch(`${config.endpoint}/storage/buckets/${encodeURIComponent(ref.bucketId)}/files/${encodeURIComponent(ref.fileId)}/download`,{headers:{'X-Appwrite-Project':config.project,'X-Appwrite-Key':config.key},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(30000)]):AbortSignal.timeout(30000),redirect:'error',cache:'no-store'});
+      if(range&&!/^bytes=\d*-\d*$/.test(range))throw Object.assign(new Error('Invalid byte range'),{status:416});
+      const response=await fetch(`${config.endpoint}/storage/buckets/${encodeURIComponent(ref.bucketId)}/files/${encodeURIComponent(ref.fileId)}/download`,{headers:{'X-Appwrite-Project':config.project,'X-Appwrite-Key':config.key,...(range?{Range:range}:{})},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(30000)]):AbortSignal.timeout(30000),redirect:'error',cache:'no-store'});
       if(!response.ok)throw Object.assign(new Error('Asset unavailable'),{status:503});
       return response;
     },

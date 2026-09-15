@@ -1,0 +1,13 @@
+import {canonicalAssetManifest} from '@ames/engine';
+import {createCustomerService} from '../src/lib/customer/service.mjs';
+import {customerConfig} from '../src/lib/customer/config.mjs';
+import {documentId} from '../src/lib/customer/appwrite.mjs';
+export function fixture(){
+ let now=Date.now();const rows=new Map(),sessions=new Map([['alice-session','alice'],['bob-session','bob'],['admin-session','admin']]);
+ const config=customerConfig({APPWRITE_ENDPOINT:'https://appwrite.example/v1',APPWRITE_PROJECT_ID:'test',APPWRITE_API_KEY:'test-only',AMES_APP_ORIGIN:'https://ames.example',ASSET_DELIVERY_SECRET:'test-only-'.repeat(8)});
+ const gateway={async get(k,id){return rows.get(k+':'+id)||null;},async list(k,f={}){return [...rows].filter(([key,v])=>key.startsWith(k+':')&&Object.entries(f).every(([a,b])=>v[a]===b)).map(([,v])=>v);},async put(k,id,v,only=false){if(only&&rows.has(k+':'+id))throw {code:409};rows.set(k+':'+id,{id,...v});},async remove(k,id){rows.delete(k+':'+id);},async user(s){if(!sessions.has(s))throw {code:401};const id=sessions.get(s);return {$id:id,status:true,email:id+'@example.test',name:id,labels:id==='admin'?['amesadmin']:[]};},async login(email,password){if(password!=='test-password'||!['alice','bob'].includes(email.split('@')[0]))throw {code:401};const secret=email.split('@')[0]+'-session';return {secret,expire:new Date(now+3600000).toISOString()};},async register(){},async logout(s){sessions.delete(s);},async stream(){return new Response('test-glb-bytes');},async fileInfo(){return {$permissions:[],name:'test.glb'};},async health(){return true;}};
+ for(const tier of ['PUBLIC','MEMBER','PREMIUM','COLLECTOR','PRIVATE']){const id=tier.toLowerCase();rows.set('catalog:'+documentId(id),{...canonicalAssetManifest.assets[0],id,accessTier:tier,status:'published',revision:1,storage:{bucketId:config.buckets.stones,fileId:'secret-storage-id'}});}
+ let service=createCustomerService(config,gateway,()=>now);
+ const request=(path,method='GET',data,who='alice',headers={})=>service.handle(new Request(new URL(path.startsWith('/')?path:'/api/customer/'+path,config.origin),{method,headers:{origin:config.origin,...(who?{cookie:'__Host-ames_customer='+who+'-session'}:{}),...headers},body:data===undefined?undefined:JSON.stringify(data)}));
+ return {rows,gateway,config,request,advance:ms=>now+=ms,restart:()=>service=createCustomerService(config,gateway,()=>now),grant:async(userId,tier,effect='allow',assetId='')=>gateway.put('entitlements',documentId(userId,tier,assetId),{userId,tier,effect,assetId,expiresAt:new Date(now+3600000).toISOString()})};
+}
