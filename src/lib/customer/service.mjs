@@ -1,3 +1,4 @@
+import {isJewellerRecord} from './jeweller-record.mjs';
 import {createOAuthFlow} from './oauth.mjs';
 import {createProfilePhotoService} from './profile-photo.mjs';
 import {adminDashboard} from './admin-dashboard.mjs';
@@ -196,6 +197,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       if(method==='DELETE')await gateway.remove('designs',key);else {if(!b.spec||typeof b.spec!=='object'||!['ring','watch','bracelet','necklace','earring'].includes(b.spec.category)||JSON.stringify(b.spec).length>30000)throw error(400,'Invalid design specification');await gateway.put('designs',key,{userId:user.id,kind:'design',designId:b.designId,spec:b.spec,status:'draft'});}return json({ok:true});
     }
     if(route==='events'&&method==='POST'){const b=await body(req);if(!EVENTS.includes(b.type)||['ACCESS_GRANTED','ACCESS_DENIED','SUBSCRIPTION_STARTED','RESERVE_REQUEST','ENQUIRY_REQUEST','DESK_HANDOFF','SOURCING_REQUEST'].includes(b.type))throw error(400,'Unsupported event');if(b.assetId)await catalogAsset(b.assetId);await audit(user,b.type,b.assetId||'');return json({ok:true});}
+    if(route==='admin'&&param==='access'&&method==='GET'){if(!user.admin)throw error(403,'Administrator required');return json({authorized:true});}
     if(route==='admin'&&param==='dashboard'&&method==='GET'){if(!user.admin)throw error(403,'Administrator required');try{return json(await adminDashboard(gateway));}catch(e){if(e.code===404)throw Object.assign(error(503,'Your admin access is confirmed, but dashboard data is not configured. Contact AMES to complete setup.'),{reason:'ADMIN_DATA_UNAVAILABLE'});throw e;}}
     if(route==='admin'&&method==='PUT'){
       if(!user.admin)throw error(403,'Administrator required');const b=await body(req);
@@ -226,7 +228,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
         await audit(user,'SOURCING_REVIEW',requestId,{actorId:user.id,fromStatus:current.status,toStatus:status,requestId});return json({ok:true,status,matchingRefs});
       }else if(param==='jewellers'){
         const applicationId=typeof b.applicationId==='string'?b.applicationId:'';if(!applicationId)throw error(400,'Application ID required');
-        const current=await gateway.get('jewellers',applicationId);if(!current||current.kind!=='JEWELLER_APPLICATION')throw error(404,'Application not found');
+        const current=await gateway.get('jewellers',applicationId);if(!isJewellerRecord(current))throw error(404,'Application not found');
         const status=typeof b.status==='string'&&JEWELLER_STATUSES.includes(b.status)?b.status:null;if(!status)throw error(400,'Invalid verification status');
         const transitions={APPLIED:['UNDER_REVIEW','VERIFIED','REJECTED'],UNDER_REVIEW:['VERIFIED','REJECTED'],VERIFIED:['SUSPENDED'],REJECTED:['UNDER_REVIEW'],SUSPENDED:['VERIFIED','UNDER_REVIEW']};if(status!==current.verificationStatus&&!transitions[current.verificationStatus]?.includes(status))throw error(409,'Verification transition unavailable');
         const now=new Date(clock()).toISOString(),verified=status==='VERIFIED',verificationDate=verified?(current.verificationDate||now):current.verificationDate||null;
@@ -247,7 +249,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     }
     if(route==='admin'&&param==='jewellers'&&method==='GET'){
       if(!user?.admin)throw error(403,'Administrator required');
-      const rows=await gateway.list('jewellers');return json({applications:rows.filter(r=>r.kind==='JEWELLER_APPLICATION').sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))});
+      const rows=await gateway.list('jewellers');return json({applications:rows.filter(isJewellerRecord).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')))});
     }
     if(route==='admin'&&param==='inventory'&&method==='GET'){
       if(!user?.admin)throw error(403,'Administrator required');const rows=await gateway.list('catalog');return json({items:rows.filter(r=>r.kind==='JEWELLER_INVENTORY').map(({internalNotes,...safe})=>({...safe,internalNotes:undefined}))});

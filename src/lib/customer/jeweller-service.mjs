@@ -1,5 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {documentId} from './appwrite.mjs';
+import {isJewellerRecord} from './jeweller-record.mjs';
 import {categoryKey,categoryLabel,inventoryPublic} from '../inventory.mjs';
 import {assetRole,validateInventoryUpload,mediaSnapshot} from './inventory-upload.mjs';
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
@@ -16,7 +17,7 @@ const safeProfile=own=>({...pick(own,['id','businessName','tradingName','contact
 const safeResponse=r=>r?pick(r,['status','proposedPiece','price','currency','availability','deliveryEstimate','notes','expiresAt','inventoryId','createdAt','updatedAt','sentAt']):null;
 export async function jewellerAccess(user,gateway){
  if(!user||user.guest)return {allowed:false,reason:'NOT_SIGNED_IN',message:'Sign in with the account used for your jeweller application.'};
- let rows;try{rows=(await gateway.list('jewellers')).filter(r=>r.kind==='JEWELLER_APPLICATION');}catch(e){if(e.code===404)throw Object.assign(new Error('Jeweller application records are unavailable. Contact AMES to complete portal setup.'),{status:503,reason:'JEWELLER_DATA_UNAVAILABLE'});throw e;}
+ let rows;try{rows=(await gateway.list('jewellers')).filter(isJewellerRecord);}catch(e){if(e.code===404)throw Object.assign(new Error('Jeweller application records are unavailable. Contact AMES to complete portal setup.'),{status:503,reason:'JEWELLER_DATA_UNAVAILABLE'});throw e;}
  const matches=rows.filter(r=>typeof r.userId==='string'&&r.userId===user.id);
  if(!matches.length)return {allowed:false,reason:'APPLICATION_NOT_FOUND',message:'No jeweller application is linked to this account. Use the account you applied with, or submit an application.'};
  if(matches.length!==1)return {allowed:false,linkedRecordFound:true,verificationStatus:null,reason:'NOT_VERIFIED',message:'Your application link needs review. Contact AMES to confirm your account linkage.'};
