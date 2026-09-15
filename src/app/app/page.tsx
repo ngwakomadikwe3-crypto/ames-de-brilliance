@@ -483,8 +483,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
           }
         } catch {}
       }
-    } catch (error) {
-      if (epoch === conversationEpoch.current) await appendMessage(null, 'assistant', error instanceof Error ? error.message : 'AMES chat could not connect. Please try again.');
+    } catch {
+      if (epoch === conversationEpoch.current) await appendMessage(null, 'assistant', "I'm having trouble connecting right now. Please try again.");
     } finally {
       sending.current = false;
       setTyping(false);
