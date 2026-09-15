@@ -4,7 +4,7 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {startFixture} from '../tests/appwrite-fixture.mjs';
 const {chromium}=createRequire(import.meta.url)('C:/Users/ngwak/Documents/Codex/2026-09-07/github-plugin-github-openai-curated-remote/work/ames-engine/node_modules/playwright');
-const f=await startFixture(),origin='http://127.0.0.1:3114';f.sessions.set('admin-session','admin');f.sessions.set('alice-session','alice');f.rows.set('jeweller_sources:atelier',{$id:'atelier',$permissions:[],kind:'JEWELLER_APPLICATION',userId:'',assetId:'',payload:JSON.stringify({businessName:'Fixture atelier',email:'alice@example.test',verificationStatus:'VERIFIED'})});
+const f=await startFixture(),origin='http://127.0.0.1:3114';f.sessions.set('admin-session','admin');f.sessions.set('alice-session','alice');f.rows.set('jeweller_sources:atelier',{$id:'atelier',$permissions:[],kind:'JEWELLER_APPLICATION',userId:'alice',assetId:'',payload:JSON.stringify({businessName:'Fixture atelier',email:'alice@example.test',verificationStatus:'VERIFIED'})});
 const child=spawn(process.execPath,['node_modules/next/dist/bin/next','start','-p','3114','-H','127.0.0.1'],{env:{...process.env,APPWRITE_ENDPOINT:f.endpoint,APPWRITE_PROJECT_ID:f.project,APPWRITE_API_KEY:f.key,APPWRITE_DATABASE_ID:'ames',AMES_APP_ORIGIN:origin,ASSET_DELIVERY_SECRET:'fixture-only-'.repeat(8)},windowsHide:true,stdio:'ignore'});
 let browser;const results=[];
 try{

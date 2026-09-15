@@ -54,7 +54,7 @@ test('backend outages fail closed without leaking provider errors',async()=>{con
 test('authentication limiter survives service reconstruction',async()=>{const f=fixture();for(let i=0;i<10;i++){assert.equal((await f.request('login','POST',{email:'alice@example.test',password:'incorrect'},null)).status,401);f.restart();}assert.equal((await f.request('login','POST',{email:'alice@example.test',password:'test-password'},null)).status,429);});
 
 test('verified inventory approval, controlled categories, SAME catalog and handoff share the product ID',async()=>{
- const f=fixture();const app={id:'atelier',kind:'JEWELLER_APPLICATION',businessName:'Real atelier',email:'alice@example.test',verificationStatus:'APPLIED'};
+ const f=fixture();const app={id:'atelier',kind:'JEWELLER_APPLICATION',userId:'alice',businessName:'Real atelier',email:'alice@example.test',verificationStatus:'APPLIED'};
  await f.gateway.put('jewellers','atelier',app);
  assert.equal((await f.request('jewellers/inventory','POST',{name:'Ring',category:'Rings'})).status,403);
  await f.gateway.put('jewellers','atelier',{...app,verificationStatus:'VERIFIED'});

@@ -109,7 +109,7 @@ export function AmesStoneTraySurface({ integration, assetId = "stone-001", gem =
   const gemName = gem.charAt(0).toUpperCase() + gem.slice(1);
   return <div className={`ames-engine-stone-tray${surface.ready ? " is-ready" : " is-loading"}`} aria-busy={!surface.ready && !surface.error} data-stone-presentation="canonical-ames-webgl" onPointerDown={e => e.stopPropagation()}>
     <div ref={surface.ref} className="ames-engine-stone-mount" aria-label={`${identity[assetId] || "Stone"}, drag to rotate, pinch or scroll to zoom`} />
-    <p className="ames-stone-identity" aria-live="polite">{identity[assetId] || "AMES stone"}{' \u00b7 '}{gemName}{gem !== "diamond" ? " preview" : ""}</p>
+    <p className="ames-stone-identity" aria-live="polite"><strong>{identity[assetId] || "AMES stone"}</strong><span>{gemName}{gem !== "diamond" ? " preview" : ""}</span></p>
     {!surface.ready && !surface.error && <p className="ames-stone-loading" role="status">Preparing your stone...</p>}
     {surface.error && <div className="ames-stone-error" role="status"><p>The stone could not load.</p><button onClick={() => setAttempt(value => value + 1)}>Try again</button></div>}
   </div>;

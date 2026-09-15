@@ -806,3 +806,8 @@ body:has(.ames-product-shell),
 
 /* Fixed space for the accessible sign-in/create-account visibility control. */
 .ames-auth-panel .ames-password-control{display:grid;gap:.4rem}.ames-auth-panel .ames-password-field{position:relative;width:100%}.ames-auth-panel .ames-password-field input{box-sizing:border-box;width:100%;padding-right:8.5rem}.ames-auth-panel .ames-password-field .ames-password-toggle{position:absolute;right:.3rem;top:50%;transform:translateY(-50%);width:8rem;margin:0;padding:.7rem .35rem;border:0;background:transparent;color:inherit;font-family:var(--font-geist-sans),Arial,sans-serif;font-size:.8rem;line-height:1.2;white-space:nowrap}.ames-auth-panel .ames-password-toggle:focus-visible{outline:2px solid #d2e4dd;outline-offset:-2px}
+
+/* Stone identification only; geometry, lighting and viewer controls are unchanged. */
+.ames-chat .ames-engine-stone-tray .ames-stone-identity{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;opacity:1;line-height:1.3;letter-spacing:0;text-shadow:none}
+.ames-chat .ames-engine-stone-tray .ames-stone-identity strong{font-family:var(--font-geist-sans),Arial,sans-serif!important;font-size:14px;font-weight:500!important;color:rgba(255,255,255,.92);letter-spacing:0;text-transform:none}
+.ames-chat .ames-engine-stone-tray .ames-stone-identity span{font-family:var(--font-geist-sans),Arial,sans-serif!important;font-size:11px;font-weight:400;color:rgba(255,255,255,.58);letter-spacing:0;text-transform:none}

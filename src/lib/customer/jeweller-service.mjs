@@ -16,14 +16,14 @@ const safeProfile=own=>({...pick(own,['id','businessName','tradingName','contact
 const safeResponse=r=>r?pick(r,['status','proposedPiece','price','currency','availability','deliveryEstimate','notes','expiresAt','inventoryId','createdAt','updatedAt','sentAt']):null;
 export async function jewellerAccess(user,gateway){
  if(!user||user.guest)return {allowed:false,reason:'NOT_SIGNED_IN',message:'Sign in with the account used for your jeweller application.'};
- const rows=(await gateway.list('jewellers')).filter(r=>r.kind==='JEWELLER_APPLICATION');
- const matches=rows.filter(r=>r.userId?r.userId===user.id:String(r.email||'').toLowerCase()===String(user.email||'').toLowerCase());
+ let rows;try{rows=(await gateway.list('jewellers')).filter(r=>r.kind==='JEWELLER_APPLICATION');}catch(e){if(e.code===404)throw Object.assign(new Error('Jeweller application records are unavailable. Contact AMES to complete portal setup.'),{status:503,reason:'JEWELLER_DATA_UNAVAILABLE'});throw e;}
+ const matches=rows.filter(r=>typeof r.userId==='string'&&r.userId===user.id);
  if(!matches.length)return {allowed:false,reason:'APPLICATION_NOT_FOUND',message:'No jeweller application is linked to this account. Use the account you applied with, or submit an application.'};
- if(matches.length!==1)return {allowed:false,reason:'NOT_VERIFIED',message:'Your application link needs review. Contact AMES to confirm your account linkage.'};
+ if(matches.length!==1)return {allowed:false,linkedRecordFound:true,verificationStatus:null,reason:'NOT_VERIFIED',message:'Your application link needs review. Contact AMES to confirm your account linkage.'};
  const own=matches[0],status=own.verificationStatus;
- if(status==='VERIFIED')return {allowed:true,reason:'VERIFIED',application:own};
+ if(status==='VERIFIED')return {allowed:true,linkedRecordFound:true,verificationStatus:status,reason:'VERIFIED',application:own};
  const messages={APPLIED:'Your application has been received and is awaiting review.',UNDER_REVIEW:'Your application is under review. Dashboard access opens after verification.',REJECTED:'Your application was not approved. Contact AMES about the next steps.',SUSPENDED:'Your jeweller access is suspended. Contact AMES for a review.'};
- return {allowed:false,reason:['APPLIED','UNDER_REVIEW','REJECTED','SUSPENDED'].includes(status)?status:'NOT_VERIFIED',message:messages[status]||'Your application is not verified. Contact AMES for assistance.'};
+ return {allowed:false,linkedRecordFound:true,verificationStatus:status||null,reason:['APPLIED','UNDER_REVIEW','REJECTED','SUSPENDED'].includes(status)?status:'NOT_VERIFIED',message:messages[status]||'Your application is not verified. Contact AMES for assistance.'};
 }
 export async function verifiedJeweller(user,gateway){const access=await jewellerAccess(user,gateway);if(!access.allowed)throw Object.assign(new Error(access.message),{status:access.reason==='NOT_SIGNED_IN'?401:403,reason:access.reason});return access.application;}
 export function createJewellerService(config,gateway,clock=Date.now){
@@ -61,7 +61,7 @@ export function createJewellerService(config,gateway,clock=Date.now){
   const capabilities={...own.capabilities};for(const k of ['specialties','categories','certifications','countriesServed','languages'])if(b[k]!==undefined)capabilities[k]=list(b,k);
   if(capabilities.categories?.some(c=>!categoryKey(c)))fail(400,'Invalid supplied category');capabilities.categories=capabilities.categories?.map(categoryKey);
   for(const k of ['bespoke','provenance'])if(b[k]!==undefined){if(typeof b[k]!=='boolean')fail(400,'Invalid '+k);capabilities[k]=b[k];}
-  // The original application email is immutable for linkage; contactEmail is editable.
+  // Authorization uses userId. Keep the original application email as submitted; contactEmail is editable.
   const row={...own,...update,userId:user.id,location:[update.city??own.city,update.country??own.country].filter(Boolean).join(', '),deliveryCountries:capabilities.countriesServed,capabilities,...pick(capabilities,['specialties','categories','certifications','countriesServed','languages','bespoke','provenance']),updatedAt:now()};await gateway.put('jewellers',own.id,row);return json({profile:safeProfile(row)});
  }
  if(section==='inventory'){

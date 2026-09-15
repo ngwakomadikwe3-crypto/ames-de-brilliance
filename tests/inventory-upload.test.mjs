@@ -15,7 +15,7 @@ test('web glTF accepts embedded resources and rejects external resource fetching
  assert.throws(()=>check({asset:{version:'1.0'}}));
 });
 test('CAD upload, trusted metadata, ownership and private downloads survive product approval',async()=>{
- const f=fixture();for(const user of ['alice','bob'])await f.gateway.put('jewellers',user+'-atelier',{kind:'JEWELLER_APPLICATION',email:user+'@example.test',businessName:user,verificationStatus:'VERIFIED'});
+ const f=fixture();for(const user of ['alice','bob'])await f.gateway.put('jewellers',user+'-atelier',{kind:'JEWELLER_APPLICATION',userId:user,email:user+'@example.test',businessName:user,verificationStatus:'VERIFIED'});
  let uploads=0;f.gateway.uploadMedia=async()=>({$id:'source-'+(++uploads)});f.gateway.stream=async()=>new Response(obj);
  const service=createCustomerService(f.config,f.gateway);
  const upload=async(who='alice',productId)=>{const data=new FormData();data.set('file',new File([obj],'piece.obj',{type:'text/plain'}));data.set('kind','cad');data.set('assetRole','cad');if(productId)data.set('productId',productId);return service.handle(new Request(f.config.origin+'/api/customer/jewellers/media',{method:'POST',headers:{origin:f.config.origin,...(who?{cookie:'__Host-ames_customer='+who+'-session'}:{})},body:data}));};
