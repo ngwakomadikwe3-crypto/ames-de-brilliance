@@ -91,16 +91,22 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       return json({ok:true,applicationId,status:'APPLIED'},201);
     }
     if(['login','register'].includes(route)&&method==='POST'){
-      const guestBefore=await identity(req,false,false);
-      const b=await body(req);if(typeof b.email!=='string'||b.email.length>254||!b.email.includes('@')||typeof b.password!=='string'||b.password.length<8||b.password.length>256)throw error(400,'Valid email and password required');
-      await rate(req,b.email);
-      if(route==='register')await gateway.register(b.email,b.password,typeof b.name==='string'?b.name.slice(0,100):'');
-      const result=await gateway.login(b.email,b.password);const seconds=Math.min(86400,Math.floor((Date.parse(result.expire)-clock())/1000));
+      // A fresh credential exchange must not depend on a previous account session.
+      // Only a valid signed guest cookie is relevant to guest-data migration.
+      const guestData=guestUnseal(guestToken(req)),guestBefore=guestData?{id:'guest:'+guestData.guestId,guest:true}:null;
+      const b=await body(req);if(typeof b.email!=='string'||b.email.length>254||!b.email.includes('@')||typeof b.password!=='string'||b.password.length<8||b.password.length>256)throw error(400,'Enter a valid email and a password of at least 8 characters.');
+      const email=b.email.trim().toLowerCase();await rate(req,email);
+      if(route==='register')await gateway.register(email,b.password,typeof b.name==='string'?b.name.trim().slice(0,100):'');
+      let result;try{result=await gateway.login(email,b.password);}catch(e){if(e.code===401&&(!e.type||e.type==='user_invalid_credentials'))throw error(401,'Email or password is incorrect. Check your details and try again.');throw e;}
+      const seconds=Math.min(86400,Math.floor((Date.parse(result.expire)-clock())/1000));
       if(typeof result.secret!=='string'||!result.secret||result.secret.length>2048||!/^[A-Za-z0-9._~+/=-]+$/.test(result.secret)||!Number.isSafeInteger(seconds)||seconds<=0)throw error(503,'Session unavailable');
-      const account=await gateway.user(result.secret),profileId=documentId(account.$id);
-      if(!await gateway.get('profiles',profileId)){try{await gateway.put('profiles',profileId,{userId:account.$id,kind:'profile',accountState:'active',preferences:{}},true);}catch(e){if(e.code!==409)throw e;}}
-      try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Keep account creation available if migration is temporarily unavailable. */}
-      const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
+      try{
+        const account=await gateway.user(result.secret),profileId=documentId(account.$id),profile=await gateway.get('profiles',profileId);
+        if(!account.status||profile?.accountState==='disabled')throw error(403,'This account is unavailable. Contact AMES for assistance.');
+        if(!profile){try{await gateway.put('profiles',profileId,{userId:account.$id,kind:'profile',accountState:'active',preferences:{}},true);}catch(e){if(e.code!==409)throw e;}}
+        try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Guest migration must not prevent a valid sign-in. */}
+        const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
+      }catch(e){try{await gateway.logout(result.secret);}catch{/* Preserve the original failure; never issue a cookie for this session. */}throw e;}
     }
     if(route==='logout'&&method==='POST'){const token=session(req);if(token){try{await gateway.logout(token);}catch(e){if(![401,404].includes(e.code))throw e;}}const response=json({ok:true},200,{'Set-Cookie':cookie('',0)});response.headers.append('Set-Cookie',guestCookie('',0));return response;}
     const user=await identity(req,false,route==='session');
@@ -239,6 +245,6 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       if(!user?.admin)throw error(403,'Administrator required');const rows=await gateway.list('catalog');return json({items:rows.filter(r=>r.kind==='JEWELLER_INVENTORY').map(({internalNotes,...safe})=>({...safe,internalNotes:undefined}))});
     }
     throw error(404,'Not found');
-  }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message,...(e.reason?{reason:e.reason}:{})},status);}}
+  }catch(e){const configurationFailure=['general_unauthorized_scope','project_unknown','project_not_found','general_unknown_origin'].includes(e.type);const status=configurationFailure?503:e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message,...(e.reason?{reason:e.reason}:{})},status);}}
   return {handle,canAccess,health:()=>gateway.health()};
 }

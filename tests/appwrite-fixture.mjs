@@ -11,11 +11,11 @@ export async function startFixture({glb=Buffer.from('fixture bytes'),ring=glb}={
  const server=createServer(async(req,res)=>{try{
   const u=new URL(req.url,'http://localhost'),p=u.pathname.split('/').filter(Boolean);let data={};if(['POST','PUT','PATCH'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);const raw=Buffer.concat(chunks);if(req.headers['content-type']?.startsWith('multipart/form-data')){const form=await new Response(raw,{headers:{'content-type':req.headers['content-type']}}).formData();data=Object.fromEntries(form);}else data=JSON.parse(raw.toString()||'{}');}
   const send=(v,status=200)=>{res.writeHead(status,{'content-type':'application/json'});res.end(JSON.stringify(v));};
-  const deny=(code=401)=>send({message:'Fixture denied',code,type:'fixture_denied'},code);
+  const deny=(code=401,type='fixture_denied')=>send({message:'Fixture denied',code,type},code);
   if(req.headers['x-appwrite-project']!==project)return deny();
   if(p[1]==='account'){
    if(req.method==='POST'&&p.length===2){const user=data.email.split('@')[0];if(users.has(user))return deny(409);if(data.password!==password)return deny();users.add(user);return send({$id:user,status:true},201);}
-   if(req.method==='POST'&&p.at(-1)==='email'){if(req.headers['x-appwrite-key']!==key||data.password!==password)return deny();const user=data.email.split('@')[0];if(!users.has(user))return deny();const secret=randomUUID();sessions.set(secret,user);return send({$id:randomUUID(),userId:user,secret,expire:new Date(Date.now()+3600000).toISOString()});}
+   if(req.method==='POST'&&p.at(-1)==='email'){if(req.headers['x-appwrite-key']!==key)return deny(401,'general_unauthorized_scope');if(data.password!==password)return deny(401,'user_invalid_credentials');const user=data.email.split('@')[0];if(!users.has(user))return deny(401,'user_invalid_credentials');const secret=randomUUID();sessions.set(secret,user);return send({$id:randomUUID(),userId:user,secret,expire:new Date(Date.now()+3600000).toISOString()});}
    const s=req.headers['x-appwrite-session'],user=sessions.get(s);if(!user)return deny();if(req.method==='DELETE'){sessions.delete(s);return send({});}return send({$id:user,status:true,name:user,email:user+'@example.test',labels:user==='admin'?['amesadmin']:[]});
   }
   if(req.headers['x-appwrite-key']!==key)return deny();
