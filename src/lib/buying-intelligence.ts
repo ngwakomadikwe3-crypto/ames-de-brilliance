@@ -121,12 +121,12 @@ function numeric(value: unknown): number | undefined {
 }
 export function matchBoutiquePiece(manifest: AssetManifest, intent: BuyingIntent): BoutiqueRecommendation | null {
   if (!intent.category || !intent.budget || intent.stage === 'BROWSING' || intent.stage === 'INTERESTED') return null;
-  const candidates = manifest.assets.filter(asset => asset.status !== 'archived' && asset.category === intent.category) as BoutiqueRecommendation[];
+  const candidates = manifest.assets.filter(asset => asset.status === 'published' && asset.category === intent.category) as BoutiqueRecommendation[];
   const budget = intent.budget;
   if (budget === undefined) return null;
   const scored = candidates.map(asset => {
     const data = asset as BoutiqueRecommendation & Record<string, unknown>;
-    const known = knownDetails[asset.name.trim().toLowerCase()];
+    const known = data.kind === 'JEWELLER_INVENTORY' ? undefined : knownDetails[asset.name.trim().toLowerCase()];
     const price = numeric(data.price) ?? known?.price;
     const metal = typeof data.metal === 'string' ? data.metal : known?.metal;
     const specs = typeof data.specs === 'string' ? data.specs : known?.specs;
@@ -138,7 +138,7 @@ export function matchBoutiquePiece(manifest: AssetManifest, intent: BuyingIntent
   }).filter(item => Number.isFinite(item.score)).sort((a, b) => b.score - a.score);
   if (!scored.length || scored[0].score < 3) return null;
   const item = scored[0];
-  const known = knownDetails[item.asset.name.trim().toLowerCase()];
+  const known = (item.asset as unknown as Record<string,unknown>).kind === 'JEWELLER_INVENTORY' ? undefined : knownDetails[item.asset.name.trim().toLowerCase()];
   return Object.assign(item.asset, known || {}, item.price === undefined ? {} : { price: item.price });
 }
 

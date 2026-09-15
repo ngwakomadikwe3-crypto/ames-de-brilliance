@@ -30,6 +30,7 @@ interface StoreStone {
 }
 
 interface VideoItem {
+  productAssetId?: string; thumbnailUrl?:string; product?: {id:string;name:string};
   id: string; video_url: string; caption: string;
   stone_id: string | null; stone_ref: string | null;
   shape: string | null; carat: number | null;
@@ -676,12 +677,8 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
 
   const fetchStones = useCallback(async () => {
     try {
-      const r = await fetch("/api/stones");
-      if (r.ok) {
-        const all: StoreStone[] = await r.json();
-        const live = all.filter(s => s.id !== "_demo_aurora" && s.status === "Available" && s.listing_category === "Jewelry" && parsePhotos(s.photo).some(Boolean));
-        setStones(live);
-      }
+      const r = await customerRequest('catalog');
+      setStones(r.assets.filter((a: any) => a.kind === 'JEWELLER_INVENTORY' && a.inventoryStatus === 'APPROVED').map((a: any) => ({...a, ref:a.name, shape:a.diamondShape||'', listing_category:a.category, photo:(a.images||[]).join('|'), status:'Available'})));
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -713,17 +710,12 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
 
   useEffect(() => {
     if (!highlightStone || !scrollRef.current) return;
+    const item=stones.find(s=>s.id===highlightStone);if(item)setFilter(item.listing_category.charAt(0).toUpperCase()+item.listing_category.slice(1));
     const el = scrollRef.current.querySelector(`[data-stone-id="${highlightStone}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [highlightStone]);
+  }, [highlightStone,stones]);
 
-  const filtered = filter === "All" ? stones : stones.filter(s => {
-    const cat = (s.listing_category || "").toLowerCase();
-    const shape = (s.shape || "").toLowerCase();
-    const f = filter.toLowerCase();
-    return cat.includes(f) || shape.includes(f);
-
-  });
+  const filtered = filter === "All" ? stones : stones.filter(s => s.listing_category === filter.toLowerCase());
 
   async function toggleWishlist(id: string) {
     if(!customer.user&&!customer.guest){window.location.assign('/account');return;}
@@ -762,7 +754,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
         </header>
         <section className="ames-boutique-hero" aria-label="Interactive jewelry hero">
           <div className="ames-boutique-hero-copy"><h1>{filter === "All" ? "Eclipse Collection" : `${CATEGORY_MAP.find(category => category.key === filter)?.label || filter} Collection`}</h1><p className="ames-boutique-hero-subtitle">{filter === "All" ? "Unveiling timeless brilliance" : filtered.length ? "Approved pieces selected for you" : "SAME can source this collection privately"}</p><button onClick={() => { const current = filter === "All" ? (CATEGORY_MAP.find(category => stones.some(stone => { const value = (stone.listing_category || "").toLowerCase(); return value.includes(category.key.toLowerCase()); }))?.key || filter) : filter; setFilter(current); scrollRef.current?.querySelector(".ames-boutique-categories-bottom")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>Explore the collection</button></div>
-          <AmesBoutiqueSurface integration={integration} active={active} />
+          <AmesBoutiqueSurface integration={integration} active={active} product={filtered[0] as any} />
         </section>
         <section className="ames-boutique-categories-bottom" aria-label="Browse categories">
           <div className="ames-boutique-category-strip">
@@ -777,7 +769,7 @@ function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { hi
           <div className="ames-boutique-product-grid">
             {filtered.map(stone => <BoutiqueCard key={stone.id} stone={stone} wishlisted={!!wishlist[stone.id]} onToggleWishlist={() => toggleWishlist(stone.id)} onReserve={() => setShowReserveId(stone.id)} onOpenGallery={(photos, idx) => openGallery(photos, idx)} />)}
           </div>
-          {!loading && !filtered.length && filter !== "All" && filter !== "Ring" && <p className="ames-boutique-collection-note">No {CATEGORY_MAP.find(cat => cat.key === filter)?.label.toLowerCase()} are available to view yet.</p>}
+          {!loading && !filtered.length && filter !== "All" && <p className="ames-boutique-collection-note">No {CATEGORY_MAP.find(cat => cat.key === filter)?.label.toLowerCase()} are available to view yet.</p>}
           </div>}
         </section>
 
@@ -815,10 +807,10 @@ function ReserveModal({ stoneId, stone, onClose, onReserved }: { stoneId: string
     if (!name.trim()) return;
     setSending(true);
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch("/api/customer/reserve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stoneId, buyerName: name, buyerWhatsapp: wa }),
+        body: JSON.stringify({ assetId:stoneId, context:`${name} - ${wa}` }),
       });
       if (res.ok) onReserved();
     } catch {}
@@ -936,7 +928,7 @@ function PhotoGallery({ photos, initialIndex, onClose }: { photos: (string | nul
 }
 
 /* ── Boutique Card ── */
-function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onOpenGallery }: {
+function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onOpenGallery, onReserve }: {
   stone: StoreStone; wishlisted: boolean;
   onToggleWishlist: () => void; onReserve: () => void;
   onOpenGallery: (photos: (string | null)[], index: number) => void;
@@ -944,15 +936,15 @@ function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onOpenGallery }: {
   const photos = parsePhotos(stone.photo);
   const [failed, setFailed] = useState(false);
   const photoIndex = photos.findIndex(photo => !!photo && !photo.startsWith("/demo/"));
-  if (failed || photoIndex < 0) return null;
-  const name = stone.shape || stone.ref;
+  const hasImage = !failed && photoIndex >= 0;
+  const name = stone.ref || stone.shape;
   const detail = [stone.cut, stone.carat ? `${stone.carat} ct` : "", stone.color].filter(Boolean).join(" \u00b7 ");
   return <article className="ames-boutique-product" data-stone-id={stone.id}>
-    <button className="ames-boutique-product-image" onClick={() => onOpenGallery(photos, photoIndex)} aria-label={`View ${name}`}>
-      <img src={photos[photoIndex]!} alt={name} onError={() => setFailed(true)} />
+    <button className="ames-boutique-product-image" onClick={() => onOpenGallery(photos, photoIndex)} aria-label={`View ${name}`} disabled={!hasImage}>
+      {hasImage ? <img src={photos[photoIndex]!} alt={name} onError={() => setFailed(true)} /> : <span>No image supplied.</span>}
     </button>
     {<button className="ames-boutique-favorite" onClick={onToggleWishlist} aria-label={`${wishlisted ? "Remove" : "Add"} ${name} ${wishlisted ? "from" : "to"} favorites`} aria-pressed={wishlisted}><svg width="19" height="19" viewBox="0 0 24 24" fill={wishlisted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.3"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg></button>}
-    <div className="ames-boutique-product-copy"><h3>{name}</h3><p>{detail}</p><div className="ames-boutique-product-footer"><span>{stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}</span><button onClick={() => onOpenGallery(photos, photoIndex)}>View <span aria-hidden="true">&rarr;</span></button></div></div>
+    <div className="ames-boutique-product-copy"><h3>{name}</h3><p>{detail}</p><div className="ames-boutique-product-footer"><span>{stone.price ? `${(stone as StoreStone & {currency?:string}).currency || ''} ${stone.price.toLocaleString()}` : "Price on request"}</span><button onClick={onReserve}>Reserve</button><button onClick={() => onOpenGallery(photos, photoIndex)}>View <span aria-hidden="true">&rarr;</span></button></div></div>
   </article>;
 }
 
@@ -1029,11 +1021,11 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments,
   }, [isActive]);
 
   function toggleMute() { const v = videoRef.current; if (v) { v.muted = !v.muted; setMuted(v.muted); } }
-  const stoneInfo = video.stone_id;
+  const stoneInfo = video.productAssetId || video.stone_id;
 
   return <div data-video={index} className="ames-video-slide">
     <div className="ames-video-frame">
-      <video ref={videoRef} src={video.video_url} className="ames-video-media" loop muted={muted} playsInline preload={isActive ? "auto" : "metadata"} />
+      <video ref={videoRef} src={video.video_url} poster={video.thumbnailUrl||undefined} className="ames-video-media" loop muted={muted} playsInline preload={isActive ? "auto" : "metadata"} />
       <button onClick={toggleMute} className="ames-video-tap" aria-label={muted ? "Tap to unmute" : "Tap to mute"} />
       <button onClick={toggleMute} className="ames-video-sound" aria-label={muted ? "Enable sound" : "Mute sound"} aria-pressed={!muted}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M11 5L6 9H3v6h3l5 4V5Z" />{muted ? <path d="m16 9 6 6m0-6-6 6" /> : <path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />}</svg>
@@ -1041,7 +1033,7 @@ function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments,
       <div className="ames-video-caption">
         <span className="ames-video-kicker">AMES FILMS</span>
         {(video.house_note || video.caption) && <p>{video.house_note || video.caption}</p>}
-        {stoneInfo && <button onClick={() => onOpenBoutiqueDetail(video.stone_id!)} className="ames-video-piece">View piece <span aria-hidden="true">&rarr;</span></button>}
+        {stoneInfo && <button onClick={() => onOpenBoutiqueDetail(stoneInfo!)} className="ames-video-piece">View piece <span aria-hidden="true">&rarr;</span></button>}
       </div>
       {totalVideos > 1 && <div className="ames-video-position" aria-label={`Film ${activeIndex + 1} of ${totalVideos}`}>{Array.from({length:totalVideos},(_,i)=><span key={i} className={i === activeIndex ? "active" : ""} />)}</div>}
     </div>

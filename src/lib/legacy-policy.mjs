@@ -1,6 +1,7 @@
 // Shared deny-by-default route policy. Public access is to server projections, never tables.
 export function legacyPolicy(url,method){
  const {pathname:p,searchParams:q}=new URL(url);if(!p.startsWith('/api/'))return p.startsWith('/dashboard')?'staff':'public';
+ if(p.startsWith('/api/videos/files/')||/^\/api\/videos\/[^/]+\/media$/.test(p)||p==='/api/videos/upload')return 'handler';
  if(p.startsWith('/api/customer/')||p==='/api/health'||p.startsWith('/api/auth/')||p==='/api/chats'||p.startsWith('/api/chats/'))return 'handler';
  if(method==='GET'&&(p==='/api/stones'||p.startsWith('/api/stones/photo/')||p==='/api/videos'&&q.get('published')==='1'||/^\/api\/videos\/[^/]+\/comments$/.test(p)||/^\/api\/(model|trader)\/public\/[^/]+$/.test(p)))return 'public';
  if(method==='POST'&&['/api/chat','/api/sourcing','/api/partner','/api/models/login','/api/trader/login'].includes(p))return 'public';

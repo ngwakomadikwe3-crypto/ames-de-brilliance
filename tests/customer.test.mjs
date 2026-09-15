@@ -51,3 +51,25 @@ test('jeweller onboarding is private, duplicate-safe and drives verified-only be
 test('administrator subscription state persists and expiry revokes access',async()=>{const f=fixture();assert.equal((await f.request('admin/subscriptions','PUT',{userId:'alice',tier:'COLLECTOR',status:'active',expiresAt:new Date(Date.now()+10000).toISOString()},'admin')).status,200);f.restart();assert.equal((await (await f.request('access/collector')).json()).granted,true);assert.equal((await (await f.request('state')).json()).subscriptions[0].status,'active');f.advance(20000);assert.equal((await (await f.request('access/collector')).json()).granted,false);});
 test('backend outages fail closed without leaking provider errors',async()=>{const f=fixture();f.gateway.user=async()=>{throw new Error('secret-key-value');};const r=await f.request('state');assert.equal(r.status,503);assert.ok(!(await r.text()).includes('secret-key-value'));});
 test('authentication limiter survives service reconstruction',async()=>{const f=fixture();for(let i=0;i<10;i++){assert.equal((await f.request('login','POST',{email:'alice@example.test',password:'incorrect'},null)).status,401);f.restart();}assert.equal((await f.request('login','POST',{email:'alice@example.test',password:'test-password'},null)).status,429);});
+
+test('verified inventory approval, controlled categories, SAME catalog and handoff share the product ID',async()=>{
+ const f=fixture();const app={id:'atelier',kind:'JEWELLER_APPLICATION',businessName:'Real atelier',email:'alice@example.test',verificationStatus:'APPLIED'};
+ await f.gateway.put('jewellers','atelier',app);
+ assert.equal((await f.request('jewellers/inventory','POST',{name:'Ring',category:'Rings'})).status,403);
+ await f.gateway.put('jewellers','atelier',{...app,verificationStatus:'VERIFIED'});
+ assert.equal((await f.request('jewellers/inventory','POST',{name:'Invalid',category:'Unknown'})).status,400);
+ const ids=[];
+ for(const [category,key] of [['Rings','ring'],['Watches','watch'],['Bracelets','bracelet'],['Necklaces','necklace'],['Earrings','earring']]){
+  const submitted=await f.request('jewellers/inventory','POST',{name:category,category,metal:'18k white gold',price:1000,images:['https://example.test/real.jpg'],inventoryStatus:'APPROVED',jewellerId:'forged'});assert.equal(submitted.status,201);
+  const {item}=await submitted.json();ids.push(item.id);assert.equal(item.inventoryStatus,'PENDING_REVIEW');assert.equal(item.jewellerId,'atelier');
+  assert.equal((await (await f.request('catalog')).json()).assets.some(a=>a.id===item.id),false);
+  assert.equal((await f.request('admin/inventory','PUT',{inventoryId:item.id,status:'APPROVED'})).status,403);
+  assert.equal((await f.request('admin/inventory','PUT',{inventoryId:item.id,status:'APPROVED'},'admin')).status,200);
+  const published=(await (await f.request('catalog')).json()).assets.find(a=>a.id===item.id);assert.equal(published.category,key);assert.equal(published.jewellerId,'atelier');assert.equal(published.price,1000);
+ }
+ for(const status of ['DRAFT','PENDING_REVIEW','REJECTED','CHANGES_REQUESTED','SUSPENDED','SOLD','ARCHIVED']){
+  await f.request('admin/inventory','PUT',{inventoryId:ids[0],status},'admin');assert.equal((await (await f.request('catalog')).json()).assets.some(a=>a.id===ids[0]),false);assert.equal((await f.request('reserve','POST',{assetId:ids[0]})).status,404);
+ }
+ await f.request('handoff','POST',{assetId:ids[4],intent:'reserve'});await f.request('reserve','POST',{assetId:ids[4]});
+ const leads=(await f.gateway.list('events')).filter(e=>e.kind==='INVENTORY_LEAD');assert.equal(leads.length,2);assert.ok(leads.every(e=>e.jewellerId==='atelier'&&e.inventoryId===ids[4]));
+});

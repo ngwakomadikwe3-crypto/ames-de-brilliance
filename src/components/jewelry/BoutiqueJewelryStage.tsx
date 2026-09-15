@@ -8,8 +8,8 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 export const BOUTIQUE_RING_URL = "/models/jewelry/ames-pave-solitaire.glb";
 
-function Ring({ idle }: { idle: boolean }) {
-  const { scene } = useGLTF(BOUTIQUE_RING_URL);
+function Ring({ idle, modelUrl }: { idle: boolean; modelUrl:string }) {
+  const { scene } = useGLTF(modelUrl);
   const group = useRef<Group>(null);
   const fitted = useMemo(() => {
     const root = scene.clone(true);
@@ -42,12 +42,12 @@ function Lighting() {
   return <><ambientLight intensity={.2} /><directionalLight position={[2,4,3]} intensity={2.5} /><directionalLight position={[-3,1,-1]} intensity={1.1} /></>;
 }
 
-export default function BoutiqueJewelryStage({ active = true }: { active?: boolean }) {
+export default function BoutiqueJewelryStage({ active = true, modelUrl, name }: { active?: boolean; modelUrl:string; name:string }) {
   const [idle, setIdle] = useState(false);
   useEffect(() => { const query = matchMedia("(prefers-reduced-motion: reduce)");const update = () => setIdle(!query.matches);update();query.addEventListener("change",update);return () => query.removeEventListener("change",update); }, []);
-  return <div className="ames-boutique-jewelry-stage" aria-label="Pavé Solitaire, drag to rotate, pinch or scroll to zoom" onPointerDown={e=>e.stopPropagation()}>
+  return <div className="ames-boutique-jewelry-stage" aria-label={`${name}, drag to rotate, pinch or scroll to zoom`} onPointerDown={e=>e.stopPropagation()}>
     <Canvas dpr={[1,1.5]} frameloop={active ? "always" : "never"} camera={{position:[0,.12,3.6],fov:32,near:.01,far:50}} gl={{antialias:true,alpha:true}}>
-      <Lighting /><Suspense fallback={null}><Ring idle={active && idle} /></Suspense><OrbitControls enablePan={false} enableDamping minDistance={2.6} maxDistance={5.5} />
+      <Lighting /><Suspense fallback={null}><Ring idle={active && idle} modelUrl={modelUrl} /></Suspense><OrbitControls enablePan={false} enableDamping minDistance={2.6} maxDistance={5.5} />
     </Canvas>
   </div>;
 }

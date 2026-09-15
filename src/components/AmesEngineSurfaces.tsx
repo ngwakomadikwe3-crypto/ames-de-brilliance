@@ -96,10 +96,10 @@ function useEngineSurface(integration: AmesIntegration | null, kind: "boutique" 
   return { ref, error, ready };
 }
 
-export function AmesBoutiqueSurface({ active = true }: { integration: AmesIntegration | null; active?: boolean }) {
+export function AmesBoutiqueSurface({ active = true, product }: { integration: AmesIntegration | null; active?: boolean; product?: any }) {
   const [visited,setVisited]=useState(active);
   useEffect(()=>{if(active)setVisited(true);},[active]);
-  return <div className="ames-engine-boutique-shell"><div className="ames-boutique-asset-stage">{visited && <BoutiqueJewelryStage active={active} />}</div></div>;
+  return <div className="ames-engine-boutique-shell"><div className="ames-boutique-asset-stage">{visited && product ? (product.glb ? <BoutiqueJewelryStage active={active} modelUrl={product.glb} name={product.ref} /> : product.images?.[0] ? <img src={product.images[0]} alt={product.ref} style={{width:'100%',height:'100%',objectFit:'contain'}} /> : <p>No product preview supplied.</p>) : <p className="ames-boutique-collection-note">SAME can source this collection privately.</p>}</div></div>;
 }
 
 export function AmesStoneTraySurface({ integration, assetId = "stone-001", gem = "diamond" }: { integration: AmesIntegration | null; assetId?: string; gem?: string }) {

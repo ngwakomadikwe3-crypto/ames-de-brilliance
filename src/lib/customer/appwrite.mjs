@@ -9,7 +9,7 @@ export function createAppwriteGateway(config) {
   const admin=client().setKey(config.key), db=customerDatabase(admin),storage=new Storage(admin);
   const account=session=>new Account(client().setSession(session));
   const collection=k=>config.collections[k];
-  const unpack=d=>({id:d.$id,userId:d.userId,assetId:d.assetId,kind:d.kind,...JSON.parse(d.payload)});
+  const unpack=d=>({id:d.kind==='JEWELLER_INVENTORY'&&d.assetId?d.assetId:d.$id,userId:d.userId,assetId:d.assetId,kind:d.kind,...JSON.parse(d.payload)});
   const path=k=>({databaseId:config.database,collectionId:collection(k)});
   return {
     async login(email,password){return new Account(admin).createEmailPasswordSession({email,password});},

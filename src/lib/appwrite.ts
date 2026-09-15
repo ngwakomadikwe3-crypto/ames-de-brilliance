@@ -371,6 +371,7 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
     id: "videos",
     name: "Videos",
     attrs: [
+      { key: "metadata", type: "string", size: 8000, default: "" },
       { key: "video_url", type: "string", size: 2000, required: true },
       { key: "caption", type: "string", size: 500, default: "" },
       { key: "stone_id", type: "string", size: 50, default: "" },
