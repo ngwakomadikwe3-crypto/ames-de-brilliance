@@ -49,13 +49,13 @@ export function amesIdentityCopy(message, answer) {
   const question = message.trim().toLowerCase().replace(/[.!?]+$/, '').trim();
   const language = detectDifyLanguage(message);
   if (/^(?:hello|hi|hey)(?:[, ]+(?:ames|same))?$/.test(question) || /^(?:你好|您好|嗨|哈喽)$/.test(question) || /^(?:مرحبا|مرحباً|السلام عليكم)$/.test(question))
-    return language === 'Chinese' ? '您好，我是 AMES。今天我可以如何协助您？' : language === 'Arabic' ? 'مرحباً، أنا AMES. كيف يمكنني مساعدتك اليوم؟' : 'Hello. I’m AMES. How may I assist you today?';
+    return language === 'Chinese' ? '您好，我是 SAME，AMES 的礼宾顾问。今天我可以如何协助您？' : language === 'Arabic' ? 'مرحباً، أنا SAME، كونسيرج AMES. كيف يمكنني مساعدتك اليوم؟' : 'I am SAME, the concierge of AMES. How may I assist you today?';
   if (/^(?:what|who) are you$/.test(question))
-    return 'I’m AMES, the jewelry intelligence and concierge app by AMES DE BRILLIANTE.';
+    return 'I am SAME, the concierge of AMES.';
   if (/^(?:你是谁|你是什么)$/.test(question))
-    return '我是 AMES，AMES DE BRILLIANTE 的珠宝智能与礼宾应用。';
+    return '我是 SAME，AMES 的礼宾顾问。';
   if (/^(?:من أنت|ما أنت)$/.test(question))
-    return 'أنا AMES، تطبيق الذكاء والكونسيرج للمجوهرات من AMES DE BRILLIANTE.';
+    return 'أنا SAME، كونسيرج AMES.';
   if (/^who (?:made|created|developed) you$/.test(question))
     return 'AMES is developed by AMES DE BRILLIANTE.';
   if (/^(?:谁开发了你|谁创造了你)$/.test(question))
@@ -64,7 +64,7 @@ export function amesIdentityCopy(message, answer) {
     return 'تم تطوير AMES بواسطة AMES DE BRILLIANTE.';
   if (question === 'what is ames de brilliante')
     return 'AMES DE BRILLIANTE is the company behind AMES.';
-  return answer.replace(/\b(I am|I['’]m|my name is)\s+(?:SAME|AMES DE BRILLIANTE)\b/gi, '$1 AMES');
+  return answer.replace(/\b(I am|I['’]m|my name is)\s+(?:SAME|AMES(?: DE BRILLIANTE)?)\b/gi, '$1 SAME');
 }
 export async function sendDify({ message, conversationToken, user }, config, fetcher = fetch) {
   if (typeof message !== 'string' || !message.trim() || message.length > 8000) throw fail(400, 'Enter a message of up to 8000 characters.');

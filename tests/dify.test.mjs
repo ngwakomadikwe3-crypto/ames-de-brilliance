@@ -7,13 +7,13 @@ const reply = (answer = 'Hello', conversation_id = 'conversation-1') => new Resp
 test('language detection and identity copy support Chinese and Arabic', () => {
   assert.equal(detectDifyLanguage('我想找一枚戒指'), 'Chinese');
   assert.equal(detectDifyLanguage('أبحث عن خاتم'), 'Arabic');
-  assert.equal(amesIdentityCopy('你好', 'I am SAME.'), '您好，我是 AMES。今天我可以如何协助您？');
-  assert.equal(amesIdentityCopy('hello', 'I am SAME.'), 'Hello. I’m AMES. How may I assist you today?');
+  assert.equal(amesIdentityCopy('你好', 'I am SAME.'), '您好，我是 SAME，AMES 的礼宾顾问。今天我可以如何协助您？');
+  assert.equal(amesIdentityCopy('hello', 'I am SAME.'), 'I am SAME, the concierge of AMES. How may I assist you today?');
 });
 test('identity copy distinguishes product and company after calling Dify', async () => {
   for (const [message, expected] of [
-    ['hello', 'Hello. I’m AMES. How may I assist you today?'],
-    ['what are you?', 'I’m AMES, the jewelry intelligence and concierge app by AMES DE BRILLIANTE.'],
+    ['hello', 'I am SAME, the concierge of AMES. How may I assist you today?'],
+    ['what are you?', 'I am SAME, the concierge of AMES.'],
     ['who made you?', 'AMES is developed by AMES DE BRILLIANTE.'],
     ['what is AMES DE BRILLIANTE?', 'AMES DE BRILLIANTE is the company behind AMES.'],
   ]) {
@@ -31,14 +31,14 @@ test('identity copy distinguishes product and company after calling Dify', async
 test('mixed greetings keep stone answers and correct first-person identity only', async () => {
   const result = await sendDify({ message: 'hello, show me an oval diamond', user: 'user' }, config,
     async () => reply('I am AMES DE BRILLIANTE. Here is oval diamond stone-002. AMES DE BRILLIANTE is the company behind AMES.'));
-  assert.equal(result.reply, 'I am AMES. Here is oval diamond stone-002. AMES DE BRILLIANTE is the company behind AMES.');
+  assert.equal(result.reply, 'I am SAME. Here is oval diamond stone-002. AMES DE BRILLIANTE is the company behind AMES.');
   assert.equal(stoneRequest(result.reply).assetId, 'stone-002');
 });
 test('hello same exposes only the final answer and preserves conversation ID', async () => {
   const final = "Hello. I'm SAME, the concierge of AMES DE BRILLIANTE. How may I assist you today?";
   const result = await sendDify({ message: 'hello same', user: 'user' }, config,
     async () => reply(' <think>\n<!--dify-deepseek-reasoning-->Private reasoning\n</think>' + final));
-  assert.equal(result.reply, 'Hello. I’m AMES. How may I assist you today?');
+  assert.equal(result.reply, 'I am SAME, the concierge of AMES. How may I assist you today?');
   assert.equal(unseal(result.conversationToken, config.secret).conversationId, 'conversation-1');
 });
 test('reasoning blocks and comment content are removed without changing final stone commands', () => {
@@ -71,7 +71,7 @@ test('normal message uses server authorization and complete Chatflow response', 
     assert.deepEqual(JSON.parse(init.body), { inputs: {}, query: 'Hello', response_mode: 'blocking', conversation_id: '', user: 'user' });
     return reply();
   });
-  assert.equal(result.reply, 'Hello. I’m AMES. How may I assist you today?');
+  assert.equal(result.reply, 'I am SAME, the concierge of AMES. How may I assist you today?');
   assert.equal(unseal(result.conversationToken, config.secret).conversationId, 'conversation-1');
   assert.ok(!JSON.stringify(result).includes(config.key));
 });
