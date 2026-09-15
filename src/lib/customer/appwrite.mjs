@@ -15,6 +15,8 @@ export function createAppwriteGateway(config) {
   return {
     async accounts(){const rows=[];let cursor;do{const batch=await new Users(admin).list({queries:[Query.limit(100),...(cursor?[Query.cursorAfter(cursor)]:[])]});rows.push(...batch.users.map(u=>({id:u.$id,name:u.name,email:u.email,status:u.status,labels:u.labels,createdAt:u.$createdAt})));if(batch.users.length<100)return rows;cursor=batch.users.at(-1).$id;}while(rows.length<5000);throw new Error('Account directory pagination limit');},
     async login(email,password){return new Account(admin).createEmailPasswordSession({email,password});},
+    async oauthURL(provider,success,failure,session){return (session?account(session):new Account(admin)).createOAuth2Token({provider,success,failure});},
+    async oauthSession(userId,secret){return new Account(admin).createSession({userId,secret});},
     async register(email,password,name){return new Account(client()).create({userId:randomUUID(),email,password,name});},
     async user(session){return account(session).get();},
     async logout(session){await account(session).deleteSession({sessionId:'current'});},

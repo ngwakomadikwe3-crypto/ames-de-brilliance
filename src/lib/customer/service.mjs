@@ -1,3 +1,4 @@
+import {createOAuthFlow} from './oauth.mjs';
 import {createProfilePhotoService} from './profile-photo.mjs';
 import {adminDashboard} from './admin-dashboard.mjs';
 import {createJewellerService,jewellerAccess} from './jeweller-service.mjs';
@@ -56,6 +57,18 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     for(const row of await gateway.list('events',{userId:guestId})) await gateway.put('events',row.id,{...row,userId:accountId});
     await gateway.put('profiles',documentId(guestId),{userId:guestId,kind:'profile',accountState:'merged',preferences:{...(guestProfile?.preferences||{}),mergedInto:accountId}});
   }
+  async function finishSession(req,result,expectedUserId){
+      const guestData=guestUnseal(guestToken(req)),guestBefore=guestData?{id:'guest:'+guestData.guestId,guest:true}:null;
+      const seconds=Math.min(86400,Math.floor((Date.parse(result.expire)-clock())/1000));
+      if(typeof result.secret!=='string'||!result.secret||result.secret.length>2048||!/^[A-Za-z0-9._~+/=-]+$/.test(result.secret)||!Number.isSafeInteger(seconds)||seconds<=0)throw error(503,'Session unavailable');
+      try{
+        const account=await gateway.user(result.secret);if(expectedUserId&&account.$id!==expectedUserId)throw error(403,'Account mismatch');const profileId=documentId(account.$id),profile=await gateway.get('profiles',profileId);
+        if(!account.status||profile?.accountState==='disabled')throw error(403,'This account is unavailable. Contact AMES for assistance.');
+        if(!profile){try{await gateway.put('profiles',profileId,{userId:account.$id,kind:'profile',accountState:'active',preferences:{}},true);}catch(e){if(e.code!==409)throw e;}}
+        try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Guest migration must not prevent a valid sign-in. */}
+        const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
+      }catch(e){try{await gateway.logout(result.secret);}catch{/* Preserve the original failure; never issue a cookie for this session. */}throw e;}
+  }
   async function canAccess(userId,assetId){
     // Internal authority: callers must obtain userId from verified Appwrite identity.
     if(userId&&(await gateway.get('profiles',documentId(userId)))?.accountState==='disabled')return false;
@@ -66,17 +79,19 @@ export function createCustomerService(config,gateway,clock=Date.now) {
   async function rate(req,email){
     // Atomic slot creation works across Vercel instances. No in-memory production limiter.
     const ip=req.headers.get('x-forwarded-for')?.split(',')[0].trim()||'unknown';
-    for(const key of [sha(email.toLowerCase()),sha(ip)]) {let reserved=false;const window=Math.floor(clock()/600000);
+    for(const key of [...(email?[sha(email.toLowerCase())]:[]),sha(ip)]) {let reserved=false;const window=Math.floor(clock()/600000);
       for(let slot=0;slot<10;slot++){try{await gateway.put('limits',documentId(key,window,slot),{kind:'auth',expiresAt:new Date((window+2)*600000).toISOString()},true);reserved=true;break;}catch(e){if(e.code!==409)throw e;}}
       if(!reserved)throw error(429,'Too many attempts; try later');
     }
   }
   function signature(asset,user,token,exp){return createHmac('sha256',config.deliverySecret).update(JSON.stringify([asset.id,asset.revision,user.id,sha(token),exp])).digest('base64url');}
+  const oauth=createOAuthFlow(config,gateway,{identity,session,finishSession,rate,json},clock);
   async function handle(req){try{
     const url=new URL(req.url),segments=url.pathname.replace(/^\/api\/customer\/?/,'').split('/').filter(Boolean),method=req.method;
     if(!['GET','POST','PUT','DELETE'].includes(method))return json({error:'Method not allowed'},405);
     if(method!=='GET'&&req.headers.get('origin')!==config.origin)throw error(403,'Origin denied');
     const [route,param]=segments;
+    if(route==='oauth'&&segments.length===2)return await oauth(req,param);
     if(route==='jewellers'&&param==='apply'&&method==='POST'){
       const b=await body(req),text=(key,max=500)=>typeof b[key]==='string'?b[key].trim().slice(0,max):'',list=(key,max=30)=>Array.isArray(b[key])?[...new Set(b[key].filter(v=>typeof v==='string').map(v=>v.trim()).filter(Boolean))].slice(0,max):[];
       const businessName=text('businessName',160),legalEntityName=text('legalEntityName',200),email=text('email',254).toLowerCase(),phone=text('phone',60),website=text('website',500);
@@ -94,20 +109,11 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(['login','register'].includes(route)&&method==='POST'){
       // A fresh credential exchange must not depend on a previous account session.
       // Only a valid signed guest cookie is relevant to guest-data migration.
-      const guestData=guestUnseal(guestToken(req)),guestBefore=guestData?{id:'guest:'+guestData.guestId,guest:true}:null;
       const b=await body(req);if(typeof b.email!=='string'||b.email.length>254||!b.email.includes('@')||typeof b.password!=='string'||b.password.length<8||b.password.length>256)throw error(400,'Enter a valid email and a password of at least 8 characters.');
       const email=b.email.trim().toLowerCase();await rate(req,email);
       if(route==='register')await gateway.register(email,b.password,typeof b.name==='string'?b.name.trim().slice(0,100):'');
       let result;try{result=await gateway.login(email,b.password);}catch(e){if(e.code===401&&(!e.type||e.type==='user_invalid_credentials'))throw error(401,'Email or password is incorrect. Check your details and try again.');throw e;}
-      const seconds=Math.min(86400,Math.floor((Date.parse(result.expire)-clock())/1000));
-      if(typeof result.secret!=='string'||!result.secret||result.secret.length>2048||!/^[A-Za-z0-9._~+/=-]+$/.test(result.secret)||!Number.isSafeInteger(seconds)||seconds<=0)throw error(503,'Session unavailable');
-      try{
-        const account=await gateway.user(result.secret),profileId=documentId(account.$id),profile=await gateway.get('profiles',profileId);
-        if(!account.status||profile?.accountState==='disabled')throw error(403,'This account is unavailable. Contact AMES for assistance.');
-        if(!profile){try{await gateway.put('profiles',profileId,{userId:account.$id,kind:'profile',accountState:'active',preferences:{}},true);}catch(e){if(e.code!==409)throw e;}}
-        try{await mergeGuest(guestBefore,{id:account.$id});}catch{/* Guest migration must not prevent a valid sign-in. */}
-        const response=json({ok:true},200,{'Set-Cookie':cookie(result.secret,seconds)});response.headers.append('Set-Cookie',guestCookie('',0));return response;
-      }catch(e){try{await gateway.logout(result.secret);}catch{/* Preserve the original failure; never issue a cookie for this session. */}throw e;}
+      return await finishSession(req,result);
     }
     if(route==='logout'&&method==='POST'){const token=session(req);if(token){try{await gateway.logout(token);}catch(e){if(![401,404].includes(e.code))throw e;}}const response=json({ok:true},200,{'Set-Cookie':cookie('',0)});response.headers.append('Set-Cookie',guestCookie('',0));return response;}
     const user=await identity(req,false,route==='session');

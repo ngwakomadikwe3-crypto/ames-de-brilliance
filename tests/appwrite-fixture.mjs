@@ -5,6 +5,7 @@ import {canonicalAssetManifest} from '@ames/engine';
 import {documentId} from '../src/lib/customer/appwrite.mjs';
 export async function startFixture({glb=Buffer.from('fixture bytes'),ring=glb}={}){
  const files=new Map(),rows=new Map(),sessions=new Map(),key=randomUUID(),password=randomUUID(),project='fixture',users=new Set(['alice','bob','admin']),bucketPermissions=[];
+ const oauthTokens=new Map(),oauthStarts=[];
  const record=(a)=>({$id:documentId(a.id),$permissions:[],userId:'',assetId:a.id,kind:a.category,payload:JSON.stringify(a),updatedAt:new Date().toISOString()});
  for(const a of canonicalAssetManifest.assets){const row=record({...a,accessTier:'PUBLIC',status:'published',revision:1,storage:{bucketId:'media',fileId:a.id}});rows.set('catalog_assets:'+row.$id,row);}
  for(const [id,tier] of [['fixture-ring','PUBLIC'],['fixture-premium','PREMIUM']]){const row=record({...canonicalAssetManifest.assets[0],id,name:id,category:'ring',metalCompatibility:['platinum'],materialSlots:[{id:'metal',kind:'metal'},{id:'gem',kind:'gem'}],accessTier:tier,status:'published',revision:1,storage:{bucketId:'media',fileId:id}});rows.set('catalog_assets:'+row.$id,row);}
@@ -14,6 +15,15 @@ export async function startFixture({glb=Buffer.from('fixture bytes'),ring=glb}={
   const deny=(code=401,type='fixture_denied')=>send({message:'Fixture denied',code,type},code);
   if(req.headers['x-appwrite-project']!==project)return deny();
   if(p[1]==='account'){
+   if(req.method==='GET'&&p[2]==='tokens'&&p[3]==='oauth2'){
+    const provider=p[4];if(!['google','microsoft'].includes(provider))return deny(400);
+    oauthStarts.push({provider,success:u.searchParams.get('success'),failure:u.searchParams.get('failure'),user:sessions.get(req.headers['x-appwrite-session'])});
+    const destination=new URL(provider==='google'?'https://accounts.google.com/o/oauth2/v2/auth':'https://login.microsoftonline.com/common/oauth2/v2.0/authorize');destination.searchParams.set('fixture','true');res.writeHead(302,{location:destination.href});return res.end();
+   }
+   if(req.method==='POST'&&p[2]==='sessions'&&p[3]==='token'){
+    if(req.headers['x-appwrite-key']!==key||oauthTokens.get(data.secret)!==data.userId)return deny();
+    oauthTokens.delete(data.secret);users.add(data.userId);const secret=randomUUID();sessions.set(secret,data.userId);return send({userId:data.userId,secret,expire:new Date(Date.now()+3600000).toISOString()},201);
+   }
    if(req.method==='POST'&&p.length===2){const user=data.email.split('@')[0];if(users.has(user))return deny(409);if(data.password!==password)return deny();users.add(user);return send({$id:user,status:true},201);}
    if(req.method==='POST'&&p.at(-1)==='email'){if(req.headers['x-appwrite-key']!==key)return deny(401,'general_unauthorized_scope');if(data.password!==password)return deny(401,'user_invalid_credentials');const user=data.email.split('@')[0];if(!users.has(user))return deny(401,'user_invalid_credentials');const secret=randomUUID();sessions.set(secret,user);return send({$id:randomUUID(),userId:user,secret,expire:new Date(Date.now()+3600000).toISOString()});}
    const s=req.headers['x-appwrite-session'],user=sessions.get(s);if(!user)return deny();if(req.method==='DELETE'){sessions.delete(s);return send({});}return send({$id:user,status:true,name:user,email:user+'@example.test',labels:user==='admin'?['amesadmin']:[]});
@@ -37,5 +47,5 @@ export async function startFixture({glb=Buffer.from('fixture bytes'),ring=glb}={
 if(p.length===4)return send({$permissions:bucketPermissions,fileSecurity:true,enabled:true,maximumFileSize:30*1024*1024});if(p.at(-1)==='download'){res.writeHead(200,{'content-type':'model/gltf-binary'});return res.end(p[5]?.startsWith('fixture-')?ring:glb);}return send({$permissions:[],name:'fixture.glb',mimeType:'model/gltf-binary',sizeOriginal:glb.length});}
   return deny(404);
  }catch(e){res.writeHead(500);res.end(JSON.stringify({message:'Fixture protocol error',code:500}));}});
- await new Promise(r=>server.listen(0,'127.0.0.1',r));return {endpoint:`http://127.0.0.1:${server.address().port}/v1`,project,key,password,rows,sessions,files,bucketPermissions,close:()=>new Promise(r=>{server.closeAllConnections();server.close(r);})};
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));return {endpoint:`http://127.0.0.1:${server.address().port}/v1`,project,key,password,rows,sessions,files,bucketPermissions,oauthTokens,oauthStarts,close:()=>new Promise(r=>{server.closeAllConnections();server.close(r);})};
 }
