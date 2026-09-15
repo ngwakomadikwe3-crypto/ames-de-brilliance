@@ -14,13 +14,18 @@ const FIELDS=['name','category','description','sku','price','currency','availabi
 const safeInventory=row=>({...inventoryPublic(row),category:categoryLabel(categoryKey(row.category)),updatedAt:row.updatedAt,createdAt:row.createdAt,certificationNotes:row.certificationNotes||'',reviewFeedback:row.reviewFeedback||'',reviewedAt:row.reviewedAt,media:row.media||[]});
 const safeProfile=own=>({...pick(own,['id','businessName','tradingName','contactPerson','phone','city','country','website','whatsapp','verificationStatus']),email:own.contactEmail||own.email,capabilities:pick(own.capabilities||{},['specialties','categories','bespoke','certifications','provenance','countriesServed','languages'])});
 const safeResponse=r=>r?pick(r,['status','proposedPiece','price','currency','availability','deliveryEstimate','notes','expiresAt','inventoryId','createdAt','updatedAt','sentAt']):null;
-export async function verifiedJeweller(user,gateway){
- if(!user||user.guest)fail(401,'Sign in required');
+export async function jewellerAccess(user,gateway){
+ if(!user||user.guest)return {allowed:false,reason:'NOT_SIGNED_IN',message:'Sign in with the account used for your jeweller application.'};
  const rows=(await gateway.list('jewellers')).filter(r=>r.kind==='JEWELLER_APPLICATION');
  const matches=rows.filter(r=>r.userId?r.userId===user.id:String(r.email||'').toLowerCase()===String(user.email||'').toLowerCase());
- if(matches.length!==1||matches[0].verificationStatus!=='VERIFIED')fail(403,'Verified jeweller required');
- return matches[0];
+ if(!matches.length)return {allowed:false,reason:'APPLICATION_NOT_FOUND',message:'No jeweller application is linked to this account. Use the account you applied with, or submit an application.'};
+ if(matches.length!==1)return {allowed:false,reason:'NOT_VERIFIED',message:'Your application link needs review. Contact AMES to confirm your account linkage.'};
+ const own=matches[0],status=own.verificationStatus;
+ if(status==='VERIFIED')return {allowed:true,reason:'VERIFIED',application:own};
+ const messages={APPLIED:'Your application has been received and is awaiting review.',UNDER_REVIEW:'Your application is under review. Dashboard access opens after verification.',REJECTED:'Your application was not approved. Contact AMES about the next steps.',SUSPENDED:'Your jeweller access is suspended. Contact AMES for a review.'};
+ return {allowed:false,reason:['APPLIED','UNDER_REVIEW','REJECTED','SUSPENDED'].includes(status)?status:'NOT_VERIFIED',message:messages[status]||'Your application is not verified. Contact AMES for assistance.'};
 }
+export async function verifiedJeweller(user,gateway){const access=await jewellerAccess(user,gateway);if(!access.allowed)throw Object.assign(new Error(access.message),{status:access.reason==='NOT_SIGNED_IN'?401:403,reason:access.reason});return access.application;}
 export function createJewellerService(config,gateway,clock=Date.now){
  const now=()=>new Date(clock()).toISOString();
  async function inventory(own){return (await gateway.list('catalog')).filter(r=>r.kind==='JEWELLER_INVENTORY'&&r.jewellerId===own.id);}

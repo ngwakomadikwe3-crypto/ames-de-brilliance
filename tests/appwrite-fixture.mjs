@@ -32,9 +32,10 @@ export async function startFixture({glb=Buffer.from('fixture bytes'),ring=glb}={
   }
   if(p[1]==='storage'){
    if(req.method==='POST'&&data.file){const bytes=Buffer.from(await data.file.arrayBuffer()),id=data.fileId;const info={$id:id,$permissions:[],name:data.file.name,mimeType:data.file.type||'video/mp4',sizeOriginal:bytes.length,chunksTotal:1,chunksUploaded:1};files.set(id,{info,bytes});return send(info,201);}
+   if(req.method==='DELETE'&&files.has(p[5])){files.delete(p[5]);return send({});}
    if(files.has(p[5])){const {info,bytes}=files.get(p[5]);if(['view','download'].includes(p.at(-1))){const match=/bytes=(\d+)-(\d*)/.exec(req.headers.range||'');const start=match?Number(match[1]):0,end=match&&match[2]?Number(match[2]):bytes.length-1;res.writeHead(match?206:200,{'content-type':'video/mp4','accept-ranges':'bytes',...(match?{'content-range':`bytes ${start}-${end}/${bytes.length}`}:{})});return res.end(bytes.subarray(start,end+1));}return send(info);}
 if(p.length===4)return send({$permissions:bucketPermissions,fileSecurity:true,enabled:true,maximumFileSize:30*1024*1024});if(p.at(-1)==='download'){res.writeHead(200,{'content-type':'model/gltf-binary'});return res.end(p[5]?.startsWith('fixture-')?ring:glb);}return send({$permissions:[],name:'fixture.glb',mimeType:'model/gltf-binary',sizeOriginal:glb.length});}
   return deny(404);
  }catch(e){res.writeHead(500);res.end(JSON.stringify({message:'Fixture protocol error',code:500}));}});
- await new Promise(r=>server.listen(0,'127.0.0.1',r));return {endpoint:`http://127.0.0.1:${server.address().port}/v1`,project,key,password,rows,sessions,bucketPermissions,close:()=>new Promise(r=>{server.closeAllConnections();server.close(r);})};
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));return {endpoint:`http://127.0.0.1:${server.address().port}/v1`,project,key,password,rows,sessions,files,bucketPermissions,close:()=>new Promise(r=>{server.closeAllConnections();server.close(r);})};
 }

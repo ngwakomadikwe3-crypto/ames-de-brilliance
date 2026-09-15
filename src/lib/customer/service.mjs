@@ -1,5 +1,6 @@
+import {createProfilePhotoService} from './profile-photo.mjs';
 import {adminDashboard} from './admin-dashboard.mjs';
-import {createJewellerService} from './jeweller-service.mjs';
+import {createJewellerService,jewellerAccess} from './jeweller-service.mjs';
 import {categoryKey,inventoryPublic} from '../inventory.mjs';
 import { createHash,createHmac,timingSafeEqual,randomUUID } from 'node:crypto';
 import { createAssetRegistry,canonicalAssetManifest } from '@ames/engine';
@@ -16,7 +17,7 @@ const id=v=>{if(typeof v!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/.test(
 const sha=v=>createHash('sha256').update(v).digest('hex');
 const alive=(record,now)=>record&&(!record.expiresAt||Number.isFinite(Date.parse(record.expiresAt))&&Date.parse(record.expiresAt)>now);
 export function createCustomerService(config,gateway,clock=Date.now) {
-  const jewellers=createJewellerService(config,gateway,clock);
+  const jewellers=createJewellerService(config,gateway,clock);const profilePhoto=createProfilePhotoService(config,gateway,clock);
   const secure=new URL(config.origin).protocol==='https:',cookieName=secure?'__Host-ames_customer':'ames_customer',guestCookieName=secure?'__Host-ames_guest':'ames_guest';
   const json=(value,status=200,headers={})=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...headers}});
   const session=req=>{const found=(req.headers.get('cookie')||'').split(';').map(v=>v.trim()).filter(v=>v.startsWith(cookieName+'='));if(found.length!==1)return '';try{return decodeURIComponent(found[0].slice(cookieName.length+1));}catch{return '';}};
@@ -50,7 +51,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     const guestId=guest.id,accountId=account.id;
     const [guestProfile,accountProfile]=await Promise.all([gateway.get('profiles',documentId(guestId)),gateway.get('profiles',documentId(accountId))]);
     const gm=guestProfile?.preferences?.memory,am=accountProfile?.preferences?.memory;
-    if(gm){const merged={...gm,...(am||{})};for(const key of ['categories','shapes','metals','occasions','recentInterests']){const values=[...(Array.isArray(gm[key])?gm[key]:[]),...(Array.isArray(am?.[key])?am[key]:[])].filter(v=>typeof v==='string');if(values.length)merged[key]=[...new Set(values)].slice(-8);}if(!am?.budgetRange&&gm.budgetRange)merged.budgetRange=gm.budgetRange;if(!am?.language&&gm.language)merged.language=gm.language;await gateway.put('profiles',documentId(accountId),{userId:accountId,kind:'profile',accountState:accountProfile?.accountState||'active',preferences:{...(accountProfile?.preferences||{}),memory:merged}});}
+    if(gm){const merged={...gm,...(am||{})};for(const key of ['categories','shapes','metals','occasions','recentInterests']){const values=[...(Array.isArray(gm[key])?gm[key]:[]),...(Array.isArray(am?.[key])?am[key]:[])].filter(v=>typeof v==='string');if(values.length)merged[key]=[...new Set(values)].slice(-8);}if(!am?.budgetRange&&gm.budgetRange)merged.budgetRange=gm.budgetRange;if(!am?.language&&gm.language)merged.language=gm.language;await gateway.put('profiles',documentId(accountId),{...accountProfile,userId:accountId,kind:'profile',accountState:accountProfile?.accountState||'active',preferences:{...(accountProfile?.preferences||{}),memory:merged}});}
     for(const route of ['favorites','saved']) for(const row of await gateway.list(route,{userId:guestId})) await gateway.put(route,documentId(accountId,row.assetId),{...row,userId:accountId});
     for(const row of await gateway.list('events',{userId:guestId})) await gateway.put('events',row.id,{...row,userId:accountId});
     await gateway.put('profiles',documentId(guestId),{userId:guestId,kind:'profile',accountState:'merged',preferences:{...(guestProfile?.preferences||{}),mergedInto:accountId}});
@@ -108,7 +109,8 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     if(route==='session'&&method==='GET'){
       const guest=user?.guest?user:null;
       if(guest?.guestToken)await gateway.put('profiles',documentId(guest.id),{userId:guest.id,kind:'profile',accountState:'active',preferences:{}},true).catch(e=>{if(e.code!==409)throw e;});
-      return json({user:guest?.guest?null:user,guest:Boolean(guest?.guest)},200,guest?.guestToken?{'Set-Cookie':guestCookie(guest.guestToken,31536000)}:{});
+      let portal={allowed:false,reason:'NOT_SIGNED_IN'};if(user&&!user.guest){try{const access=await jewellerAccess(user,gateway);portal={allowed:access.allowed,reason:access.reason};}catch{portal={allowed:false,reason:'UNAVAILABLE'};}}
+      return json({user:guest?.guest?null:user,guest:Boolean(guest?.guest),access:{admin:!!user?.admin,jeweller:portal.allowed,jewellerReason:portal.reason}},200,guest?.guestToken?{'Set-Cookie':guestCookie(guest.guestToken,31536000)}:{});
     }
     if(route==='catalog'&&method==='GET'){
       const rows=await gateway.list('catalog');const assets=[];
@@ -161,6 +163,8 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       const response=await gateway.stream(ref,req.signal);
       return new Response(response.body,{headers:{'Content-Type':'model/gltf-binary','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':'inline'}});
     }
+    if(route==='profile-photo')return await profilePhoto(req,user,json);
+    if(route==='admin'&&(!user||user.guest))throw error(401,'Sign in required');
     if(!user)throw error(401,'Sign in required');
     if(route==='state'&&method==='GET')return json({profile:await gateway.get('profiles',documentId(user.id)),favorites:await gateway.list('favorites',{userId:user.id}),saved:await gateway.list('saved',{userId:user.id}),designs:await gateway.list('designs',{userId:user.id}),entitlements:await gateway.list('entitlements',{userId:user.id}),subscriptions:await gateway.list('subscriptions',{userId:user.id})});
     if(['favorites','saved'].includes(route)&&['PUT','DELETE'].includes(method)){
@@ -171,7 +175,7 @@ export function createCustomerService(config,gateway,clock=Date.now) {
     }
     if(route==='preferences'&&method==='PUT'){
       const b=await body(req),preferences={};for(const k of Object.keys(b)){if(k==='memory'){if(!b.memory||typeof b.memory!=='object'||Array.isArray(b.memory)||JSON.stringify(b.memory).length>5000)throw error(400,'Invalid customer memory');const allowedKeys=['categories','shapes','metals','budgetRange','occasions','recentInterests','lastSourcingRequest','lastConversationContext','language'];for(const key of Object.keys(b.memory)){if(!allowedKeys.includes(key))throw error(400,'Unsupported memory field');}preferences.memory=b.memory;continue;}if(!['appearance','glow','sound','haptics'].includes(k))throw error(400,'Unsupported preference');if(['sound','haptics'].includes(k)?typeof b[k]!=='boolean':typeof b[k]!=='string'||!['Midnight','Ivory','Rich','Subtle'].includes(b[k]))throw error(400,'Invalid preference');preferences[k]=b[k];}
-      const old=await gateway.get('profiles',documentId(user.id));await gateway.put('profiles',documentId(user.id),{userId:user.id,kind:'profile',accountState:old?.accountState||'active',preferences:{...old?.preferences,...preferences}});return json({ok:true});
+      const old=await gateway.get('profiles',documentId(user.id));await gateway.put('profiles',documentId(user.id),{...old,userId:user.id,kind:'profile',accountState:old?.accountState||'active',preferences:{...old?.preferences,...preferences}});return json({ok:true});
     }
     if(route==='designs'&&['PUT','DELETE'].includes(method)){
       const b=await body(req),key=documentId(user.id,id(b.designId));
@@ -235,6 +239,6 @@ export function createCustomerService(config,gateway,clock=Date.now) {
       if(!user?.admin)throw error(403,'Administrator required');const rows=await gateway.list('catalog');return json({items:rows.filter(r=>r.kind==='JEWELLER_INVENTORY').map(({internalNotes,...safe})=>({...safe,internalNotes:undefined}))});
     }
     throw error(404,'Not found');
-  }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message},status);}}
+  }catch(e){const status=e.status||([400,401,403,409,429].includes(e.code)?e.code:503);const message=e.status?e.message:status===401?'Invalid credentials':status===409?'Record already exists':status===429?'Too many attempts':'Customer service unavailable';return json({error:message,...(e.reason?{reason:e.reason}:{})},status);}}
   return {handle,canAccess,health:()=>gateway.health()};
 }

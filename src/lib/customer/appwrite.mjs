@@ -40,6 +40,7 @@ export function createAppwriteGateway(config) {
       const bucket=await storage.getBucket({bucketId});if(!bucket.enabled||!bucket.fileSecurity||bucket.$permissions?.length)throw Object.assign(new Error('Private media storage required'),{status:503});if(bytes.length>Math.min(bucket.maximumFileSize,4*1024*1024))throw Object.assign(new Error('File exceeds storage limit'),{status:413});
       return storage.createFile({bucketId,fileId:randomUUID(),file:InputFile.fromBuffer(bytes,name),permissions:[]});
     },
+    async deleteProfileImage(ref,userId){const file=await storage.getFile({bucketId:ref.bucketId,fileId:ref.fileId});if(ref.uploadedBy!==userId||ref.bucketId!==config.buckets.jewelry||file.$permissions?.length||!file.name?.startsWith(`ames-profile-${documentId(userId)}-`))throw Object.assign(new Error('Photo ownership check failed'),{status:403});await storage.deleteFile({bucketId:ref.bucketId,fileId:ref.fileId});},
     async fileInfo(ref){return storage.getFile({bucketId:ref.bucketId,fileId:ref.fileId});},
     async stream(ref,signal,range){
       const [bucket,file]=await Promise.all([storage.getBucket({bucketId:ref.bucketId}),storage.getFile({bucketId:ref.bucketId,fileId:ref.fileId})]);
