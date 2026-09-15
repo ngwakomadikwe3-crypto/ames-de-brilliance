@@ -13,6 +13,7 @@ import { detectMessageLanguage, matchBoutiquePiece, updateBuyingIntent, type Buy
 const AmesBoutiqueSurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesBoutiqueSurface), { ssr: false });
 const AmesStoneTraySurface = dynamic(() => import("@/components/AmesEngineSurfaces").then(m => m.AmesStoneTraySurface), { ssr: false });
 import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
+import { requestChatWithRecovery } from '@/lib/chat-recovery.mjs';
 /* Native scroll-snap — no framer-motion needed */
 
 
@@ -405,13 +406,16 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     try {
       await appendMessage(null, 'user', msg);
       performance.mark('ames-chat-request-start');
-      const response = await fetch("/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, conversationToken: conversationToken.current }),
+      const { response, data } = await requestChatWithRecovery({
+        message: msg,
+        conversationToken: conversationToken.current,
+        onExpired: () => {
+          conversationToken.current = null;
+          try { sessionStorage.removeItem('ames-dify:' + (customer.user?.id || 'guest')); } catch {}
+        },
       });
       performance.mark('ames-chat-request-end');
       performance.measure('ames-chat-api', 'ames-chat-request-start', 'ames-chat-request-end');
-      const data = await response.json();
       if (epoch !== conversationEpoch.current) return;
       if (!response.ok) throw new Error(data.error || 'AMES chat is unavailable. Please try again.');
       if (typeof data.reply !== 'string' || typeof data.conversationToken !== 'string') throw new Error('AMES chat returned an incomplete response.');

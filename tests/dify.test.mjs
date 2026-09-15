@@ -2,8 +2,20 @@
 import assert from 'node:assert/strict';
 import { difyConfig, difyIdentity, seal, unseal, sendDify, finalDifyAnswer, detectDifyLanguage, amesIdentityCopy } from '../src/lib/dify.mjs';
 import { stoneRequest } from '../src/lib/chat-stone-selection.ts';
+import { requestChatWithRecovery } from '../src/lib/chat-recovery.mjs';
 const config = { url: 'https://dify.example/v1', key: 'fixture-key', secret: 'fixture-only-secret-with-more-than-32-characters' };
 const reply = (answer = 'Hello', conversation_id = 'conversation-1') => new Response(JSON.stringify({ answer, conversation_id }));
+test('expired Chat conversation clears its token and retries once', async () => {
+  const calls = [];
+  let cleared = 0;
+  const response = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body });
+  const result = await requestChatWithRecovery({ message: 'Hello', conversationToken: 'stale-token', onExpired: () => { cleared += 1; }, fetcher: async (_url, options) => { calls.push(JSON.parse(options.body)); return calls.length === 1 ? response(409, { error: 'expired' }) : response(200, { reply: 'Hello from SAME', conversationToken: 'fresh-token' }); } });
+  assert.equal(cleared, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].conversationToken, 'stale-token');
+  assert.equal(calls[1].conversationToken, null);
+  assert.equal(result.data.conversationToken, 'fresh-token');
+});
 test('language detection and identity copy support Chinese and Arabic', () => {
   assert.equal(detectDifyLanguage('我想找一枚戒指'), 'Chinese');
   assert.equal(detectDifyLanguage('أبحث عن خاتم'), 'Arabic');

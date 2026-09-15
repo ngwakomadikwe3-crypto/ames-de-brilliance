@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { sessionSecret, sessionRole } from './src/lib/session-policy';
 import { legacyPolicy } from './src/lib/legacy-policy.mjs';
 import { customerIdentity, portalIdentity, sameOrigin } from './src/lib/legacy-auth.mjs';
@@ -43,7 +43,7 @@ function getSessionCookie(request: NextRequest): string | undefined {
   return match.trim().split("=").slice(1).join("=");
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow login page and auth API through
@@ -82,3 +82,4 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ["/dashboard/:path*", "/api/:path*"],
 };
+
