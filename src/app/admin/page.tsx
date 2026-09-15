@@ -8,9 +8,8 @@ export default async function AdminPage(){
  const cookie=(await cookies()).toString();
  const config=customerConfig();
  const service=createCustomerService(config,createAppwriteGateway(config));
- const [response,jewellersResponse,inventoryResponse]=await Promise.all([service.handle(new Request(`${config.origin}/api/customer/admin/events`,{headers:{cookie}})),service.handle(new Request(`${config.origin}/api/customer/admin/jewellers`,{headers:{cookie}})),service.handle(new Request(`${config.origin}/api/customer/admin/inventory`,{headers:{cookie}}))]);
- if(response.status===403||jewellersResponse.status===403)return <main style={{padding:40,fontFamily:'system-ui'}}>Forbidden</main>;
- if(!response.ok||!jewellersResponse.ok||!inventoryResponse.ok)return <main style={{padding:40,fontFamily:'system-ui'}}>Admin service unavailable</main>;
- const data=await response.json() as {events:Record<string,unknown>[]};const jewellers=await jewellersResponse.json() as {applications:Record<string,unknown>[]};const inventory=await inventoryResponse.json() as {items:Record<string,unknown>[]};
- return <AdminConsole events={data.events} applications={jewellers.applications} inventory={inventory.items}/>;
+ const response=await service.handle(new Request(`${config.origin}/api/customer/admin/dashboard`,{headers:{cookie}}));
+ if([401,403].includes(response.status))return <main style={{padding:40}}>Administrator access required.</main>;
+ if(!response.ok)return <main style={{padding:40}}>Admin service unavailable.</main>;
+ return <AdminConsole initial={await response.json()}/>;
 }

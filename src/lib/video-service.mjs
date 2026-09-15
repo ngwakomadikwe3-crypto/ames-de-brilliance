@@ -17,7 +17,7 @@ export function createVideoService(gateway){
   if(req.method==='GET')return Response.json((await gateway.list()).map(decodeVideo),{headers:{'Cache-Control':'no-store'}});
   const b=req.method==='DELETE'?{id:url.searchParams.get('id')}:await req.json();
   const old=b.id?await gateway.get(b.id):null;if(b.id&&!old)fail(404,'Video not found');
-  if(req.method==='DELETE'){if(!old||old.status!=='ARCHIVED')fail(409,'Archive before deleting');await gateway.remove(b.id);return Response.json({ok:true});}
+  if(req.method==='DELETE'){if(!old||old.status!=='ARCHIVED')fail(409,'Archive before deleting');await gateway.remove(b.id);await gateway.audit?.({actorId:user.id,userId:user.id,assetId:b.id,time:new Date().toISOString(),fromStatus:old.status,toStatus:'DELETED'});return Response.json({ok:true});}
   if(!['POST','PATCH'].includes(req.method))fail(405,'Method unavailable');
   if(req.method==='PATCH'&&!old)fail(404,'Video not found');
   const current=old?decodeVideo(old):{};const v={...current,...b};
@@ -29,7 +29,7 @@ export function createVideoService(gateway){
   const now=new Date().toISOString(),id=old?.id||randomUUID();
   const metadata={title:v.title,videoFileId:v.videoFileId,thumbnailFileId:v.thumbnailFileId||'',productAssetId:v.productAssetId||'',featured:v.featured===true,sortOrder:v.sortOrder,createdBy:current.createdBy||user.id,updatedAt:now,publishedAt:v.status==='PUBLISHED'?(current.publishedAt||now):null};
   const data={video_url:`/api/videos/${id}/media`,caption:v.caption.trim(),status:v.status,published:v.status==='PUBLISHED',metadata:JSON.stringify(metadata),created_at:old?.created_at||now};
-  await gateway.save(id,data,!old);return Response.json(decodeVideo({id,...data}),{status:old?200:201});
+  await gateway.save(id,data,!old);await gateway.audit?.({actorId:user.id,userId:user.id,assetId:id,time:now,fromStatus:current.status||'NEW',toStatus:v.status});return Response.json(decodeVideo({id,...data}),{status:old?200:201});
  }catch(e){return Response.json({error:e.status?e.message:'Video service unavailable'},{status:e.status||503});}}
  return {handle,admin,file};
 }

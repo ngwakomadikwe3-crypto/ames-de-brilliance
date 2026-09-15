@@ -1,5 +1,5 @@
 import {InputFile} from 'node-appwrite/file';
-import { Client, Account, Storage, Query } from 'node-appwrite';
+import { Client, Account, Storage, Query, Users } from 'node-appwrite';
 import { createHash, randomUUID } from 'node:crypto';
 import { assertConfigured } from './config.mjs';
 import {customerDatabase} from './database.mjs';
@@ -13,6 +13,7 @@ export function createAppwriteGateway(config) {
   const unpack=d=>({id:d.kind==='JEWELLER_INVENTORY'&&d.assetId?d.assetId:d.$id,userId:d.userId,assetId:d.assetId,kind:d.kind,...JSON.parse(d.payload)});
   const path=k=>({databaseId:config.database,collectionId:collection(k)});
   return {
+    async accounts(){const rows=[];let cursor;do{const batch=await new Users(admin).list({queries:[Query.limit(100),...(cursor?[Query.cursorAfter(cursor)]:[])]});rows.push(...batch.users.map(u=>({id:u.$id,name:u.name,email:u.email,status:u.status,labels:u.labels,createdAt:u.$createdAt})));if(batch.users.length<100)return rows;cursor=batch.users.at(-1).$id;}while(rows.length<5000);throw new Error('Account directory pagination limit');},
     async login(email,password){return new Account(admin).createEmailPasswordSession({email,password});},
     async register(email,password,name){return new Account(client()).create({userId:randomUUID(),email,password,name});},
     async user(session){return account(session).get();},

@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {documentId} from './appwrite.mjs';
 import {categoryKey,categoryLabel,inventoryPublic} from '../inventory.mjs';
-import {publicUploadName} from '../public-upload.mjs';
+import {assetRole,validateInventoryUpload,mediaSnapshot} from './inventory-upload.mjs';
 const fail=(status,message)=>{throw Object.assign(new Error(message),{status});};
 const pick=(o,keys)=>Object.fromEntries(keys.filter(k=>o[k]!==undefined).map(k=>[k,o[k]]));
 const text=(b,k,max=500)=>{if(b[k]===undefined)return '';if(typeof b[k]!=='string'||b[k].length>max)fail(400,'Invalid '+k);return b[k].trim();};
@@ -11,7 +11,7 @@ const number=(b,k,integer=false)=>{if(b[k]===undefined||b[k]===''||b[k]===null)r
 const url=value=>{if(!value)return '';try{const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password)throw new Error();return u.href;}catch{fail(400,'Use an HTTPS media or website URL');}};
 const PROFILE=['businessName','tradingName','contactPerson','phone','email','city','country','website','whatsapp','specialties','categories','bespoke','certifications','provenance','countriesServed','languages'];
 const FIELDS=['name','category','description','sku','price','currency','availability','stockQuantity','leadTime','metal','setting','diamondShape','carat','color','clarity','cut','certification','certificationReference','provenanceNotes','origin','certificationNotes','images','video','glb','media'];
-const safeInventory=row=>({...inventoryPublic(row),category:categoryLabel(categoryKey(row.category)),updatedAt:row.updatedAt,createdAt:row.createdAt,certificationNotes:row.certificationNotes||'',reviewFeedback:row.reviewFeedback||'',media:row.media||[]});
+const safeInventory=row=>({...inventoryPublic(row),category:categoryLabel(categoryKey(row.category)),updatedAt:row.updatedAt,createdAt:row.createdAt,certificationNotes:row.certificationNotes||'',reviewFeedback:row.reviewFeedback||'',reviewedAt:row.reviewedAt,media:row.media||[]});
 const safeProfile=own=>({...pick(own,['id','businessName','tradingName','contactPerson','phone','city','country','website','whatsapp','verificationStatus']),email:own.contactEmail||own.email,capabilities:pick(own.capabilities||{},['specialties','categories','bespoke','certifications','provenance','countriesServed','languages'])});
 const safeResponse=r=>r?pick(r,['status','proposedPiece','price','currency','availability','deliveryEstimate','notes','expiresAt','inventoryId','createdAt','updatedAt','sentAt']):null;
 export async function verifiedJeweller(user,gateway){
@@ -32,15 +32,16 @@ export function createJewellerService(config,gateway,clock=Date.now){
  const clean={};for(const k of FIELDS.filter(k=>!['price','stockQuantity','carat','images','media'].includes(k)))clean[k]=text(b,k,['description','provenanceNotes','certificationNotes'].includes(k)?2000:500);
  clean.category=categoryLabel(categoryKey(clean.category));if(!clean.category||!clean.name)fail(400,'Product name and controlled category required');
  clean.price=number(b,'price');clean.stockQuantity=number(b,'stockQuantity',true);clean.carat=number(b,'carat');clean.currency=clean.currency.toUpperCase();if(clean.currency&&!/^[A-Z]{3}$/.test(clean.currency))fail(400,'Use a three-letter currency');
- const refs=b.media===undefined?(existing?.media||[]):b.media;if(!Array.isArray(refs)||refs.length>14||refs.some(r=>!r||typeof r.fileId!=='string'||!['image','video','glb'].includes(r.kind)))fail(400,'Invalid media references');
- if(refs.filter(r=>r.kind==='video').length>1||refs.filter(r=>r.kind==='glb').length>1||refs.filter(r=>r.kind==='image').length>12)fail(400,'Too many media files');
- clean.media=[];for(const ref of refs){const record=await mediaRecord(own,ref.fileId);if(record.mediaKind!==ref.kind)fail(400,'Wrong media kind');clean.media.push({fileId:ref.fileId,kind:ref.kind});}
- const path=ref=>`/api/customer/inventory-media/${itemId}/${ref.fileId}${ref.kind==='glb'?'/asset.glb':''}`;
+ const refs=b.media===undefined?(existing?.media||[]):b.media;if(!Array.isArray(refs)||refs.length>24||refs.some(r=>!r||typeof r.fileId!=='string'||!['image','video','glb','gltf','cad'].includes(r.kind)))fail(400,'Invalid media references');
+ if(refs.filter(r=>r.kind==='video').length>1||refs.filter(r=>['glb','gltf'].includes(r.kind)).length>1||refs.filter(r=>r.kind==='image').length>12)fail(400,'Too many media files');
+ clean.media=[];for(const ref of refs){const record=await mediaRecord(own,ref.fileId);if(record.mediaKind!==ref.kind)fail(400,'Wrong media kind');const role=assetRole(ref.kind,ref.assetRole||(ref.kind==='image'?(clean.media.some(m=>m.kind==='image')?'gallery':'mainImage'):ref.kind==='glb'||ref.kind==='gltf'?'web3d':ref.kind));clean.media.push(mediaSnapshot(record,role));}
+ if(new Set(refs.map(r=>r.fileId)).size!==refs.length||clean.media.filter(r=>r.assetRole==='mainImage').length>1)fail(400,'Duplicate media or main image');clean.media.sort((a,b)=>(b.assetRole==='mainImage')-(a.assetRole==='mainImage'));
+ const path=ref=>`/api/customer/inventory-media/${itemId}/${ref.fileId}${['glb','gltf'].includes(ref.kind)?'/asset.'+ref.kind:''}`;
  const legacy=(value,prior)=>value&&value===prior?value:url(value);
  clean.images=(b.images||[]);if(!Array.isArray(clean.images)||clean.images.length>12)fail(400,'Invalid images');clean.images=clean.images.map(v=>legacy(v,existing?.images?.includes(v)?v:''));
  clean.video=legacy(clean.video,existing?.video);clean.glb=legacy(clean.glb,existing?.glb);
- if(clean.media.some(r=>r.kind==='image'))clean.images=clean.media.filter(r=>r.kind==='image').map(path);for(const kind of ['video','glb']){const ref=clean.media.find(r=>r.kind===kind);if(ref)clean[kind]=path(ref);}
- if(clean.glb&&!clean.glb.split('?')[0].endsWith('.glb'))fail(400,'GLB reference must end with .glb');
+ if(clean.media.some(r=>r.kind==='image'))clean.images=clean.media.filter(r=>r.kind==='image').map(path);for(const kind of ['video','glb']){const ref=clean.media.find(r=>r.kind===kind||(kind==='glb'&&r.kind==='gltf'));if(ref)clean[kind]=path(ref);}
+ if(clean.glb&&! /\.gltf?$|\.glb$/.test(clean.glb.split('?')[0]))fail(400,'Web 3D reference must end with .glb or .gltf');
  const glb=clean.media.find(r=>r.kind==='glb');clean.storage=glb?{bucketId:config.buckets.jewelry,fileId:glb.fileId}:undefined;
  return clean;
  }
@@ -65,7 +66,7 @@ export function createJewellerService(config,gateway,clock=Date.now){
   const allowed={save:['DRAFT','CHANGES_REQUESTED'],submit:['DRAFT','CHANGES_REQUESTED'],archive:['DRAFT','APPROVED'],sold:['APPROVED'],'request-edit':['APPROVED'],duplicate:['REJECTED']};if(!allowed[action]||current&&!allowed[action].includes(current.inventoryStatus)||!current&&action!=='save')fail(409,'Action unavailable for this inventory status');
   if(['archive','sold','request-edit','duplicate'].includes(action)&&Object.keys(b).some(k=>!['action','revision'].includes(k)))fail(400,'Status actions cannot edit product fields');
   const itemId=!current||action==='duplicate'?randomUUID():current.id;let row;
-  if(['archive','sold','request-edit'].includes(action)){const status={archive:'ARCHIVED',sold:'SOLD','request-edit':'CHANGES_REQUESTED'}[action];row={...current,inventoryStatus:status,status:status==='ARCHIVED'?'archived':'draft',updatedAt:now(),revision:current.revision+1};}
+  if(['archive','sold','request-edit'].includes(action)){const status={archive:'ARCHIVED',sold:'SOLD','request-edit':'CHANGES_REQUESTED'}[action];row={...current,media:(current.media||[]).map(m=>({...m,visibility:m.kind==='cad'?'PRIVATE':'REVIEW_REQUIRED'})),inventoryStatus:status,status:status==='ARCHIVED'?'archived':'draft',updatedAt:now(),revision:current.revision+1};}
   else{const input=action==='duplicate'?{...pick(current,FIELDS),media:current.media||[]}:action==='submit'?{...pick(current||{},FIELDS),...b}:b;const clean=await cleanInventory(input,own,itemId,current);row={...current,...clean,id:itemId,assetId:itemId,userId:user.id,kind:'JEWELLER_INVENTORY',jewellerId:own.id,jewellerName:own.businessName,inventoryStatus:action==='submit'?'PENDING_REVIEW':'DRAFT',status:'draft',accessTier:'PUBLIC',revision:current&&action!=='duplicate'?current.revision+1:1,updatedAt:now(),createdAt:current&&action!=='duplicate'?current.createdAt:now(),assetPath:`/api/customer/assets/${itemId}.glb`,previewPath:null,materialSlots:[],stoneReferences:[],metalCompatibility:[],tags:[categoryKey(clean.category),clean.diamondShape,clean.metal].filter(Boolean),specs:[clean.metal,clean.diamondShape,clean.carat?`${clean.carat} ct`:'',clean.color,clean.clarity].filter(Boolean).join(' / ')};if(action==='duplicate'){delete row.internalNotes;delete row.reviewFeedback;}}
   await gateway.put('catalog',documentId(itemId),row,!current||action==='duplicate');return json({item:safeInventory(row)},!current||action==='duplicate'?201:200);
  }
@@ -84,13 +85,15 @@ export function createJewellerService(config,gateway,clock=Date.now){
  if(section==='media'){
   if(method==='GET'&&identifier){const record=await mediaRecord(own,identifier);return stream(record,req);}
   if(method!=='POST')fail(405,'Method unavailable');if(Number(req.headers.get('content-length'))>4*1024*1024+65536)fail(413,'Upload limit is 4 MiB');const form=await req.formData(),file=form.get('file'),kind=form.get('kind');if(!(file instanceof File)||!file.size||file.size>4*1024*1024)fail(400,'Choose a file up to 4 MiB');
-  const types={image:['image/jpeg','image/png','image/webp'],video:['video/mp4','video/webm','video/quicktime'],glb:['model/gltf-binary','application/octet-stream','']};if(!types[kind]?.includes(file.type))fail(400,'Unsupported media type');const bytes=Buffer.from(await file.arrayBuffer());let name;
-  if(kind==='glb'){if(bytes.length<20||bytes.toString('ascii',0,4)!=='glTF'||bytes.readUInt32LE(4)!==2||bytes.readUInt32LE(8)!==bytes.length)fail(400,'Invalid GLB file');name='inventory.glb';}else name=publicUploadName(file.name,bytes,kind);
-  const uploaded=await gateway.uploadMedia({bytes,name:`jeweller-${kind}-${name}`,bucketId:config.buckets.jewelry});const record={userId:user.id,assetId:'',kind:'JEWELLER_MEDIA',jewellerId:own.id,mediaKind:kind,fileId:uploaded.$id,bucketId:config.buckets.jewelry,mimeType:kind==='glb'?'model/gltf-binary':file.type,createdAt:now()};await gateway.put('catalog',documentId('jeweller-media',uploaded.$id),record,true);return json({fileId:uploaded.$id,kind,url:`/api/customer/jewellers/media/${uploaded.$id}`},201);
+  const productId=form.get('productId');if(productId){const product=await item(own,String(productId));if(!['DRAFT','CHANGES_REQUESTED'].includes(product.inventoryStatus))fail(409,'Product is not editable');}
+  const role=assetRole(kind,String(form.get('assetRole')||(kind==='image'?'gallery':kind==='glb'||kind==='gltf'?'web3d':kind)));
+  const bytes=Buffer.from(await file.arrayBuffer()),metadata=validateInventoryUpload(file,bytes,kind);
+  const uploaded=await gateway.uploadMedia({bytes,name:`jeweller-${kind}-${randomUUID()}.${metadata.extension}`,bucketId:config.buckets.jewelry});const record={userId:user.id,assetId:'',kind:'JEWELLER_MEDIA',jewellerId:own.id,mediaKind:kind,fileId:uploaded.$id,bucketId:config.buckets.jewelry,...metadata,assetRole:role,visibility:kind==='cad'?'PRIVATE':'REVIEW_REQUIRED',reviewStatus:'PENDING_REVIEW',uploadedBy:user.id,uploadedAt:now(),createdAt:now()};await gateway.put('catalog',documentId('jeweller-media',uploaded.$id),record,true);return json({...mediaSnapshot(record,role),url:`/api/customer/jewellers/media/${uploaded.$id}`},201);
  }
  fail(404,'Not found');
  }
- async function stream(record,req){const upstream=await gateway.stream({bucketId:record.bucketId,fileId:record.fileId},req.signal,req.headers.get('range'));const headers={'Content-Type':record.mimeType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};for(const key of ['content-length','content-range','accept-ranges']){const value=upstream.headers.get(key);if(value)headers[key]=value;}return new Response(upstream.body,{status:upstream.status,headers});}
- async function publicMedia(req,user,itemId,fileId){const row=await gateway.get('catalog',documentId(itemId));if(!row||row.kind!=='JEWELLER_INVENTORY'||!row.media?.some(m=>m.fileId===fileId))fail(404,'Media unavailable');if(row.inventoryStatus!=='APPROVED'||row.status!=='published'){if(!user?.admin){const own=await verifiedJeweller(user,gateway);if(own.id!==row.jewellerId)fail(404,'Media unavailable');}}const record=await gateway.get('catalog',documentId('jeweller-media',fileId));if(!record||record.jewellerId!==row.jewellerId)fail(404,'Media unavailable');return stream(record,req);}
+ async function stream(record,req){const upstream=await gateway.stream({bucketId:record.bucketId,fileId:record.fileId},req.signal,req.headers.get('range'));const headers={'Content-Type':record.mimeType,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'};if(record.mediaKind==='cad'){headers['Content-Type']='application/octet-stream';headers['Content-Disposition']=`attachment; filename*=UTF-8''${encodeURIComponent(record.fileName||'source.cad')}`;}for(const key of ['content-length','content-range','accept-ranges']){const value=upstream.headers.get(key);if(value)headers[key]=value;}return new Response(upstream.body,{status:upstream.status,headers});}
+ async function publicMedia(req,user,itemId,fileId){const row=await gateway.get('catalog',documentId(itemId));if(!row||row.kind!=='JEWELLER_INVENTORY'||!row.media?.some(m=>m.fileId===fileId))fail(404,'Media unavailable');const record=await gateway.get('catalog',documentId('jeweller-media',fileId));if(!record||record.kind!=='JEWELLER_MEDIA'||record.jewellerId!==row.jewellerId)fail(404,'Media unavailable');if(record.mediaKind==='cad'||row.inventoryStatus!=='APPROVED'||row.status!=='published'){if(!user?.admin){const own=await verifiedJeweller(user,gateway);if(own.id!==row.jewellerId)fail(404,'Media unavailable');}}return stream(record,req);}
+
  return {handle,publicMedia};
 }
