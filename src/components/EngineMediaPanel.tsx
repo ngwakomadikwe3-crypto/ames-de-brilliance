@@ -90,7 +90,7 @@ export default function EngineMediaPanel({ active, onBuy, onAskSame }: { active:
   }
   const commentRecord = records.find(record => record.key === commentKey);
 
-  return <div className="relative h-full w-full bg-[#181817] text-[#FCFCFB]" data-media-panel>
+  return <div className="relative h-full w-full text-[#FCFCFB]" data-media-panel>
     <div className="absolute top-16 left-0 right-0 z-20 mx-auto w-full max-w-2xl px-5"><label className="sr-only" htmlFor="ames-media-search">Search media</label><input id="ames-media-search" type="search" value={query} onChange={event => changeQuery(event.target.value)} placeholder="Search pieces" className="w-full rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm text-white placeholder:text-white/60 outline-none backdrop-blur-md focus:border-white/50" /></div>
     {loading && <div className="flex h-full items-center justify-center text-xs text-white/60">Loading media…</div>}
     {!loading && (error || !filtered.length) && <div className="flex h-full items-center justify-center px-8 text-center text-sm text-white/60">{error ? 'AMES media is unavailable.' : 'No media matches this search.'}</div>}
@@ -100,7 +100,7 @@ export default function EngineMediaPanel({ active, onBuy, onAskSame }: { active:
         return <section key={record.key} data-media-item={record.key} className="relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden" style={{ scrollSnapAlign: 'start' }}>
           <div className="absolute inset-0 flex items-center justify-center"><MediaVisual record={record} active={active && activeKey === record.key && !commentKey} /></div>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/65 to-transparent" />
-          <div className="absolute bottom-7 left-5 right-20 z-10"><p className="text-sm" style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: 22 }}>{record.name}</p><p className="mt-1 text-[11px] text-white/70">{index + 1} / {filtered.length}{isMediaReview(record) ? ' · Preview · approval pending' : ''}</p><button type="button" onClick={() => onAskSame(record)} className="mt-3 border-b border-white/60 pb-0.5 text-xs text-white/90">Ask SAME</button></div>
+          <div className="absolute bottom-7 left-5 right-20 z-10"><p className="text-sm" style={{ fontSize: 22 }}>{record.name}</p><p className="mt-1 text-[11px] text-white/70">{index + 1} / {filtered.length}{isMediaReview(record) ? ' · Preview · approval pending' : ''}</p><button type="button" onClick={() => onAskSame(record)} className="mt-3 border-b border-white/60 pb-0.5 text-xs text-white/90">Ask SAME</button></div>
           <div className="absolute bottom-12 right-4 z-10 flex flex-col items-center gap-5" aria-label="Media actions">
             <button type="button" aria-label="Like" aria-pressed={value.liked} onClick={() => update(record.key, current => ({ ...current, liked: !current.liked }))} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="like" selected={value.liked} /><span className="text-[10px]">Like</span></button>
             <button type="button" aria-label="Comment" onClick={() => setCommentKey(record.key)} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="comment" /><span className="text-[10px]">Comment</span></button>

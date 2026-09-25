@@ -11,16 +11,16 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
   return (
     <button type="button" onClick={onOpen} data-boutique-tile={piece.assetId} aria-label={`Open ${piece.name}`}
       className="text-left flex flex-col min-h-0" style={{ width: '100%', maxWidth: single ? 480 : undefined, justifySelf: single ? 'center' : undefined, alignSelf: single ? 'center' : undefined, gridColumn: single ? '1 / -1' : undefined, gridRow: single ? '1 / -1' : undefined }}>
-      <div className="w-full min-h-0 flex-1 flex items-center justify-center overflow-hidden" style={{ background: '#F5F4F2', borderRadius: 14 }}>
-        <img src={piece.thumbnail} alt={piece.name} className="w-full h-full object-contain" loading="lazy" />
+      <div className="w-full min-h-0 flex-1 flex items-center justify-center overflow-hidden" style={{ background: 'transparent', borderRadius: 20 }}>
+        <img src={piece.heroImage} alt={piece.name} className="w-full h-full object-contain" loading="lazy" style={{ mixBlendMode: 'screen' }} />
       </div>
       <div className="pt-2 px-0.5 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate" style={{ fontSize: 13, color: '#171717' }}>{piece.name}</p>
-          {review && <p style={{ fontSize: 10, color: '#8A8075' }}>Preview · approval pending</p>}
+          <p className="truncate" style={{ fontSize: 13, color: '#eef5f2' }}>{piece.name}</p>
+          {review && <p style={{ fontSize: 10, color: '#9eb8ae' }}>Preview · approval pending</p>}
         </div>
-        {price && <span className="shrink-0" style={{ fontSize: 11, color: '#6E6C69' }}>{price}</span>}
-        {!price && piece.inquiryState && <span className="shrink-0" style={{ fontSize: 11, color: '#6E6C69' }}>{piece.inquiryState}</span>}
+        {price && <span className="shrink-0" style={{ fontSize: 11, color: '#b8d0c8' }}>{price}</span>}
+        {!price && piece.inquiryState && <span className="shrink-0" style={{ fontSize: 11, color: '#b8d0c8' }}>{piece.inquiryState}</span>}
       </div>
     </button>
   );
@@ -32,24 +32,26 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
   return (
     <div className="flex-1 min-h-0 flex flex-col" data-boutique-detail={piece.assetId}>
-      <div className="shrink-0 pt-14 px-5 pb-2"><button type="button" onClick={onClose} className="text-[12px]" style={{ color: '#6E6C69' }}>← Boutique</button></div>
-      <div className="flex-1 min-h-0 mx-auto w-full" style={{ maxWidth: 620 }}>
+      <div className="relative flex-1 min-h-0 mx-auto w-full pt-14" style={{ maxWidth: 620 }}>
+        <button type="button" onClick={onClose} aria-label="Back to Boutique" className="absolute top-16 left-5 z-10 flex items-center justify-center w-8 h-8 rounded-full" style={{ color: '#dceee8', background: 'rgba(3,24,21,0.42)', border: '1px solid rgba(238,247,244,0.16)' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
         {piece.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={piece.interactiveGlb} src="/models/mounted-reference-ring.glb" poster={piece.poster} alt={piece.name} style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name}
             autoRotate={false} cameraControls ar={false} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 3.3m' : undefined}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2 style={{ fontFamily: "var(--font-cormorant), Georgia, serif", fontSize: 27, color: '#171717', lineHeight: 1.1 }}>{piece.name}</h2>
-        {review && <p style={{ fontSize: 10, color: '#8A8075', marginTop: 5 }}>Preview · visual approval pending</p>}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#6E6C69' }}>
+        <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{piece.name}</h2>
+        {review && <p style={{ fontSize: 10, color: '#9eb8ae', marginTop: 5 }}>Preview · visual approval pending</p>}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#b8d0c8' }}>
           {knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
           {piece.essentialSpecs.physicalScaleConfirmed === false && <span>Physical scale unverified</span>}
         </div>
-        {price && <p style={{ marginTop: 12, fontSize: 14, color: '#171717' }}>{price}</p>}
-        {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#6E6C69' }}>{piece.inquiryState}</p>}
-        {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#6E6C69' }}>{piece.availabilityState}</p>}
-        <button type="button" onClick={onAskSame} className="mt-5 text-[12px]" style={{ color: '#171717', borderBottom: '1px solid #A6A6AB', paddingBottom: 2 }}>Ask SAME</button>
+        {price && <p style={{ marginTop: 12, fontSize: 14, color: '#eef5f2' }}>{price}</p>}
+        {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#b8d0c8' }}>{piece.inquiryState}</p>}
+        {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#b8d0c8' }}>{piece.availabilityState}</p>}
+        <button type="button" onClick={onAskSame} className="mt-5 text-[12px]" style={{ color: '#eef5f2', borderBottom: '1px solid rgba(238,247,244,0.55)', paddingBottom: 2 }}>Ask SAME</button>
       </div>
     </div>
   );
@@ -84,20 +86,20 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col" style={{ background: '#EAE8E4' }}>
+    <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {selected ? <PieceDetail piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-boutique-scroll>
-          {loading && <div className="h-full flex items-center justify-center" style={{ color: '#8A8075', fontSize: 12 }}>Loading pieces…</div>}
-          {!loading && (error || groups.length === 0) && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#8A8075', fontSize: 13 }}>{error ? 'Boutique pieces are unavailable.' : 'No pieces in this category yet.'}</div>}
+          {loading && <div className="h-full flex items-center justify-center" style={{ color: '#9eb8ae', fontSize: 12 }}>Loading pieces…</div>}
+          {!loading && (error || groups.length === 0) && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#9eb8ae', fontSize: 13 }}>{error ? 'Boutique pieces are unavailable.' : 'No pieces in this category yet.'}</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="h-full min-h-full grid grid-cols-2 grid-rows-2 gap-3 sm:gap-5 px-4 sm:px-8 pb-5 pt-16 mx-auto"
             style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
           </section>)}
         </div>
-        <nav className="shrink-0 flex items-center justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(23,23,23,0.08)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
+        <nav className="shrink-0 flex items-center justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
           {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
-            className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#171717' : '#8A8075', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid #6E6C69' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
+            className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#eef5f2' : '#9eb8ae', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
         </nav>
       </>}
     </div>

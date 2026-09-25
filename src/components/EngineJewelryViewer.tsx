@@ -21,11 +21,12 @@ export default function EngineJewelryViewer({
 }) {
   const [ready, setReady] = useState(false);
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", ...style }}>
+    <div data-ames-engine-host style={{ position: "relative", width: "100%", height: "100%", ...style }}>
       {poster && !ready && <img src={poster} alt={alt ?? "Jewelry preview"} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 1, pointerEvents: "none" }} />}
       <JewelryViewer
         modelUrl={src}
         controlsEnabled
+        transparentBackground
         onModelReady={() => setReady(true)}
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       />

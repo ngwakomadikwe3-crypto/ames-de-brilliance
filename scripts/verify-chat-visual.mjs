@@ -53,8 +53,8 @@ try {
   const result = await send('Runtime.evaluate', { expression: `(() => { const chat = document.querySelector('[data-panel="1"]'); const viewer = chat?.querySelector('model-viewer'); return { src: viewer?.src, poster: viewer?.poster, rotation: viewer?.hasAttribute('auto-rotate'), orbit: viewer?.getCameraOrbit?.(), target: viewer?.getCameraTarget?.(), fieldOfView: viewer?.getAttribute('field-of-view'), reviewVisible: chat?.textContent?.includes('Not approved for publication'), hasSAME: chat?.textContent?.includes('SAME'), glbLoaded: viewer?.loaded ?? null, scrollLeft: document.querySelector('div[style*="scroll-snap-type"]')?.scrollLeft }; })()`, returnByValue: true });
   console.log(JSON.stringify(result.result.value, null, 2));
   if (blockChat) {
-    if (!String(result.result.value?.src).includes('/diamond.glb/scene.gltf') || !(await send('Runtime.evaluate', { expression: `document.querySelector('[data-panel="1"]')?.textContent?.includes('Showing the loose gemstone preview')`, returnByValue: true })).result.value) throw new Error('Loose-stone fallback failed');
-    console.log('loose-stone fallback verified');
+    if (!String(result.result.value?.src).includes('/models/mounted-reference-ring.glb') || !String(result.result.value?.poster).includes('/ames-engine/dev-test-candidate-ring/luxury/editorial-hero.png')) throw new Error('Mounted-ring fallback failed');
+    console.log('mounted-ring fallback verified');
   } else {
   const firstTheta = result.result.value?.orbit?.theta;
   await new Promise(resolve => setTimeout(resolve, 3000));

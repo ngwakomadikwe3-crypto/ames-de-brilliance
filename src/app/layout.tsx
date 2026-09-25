@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], display: "swap", variable: "--font-inter" });
-const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"], display: "swap", variable: "--font-cormorant" });
+const geist = Geist({ subsets: ["latin"], display: "swap", variable: "--font-geist" });
 
 export const metadata: Metadata = {
   title: "AMES DE BRILLIANTE",
@@ -20,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="h-full">
 
-      <body className={`${inter.variable} ${cormorant.variable} min-h-full flex flex-col font-sans`}>
+      <body className={`${geist.variable} min-h-full flex flex-col font-sans`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

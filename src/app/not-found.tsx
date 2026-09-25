@@ -36,7 +36,7 @@ export default function NotFound() {
         style={{
           fontSize: 22,
           fontWeight: 500,
-          fontFamily: "'Cormorant Garamond', Georgia, serif",
+          fontFamily: "var(--font-geist), Arial, sans-serif",
           color: "#171717",
           letterSpacing: "0.01em",
           marginBottom: 8,

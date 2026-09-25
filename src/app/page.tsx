@@ -216,7 +216,7 @@ function BidModal({
         </div>
         <h3
           className="text-[18px] mb-1"
-          style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontWeight: 600, color: "#F5F5F2", letterSpacing: "-0.01em" }}
+          style={{ fontFamily: "var(--font-geist), Arial, sans-serif", fontWeight: 600, color: "#F5F5F2", letterSpacing: "-0.01em" }}
         >
           {lot.title}
         </h3>
@@ -330,7 +330,7 @@ function GateModal({ onClose }: { onClose: () => void }) {
         </div>
         <h3
           className="text-[18px] mb-2"
-          style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontWeight: 600, color: "#F5F5F2" }}
+          style={{ fontFamily: "var(--font-geist), Arial, sans-serif", fontWeight: 600, color: "#F5F5F2" }}
         >
           Licensed Dealer Access
         </h3>
@@ -456,7 +456,7 @@ export default function Home() {
           <h1
             className="text-[32px] md:text-[48px] mb-4"
             style={{
-              fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+              fontFamily: "var(--font-geist), Arial, sans-serif",
               fontWeight: 600,
               letterSpacing: "-0.02em",
               lineHeight: 1.1,
@@ -481,7 +481,7 @@ export default function Home() {
             <div
               className="text-[28px] md:text-[36px] tabular-nums font-medium"
               style={{
-                fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+                fontFamily: "var(--font-geist), Arial, sans-serif",
                 letterSpacing: "0.02em",
                 color: "#F5F5F2",
               }}
@@ -516,7 +516,7 @@ export default function Home() {
           <DiamondGlyph size={18} />
           <h2
             className="text-[22px] md:text-[26px]"
-            style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontWeight: 600, letterSpacing: "-0.01em" }}
+            style={{ fontFamily: "var(--font-geist), Arial, sans-serif", fontWeight: 600, letterSpacing: "-0.01em" }}
           >
             Catalogue
           </h2>
@@ -574,7 +574,7 @@ export default function Home() {
                   <h3
                     className="text-[14px] mb-1"
                     style={{
-                      fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+                      fontFamily: "var(--font-geist), Arial, sans-serif",
                       fontWeight: 600,
                       color: "#F5F5F2",
                       lineHeight: 1.3,
@@ -641,7 +641,7 @@ export default function Home() {
           <DiamondGlyph size={18} />
           <h2
             className="text-[22px] md:text-[26px]"
-            style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontWeight: 600, letterSpacing: "-0.01em" }}
+            style={{ fontFamily: "var(--font-geist), Arial, sans-serif", fontWeight: 600, letterSpacing: "-0.01em" }}
           >
             How it works
           </h2>
@@ -668,7 +668,7 @@ export default function Home() {
               <h3
                 className="text-[15px] mb-1.5"
                 style={{
-                  fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+                  fontFamily: "var(--font-geist), Arial, sans-serif",
                   fontWeight: 600,
                   color: "#F5F5F2",
                 }}
@@ -689,7 +689,7 @@ export default function Home() {
           <DiamondGlyph size={18} />
           <h2
             className="text-[22px] md:text-[26px]"
-            style={{ fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontWeight: 600, letterSpacing: "-0.01em" }}
+            style={{ fontFamily: "var(--font-geist), Arial, sans-serif", fontWeight: 600, letterSpacing: "-0.01em" }}
           >
             Results
           </h2>
@@ -765,7 +765,7 @@ export default function Home() {
         <h2
           className="text-[22px] md:text-[26px] mb-8 text-center"
           style={{
-            fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+            fontFamily: "var(--font-geist), Arial, sans-serif",
             fontWeight: 600,
             color: "#F5F5F2",
           }}
@@ -813,7 +813,7 @@ export default function Home() {
           <h2
             className="text-[18px] md:text-[22px] mt-3 mb-2"
             style={{
-              fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+              fontFamily: "var(--font-geist), Arial, sans-serif",
               fontWeight: 600,
               color: "#F5F5F2",
             }}
@@ -847,7 +847,7 @@ export default function Home() {
         <h2
           className="text-[22px] md:text-[28px] mt-4 mb-2"
           style={{
-            fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif",
+            fontFamily: "var(--font-geist), Arial, sans-serif",
             fontWeight: 600,
             color: "#F5F5F2",
           }}
@@ -879,7 +879,7 @@ export default function Home() {
         <div className="fixed inset-0 z-[90] flex items-center justify-center" onClick={() => setShowReportModal(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-2xl p-6" style={{ background: "#14171A", border: "1px solid rgba(255,255,255,0.06)" }} onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-[16px] font-medium mb-2" style={{ color: "#F5F5F2", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif" }}>Diamond Industry Reports</h3>
+            <h3 className="text-[16px] font-medium mb-2" style={{ color: "#F5F5F2", fontFamily: "var(--font-geist), Arial, sans-serif" }}>Diamond Industry Reports</h3>
             <p className="text-[13px] leading-relaxed mb-5" style={{ color: "#6E6C69" }}>
               Paid reports are coming soon. Contact the desk for early access.
             </p>
