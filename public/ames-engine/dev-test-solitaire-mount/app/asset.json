@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "dev-test-solitaire-mount",
+  "revisionId": "dev-test-solitaire-mount:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "ring",
+  "name": "Solitaire ring mount",
+  "status": {
+    "technical": "validated",
+    "viewer": "validated",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.png",
+    "viewerConfig": "web/viewer-config.json"
+  },
+  "media": {
+    "hero": "luxury/editorial-hero.png",
+    "gemstoneMacro": "luxury/gemstone-macro.png",
+    "settingMacro": "luxury/setting-detail-macro.png",
+    "turntable": "motion/turntable-360.mp4",
+    "productVideo": "motion/luxury-product.mp4"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {},
+  "limitations": [
+    "Physical scale is unresolved; no manufacturing dimensions, weight, or carat are claimed.",
+    "Source surfaces have 22768 non-manifold edges; manufacturing geometry is not qualified.",
+    "Source material is opaque white; metal composition and finish are unverified.",
+    "No gemstone is identified or optically qualified. Macro images show the setting region only.",
+    "Source mesh roles and any small surface features require human identification.",
+    "Commercial imagery and motion require jeweler visual approval before publication."
+  ]
+}

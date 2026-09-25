@@ -15,7 +15,7 @@ export default function SignInPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ code: password }),
       });
       if (res.ok) {
         window.location.href = "/dashboard";
@@ -45,7 +45,7 @@ export default function SignInPage() {
           <div>
             <label className="block text-[11px] font-medium mb-1">Password</label>
             <input
-              type="text"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="field-input"

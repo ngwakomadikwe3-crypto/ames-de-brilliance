@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "dev-test-earring-001",
+  "revisionId": "dev-test-earring-001:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "earrings",
+  "name": "Chandelier earring mount",
+  "status": {
+    "technical": "validated",
+    "viewer": "validated",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.png",
+    "viewerConfig": "web/viewer-config.json"
+  },
+  "media": {
+    "hero": "luxury/editorial-hero.png",
+    "gemstoneMacro": "luxury/gemstone-macro.png",
+    "settingMacro": "luxury/setting-detail-macro.png",
+    "turntable": "motion/turntable-360.mp4",
+    "productVideo": "motion/luxury-product.mp4"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {},
+  "limitations": [
+    "Physical scale is unresolved; no manufacturing dimensions, weight, or carat are claimed.",
+    "Source surfaces have 49698 non-manifold edges; manufacturing geometry is not qualified.",
+    "The four aligned OBJ files form one single earring; no left/right pair or mirrored counterpart is supplied.",
+    "A true pair hero cannot be produced without duplicating or mirroring unverified geometry; the pack provides a single-earring hero instead.",
+    "OBJ files declare no units or materials. Coordinate extents are preserved, but physical scale, metal, and gemstone identities are unresolved.",
+    "Source +Y maps to prepared +Z as the apparent hanging direction; this orientation requires human confirmation.",
+    "No gemstone bodies are identified; visible openings, baskets, and prongs are treated as unqualified setting geometry.",
+    "Source mesh roles and any small surface features require human identification.",
+    "Commercial imagery and motion require jeweler visual approval before publication."
+  ]
+}

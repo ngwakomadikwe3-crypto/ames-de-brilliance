@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "dev-test-earring-001",
+  "revisionId": "dev-test-earring-001:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "stageAsset": "web/jewelry.glb",
+  "poster": "web/poster.png",
+  "rotationEnabled": true,
+  "defaultView": "three_quarter",
+  "supportedViewerActions": [
+    "rotate",
+    "stop_rotation",
+    "zoom",
+    "reset",
+    "hero_view",
+    "macro_view",
+    "side_view",
+    "inspect_setting"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "heroImage": "luxury/editorial-hero.png",
+  "macroImage": "luxury/gemstone-macro.png",
+  "visualModes": [
+    "interactive",
+    "hero",
+    "macro",
+    "side",
+    "setting"
+  ]
+}

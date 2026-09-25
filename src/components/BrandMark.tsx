@@ -6,10 +6,10 @@ type Props = {
   dark?: boolean;
 };
 
-export function BrandMark({ variant = "full", height, dark = true }: Props) {
+export function BrandMark({ variant = "full", height, dark = false }: Props) {
   // Platinum silver-white gradient
-  const text = "#171717";
-  const sub = "#8E8E93";
+  const text = dark ? "#F5F5F2" : "#171717";
+  const sub = dark ? "#A6A6AB" : "#8E8E93";
   const silverGrad = true;
 
   if (variant === "compact") {

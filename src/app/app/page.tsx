@@ -1,84 +1,38 @@
 "use client";
 
-import { createElement, useState, useEffect, useCallback, useRef } from "react";
-import SplashExperience from "@/components/SplashExperience";
-import ModelViewer from "@/components/ModelViewer";
-import DiamondViewer from "@/components/DiamondViewer";
-import JewelryViewer, { preloadJewelryModel } from "@/components/jewelry/JewelryViewer";
-import { products, type Product } from "@/data/products";
-import { createAmesEngine, createAmesIntegration, canonicalAssetManifest, type AmesIntegration } from "@ames/engine";
-import { AmesBoutiqueSurface, AmesStoneTraySurface } from "@/components/AmesEngineSurfaces";
-import {CustomerProvider,useCustomer,customerRequest} from '@/components/CustomerState';
+import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import EngineBoutiquePanel from "../../components/EngineBoutiquePanel";
+import EngineMediaPanel from "../../components/EngineMediaPanel";
+import type { MediaRecord } from "../../lib/ames-media-content";
+import type { BoutiquePiece } from "../../lib/ames-boutique-content";
+const ChatVisualStage = dynamic(() => import("../../components/ChatVisualStage"), { ssr: false });
+const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: false });
 /* Native scroll-snap — no framer-motion needed */
-
-const DIFY_URL = process.env.NEXT_PUBLIC_DIFY_URL || "";
 
 /* ═══════════════════════════════════════════
    TYPES
    ═══════════════════════════════════════════ */
 
-interface StoreStone {
-  id: string; ref: string; stone_type: string;
-  shape: string; carat: number; color: string; clarity: string;
-  cut: string; certification: string; price: number | null;
-  photo: string; listing_category: string; status: string;
-  trader_preferred?: boolean;
-}
-
-interface VideoItem {
-  id: string; video_url: string; caption: string;
-  stone_id: string | null; stone_ref: string | null;
-  shape: string | null; carat: number | null;
-  color: string | null; clarity: string | null;
-  certification: string | null; price: number | null;
-  stone_status: string | null; model_instagram: string | null;
-  likes_count: number;
-  house_note: string;
-  featured_piece: string | null;
-  stone_photo: string | null;
-}
-
-interface Comment {
-  id: string; video_id: string; author: string; text: string; created_at: string;
-}
-
 /* ═══════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════ */
 
-export default function AppPage(){return <CustomerProvider><AppPageContent/></CustomerProvider>;}
-function AppPageContent() {
-  const customer=useCustomer();
+export default function AppPage() {
   const [activePanel, setActivePanel] = useState(1);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
   const [chatPrefill, setChatPrefill] = useState("");
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatAssetId, setChatAssetId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [houseSettingsOpen, setHouseSettingsOpen] = useState(false);
-  const [housePrefs, setHousePrefs] = useState({ appearance: "Midnight", glow: "Rich", sound: true, haptics: true });
   const [chatLoaded, setChatLoaded] = useState(false);
-  const [amesIntegration, setAmesIntegration] = useState<AmesIntegration | null>(null);
-  const [splashComplete, setSplashComplete] = useState(false);
-
-  useEffect(() => {
-    const engine = createAmesEngine({ backend: { render() {}, setSize() {}, dispose() {} } });
-    const integration = createAmesIntegration({ engine });
-    integration.init(); setAmesIntegration(integration);
-    return () => { void integration.dispose(); };
-  }, []);
-
-  useEffect(() => {
-    try {
-      setHousePrefs({ appearance: localStorage.getItem("ames_appearance") || "Midnight", glow: localStorage.getItem("ames_glow") || "Rich", sound: localStorage.getItem("ames_sound") !== "off", haptics: localStorage.getItem("ames_haptics") !== "off" });
-    } catch {}
-  }, []);
-  function updateHousePref(key: keyof typeof housePrefs, value: string | boolean) {
-    setHousePrefs((current) => ({ ...current, [key]: value }));
-    try { localStorage.setItem(`ames_${key}`, String(value).toLowerCase()); } catch {}
-    if(customer.user)void customerRequest('preferences','PUT',{[key]:value}).catch(()=>window.dispatchEvent(new CustomEvent('ames:diagnostic',{detail:{code:'PREFERENCE_SAVE_FAILED'}})));
-  }
-  useEffect(()=>{const prefs=customer.state.profile?.preferences;if(prefs)setHousePrefs(current=>({...current,...prefs}));},[customer.state.profile]);
   const [ringLoaded, setRingLoaded] = useState(false);
+  const [introDone, setIntroDone] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && !sessionStorage.getItem("ames_intro_seen")) queueMicrotask(() => setIntroDone(false));
+  }, []);
 
   useEffect(() => {
     const c = containerRef.current;
@@ -107,25 +61,16 @@ function AppPageContent() {
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    let measuredWidth = window.innerWidth;
     function onScroll() {
-      if (measuredWidth !== window.innerWidth) return;
       const idx = Math.round(container!.scrollLeft / window.innerWidth);
       if (idx !== activePanel && idx >= 0 && idx <= 2) setActivePanel(idx);
     }
     container.addEventListener('scroll', onScroll, { passive: true });
-    function onResize() {
-      measuredWidth = window.innerWidth;
-      container!.scrollTo({ left: activePanel * measuredWidth, behavior: 'instant' });
-    }
-    window.addEventListener('resize', onResize);
-    return () => { container.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onResize); };
+    return () => container.removeEventListener('scroll', onScroll);
   }, [activePanel]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey ||
-        (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable="true"]'))) return;
       if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
       if (e.key === "ArrowLeft") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
     }
@@ -139,42 +84,40 @@ function AppPageContent() {
     setTimeout(() => setHighlightStone(null), 3000);
   }
 
-  function handleAskAmes(ref: string, shape: string, carat: number, color: string, clarity: string) {
-    setChatPrefill(`Tell me about ${ref} \u2014 ${shape} ${carat}ct ${color} ${clarity}`);
+  function handleAskMedia(record: MediaRecord) {
+    setChatAssetId(record.assetId);
+    setChatDraft(`Tell me about ${record.name} (AMES asset ${record.assetId})`);
     swipeTo(1);
   }
 
-  const NAV_ITEMS = activePanel === 0
-    ? [
-        { label: "Collections", action: () => swipeTo(0) },
-        { label: "Pricing", action: () => { setChatPrefill("Tell me about pricing"); swipeTo(1); } },
-        { label: "Compliance", href: "/compliance" },
-      ]
-    : [
-        { label: "Account", href: "/account" },
-        { label: "Favorites", href: "/account?tab=favorites" },
-      ];
+  function handleAskBoutique(piece: BoutiquePiece) {
+    setChatAssetId(piece.assetId);
+    setChatDraft(`Tell me about ${piece.name} (AMES asset ${piece.assetId})`);
+    swipeTo(1);
+  }
+
+  const NAV_ITEMS = [
+    { label: "Settings", href: "/app/settings" },
+    { label: "Billing", href: "/app/billing" },
+  ];
 
   return (
     <>
-      <SplashExperience onComplete={() => { setSplashComplete(true); swipeTo(1); }} />
-      <div className={`ames-product-shell${splashComplete ? " is-ready" : ""}`} aria-hidden={!splashComplete}>
-      <style>{`.ames-product-shell{opacity:0;pointer-events:none;visibility:hidden;transition:opacity 560ms cubic-bezier(.22,.61,.36,1),visibility 0s linear 560ms}.ames-product-shell.is-ready{opacity:1;pointer-events:auto;visibility:visible;transition-delay:0s}`}</style>
-      <style>{` .house-settings-backdrop{position:fixed;inset:0;z-index:90;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.58);backdrop-filter:blur(8px)}.house-settings{position:relative;width:min(100%,460px);padding:32px 24px 28px;background:rgba(8,8,8,.7);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.18);border-radius:24px 24px 0 0;color:#F4E9D5}.house-settings h2{font-family:var(--font-cormorant,Georgia,serif);font-size:32px;font-weight:500}.house-kicker,.house-setting-group h3{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#A6A6AB}.house-kicker{margin:0 0 8px}.house-setting-group{padding:18px 0;border-bottom:1px solid rgba(255,255,255,.12)}.house-setting-group h3{margin-bottom:10px}.house-choice{display:flex;gap:8px}.house-choice button,.house-link{border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:8px 14px;background:transparent;color:#9A8F80;font-size:12px}.house-choice button.selected{border-color:#f2efe6;color:#F4E9D5}.house-setting-line{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px}.house-setting-line strong{font-size:11px;color:#f2efe6}.house-toggle{width:42px;height:24px;border:1px solid rgba(255,255,255,.25);border-radius:20px;background:#26231f;padding:2px;text-align:left}.house-toggle span{display:block;width:18px;height:18px;border-radius:50%;background:#9A8F80;transition:transform .2s}.house-toggle.on{border-color:#f2efe6}.house-toggle.on span{transform:translateX(18px);background:#f2efe6}.house-privacy,.house-about{font-size:11px;line-height:1.5;color:#9A8F80}.house-privacy{margin:18px 0}.house-link{color:#F4E9D5;border-color:#f2efe6}.house-link span{margin-left:20px;color:#f2efe6}.house-about{margin:22px 0 0}.house-settings-close{position:absolute;top:16px;right:20px;border:0;background:none;color:#F4E9D5;font-size:28px;font-weight:200}@media(min-width:768px){.house-settings-backdrop{align-items:center}.house-settings{border-radius:24px}} 
-        :root`}</style>
       <style>{`
-        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #b7a99d; }
+        :root { font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Inter', 'Helvetica Neue', Arial, sans-serif); background: #EAE8E4; }
         footer { display: none !important; }
-        body > header { display: none !important; }
-        html, body { overflow: hidden; overscroll-behavior: none; }
+        body { overflow: hidden; }
       `}</style>
 
+      {/* Video intro overlay — plays once per session */}
+      {!introDone && <VideoIntro onDone={() => setIntroDone(true)} />}
+
       {/* Minimal transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(8,8,8,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(234,232,228,0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => setDrawerOpen(!drawerOpen)} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu">
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
-          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#F4E9D5' : '#9A8F80', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#171717' : '#6E6C69', transition: 'all 0.3s' }} />
+          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#171717' : '#6E6C69', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: drawerOpen ? '#171717' : '#6E6C69', transition: 'all 0.3s' }} />
         </button>
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
@@ -193,9 +136,9 @@ function AppPageContent() {
       {drawerOpen && (
         <div className="fixed inset-0 z-[70]" onClick={() => setDrawerOpen(false)}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-          <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }} onClick={e => e.stopPropagation()}>
+          <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#F4E9D5' }}>AMES</div>
+              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#171717' }}>AMES</div>
             </div>
             <div className="py-2">
               {NAV_ITEMS.map((item) => (
@@ -203,10 +146,10 @@ function AppPageContent() {
                   key={item.label}
                   onClick={() => {
                     setDrawerOpen(false);
-                    if (item.action) item.action(); else if (item.href) window.location.href = item.href;
+                    window.location.href = item.href!;
                   }}
                   className="w-full text-left px-5 py-3 text-[13px] transition-colors"
-                  style={{ color: '#9A8F80', fontWeight: 400 }}
+                  style={{ color: '#6E6C69', fontWeight: 400 }}
                 >
                   {item.label}
                 </button>
@@ -227,9 +170,9 @@ function AppPageContent() {
               pointerEvents: 'auto',
               width: activePanel === i ? 16 : 6,
               height: 6,
-              background: activePanel === i ? '#A6A6AB' : '#38342D',
+              background: activePanel === i ? '#A6A6AB' : '#D9D7D3',
             }}
-            aria-label={['Boutique', 'Chat', 'Video'][i]}
+            aria-label={['Boutique', 'Chat', 'Videos'][i]}
           />
         ))}
       </div>
@@ -237,38 +180,34 @@ function AppPageContent() {
       <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
         <div className="flex h-full" style={{ width: '300dvw' }}>
-          <section data-panel="0" aria-label="Boutique" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <BoutiquePanel active={activePanel===0} highlightStone={highlightStone} onAskPiece={(piece) => { setChatPrefill(`Tell me about ${piece}`); swipeTo(1); }} integration={amesIntegration} />
+          <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
+            <EngineBoutiquePanel highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
           </section>
-          <section data-panel="1" aria-label="Chat" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <ChatPanel prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} onBrowseBoutique={() => swipeTo(0)} integration={amesIntegration} />
+          <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
+            <ChatPanel assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => swipeTo(0)} />
           </section>
-          <section data-panel="2" aria-label="Video" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <VideosPanel isPanelActive={activePanel === 2} onSeePiece={handleSeePiece} onAskAmes={handleAskAmes} onOpenBoutiqueDetail={(stoneId) => { setHighlightStone(stoneId); swipeTo(0); setTimeout(() => setHighlightStone(null), 3000); }} />
+          <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <EngineMediaPanel active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
           </section>
         </div>
       </div>
 
       {/* Desktop edge arrows */}
       {activePanel > 0 && (
-        <button onClick={() => swipeTo(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#080808]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4E9D5" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
+        <button onClick={() => swipeTo(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Previous panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
       {activePanel < 2 && (
-        <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#080808]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F4E9D5" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
+        <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-[#EAE8E4]/60 backdrop-blur-sm border border-[rgba(23,23,23,0.08)] opacity-40 hover:opacity-70 transition-opacity hidden md:flex" aria-label="Next panel">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#171717" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
-      {houseSettingsOpen && <div className="house-settings-backdrop" onClick={() => setHouseSettingsOpen(false)}><section className="house-settings" role="dialog" aria-modal="true" aria-labelledby="house-settings-title" onClick={(event) => event.stopPropagation()}><button className="house-settings-close" aria-label="Close settings" onClick={() => setHouseSettingsOpen(false)}>×</button><p className="house-kicker">The House</p><h2 id="house-settings-title">Settings</h2><div className="house-setting-group"><h3>Appearance</h3><div className="house-choice"><button className={housePrefs.appearance === "Midnight" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Midnight")}>Midnight</button><button className={housePrefs.appearance === "Ivory" ? "selected" : ""} onClick={() => updateHousePref("appearance", "Ivory")}>Ivory stage</button></div></div><div className="house-setting-group"><h3>Stone glow</h3><div className="house-choice"><button className={housePrefs.glow === "Subtle" ? "selected" : ""} onClick={() => updateHousePref("glow", "Subtle")}>Subtle</button><button className={housePrefs.glow === "Rich" ? "selected" : ""} onClick={() => updateHousePref("glow", "Rich")}>Rich</button></div></div><SettingToggle label="Sound" value={housePrefs.sound} onChange={() => updateHousePref("sound", !housePrefs.sound)} /><SettingToggle label="Haptics" value={housePrefs.haptics} onChange={() => updateHousePref("haptics", !housePrefs.haptics)} /><div className="house-setting-line"><span>Language</span><strong>EN</strong></div><p className="house-privacy">Your preferences stay on this device and are never shared by the House.</p><button className="house-link" onClick={() => { setHouseSettingsOpen(false); swipeTo(1); }}>Ask SAME <span>→</span></button><a className="house-link" href="https://ames-de-brilliance.vercel.app" target="_blank" rel="noreferrer">Visit the Website <span>↗</span></a><p className="house-about">About the House · AMES</p></section></div>}
-      </div>
     </>
   );
 }
 
-function SettingToggle({ label, value, onChange }: { label: string; value: boolean; onChange: () => void }) { return <div className="house-setting-line"><span>{label}</span><button className={`house-toggle ${value ? "on" : ""}`} aria-pressed={value} onClick={onChange}><span /></button></div>; }
-
-/* ════════════════════════════���═══════════���══
+/* ═══════════════════════════════════════════
    CHAT PANEL
    ═══════════════════════════════════════════ */
 
@@ -280,27 +219,9 @@ interface ChatMessage {
   id: string; chat_id: string; role: "user" | "assistant"; text: string; thinking: string; created_at: string;
 }
 
-function groupChats(chats: ChatHistory[]): { label: string; items: ChatHistory[] }[] {
-  const now = Date.now();
-  const day = 86400000;
-  const today: ChatHistory[] = [], week: ChatHistory[] = [], older: ChatHistory[] = [];
-  for (const c of chats) {
-    const t = new Date(c.updated_at).getTime();
-    if (now - t < day) today.push(c);
-    else if (now - t < 7 * day) week.push(c);
-    else older.push(c);
-  }
-  const groups: { label: string; items: ChatHistory[] }[] = [];
-  if (today.length) groups.push({ label: "Today", items: today });
-  if (week.length) groups.push({ label: "7 Days", items: week });
-  if (older.length) groups.push({ label: "Older", items: older });
-  return groups;
-}
 
-function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }: { prefill: string; onPrefillConsumed: () => void; onBrowseBoutique: () => void; integration: AmesIntegration | null }) {
-  const [selectedStoneId, setSelectedStoneId] = useState("stone-001");
-  const customer=useCustomer(),restoredStone=useRef(false);
-  useEffect(()=>{if(!customer.ready||restoredStone.current)return;restoredStone.current=true;const saved=customer.state.saved.find(a=>a.kind==='stone');if(saved)setSelectedStoneId(saved.assetId);},[customer.ready,customer.state.saved]);
+
+function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique }: { assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void }) {
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -309,7 +230,8 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   const [mode, setMode] = useState<"instant" | "expert">("instant");
   const [deepThink, setDeepThink] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-
+  const [conversationId, setConversationId] = useState("");
+  const [stageCommand, setStageCommand] = useState<{ id: number; value: unknown } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -320,15 +242,20 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
   useEffect(() => {
-    setChats([]);setMessages([]);setActiveChatId(null);
-    if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
-  }, [customer.user?.id]);
+    fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!prefill) return;
     handleSend(prefill);
     onPrefillConsumed();
   }, [prefill]);
+
+  useEffect(() => {
+    if (!draft) return;
+    queueMicrotask(() => setInput(draft));
+    onDraftConsumed();
+  }, [draft]);
 
   async function loadChat(id: string) {
     setActiveChatId(id);
@@ -340,72 +267,91 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
     setChatLoading(false);
   }
 
-  async function ensureChat(): Promise<string|null> {
-    if(!customer.user)return null;
+  async function ensureChat(): Promise<string> {
     if (activeChatId) return activeChatId;
     const res = await fetch("/api/chats", { method: "POST" });
-    if(!res.ok)throw new Error('Chat history unavailable');
     const chat: ChatHistory = await res.json();
     setChats(p => [chat, ...p]);
     setActiveChatId(chat.id);
     return chat.id;
   }
-  async function appendMessage(chatId:string|null,role:'user'|'assistant',text:string,thinking=''){
-    let message={id:crypto.randomUUID(),role,text,thinking,created_at:new Date().toISOString()} as ChatMessage;
-    if(chatId){const response=await fetch(`/api/chats/${chatId}/messages`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,text,thinking})});if(!response.ok)throw new Error('Chat history unavailable');message=await response.json();}
-    setMessages(p=>[...p,message]);
-  }
 
   async function handleSend(text?: string) {
-    const msg = (text || input).trim();
-    if (!msg) return;
+    const rawMsg = (text || input).trim();
+    if (!rawMsg) return;
     setInput("");
-    // Explicit catalog-ID command only. No AI output, URL or tier assertion can grant access.
-    const requested = /^show\s+(stone-\d+)$/i.exec(msg)?.[1]?.toLowerCase();
-    if (requested && canonicalAssetManifest.assets.some(asset => asset.id === requested)) {
-      setSelectedStoneId(requested);
-      return;
-    }
+
+    const chatId = await ensureChat();
+    const userRes = await fetch(`/api/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "user", text: rawMsg }),
+    });
+    const userMsg: ChatMessage = await userRes.json();
+    setMessages(p => [...p, userMsg]);
     setTyping(true);
+
+    /* DeepThink prefixes the query; Expert mode sends as-is */
+    const query = deepThink ? `Think step by step, then answer: ${rawMsg}` : rawMsg;
+    const userId = typeof window !== "undefined" ? localStorage.getItem("ames_uid") || (() => { const u = `u-${Date.now()}-${Math.random().toString(36).slice(2,8)}`; localStorage.setItem("ames_uid", u); return u; })() : "web-visitor";
+
     try {
-      const chatId = await ensureChat();
-      await appendMessage(chatId,'user',msg);
-      const history = messages.map(m => ({ role: m.role, text: m.text }));
-      const chatRes = await fetch("/api/chat", {
+      const amesRes = await fetch("/api/ames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, history }),
+        body: JSON.stringify({ query, conversation_id: conversationId, user: userId }),
       });
-      const chatData = await chatRes.json();
-      const replyText = chatData.reply || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
+      const amesData = await amesRes.json();
+      // SAME may supply a typed action. The stage checks it against the contract.
+      const viewerAction = amesData.viewer_action ?? amesData.outputs?.viewer_action;
+      if (viewerAction !== undefined) setStageCommand({ id: Date.now(), value: viewerAction });
+
+      /* Store conversation_id for multi-turn continuity */
+      if (amesData.conversation_id) setConversationId(amesData.conversation_id);
+
+      const replyText = amesData.answer || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
       const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
-      await appendMessage(chatId,'assistant',replyText,thinking);
+
+      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "assistant", text: replyText, thinking }),
+      });
+      const assistantMsg: ChatMessage = await assistantRes.json();
+      setMessages(p => [...p, assistantMsg]);
     } catch {
-      const fallback = "The desk is quiet right now — please try again shortly, or reach a human on WhatsApp: +267 72 839 152.";
-      await appendMessage(null,'assistant',customer.user?'Chat history is unavailable. Please sign in again or try shortly.':fallback);
+      const fallback = "The desk is quiet right now \u2014 please try again.";
+      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "assistant", text: fallback }),
+      });
+      const assistantMsg: ChatMessage = await assistantRes.json();
+      setMessages(p => [...p, assistantMsg]);
     } finally {
       setTyping(false);
-      if(customer.user)fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+      fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
     }
   }
 
   return (
-    <div className="flex flex-col chat-paper" style={{ height: '100dvh', overflow: 'hidden', background: '#efe9e2', color: '#241d18', position: 'relative' }}>
+    <div className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: '#EAE8E4', position: 'relative' }}>
 
       {chatStarted ? (
         /* === CHAT MODE === */
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="shrink-0 pt-10 text-center"><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
           {/* Mini header */}
           <div className="shrink-0 flex items-center gap-3 px-4 pt-12 pb-3" style={{ borderBottom: '1px solid rgba(23,23,23,0.08)', background: 'rgba(234,232,228,0.9)', backdropFilter: 'blur(12px)' }}>
-            <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#151515', border: '1px solid rgba(23,23,23,0.08)' }}>
+            <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)' }}>
               <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
             </div>
-            <div className="flex rounded-full p-[2px] ml-auto" style={{ background: '#202020' }}>
-              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F4E9D5" : "#9A8F80" }}>Instant</button>
-              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F4E9D5" : "#9A8F80" }}>Expert</button>
+            <div className="flex rounded-full p-[2px] ml-auto" style={{ background: '#F5F4F2' }}>
+              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#FCFCFB" : "transparent", color: mode === "instant" ? "#171717" : "#6E6C69" }}>Instant</button>
+              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#FCFCFB" : "transparent", color: mode === "expert" ? "#171717" : "#6E6C69" }}>Expert</button>
             </div>
           </div>
+
+          <ChatVisualStage key={assetId ?? 'default'} command={stageCommand} assetId={assetId} compact />
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
@@ -415,18 +361,18 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
                   {m.role === "assistant" && m.thinking && (
                     <div className="ml-2">
                       <details className="group">
-                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#9A8F80' }}>Reasoning</summary>
-                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#202020', border: '1px solid rgba(23,23,23,0.08)', color: '#9A8F80' }}>{m.thinking}</div>
+                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#6E6C69' }}>Reasoning</summary>
+                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#F5F4F2', border: '1px solid rgba(23,23,23,0.08)', color: '#6E6C69' }}>{m.thinking}</div>
                       </details>
                     </div>
                   )}
                   <div className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     {m.role === "assistant" && (
-                      <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#202020', border: '1px solid rgba(23,23,23,0.08)' }}>
+                      <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#F5F4F2', border: '1px solid rgba(23,23,23,0.08)' }}>
                         <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
                       </div>
                     )}
-                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: '#F4E9D5', color: '#151515', borderRadius: '18px 18px 4px 18px' } : { background: '#151515', border: '1px solid rgba(23,23,23,0.08)', color: '#F4E9D5', borderRadius: '18px 18px 18px 4px' }) }}>
+                    <div className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: '#171717', color: '#FCFCFB', borderRadius: '18px 18px 4px 18px' } : { background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)', color: '#171717', borderRadius: '18px 18px 18px 4px' }) }}>
                       {m.text}
                     </div>
                   </div>
@@ -434,10 +380,10 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
               ))}
               {typing && (
                 <div className="flex justify-start">
-                  <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#202020', border: '1px solid rgba(23,23,23,0.08)' }}>
+                  <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#F5F4F2', border: '1px solid rgba(23,23,23,0.08)' }}>
                     <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
                   </div>
-                  <div style={{ background: '#151515', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', display: 'flex', gap: 4, border: '1px solid rgba(23,23,23,0.08)' }}>
+                  <div style={{ background: '#FCFCFB', borderRadius: '16px 16px 16px 4px', padding: '10px 14px', display: 'flex', gap: 4, border: '1px solid rgba(23,23,23,0.08)' }}>
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "0ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "150ms" }} />
                     <span className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: "#A6A6AB", animationDelay: "300ms" }} />
@@ -455,13 +401,13 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
                   <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#A6A6AB', textDecoration: 'none', fontWeight: 400 }}>Talk to a human on WhatsApp</a>
                 </div>
               )}
-              <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A8F80" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+              <div style={{ background: '#FCFCFB', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F4E9D5', lineHeight: 1.4 }} />
-                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F4E9D5' : '#38342D' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
@@ -469,16 +415,19 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
         </div>
       ) : (
         /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#efe9e2', color: '#241d18' }}>
+        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: '#EAE8E4' }}>
 
-          <div style={{ width: '100%', maxWidth: 360, minHeight: 270, marginBottom: 18 }}><AmesStoneTraySurface integration={integration} assetId={selectedStoneId} /></div>
+          <ChatVisualStage key={assetId ?? 'default'} command={stageCommand} assetId={assetId} />
 
           {/* Serif time-of-day greeting */}
-          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#F4E9D5', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
+          <h2 style={{ fontSize: 26, fontWeight: 500, color: '#171717', fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: '-0.01em', marginBottom: 6, textAlign: 'center' }}>
             {(() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })()}
           </h2>
-          <p style={{ fontSize: 14, fontWeight: 400, color: '#9A8F80', textAlign: 'center' }}>
+          <p style={{ fontSize: 14, fontWeight: 400, color: '#6E6C69', textAlign: 'center' }}>
             How can I help you today?
+          </p>
+          <p style={{ fontSize: 12, fontWeight: 400, color: '#A6A6AB', textAlign: 'center', marginTop: 16, maxWidth: 300 }}>
+            SAME can answer questions about available stones, Botswana diamonds, and house services. Final prices, availability, and transactions are confirmed by the desk.
           </p>
         </div>
       )}
@@ -489,23 +438,23 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
           <div className="mx-auto" style={{ maxWidth: 360 }}>
             {/* Controls row: DeepThink + Instant/Expert */}
             <div className="flex items-center gap-2 mb-2.5 px-1">
-              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#F4E9D5' : '#151515', color: deepThink ? '#151515' : '#9A8F80', border: '1px solid rgba(23,23,23,0.08)' }}>
+              <button onClick={() => setDeepThink(p => !p)} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all" style={{ background: deepThink ? '#171717' : '#FCFCFB', color: deepThink ? '#FCFCFB' : '#6E6C69', border: '1px solid rgba(23,23,23,0.08)' }}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
                 DeepThink
               </button>
-              <div className="flex rounded-full p-[2px]" style={{ background: '#202020' }}>
-                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#151515" : "transparent", color: mode === "instant" ? "#F4E9D5" : "#9A8F80" }}>Instant</button>
-                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#151515" : "transparent", color: mode === "expert" ? "#F4E9D5" : "#9A8F80" }}>Expert</button>
+              <div className="flex rounded-full p-[2px]" style={{ background: '#F5F4F2' }}>
+                <button onClick={() => setMode("instant")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "instant" ? "#FCFCFB" : "transparent", color: mode === "instant" ? "#171717" : "#6E6C69" }}>Instant</button>
+                <button onClick={() => setMode("expert")} className="px-3 py-0.5 rounded-full text-[11px] transition-all" style={{ background: mode === "expert" ? "#FCFCFB" : "transparent", color: mode === "expert" ? "#171717" : "#6E6C69" }}>Expert</button>
               </div>
             </div>
             {/* Floating card */}
-            <div style={{ background: '#151515', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#202020', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9A8F80" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+            <div style={{ background: '#FCFCFB', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.06)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything..." className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#F4E9D5', lineHeight: 1.4 }} />
-              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#F4E9D5' : '#38342D' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#151515' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#171717', lineHeight: 1.4 }} />
+              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
             </div>
           </div>
@@ -515,800 +464,3 @@ function ChatPanel({ prefill, onPrefillConsumed, onBrowseBoutique, integration }
   );
 }
 
-/* ═══════════════════════════════════════════
-   BOUTIQUE PANEL
-   ═══════════════════════════════════════════ */
-
-const CATEGORY_MAP: { label: string; key: string }[] = [
-  { label: "Rings", key: "Ring" },
-  { label: "Watches", key: "Watch" },
-  { label: "Bracelets", key: "Bracelet" },
-  { label: "Necklaces", key: "Necklace" },
-  { label: "Earrings", key: "Earring" },
-];
-
-function parsePhotos(photoStr: string | null | undefined): (string | null)[] {
-  if (!photoStr) return [null, null, null];
-  const parts = photoStr.split("|").map(s => s.trim()).filter(s => s.length > 0 && !s.startsWith("data:"));
-  return [parts[0] || null, parts[1] || null, parts[2] || null];
-}
-
-const DEMO_STONE: StoreStone & { demo?: boolean } = {
-  id: "_demo_aurora",
-  ref: "DEMO-001",
-  stone_type: "Diamond",
-  shape: "Solitaire",
-  carat: 1.20,
-  color: "D",
-  clarity: "VVS1",
-  cut: "Platinum",
-  certification: "GIA",
-  price: 6800,
-  photo: "/demo/ring-front.svg|/demo/ring-angle.svg|/demo/ring-worn.svg",
-  listing_category: "Jewelry",
-  status: "Available",
-  trader_preferred: false,
-  demo: true,
-};
-
-function BoutiqueVitrine({ product, onAsk }: { product: Product; onAsk: (piece: string) => void }) {
-  const { name, src, kind, tagline } = product;
-  const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [tryOnOpen, setTryOnOpen] = useState(false);
-  const [showTryOnGuide, setShowTryOnGuide] = useState(false);
-  const [cameraUnavailable, setCameraUnavailable] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const arActivateRef = useRef<(() => void) | null>(null);
-  useEffect(() => { const node = ref.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setMounted(true); observer.disconnect(); } }, { rootMargin: "160px" }); observer.observe(node); return () => observer.disconnect(); }, []);
-  const openTryOn = async () => {
-    if (kind !== "hintspo") { setOpen(true); return; }
-    setTryOnOpen(true);
-    try {
-      if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { setCameraUnavailable(true); return; }
-      const permission = await navigator.permissions?.query({ name: "camera" as PermissionName });
-      if (permission?.state === "denied") setCameraUnavailable(true);
-      if (sessionStorage.getItem("ames_tryon_guide_seen") !== "1") setShowTryOnGuide(true);
-    } catch { if (sessionStorage.getItem("ames_tryon_guide_seen") !== "1") setShowTryOnGuide(true); }
-  };
-  const dismissTryOnGuide = () => { try { sessionStorage.setItem("ames_tryon_guide_seen", "1"); } catch {} setShowTryOnGuide(false); };
-  return <>
-    <article className="boutique-vitrine">
-      <div ref={ref} className="boutique-vitrine-viewer" onClick={() => setOpen(true)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setOpen(true); }}>
-        {mounted ? (kind === "hintspo" ? <iframe src={src} title={name} loading="lazy" referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <JewelryViewer modelUrl={product.modelUrl || product.model3d || src || "placeholder:ames-signature-solitaire"} caption="Private viewing — not for sale" /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name })) : <div className="vitrine-placeholder"><strong>{name}</strong></div>}
-        <div className="vitrine-vignette" aria-hidden="true" /><div className="vitrine-nameplate"><span>AMES</span><strong>{name}</strong></div>
-      </div>
-      <div className="boutique-vitrine-footer"><div><h3>{name}</h3><p className="text-[10px] text-[#9A8F80]">{tagline}</p></div><div className="flex gap-2">{kind === "hintspo" ? <button onClick={openTryOn} aria-label={`Try on ${name}`}><span aria-hidden="true">◌</span> Try On</button> : null}<button onClick={() => onAsk(name)}>Enquire via SAME</button></div></div>
-    </article>
-    {tryOnOpen && <div className="viewing-room-backdrop" onClick={() => setTryOnOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`try-on-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Try On" onClick={() => setTryOnOpen(false)}>×</button><div className="viewing-room-frame"><iframe src={`${src}?tryon=1`} title={`${name} Try On`} referrerPolicy="no-referrer" allow="camera camera *" /></div>{cameraUnavailable ? <div className="try-on-fallback"><p>AR try-on needs your camera — or ask SAME to arrange a private viewing.</p><button className="viewing-ask" onClick={() => { setTryOnOpen(false); onAsk(name); }}>Ask SAME <span>→</span></button></div> : <h2 id={`try-on-${name.replace(/\\s/g, "-")}`}>{name}</h2>}{showTryOnGuide && !cameraUnavailable && <div className="try-on-guide"><p>Point your camera at your hand and move slowly.</p><button className="viewing-ask" onClick={dismissTryOnGuide}>Begin</button></div>}</section></div>}
-      {open && <div className="viewing-room-backdrop" onClick={() => setOpen(false)}><section className="viewing-room" role="dialog" aria-modal="true" aria-labelledby={`viewing-${name.replace(/\\s/g, "-")}`} onClick={(event) => event.stopPropagation()}><button className="viewing-close" aria-label="Close Viewing Room" onClick={() => setOpen(false)}>×</button><div className="viewing-room-frame">{mounted && (kind === "hintspo" ? <iframe src={src} title={name} referrerPolicy="no-referrer" allow="camera" /> : kind === "glb" ? <JewelryViewer modelUrl={product.modelUrl || product.model3d || src || "placeholder:ames-signature-solitaire"} caption="Private viewing — not for sale" /> : createElement("jewelry-viewer", { gem: product.gem, metal: product.metal, ring: product.ring, "aria-label": name }))}</div><h2 id={`viewing-${name.replace(/\\s/g, "-")}`}>{name}</h2><button className="viewing-ask" onClick={() => { setOpen(false); onAsk(name); }}>Ask SAME about this piece <span>→</span></button></section></div>}
-  </>;
-}
-
-function BoutiqueShowcase({ onAskPiece }: { onAskPiece: (piece: string) => void }) {
-  const pieces = products;
-  const showcaseRef = useRef<HTMLElement>(null);
-  const [jewelshopReady, setJewelshopReady] = useState(false);
-  const [active, setActive] = useState(0);
-  const [preMounted, setPreMounted] = useState<number[]>([0]);
-  const touchStart = useRef<number | null>(null);
-  const activePiece = pieces[active];
-  useEffect(() => {
-    const node = showcaseRef.current;
-    if (!node || jewelshopReady) return;
-    const load = () => { if (document.querySelector('script[src="https://jewelshop.ai/embed/jewelry-viewer.js"]')) { setJewelshopReady(true); return; } const script = document.createElement("script"); script.src = "https://jewelshop.ai/embed/jewelry-viewer.js"; script.type = "module"; script.onload = () => setJewelshopReady(true); document.head.appendChild(script); observer.disconnect(); };
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) load(); }, { rootMargin: "200px" });
-    observer.observe(node); return () => observer.disconnect();
-  }, [jewelshopReady]);
-  useEffect(() => {
-    const next = (active + 1) % pieces.length;
-    const idle = "requestIdleCallback" in window ? window.requestIdleCallback(() => { const product = pieces[next]; if (product.kind === "glb" && product.modelUrl) preloadJewelryModel(product.modelUrl); setPreMounted([active, next]); }) : setTimeout(() => setPreMounted([active, next]), 160);
-    return () => { if ("cancelIdleCallback" in window && typeof idle === "number") window.cancelIdleCallback(idle); else window.clearTimeout(idle as number); };
-  }, [active, pieces]);
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setInterval(() => setActive((current) => (current + 1) % pieces.length), 60000);
-    return () => window.clearInterval(timer);
-  }, [pieces.length]);
-  if (!activePiece) return null;
-  const change = (direction: number) => setActive((current) => (current + direction + pieces.length) % pieces.length);
-  return <section ref={showcaseRef} className="boutique-showcase" aria-label="AMES boutique showcase">
-    <div className="showcase-frame" onTouchStart={(event) => { touchStart.current = event.touches[0].clientX; }} onTouchEnd={(event) => { if (touchStart.current === null) return; const distance = event.changedTouches[0].clientX - touchStart.current; if (Math.abs(distance) > 45) change(distance < 0 ? 1 : -1); touchStart.current = null; }}>
-      <div className="showcase-track" style={{ transform: `translateX(-${active * 100}%)` }}>{pieces.map((piece, index) => <div key={piece.id} className="showcase-slide" aria-hidden={index !== active}>{preMounted.includes(index) && (piece.kind !== "glb" || index === active) ? (piece.kind === "hintspo" ? <iframe src={piece.src} title={piece.name} loading={index === active ? "eager" : "lazy"} referrerPolicy="no-referrer" allow="camera camera *" /> : piece.kind === "glb" ? <JewelryViewer modelUrl={piece.modelUrl || piece.model3d || piece.src || "placeholder:ames-signature-solitaire"} caption="Private viewing — not for sale" /> : createElement("jewelry-viewer", { gem: piece.gem, metal: piece.metal, ring: piece.ring, "aria-label": piece.name })) : <div className="showcase-shimmer" />}<div className="vitrine-vignette" aria-hidden="true" /></div>)}</div>
-      {pieces.length > 1 && <><button className="showcase-arrow left" onClick={() => change(-1)} aria-label="Previous piece">‹</button><button className="showcase-arrow right" onClick={() => change(1)} aria-label="Next piece">›</button></>}
-    </div>
-    <div className="showcase-caption"><div><p>{activePiece.tagline}</p><h2>{activePiece.name}</h2></div><div className="showcase-actions"><button onClick={() => onAskPiece(activePiece.name)}>Enquire via SAME</button>{activePiece.kind !== "jewelshop" && <button onClick={() => onAskPiece(activePiece.name)}>Try On</button>}</div></div>
-    <div className="showcase-dots" role="tablist" aria-label="Showcase pieces">{pieces.map((piece, index) => <button key={piece.id} role="tab" aria-selected={index === active} aria-label={`View ${piece.name}`} className={index === active ? "active" : ""} onClick={() => setActive(index)} />)}</div>
-  </section>;
-}
-
-function BoutiquePanel({ highlightStone, onAskPiece, integration, active }: { highlightStone: string | null; onAskPiece: (piece: string) => void; integration: AmesIntegration | null; active:boolean }) {
-  const [stones, setStones] = useState<StoreStone[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>("All");
-  const customer=useCustomer();
-  const wishlist:Record<string,boolean>=Object.fromEntries(customer.state.favorites.map(a=>[a.assetId,true]));
-  const [wishlistError,setWishlistError]=useState<string|null>(null);
-  const wishlistPending=useRef(false);
-  const [showReserveId, setShowReserveId] = useState<string | null>(null);
-  const [galleryPhotos, setGalleryPhotos] = useState<(string | null)[]>([null, null, null]);
-  const [galleryIndex, setGalleryIndex] = useState(0);
-  const [galleryOpen, setGalleryOpen] = useState(false);
-  const [boutiqueMenuOpen, setBoutiqueMenuOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [pullDist, setPullDist] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const pullStartRef = useRef<number | null>(null);
-  const pullingRef = useRef(false);
-  const THRESHOLD = 80;
-  const MAX_PULL = 120;
-
-  function openGallery(photos: (string | null)[], index: number) {
-    setGalleryPhotos(photos);
-    setGalleryIndex(index);
-    setGalleryOpen(true);
-  }
-
-  const fetchStones = useCallback(async () => {
-    try {
-      const r = await fetch("/api/stones");
-      if (r.ok) {
-        const all: StoreStone[] = await r.json();
-        const live = all.filter(s => s.status === "Available" && (s.listing_category === "Polished" || s.listing_category === "Jewelry"));
-        /* Seed the single demo piece (hidden once real stock exists or owner removed it) */
-        const demoRemoved = typeof window !== "undefined" && localStorage.getItem("boutique_demo_removed") === "1";
-        const hasDemo = live.some(s => s.id === "_demo_aurora");
-        if (!hasDemo && !demoRemoved && live.length === 0) live.unshift(DEMO_STONE);
-        setStones(live);
-      }
-    } catch {} finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchStones(); }, [fetchStones]);
-
-  function handleTouchStart(e: React.TouchEvent) {
-    const el = scrollRef.current;
-    if (!el || el.scrollTop > 5 || isRefreshing) return;
-    pullStartRef.current = e.touches[0].clientY;
-    pullingRef.current = true;
-  }
-  function handleTouchMove(e: React.TouchEvent) {
-    if (!pullingRef.current || pullStartRef.current === null || isRefreshing) return;
-    const dy = e.touches[0].clientY - pullStartRef.current;
-    if (dy <= 0) { setPullDist(0); return; }
-    const el = scrollRef.current;
-    if (el && el.scrollTop > 0) { pullingRef.current = false; setPullDist(0); return; }
-    setPullDist(Math.min(MAX_PULL, dy * 0.55));
-  }
-  function handleTouchEnd() {
-    if (!pullingRef.current) return;
-    pullingRef.current = false;
-    if (pullDist >= THRESHOLD && !isRefreshing) {
-      setIsRefreshing(true); setPullDist(50);
-      fetchStones().finally(() => { setIsRefreshing(false); setPullDist(0); });
-    } else { setPullDist(0); }
-  }
-
-  useEffect(() => {
-    if (!highlightStone || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector(`[data-stone-id="${highlightStone}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [highlightStone]);
-
-  const filtered = filter === "All" ? stones : stones.filter(s => {
-    const cat = (s.listing_category || "").toLowerCase();
-    const shape = (s.shape || "").toLowerCase();
-    const f = filter.toLowerCase();
-    return cat.includes(f) || shape.includes(f);
-  });
-
-  const categoryImages = CATEGORY_MAP.map(cat => {
-    const match = stones.find(s => {
-      const shape = (s.shape || "").toLowerCase();
-      const category = (s.listing_category || "").toLowerCase();
-      return shape.includes(cat.key.toLowerCase()) || category.includes(cat.key.toLowerCase());
-    });
-    const photos = parsePhotos(match?.photo);
-    return { ...cat, photo: photos[0] };
-  });
-
-  async function toggleWishlist(id: string) {
-    if(!customer.user){window.location.assign('/account');return;}
-    if(wishlistPending.current)return;wishlistPending.current=true;setWishlistError(null);
-    try{await customerRequest('favorites',wishlist[id]?'DELETE':'PUT',{assetId:id});await customer.reloadState();}
-    catch(e){setWishlistError(e instanceof Error?e.message:'Favorite could not be saved');}
-    finally{wishlistPending.current=false;}
-  }
-
-  return (
-    <div className="flex-1 flex flex-col min-h-0 ames-boutique-panel" style={{ background: "#0b0d10", color: "#f4f5f6" }}>
-      {wishlistError&&<p role="status">{wishlistError}</p>}
-
-      {/* ═══ SCROLLABLE CONTENT ═══ */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-
-        {/* Pull-to-refresh */}
-        <div className="overflow-hidden flex items-center justify-center" style={{ height: pullDist || 0, transition: isRefreshing ? "none" : "height 0.25s ease-out" }}>
-          {pullDist > 10 && (
-            <div className="flex items-center gap-2" style={{ opacity: Math.min(1, pullDist / THRESHOLD) }}>
-              <svg className={isRefreshing ? "animate-spin" : ""} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A6A6AB" strokeWidth="2" strokeLinecap="round">
-                <path d="M21 12a9 9 0 11-6.219-8.56" />
-              </svg>
-              <span className="text-[10px]" style={{ color: isRefreshing ? "#F4E9D5" : "#9A8F80" }}>
-                {pullDist >= THRESHOLD ? (isRefreshing ? "Refreshing..." : "Release to refresh") : "Pull to refresh"}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <header className="ames-boutique-topbar"><button className="ames-boutique-menu" aria-label="Boutique menu" aria-expanded={boutiqueMenuOpen} onClick={() => setBoutiqueMenuOpen((open) => !open)}><span /><span /><span /></button><div><p className="ames-boutique-eyebrow">AMES / BOUTIQUE</p><h2>Objects of permanence</h2></div><button className="ames-boutique-action" aria-label="Open collections">↗</button>{boutiqueMenuOpen && <nav className="ames-boutique-menu-popover" aria-label="Boutique navigation"><button onClick={() => setFilter("All")}>Collections</button><button onClick={() => onAskPiece("pricing")}>Pricing</button><a href="/compliance">Compliance</a></nav>}</header>
-        <section className="ames-boutique-hero"><div className="ames-boutique-hero-copy"><p className="ames-boutique-kicker">THE CURRENT EDIT</p><h1>Quietly exceptional.</h1><p>Jewelry selected for proportion, material and the way it holds light.</p><button onClick={() => document.querySelector('.ames-engine-boutique-mount')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Explore <span>→</span></button></div><AmesBoutiqueSurface integration={integration} active={active} /></section>
-
-        {/* ═══ FEATURED CATEGORIES ═══ */}
-        <div className="px-5 pt-6 pb-2">
-          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 16 }}>
-            Shop by category
-          </h3>
-          <div className="flex gap-5 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', paddingLeft: 'max(0px, calc(50% - 200px))', paddingRight: 'max(0px, calc(50% - 200px))' }}>
-            {categoryImages.map(cat => {
-              const hasImage = cat.photo && cat.photo.length > 10 && !cat.photo.startsWith("data:");
-              const isActive = filter === cat.key;
-              return (
-                <button key={cat.key} onClick={() => setFilter(isActive ? "All" : cat.key)} className="flex flex-col items-center gap-2 shrink-0" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                  <div style={{
-                    width: 64, height: 64, borderRadius: "50%",
-                    background: isActive ? "radial-gradient(circle, rgba(142,142,147,0.10) 0%, #151515 70%)" : "radial-gradient(circle, rgba(23,23,23,0.02) 0%, #151515 70%)",
-                    border: isActive ? "1.5px solid #8E8E93" : "1px solid rgba(23,23,23,0.08)",
-                    overflow: "hidden",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {hasImage ? (
-                      <img src={cat.photo!} alt={cat.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" style={{ width: 24, height: 24 }}>
-                        <defs><linearGradient id={`cat-${cat.key}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs>
-                        {cat.key === 'Watch' ? (
-                          /* Watch glyph: circle face + two lugs */
-                          <>
-                            <circle cx="12" cy="12" r="7" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" fill="none" />
-                            <line x1="12" y1="5" x2="12" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
-                            <line x1="12" y1="12" x2="16" y2="12" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinecap="round" />
-                            <rect x="10" y="2" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
-                            <rect x="10" y="19.5" width="4" height="2.5" rx="0.5" stroke={`url(#cat-${cat.key})`} strokeWidth="1" fill="none" />
-                          </>
-                        ) : (
-                          <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#cat-${cat.key})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" />
-                        )}
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 10, letterSpacing: "0.1em", color: isActive ? "#F4E9D5" : "#9A8F80", textTransform: "uppercase", fontWeight: 400 }}>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ═���═ SECTION TITLE ═══ */}
-        <div className="px-5 pt-4 pb-2">
-          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#F4E9D5", fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", letterSpacing: "0.02em", textAlign: "center", marginBottom: 12 }}>
-            {filter === "All" ? "Curated pieces" : `${filter.charAt(0).toUpperCase() + filter.slice(1)} Collection`}
-          </h3>
-        </div>
-
-        {/* Grid */}
-        <div className="px-5 pb-4">
-          {loading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} style={{ background: "#151515", borderRadius: 14, border: "1px solid rgba(23,23,23,0.08)", overflow: "hidden" }}>
-                  <div className="aspect-square relative" style={{ background: "#202020" }}>
-                    <div className="absolute inset-0 shimmer" />
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <div className="h-3 w-16 shimmer rounded" />
-                    <div className="h-2.5 w-3/4 shimmer rounded" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-[12px] mb-4" style={{ color: "#9A8F80" }}>First pieces arriving soon</p>
-              <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 12, color: "#9A8F80", border: "1px solid rgba(23,23,23,0.08)", padding: "6px 16px", borderRadius: 10, textDecoration: "none", display: "inline-block", background: "#151515" }}>
-                WhatsApp the desk to commission
-              </a>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filtered.map(stone => (
-                <BoutiqueCard
-                  key={stone.id}
-                  stone={stone}
-                  wishlisted={!!wishlist[stone.id]}
-                  onToggleWishlist={() => toggleWishlist(stone.id)}
-                  onReserve={() => setShowReserveId(stone.id)}
-                  onOpenGallery={(photos, idx) => openGallery(photos, idx)}
-                />
-              ))}
-            </div>
-          )}
-          <p className="text-center mt-3 pb-2" style={{ fontSize: 10, color: "#9A8F80", fontWeight: 300 }}>{filtered.length} {filtered.length === 1 ? "piece" : "pieces"}</p>
-          <div className="h-4" />
-        </div>
-
-        {/* ═══ BOTTOM MARQUEE ═══ */}
-        <section className="ames-boutique-private"><p className="ames-boutique-kicker">ACCESS BY INVITATION</p><h2>Private collection</h2><p>Distinctive forms, held for members and collectors.</p><button onClick={() => onAskPiece("the private collection")}>Ask AMES <span>→</span></button></section>
-        <section className="ames-boutique-concierge"><p className="ames-boutique-kicker">AMES CONCIERGE</p><h2>Ask AMES to find or create something</h2><button onClick={() => onAskPiece("a piece to match my brief")}>Start a conversation <span>→</span></button></section>
-
-        <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)", overflow: "hidden", padding: "10px 0" }}>
-          <div className="marquee-track">
-            {[...Array(4)].map((_, i) => (
-              <span key={i} style={{ fontSize: 11, letterSpacing: "0.12em", color: "#A6A6AB", fontWeight: 400, whiteSpace: "nowrap", paddingRight: 32 }}>
-                KIMBERLEY PROCESS CERTIFIED &middot; BOTSWANA LICENSED TRADE &middot; EVERY STONE INSURED IN TRANSIT &middot;&nbsp;
-              </span>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* Gallery */}
-      {galleryOpen && <PhotoGallery photos={galleryPhotos} initialIndex={galleryIndex} onClose={() => setGalleryOpen(false)} />}
-
-      {/* Reserve modal */}
-      {showReserveId && (
-        <ReserveModal
-          stoneId={showReserveId}
-          stone={stones.find(s => s.id === showReserveId)}
-          onClose={() => setShowReserveId(null)}
-          onReserved={() => { setStones(p => p.filter(s => s.id !== showReserveId)); setShowReserveId(null); }}
-        />
-      )}
-    </div>
-  );
-}
-
-/* ── Reserve Modal ── */
-function ReserveModal({ stoneId, stone, onClose, onReserved }: { stoneId: string; stone?: StoreStone; onClose: () => void; onReserved: () => void }) {
-  const [name, setName] = useState("");
-  const [wa, setWa] = useState("");
-  const [sending, setSending] = useState(false);
-
-  async function handleReserve() {
-    if (!name.trim()) return;
-    setSending(true);
-    try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stoneId, buyerName: name, buyerWhatsapp: wa }),
-      });
-      if (res.ok) onReserved();
-    } catch {}
-    setSending(false);
-  }
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="relative w-full rounded-t-2xl flex flex-col" style={{ background: "#151515", border: "1px solid rgba(23,23,23,0.08)", borderBottom: "none" }} onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(23,23,23,0.12)" }} /></div>
-        <div className="px-5 pb-4 pt-2">
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: "#F4E9D5", marginBottom: 4 }}>Reserve {stone ? stone.ref : ""}</h3>
-          <p style={{ fontSize: 12, color: "#9A8F80", marginBottom: 16 }}>Our desk will send an invoice and payment details via WhatsApp within one business day.</p>
-          <div className="space-y-3">
-            <div>
-              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9A8F80", textTransform: "uppercase", display: "block", marginBottom: 4 }}>Your Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: 10, letterSpacing: "0.1em", color: "#9A8F80", textTransform: "uppercase", display: "block", marginBottom: 4 }}>WhatsApp Number</label>
-              <input value={wa} onChange={e => setWa(e.target.value)} placeholder="+267 ..." className="w-full px-3 py-2.5 text-[13px] rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={onClose} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default" style={{ border: "1px solid rgba(23,23,23,0.08)", color: "#9A8F80" }}>Cancel</button>
-              <button onClick={handleReserve} disabled={!name.trim() || sending} className="flex-1 py-3 text-[13px] font-medium rounded-xl cursor-default disabled:opacity-40" style={{ background: "#F4E9D5", color: "#151515" }}>
-                {sending ? "Reserving..." : "Confirm Reserve"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Photo Gallery Overlay ── */
-function PhotoGallery({ photos, initialIndex, onClose }: { photos: (string | null)[]; initialIndex: number; onClose: () => void }) {
-  const [active, setActive] = useState(initialIndex);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const lastTapRef = useRef(0);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const child = track.children[active] as HTMLElement;
-    if (child) child.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  }, [active]);
-
-  function onScroll() {
-    const track = trackRef.current;
-    if (!track) return;
-    const idx = Math.round(track.scrollLeft / track.clientWidth);
-    if (idx !== active && idx >= 0 && idx < photos.length) setActive(idx);
-  }
-
-  function onDoubleTap() {
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) onClose();
-    lastTapRef.current = now;
-  }
-
-  const validCount = photos.filter(Boolean).length;
-
-  return (
-    <div className="fixed inset-0 z-[95] flex flex-col" style={{ background: "rgba(0,0,0,0.95)" }} onClick={onClose} data-gallery="true">
-      <div className="shrink-0 flex items-center justify-between px-4 pt-4 pb-2" onClick={e => e.stopPropagation()}>
-        <span className="text-[11px]" style={{ color: "#A6A6AB" }}>{active + 1} / {validCount || 3}</span>
-        <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(23,23,23,0.15)" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div ref={trackRef} onScroll={onScroll} onClick={e => { e.stopPropagation(); onDoubleTap(); }}
-        className="flex-1 flex overflow-x-auto snap-x snap-mandatory"
-        style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}>
-        {photos.map((url, idx) => (
-          <div key={idx} className="flex-none w-full h-full flex items-center justify-center p-4 snap-center" style={{ scrollSnapAlign: "center" }}>
-            {url ? (
-              <img src={url} alt={`Shot ${idx + 1}`} className="max-h-full max-w-full object-contain select-none" draggable={false} />
-            ) : (
-              <div style={{ width: 200, height: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <svg viewBox="0 0 24 24" fill="none" style={{ width: 40, height: 40 }}><defs><linearGradient id={`pg-ph-${idx}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#pg-ph-${idx})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-                <p className="text-center mt-3 text-[10px]" style={{ color: "#A6A6AB" }}>Not available</p>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      {photos.length > 1 && (
-        <div className="flex justify-center gap-2 py-3" onClick={e => e.stopPropagation()}>
-          {photos.map((_, idx) => (
-            <button key={idx} onClick={() => setActive(idx)}
-              className="rounded-full transition-all"
-              style={{ width: idx === active ? 16 : 6, height: 6, background: idx === active ? "#F4E9D5" : "rgba(23,23,23,0.15)" }} />
-          ))}
-        </div>
-      )}
-      <div className="hidden md:flex justify-center gap-2 pb-4 px-4" onClick={e => e.stopPropagation()}>
-        {photos.map((url, idx) => (
-          <button key={idx} onClick={() => setActive(idx)}
-            className="w-16 h-16 overflow-hidden flex-shrink-0"
-            style={{ border: idx === active ? "2px solid #8E8E93" : "1px solid rgba(23,23,23,0.08)", borderRadius: 6, background: "#202020" }}>
-            {url ? (
-              <img src={url} alt={`Shot ${idx + 1}`} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <svg viewBox="0 0 24 24" fill="none" style={{ width: 16, height: 16 }}><defs><linearGradient id={`pg-th-${idx}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={`url(#pg-th-${idx})`} strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-              </div>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ── Boutique Card ── */
-function BoutiqueCard({ stone, wishlisted, onToggleWishlist, onReserve, onOpenGallery }: {
-  stone: StoreStone; wishlisted: boolean;
-  onToggleWishlist: () => void; onReserve: () => void;
-  onOpenGallery: (photos: (string | null)[], index: number) => void;
-}) {
-  const photos = parsePhotos(stone.photo);
-  const hasPhoto = photos[0] !== null;
-  const spec = [stone.cut || stone.shape, stone.carat ? `${stone.carat}ct` : "", stone.color].filter(Boolean).join(" \u00b7 ");
-
-  return (
-    <div style={{ background: "#151515", borderRadius: 14, border: "1px solid rgba(23,23,23,0.08)", overflow: "hidden" }}>
-      <div className="aspect-square relative cursor-pointer" style={{ overflow: "hidden" }}
-        onClick={() => onOpenGallery(photos, 0)}>
-        {hasPhoto ? (
-          <>
-            <img src={photos[0]!} alt={stone.ref} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            {photos.some(Boolean) && (
-              <span className="absolute bottom-2 right-2 text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.85)", color: "#9A8F80" }}>
-                1/{photos.filter(Boolean).length || 3}
-              </span>
-            )}
-          </>
-        ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#202020" }}>
-            <svg viewBox="0 0 24 24" fill="none" style={{ width: 40, height: 40 }}><defs><linearGradient id="card-fb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#card-fb)" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-          </div>
-        )}
-        {(stone as any).trader_preferred && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 text-[8px] font-medium uppercase tracking-[0.06em] px-1.5 py-0.5 rounded-full" style={{ color: "#8E8E93", background: "rgba(252,252,251,0.9)", border: "1px solid rgba(23,23,23,0.08)" }}>
-            <svg viewBox="0 0 24 24" fill="none" style={{ width: 8, height: 8 }}><defs><linearGradient id="pref-g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#pref-g)" strokeWidth="1.5" fill="none" /></svg>
-            Preferred
-          </span>
-        )}
-      </div>
-      <div className="p-3">
-        <p className="text-[13px] font-light truncate" style={{ color: "#F4E9D5", marginBottom: 2 }}>{stone.shape} {stone.carat}ct {stone.color}</p>
-        {spec && <p className="text-[11px] truncate" style={{ color: "#9A8F80", marginBottom: 8 }}>{spec}</p>}
-        <div className="flex items-center justify-between">
-          <span className="text-[13px] font-medium tabular-nums" style={{ color: stone.price ? "#F4E9D5" : "#9A8F80" }}>
-            {stone.price ? `$${stone.price.toLocaleString()}` : "Price on request"}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button onClick={(e) => { e.stopPropagation(); onToggleWishlist(); }} style={{ width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", padding: 0 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={wishlisted ? "#A6A6AB" : "none"} stroke={wishlisted ? "#A6A6AB" : "#9A8F80"} strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </button>
-            <button onClick={(e) => { e.stopPropagation(); onReserve(); }} className="text-[12px] font-medium" style={{ background: "#F4E9D5", color: "#151515", padding: "6px 14px", borderRadius: 10, border: "none", cursor: "pointer", lineHeight: 1 }}>
-              Reserve
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ════════��══════════════════════════════════
-   VIDEOS PANEL
-   ═══════��═══════════════════════════════════ */
-
-function VideosPanel({ isPanelActive, onSeePiece, onAskAmes, onOpenBoutiqueDetail }: {
-  isPanelActive: boolean;
-  onSeePiece: (id: string) => void;
-  onAskAmes: (ref: string, shape: string, carat: number, color: string, clarity: string) => void;
-  onOpenBoutiqueDetail: (stoneId: string) => void;
-}) {
-  const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeVideo, setActiveVideo] = useState(0);
-  const [drawerVideoId, setDrawerVideoId] = useState<string | null>(null);
-  const feedRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch("/api/videos?published=1").then(r => r.ok ? r.json() : []).then(d => setVideos(d)).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const f = feedRef.current;
-    if (!f) return;
-    const obs = new IntersectionObserver(
-      (entries) => { entries.forEach(e => { if (e.isIntersecting && e.intersectionRatio > 0.5) setActiveVideo(Number(e.target.getAttribute("data-video"))); }); },
-      { root: f, threshold: 0.5 }
-    );
-    f.querySelectorAll("[data-video]").forEach(el => obs.observe(el));
-    return () => obs.disconnect();
-  }, [videos]);
-
-  if (loading) return <div className="h-full flex items-center justify-center" style={{ background: '#080808', color: '#9A8F80', fontSize: 12 }}>Loading videos...</div>;
-  if (!videos.length) return (
-    <div className="h-full flex items-center justify-center" style={{ background: '#080808', fontSize: 12, textAlign: 'center', padding: 24 }}>
-      <div>
-        <svg viewBox="0 0 24 24" fill="none" style={{ width: 32, height: 32, margin: '0 auto 12px' }}><defs><linearGradient id="vid-fb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#E8E6E1" /><stop offset="50%" stopColor="#C8C6C1" /><stop offset="100%" stopColor="#A6A6AB" /></linearGradient></defs><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="url(#vid-fb)" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-        <p style={{ color: "#9A8F80" }}>No videos published yet.</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <div ref={feedRef} className="h-[100dvh] overflow-y-scroll snap-y snap-mandatory relative" style={{ scrollSnapType: "y mandatory", background: "#1A1A1A" }}>
-        {videos.map((v, i) => (
-          <VideoSlide key={v.id} video={v} index={i} isActive={isPanelActive && activeVideo === i}
-            onSeePiece={onSeePiece} onAskAmes={onAskAmes}
-            onComments={() => setDrawerVideoId(v.id)}
-            onOpenBoutiqueDetail={onOpenBoutiqueDetail}
-            totalVideos={videos.length} activeIndex={activeVideo} />
-        ))}
-      </div>
-      {drawerVideoId && <CommentDrawer videoId={drawerVideoId} onClose={() => setDrawerVideoId(null)} />}
-    </>
-  );
-}
-
-function VideoSlide({ video, index, isActive, onSeePiece, onAskAmes, onComments, onOpenBoutiqueDetail, totalVideos, activeIndex }: {
-  video: VideoItem; index: number; isActive: boolean;
-  onSeePiece: (id: string) => void; onAskAmes: (ref: string, shape: string, carat: number, color: string, clarity: string) => void;
-  onComments: () => void; onOpenBoutiqueDetail: (stoneId: string) => void;
-  totalVideos: number; activeIndex: number;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(true);
-  const [liked, setLiked] = useState(() => typeof window !== "undefined" && !!localStorage.getItem(`liked_${video.id}`));
-  const [likes, setLikes] = useState(video.likes_count || 0);
-  const [commentCount, setCommentCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    fetch(`/api/videos/${video.id}/comments`).then(r => r.ok ? r.json() : []).then((c: Comment[]) => setCommentCount(c.length)).catch(() => {});
-  }, [video.id]);
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const sync = () => { if (isActive && !document.hidden) v.play().catch(() => {}); else v.pause(); };
-    sync(); document.addEventListener('visibilitychange', sync);
-    return () => { document.removeEventListener('visibilitychange', sync); v.pause(); };
-  }, [isActive]);
-
-  function toggleMute() { const v = videoRef.current; if (v) { v.muted = !v.muted; setMuted(v.muted); } }
-
-  async function toggleLike() {
-    const delta = liked ? -1 : 1;
-    setLiked(!liked);
-    setLikes(l => Math.max(0, l + delta));
-    if (!liked) localStorage.setItem(`liked_${video.id}`, "1"); else localStorage.removeItem(`liked_${video.id}`);
-    try { await fetch(`/api/videos/${video.id}/like`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ delta }) }); } catch {}
-  }
-
-  function handleShare() {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = `${video.caption} \u2014 AMES`;
-    if (navigator.share) {
-      navigator.share({ title: "AMES", text, url }).catch(() => {});
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text + " " + url)}`, "_blank");
-    }
-  }
-
-  const stoneInfo = video.stone_id ? { ref: video.stone_ref || "", shape: video.shape || "", carat: video.carat || 0, color: video.color || "", clarity: video.clarity || "", status: video.stone_status || null, photo: video.stone_photo || null, price: video.price } : null;
-
-  return (
-    <div data-video={index} className="h-[100dvh] snap-start snap-always relative flex items-center justify-center" style={{ background: "#1A1A1A" }}>
-      <video ref={videoRef} src={video.video_url} className="absolute inset-0 w-full h-full object-cover" loop muted={muted} playsInline preload={isActive ? "auto" : "metadata"} />
-      <button onClick={toggleMute} className="absolute inset-0 z-10" aria-label={muted ? "Tap to unmute" : "Tap to mute"} />
-
-      {/* Progress dots */}
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-1.5">
-        {Array.from({ length: totalVideos }, (_, i) => (
-          <div key={i} className="rounded-full transition-all" style={{ width: i === activeIndex ? 4 : 3, height: i === activeIndex ? 12 : 3, background: i === activeIndex ? "#A6A6AB" : "rgba(255,255,255,0.25)" }} />
-        ))}
-      </div>
-
-      {/* Right rail */}
-      <div className="absolute right-3 bottom-36 z-20 flex flex-col items-center gap-6">
-        <button onClick={(e) => { e.stopPropagation(); toggleLike(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill={liked ? "#A6A6AB" : "none"} stroke={liked ? "#A6A6AB" : "rgba(255,255,255,0.85)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span style={{ fontSize: 10, color: liked ? "#A6A6AB" : "rgba(255,255,255,0.85)" }}>{likes}</span>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onComments(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>{commentCount ?? "-"}</span>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); handleShare(); }} className="flex flex-col items-center gap-1">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Bottom overlay */}
-      <div className="absolute bottom-0 left-0 right-12 z-20 p-4 pb-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-        {video.model_instagram && (
-          <p style={{ fontSize: 11, letterSpacing: "0.12em", color: "#A6A6AB", fontWeight: 400, textTransform: "uppercase", marginBottom: 6 }}>
-            {video.model_instagram}
-          </p>
-        )}
-        {(video.house_note || video.caption) && (
-          <p style={{ fontSize: 15, fontFamily: "var(--font-cormorant), 'Cormorant Garamond', Georgia, serif", fontStyle: "italic", color: "#151515", marginBottom: 10, lineHeight: 1.4 }}>
-            <span style={{ fontWeight: 500, fontStyle: "normal" }}>AMES</span> &mdash; {video.house_note || video.caption}
-          </p>
-        )}
-        {stoneInfo && (
-          <button onClick={(e) => { e.stopPropagation(); onOpenBoutiqueDetail(video.stone_id!); }}
-            className="flex items-center gap-3 p-2 rounded-xl"
-            style={{ background: "rgba(23,23,23,0.08)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.1)", maxWidth: 280 }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#080808", border: "1px solid rgba(255,255,255,0.1)" }}>
-              {stoneInfo.photo ? (
-                <img src={stoneInfo.photo} alt={stoneInfo.ref} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 text-left">
-              <p className="truncate" style={{ fontSize: 12, color: "#151515", fontWeight: 500, marginBottom: 1 }}>
-                {stoneInfo.ref} &middot; {stoneInfo.shape} {stoneInfo.carat}ct
-              </p>
-              <span style={{ fontSize: 12, color: "#A6A6AB", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                {stoneInfo.price != null ? `$${stoneInfo.price.toLocaleString()}` : "Price on request"}
-              </span>
-            </div>
-            <span style={{ fontSize: 9, color: "#A6A6AB", letterSpacing: "0.06em", flexShrink: 0, textTransform: "uppercase" }}>View piece</span>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CommentDrawer({ videoId, onClose }: { videoId: string; onClose: () => void }) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [text, setText] = useState("");
-  const [author, setAuthor] = useState("");
-  const [sending, setSending] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    fetch(`/api/videos/${videoId}/comments`).then(r => r.ok ? r.json() : []).then((c: Comment[]) => setComments(c)).catch(() => {}).finally(() => setLoading(false));
-  }, [videoId]);
-
-  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight }); }, [comments]);
-
-  async function handleSubmit() {
-    if (!text.trim()) return;
-    setSending(true);
-    try {
-      const res = await fetch(`/api/videos/${videoId}/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ author: author || "Anonymous", text: text.trim() }) });
-      if (res.ok) { const c = await res.json(); setComments(p => [...p, c]); setText(""); }
-    } catch {}
-    setSending(false);
-  }
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/40" />
-      <div className="relative w-full max-h-[70dvh] rounded-t-2xl flex flex-col" style={{ background: "#151515" }} onClick={e => e.stopPropagation()}>
-        <div className="flex justify-center py-2"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(23,23,23,0.12)" }} /></div>
-        <div className="px-4 pb-2 flex items-center justify-between">
-          <span className="text-[13px] font-light" style={{ color: "#F4E9D5" }}>Comments</span>
-          <button onClick={onClose} className="text-[11px] cursor-default" style={{ color: "#9A8F80" }}>Close</button>
-        </div>
-        <div style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }} />
-        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[100px] max-h-[45dvh]">
-          {loading ? (
-            <div className="text-[11px] text-center py-4" style={{ color: "#9A8F80" }}>Loading...</div>
-          ) : comments.length === 0 ? (
-            <div className="text-[11px] text-center py-4" style={{ color: "#9A8F80" }}>No comments yet. Be the first.</div>
-          ) : comments.map(c => (
-            <div key={c.id} className="space-y-0.5">
-              <div className="flex items-baseline gap-2">
-                <span className="text-[11px] font-medium" style={{ color: "#F4E9D5" }}>{c.author}</span>
-                <span className="text-[9px]" style={{ color: "#A6A6AB" }}>{timeAgo(c.created_at)}</span>
-              </div>
-              <p className="text-[12px] leading-relaxed" style={{ color: "#F4E9D5" }}>{c.text}</p>
-            </div>
-          ))}
-        </div>
-        <div className="px-4 py-3 space-y-2" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
-          <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="Name (optional)" className="w-full px-3 py-1.5 text-[11px] font-light rounded-lg" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
-          <div className="flex gap-2">
-            <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }} placeholder="Add a comment..." className="flex-1 px-3 py-1.5 text-[11px] font-light rounded-lg outline-none" style={{ border: "1px solid rgba(23,23,23,0.08)", background: "#080808", color: "#F4E9D5" }} />
-            <button onClick={handleSubmit} disabled={!text.trim() || sending} className="px-4 py-1.5 text-[11px] font-medium rounded-lg cursor-default disabled:opacity-40" style={{ background: "#F4E9D5", color: "#151515" }}>
-              {sending ? "..." : "Post"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   HELPERS
-   ═══════════════════════════════════════════ */
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
-}

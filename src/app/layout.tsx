@@ -9,7 +9,7 @@ const cormorant = Cormorant_Garamond({ subsets: ["latin"], weight: ["500", "600"
 
 export const metadata: Metadata = {
   title: "AMES DE BRILLIANTE",
-  description: "AMES Boutique, Chat and Video — an interactive luxury experience.",
+  description: "Licensed Diamond Dealer, Republic of Botswana",
   icons: {
     icon: "/favicon.svg",
     apple: "/favicon.svg",
@@ -19,7 +19,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.variable} ${cormorant.variable} min-h-full flex flex-col bg-background text-white font-sans`}>
+
+      <body className={`${inter.variable} ${cormorant.variable} min-h-full flex flex-col font-sans`}>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />

@@ -1,16 +1,12 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "npm ci --include=dev --no-audit --no-fund",
-  "buildCommand": "npm run build",
-  "headers": [
-    { "source": "/api/(.*)", "headers": [
-      { "key": "Cache-Control", "value": "no-store" },
-      { "key": "X-Content-Type-Options", "value": "nosniff" }
-    ] },
-    { "source": "/(.*)", "headers": [
-      { "key": "Referrer-Policy", "value": "no-referrer" },
-      { "key": "X-Content-Type-Options", "value": "nosniff" }
-    ] }
+  "crons": [
+    {
+      "path": "/api/intelligence/generate?type=ground_report",
+      "schedule": "0 6 1 * *"
+    },
+    {
+      "path": "/api/intelligence/generate?type=compliance_briefing",
+      "schedule": "0 6 1 1,4,7,10 *"
+    }
   ]
 }

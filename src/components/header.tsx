@@ -5,29 +5,35 @@ import { BrandMark } from "./BrandMark";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { label: "Stock", href: "/" },
-  { label: "Sourcing", href: "/request" },
-  { label: "Reports", href: "/reports" },
+  { label: "Catalogue", href: "/#catalogue" },
+  { label: "Results", href: "/#results" },
+  { label: "How it works", href: "/#how-it-works" },
   { label: "Compliance", href: "/compliance" },
-  { label: "Terms", href: "/terms" },
-  { label: "Privacy", href: "/privacy" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  if (pathname === "/" || pathname === "/app") return null;
+  const isHome = pathname === "/";
 
   function isActive(href: string) {
+    if (href.startsWith("/#")) return false;
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
   }
 
   return (
-    <header className="border-b border-[rgba(23,23,23,0.08)] bg-[#FCFCFB] shrink-0 relative z-50">
+    <header
+      className="shrink-0 relative z-50"
+      style={{
+        background: isHome ? "rgba(14,16,19,0.85)" : "#FCFCFB",
+        backdropFilter: isHome ? "blur(16px)" : undefined,
+        WebkitBackdropFilter: isHome ? "blur(16px)" : undefined,
+        borderBottom: isHome ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(23,23,23,0.08)",
+      }}
+    >
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 md:px-6 py-3">
         <a href="/" className="flex items-center shrink-0">
-          <BrandMark variant="full" height={32} />
+          <BrandMark variant="full" height={32} dark={isHome} />
         </a>
 
         <nav className="hidden md:flex items-center gap-4 text-[11px] font-light">
@@ -35,21 +41,30 @@ export default function Header() {
             <a
               key={link.href}
               href={link.href}
-              className={isActive(link.href) ? "font-medium text-[#8E8E93] border-b border-[#8E8E93] pb-0.5" : "text-[#6E6C69] hover:text-[#171717]"}
+              className={
+                isActive(link.href)
+                  ? "font-medium pb-0.5"
+                  : "hover:opacity-80"
+              }
+              style={{
+                color: isHome ? "#A6A6AB" : isActive(link.href) ? "#8E8E93" : "#6E6C69",
+                borderBottom: isActive(link.href) ? `1px solid ${isHome ? "#A6A6AB" : "#8E8E93"}` : undefined,
+              }}
             >
               {link.label}
             </a>
           ))}
           <a
-            href="/dashboard"
-            className={isActive("/dashboard") ? "font-medium text-[#8E8E93] border-b border-[#8E8E93] pb-0.5" : "text-[#6E6C69] hover:text-[#171717]"}
+            href="/login"
+            className="font-medium pb-0.5"
+            style={{ color: isHome ? "#A6A6AB" : "#8E8E93" }}
           >
-            Dealer Login
+            Register to bid
           </a>
         </nav>
 
         <button onClick={() => setOpen(!open)} className="md:hidden p-2 -mr-2 cursor-default" aria-label="Toggle menu">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#171717" strokeWidth="1.5">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke={isHome ? "#A6A6AB" : "#171717"} strokeWidth="1.5">
             {open ? (
               <>
                 <line x1="4" y1="4" x2="16" y2="16" />
@@ -67,27 +82,32 @@ export default function Header() {
       </div>
 
       {open && (
-        <nav className="md:hidden border-t border-[rgba(23,23,23,0.08)] bg-[#FCFCFB] px-4 pb-3">
+        <nav
+          className="md:hidden px-4 pb-3"
+          style={{
+            background: isHome ? "rgba(14,16,19,0.95)" : "#FCFCFB",
+            borderTop: isHome ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(23,23,23,0.08)",
+          }}
+        >
           {NAV.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className={isActive(link.href)
-                ? "block py-2.5 text-[13px] font-medium text-[#171717] border-b border-[rgba(23,23,23,0.08)]"
-                : "block py-2.5 text-[13px] text-[#6E6C69] border-b border-[rgba(23,23,23,0.08)]"
-              }
+              className="block py-2.5 text-[13px] border-b"
+              style={{
+                color: isHome ? "#A6A6AB" : "#6E6C69",
+                borderColor: isHome ? "rgba(255,255,255,0.06)" : "rgba(23,23,23,0.08)",
+              }}
             >
               {link.label}
             </a>
           ))}
           <a
-            href="/dashboard"
-            className={isActive("/dashboard")
-              ? "block py-2.5 text-[13px] font-medium text-[#171717]"
-              : "block py-2.5 text-[13px] text-[#6E6C69]"
-            }
+            href="/login"
+            className="block py-2.5 text-[13px]"
+            style={{ color: isHome ? "#A6A6AB" : "#6E6C69" }}
           >
-            Dealer Login
+            Register to bid
           </a>
         </nav>
       )}

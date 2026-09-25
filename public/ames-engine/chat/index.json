@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "ames.chat-index/1",
+  "contracts": [
+    "dev-test-candidate-ring/app/chat.json",
+    "dev-test-solitaire-mount/app/chat.json",
+    "dev-test-earring-001/app/chat.json",
+    "dev-test-pendant-001/app/chat.json"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "ames.boutique-index/1",
+  "contracts": [
+    "dev-test-candidate-ring/app/boutique.json",
+    "dev-test-solitaire-mount/app/boutique.json",
+    "dev-test-earring-001/app/boutique.json",
+    "dev-test-pendant-001/app/boutique.json"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "dev-test-solitaire-mount",
+  "revisionId": "dev-test-solitaire-mount:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "dev-test-solitaire-mount",
+      "id": "luxury_product_video",
+      "mediaType": "video",
+      "path": "motion/luxury-product.mp4",
+      "aspectRatio": 1,
+      "durationSeconds": 5,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-solitaire-mount",
+      "id": "turntable_360",
+      "mediaType": "video",
+      "path": "motion/turntable-360.mp4",
+      "aspectRatio": 1,
+      "durationSeconds": 3,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-solitaire-mount",
+      "id": "hero",
+      "mediaType": "image",
+      "path": "luxury/editorial-hero.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-solitaire-mount",
+      "id": "gemstone_macro",
+      "mediaType": "image",
+      "path": "luxury/gemstone-macro.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-solitaire-mount",
+      "id": "setting_detail_macro",
+      "mediaType": "image",
+      "path": "luxury/setting-detail-macro.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

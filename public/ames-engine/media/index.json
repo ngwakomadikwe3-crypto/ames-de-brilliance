@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "ames.media-index/1",
+  "contracts": [
+    "dev-test-candidate-ring/app/media.json",
+    "dev-test-solitaire-mount/app/media.json",
+    "dev-test-earring-001/app/media.json",
+    "dev-test-pendant-001/app/media.json"
+  ]
+}

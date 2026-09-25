@@ -5,30 +5,19 @@ import {
   ID,
   Permission,
   Role,
+  DatabasesIndexType,
 } from "node-appwrite";
-import { customerDatabase } from './customer/database.mjs';
 
 /* ── Environment ── */
-const ENDPOINT = process.env.APPWRITE_ENDPOINT?.trim() || "";
-const PROJECT_ID = process.env.APPWRITE_PROJECT_ID?.trim() || "";
-const API_KEY = process.env.APPWRITE_API_KEY?.trim() || "";
+const ENDPOINT = process.env.APPWRITE_ENDPOINT!;
+const PROJECT_ID = process.env.APPWRITE_PROJECT_ID!;
+const API_KEY = process.env.APPWRITE_API_KEY!;
 
 export const DB_ID = "ames";
 export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
-export const JEWELRY_3D_BUCKET = "jewelry-3d";
-
-/** Resolve a product model reference without exposing Appwrite credentials to the client. */
-export function getJewelryModelUrl(source: string): string {
-  if (!source) return "";
-  if (source.startsWith("appwrite:")) {
-    // Private GLBs require a catalog identity and the customer delivery adapter.
-    // A bare storage file ID is intentionally insufficient to create a browser URL.
-    return "";
-  }
-  return source.startsWith("/") ? source : `/${source}`;
-}
+export const JEWELRY_SOURCES_BUCKET = "jewelry-sources";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -37,49 +26,27 @@ let _storage: Storage | null = null;
 
 export function getClient(): Client {
   if (_client) return _client;
-  if (!ENDPOINT || !PROJECT_ID || !API_KEY) return null as unknown as Client;
-  try {
-    _client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
-    return _client;
-  } catch (err) {
-    console.error("[appwrite] client initialization failed:", err);
-    return null as unknown as Client;
-  }
+  _client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID).setKey(API_KEY);
+  return _client;
 }
 
 export function getDb(): Databases {
   if (_databases) return _databases;
-  const client = getClient();
-  if (!client) return null as unknown as Databases;
-  try {
-    _databases = customerDatabase(client) as unknown as Databases;
-    return _databases;
-  } catch (err) {
-    console.error("[appwrite] database initialization failed:", err);
-    return null as unknown as Databases;
-  }
+  _databases = new Databases(getClient());
+  return _databases;
 }
 
 export function getStorage(): Storage {
   if (_storage) return _storage;
-  const client = getClient();
-  if (!client) return null as unknown as Storage;
-  try {
-    _storage = new Storage(client);
-    return _storage;
-  } catch (err) {
-    console.error("[appwrite] storage initialization failed:", err);
-    return null as unknown as Storage;
-  }
+  _storage = new Storage(getClient());
+  return _storage;
 }
 
 export function getMediaUrl(fileId: string): string {
-  if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
   return `${ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
 export function getLicenceUrl(fileId: string): string {
-  if (!ENDPOINT || !PROJECT_ID || !fileId) return "";
   return `${ENDPOINT}/storage/buckets/${LICENCE_DOCS_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
 }
 
@@ -92,7 +59,6 @@ export function doc<T extends Record<string, any>>(d: any): T {
   if (plain.$updatedAt !== undefined) plain.updated_at = plain.$updatedAt;
   delete plain.$id;
   delete plain.$collectionId;
-  delete plain.$tableId;
   delete plain.$databaseId;
   delete plain.$createdAt;
   delete plain.$updatedAt;
@@ -110,12 +76,9 @@ let _ready = false;
 export async function ensureReady(): Promise<void> {
   if (_ready) return;
   if (!ENDPOINT || !PROJECT_ID || !API_KEY) return;
-  // Production requests never provision infrastructure. Use reviewed migrations.
-  if (process.env.NODE_ENV === 'production' || process.env.APPWRITE_AUTO_PROVISION !== 'true') return;
   try {
     const db = getDb();
     const sto = getStorage();
-    if (!db || !sto) return;
 
     // 1. Create database
     try { await db.create({ databaseId: DB_ID, name: "AMES" }); } catch { /* exists */ }
@@ -127,8 +90,7 @@ export async function ensureReady(): Promise<void> {
           databaseId: DB_ID,
           collectionId: col.id,
           name: col.name,
-          permissions: [],
-          documentSecurity: true,
+          permissions: col.id === "jewelry_products" ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
         });
       } catch { /* exists */ }
       // Create missing attributes
@@ -139,7 +101,37 @@ export async function ensureReady(): Promise<void> {
           if (existingKeys.has(attr.key)) continue;
           await createAttr(db, col.id, attr);
         }
-      } catch { /* skip */ }
+        if (col.id === "jewelry_products") {
+          // Appwrite creates attributes asynchronously; the first product write
+          // must wait until the new private collection is usable.
+          let available = false;
+          for (let attempt = 0; attempt < 30; attempt++) {
+            const latest = await db.listAttributes({ databaseId: DB_ID, collectionId: col.id });
+            available = col.attrs.every(attr => latest.attributes.some((item: any) =>
+              item.key === attr.key && item.status === "available"));
+            if (available) break;
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          if (!available) throw new Error("Jewelry product attributes are not ready");
+          try {
+            await db.createIndex({
+              databaseId: DB_ID, collectionId: col.id, key: "asset_id_unique",
+              type: DatabasesIndexType.Unique, attributes: ["asset_id"],
+            });
+          } catch { /* Existing index. */ }
+          let indexed = false;
+          for (let attempt = 0; attempt < 30; attempt++) {
+            const latest = await db.listIndexes({ databaseId: DB_ID, collectionId: col.id });
+            indexed = latest.indexes.some((item: any) => item.key === "asset_id_unique" && item.status === "available");
+            if (indexed) break;
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          if (!indexed) throw new Error("Jewelry asset ID index is not ready");
+        }
+      } catch (error) {
+        if (col.id === "jewelry_products") throw error;
+        // Preserve the existing best-effort behavior for older collections.
+      }
     }
 
     // 3. Create storage bucket
@@ -147,7 +139,7 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: MEDIA_BUCKET,
         name: "Media",
-        permissions: [Permission.read(Role.any())],
+        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
         enabled: true,
         maximumFileSize: 10 * 1024 * 1024,
         allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "gif"],
@@ -159,8 +151,7 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: "reports",
         name: "Reports",
-        permissions: [],
-        fileSecurity: true,
+        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
         enabled: true,
         maximumFileSize: 50 * 1024 * 1024,
         allowedFileExtensions: ["pdf"],
@@ -172,11 +163,22 @@ export async function ensureReady(): Promise<void> {
       await sto.createBucket({
         bucketId: LICENCE_DOCS_BUCKET,
         name: "Licence Documents",
-        permissions: [],
-        fileSecurity: true,
+        permissions: [Permission.write(Role.any())],
         enabled: true,
         maximumFileSize: 20 * 1024 * 1024,
         allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+      });
+    } catch { /* exists */ }
+
+    // Raw jewelry sources are never publicly readable or writable.
+    try {
+      await sto.createBucket({
+        bucketId: JEWELRY_SOURCES_BUCKET,
+        name: "Jewelry Sources",
+        permissions: [],
+        enabled: true,
+        maximumFileSize: 250 * 1024 * 1024,
+        allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
       });
     } catch { /* exists */ }
 
@@ -231,6 +233,31 @@ type AttrDef = {
 };
 
 const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
+  {
+    id: "jewelry_products",
+    name: "Jewelry Products",
+    attrs: [
+      { key: "trader_id", type: "string", size: 50, required: true },
+      { key: "name", type: "string", size: 255, required: true },
+      { key: "category", type: "string", size: 80, required: true },
+      { key: "source_mode", type: "string", size: 30, default: "cloud_source_upload" },
+      { key: "source_files", type: "string", size: 65535, default: "[]" },
+      { key: "source_hashes", type: "string", size: 65535, default: "[]" },
+      { key: "workflow_status", type: "string", size: 50, default: "submitted" },
+      { key: "asset_id", type: "string", size: 100, required: true },
+      { key: "revision_id", type: "string", size: 150, default: "" },
+      { key: "pack_hash", type: "string", size: 64, default: "" },
+      { key: "content_hash", type: "string", size: 64, default: "" },
+      { key: "technical_pass", type: "boolean", default: false },
+      { key: "visual_approval", type: "string", size: 30, default: "pending" },
+      { key: "publication_status", type: "string", size: 30, default: "review" },
+      { key: "review_reason", type: "string", size: 2000, default: "" },
+      { key: "status_history", type: "string", size: 65535, default: "[]" },
+      { key: "verified_metadata", type: "string", size: 10000, default: "{}" },
+      { key: "created_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+    ],
+  },
   {
     id: "traders",
     name: "Traders",

@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
-import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
+import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, LICENCE_DOCS_BUCKET } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
-import { ID,Permission,Role } from "node-appwrite";
-import {portalIdentity,staffIdentity,customerIdentity} from '@/lib/legacy-auth.mjs';
-import {publicUploadName} from '@/lib/public-upload.mjs';
+import { ID } from "node-appwrite";
 
 export async function POST(req: Request) {
   await ensureReady();
   try {
     const formData = await req.formData();
     const traderId = formData.get("traderId") as string;
-    const portal=await portalIdentity(req,'trader');if(portal?.id!==traderId&&!await staffIdentity(req)&&!(await customerIdentity(req))?.admin)return NextResponse.json({error:'Access denied'},{status:403});
     const name = formData.get("name") as string;
     const company = formData.get("company") as string;
     const city = formData.get("city") as string;
@@ -30,12 +27,11 @@ export async function POST(req: Request) {
       const storage = getStorage();
       const fileName = `trader-logo-${traderId}-${Date.now()}.${logo.name.split('.').pop()}`;
       const buffer = Buffer.from(await logo.arrayBuffer());
-      const file = InputFile.fromBuffer(buffer, publicUploadName(fileName,buffer));
+      const file = InputFile.fromBuffer(buffer, fileName);
       const res = await storage.createFile({
-        bucketId: MEDIA_BUCKET,
+        bucketId: LICENCE_DOCS_BUCKET,
         fileId: ID.unique(),
         file,
-        permissions:[Permission.read(Role.any())],
       });
       data.logo = getMediaUrl(res.$id);
     }

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ames.boutique-content/1",
+  "assetId": "dev-test-pendant-001",
+  "revisionId": "dev-test-pendant-001:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "category": "pendant",
+  "name": "Pendant mount",
+  "thumbnail": "web/poster.png",
+  "heroImage": "luxury/editorial-hero.png",
+  "interactiveGlb": "web/jewelry.glb",
+  "poster": "web/poster.png",
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "categoryTags": [
+    "pendant"
+  ]
+}

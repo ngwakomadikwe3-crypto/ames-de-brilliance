@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import {publicVideo} from '@/lib/legacy-policy.mjs';
 import {
   getAllVideos,
   getPublishedVideos,
@@ -15,7 +14,7 @@ export async function GET(req: NextRequest) {
   try {
     const published = req.nextUrl.searchParams.get("published");
     if (published === "1") {
-      return NextResponse.json((await getPublishedVideos()).map(publicVideo));
+      return NextResponse.json(await getPublishedVideos());
     }
     const pending = req.nextUrl.searchParams.get("pending");
     if (pending === "1") {

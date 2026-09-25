@@ -14,8 +14,9 @@ npm run dev                   # http://localhost:3000
 
 | Variable | Default | Description |
 |---|---|---|
-| `DASHBOARD_PASSWORD` | `ames2026` | Dealer login password |
-| `SESSION_SECRET` | built-in | HMAC session signing secret (change in production) |
+| `SESSION_SECRET` | — | Required HMAC signing secret (at least 32 random characters) |
+| `OWNER_CODE` | — | Optional emergency owner access code |
+| `COUSIN_CODE` | — | Optional emergency staff access code |
 | `DEEPSEEK_API_KEY` | — | API key for DeepSeek or any OpenAI-compatible provider |
 | `AI_BASE_URL` | `https://api.deepseek.com` | LLM API base URL |
 | `AI_MODEL` | `deepseek-chat` | Model name |

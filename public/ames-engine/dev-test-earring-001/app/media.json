@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "dev-test-earring-001",
+  "revisionId": "dev-test-earring-001:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "luxury_product_video",
+      "mediaType": "video",
+      "path": "motion/luxury-product.mp4",
+      "aspectRatio": 1,
+      "durationSeconds": 5,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "turntable_360",
+      "mediaType": "video",
+      "path": "motion/turntable-360.mp4",
+      "aspectRatio": 1,
+      "durationSeconds": 3,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "hero",
+      "mediaType": "image",
+      "path": "luxury/editorial-hero.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "gemstone_macro",
+      "mediaType": "image",
+      "path": "luxury/gemstone-macro.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "setting_detail_macro",
+      "mediaType": "image",
+      "path": "luxury/setting-detail-macro.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    },
+    {
+      "assetId": "dev-test-earring-001",
+      "id": "single_earring",
+      "mediaType": "image",
+      "path": "luxury/single-earring.png",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

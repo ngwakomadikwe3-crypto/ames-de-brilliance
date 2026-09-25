@@ -1,180 +1,157 @@
 -- ══════════════════════════════════════════════════════════════
--- AMES DE BRILLIANTE — Supabase schema
--- Run this in the Supabase SQL Editor to set up all tables
+-- AMES DE BRILLIANTE — Appwrite schema reference
+-- This file is a REFERENCE only. The actual database, collections,
+-- and attributes are auto-provisioned on first run by src/lib/appwrite.ts.
+-- Do NOT run this file as SQL.
 -- ══════════════════════════════════════════════════════════════
 
--- ── Traders ──
-CREATE TABLE IF NOT EXISTS traders (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name TEXT NOT NULL,
-  whatsapp TEXT NOT NULL DEFAULT '',
-  licence TEXT NOT NULL DEFAULT '',
-  portal_code TEXT NOT NULL DEFAULT '',
-  email TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'Pending',
-  company TEXT NOT NULL DEFAULT '',
-  country TEXT NOT NULL DEFAULT '',
-  licence_photo TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Database: "ames" ──
+-- Created automatically by ensureReady()
 
--- ── Reports ──
-CREATE TABLE IF NOT EXISTS reports (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  trader_id BIGINT NOT NULL REFERENCES traders(id),
-  period_start TIMESTAMPTZ NOT NULL,
-  period_end TIMESTAMPTZ NOT NULL,
-  report_date TIMESTAMPTZ NOT NULL DEFAULT now(),
-  summary TEXT NOT NULL DEFAULT '',
-  data JSONB NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: jewelry_products ──
+-- Private, staff-managed jewelry-engine product identity.
+-- Appwrite document ID is productId; trader_id references traders.$id.
+-- trader_id:          string(50), required
+-- name:               string(255), required
+-- category:           string(80), required
+-- source_mode:        string(30), default "cloud_source_upload" (cloud_source_upload | operator_handoff)
+-- source_files:       string(65535), JSON private bucket file references
+-- source_hashes:      string(65535), JSON SHA-256 values for 3D sources
+-- workflow_status:    string(50), submitted | processing | technical_review |
+--                     visual_review | approved | published | rejected | revision_requested
+-- asset_id:           string(100), required, one engine identity
+-- unique index:       asset_id_unique on asset_id
+-- revision_id:        string(150), current attached engine revision
+-- pack_hash:          string(64), SHA-256 of delivery.zip
+-- content_hash:       string(64), reviewed pack visuals/geometry and presentation identity
+-- technical_pass:     boolean
+-- visual_approval:    string(30), pending | approved | rejected
+-- publication_status: string(30), review | published
+-- review_reason:      string(2000)
+-- status_history:     string(65535), JSON review transition log
+-- verified_metadata:  string(10000), optional JSON; empty by default
+-- created_at, updated_at: datetime
 
--- ── Models ──
-CREATE TABLE IF NOT EXISTS models (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  name TEXT NOT NULL,
-  whatsapp TEXT NOT NULL DEFAULT '',
-  instagram TEXT NOT NULL DEFAULT '',
-  portal_code TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'Active',
-  monthly_video_quota INTEGER NOT NULL DEFAULT 30,
-  monthly_base_fee NUMERIC NOT NULL DEFAULT 200,
-  commission_rate NUMERIC NOT NULL DEFAULT 0.005,
-  payment_method TEXT NOT NULL DEFAULT '',
-  payment_details TEXT NOT NULL DEFAULT '',
-  total_paid NUMERIC NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: traders ──
+-- name:       string(255), required
+-- whatsapp:   string(255), default ""
+-- licence:    string(255), default ""
+-- portal_code: string(255), default ""
+-- email:      string(255), default ""
+-- status:     string(50), default "Pending"  (Pending | Active | Declined)
+-- company:    string(255), default ""
+-- country:    string(255), default ""
+-- licence_photo: string(65535), default ""
+-- created_at: datetime
 
--- ── Videos ──
-CREATE TABLE IF NOT EXISTS videos (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  video_url TEXT NOT NULL,
-  caption TEXT NOT NULL DEFAULT '',
-  stone_id TEXT REFERENCES stones(id),
-  published INTEGER NOT NULL DEFAULT 0,
-  model_id BIGINT REFERENCES models(id),
-  status TEXT NOT NULL DEFAULT 'Live',
-  tap_count INTEGER NOT NULL DEFAULT 0,
-  reserve_count INTEGER NOT NULL DEFAULT 0,
-  sales_count INTEGER NOT NULL DEFAULT 0,
-  sales_value NUMERIC NOT NULL DEFAULT 0,
-  commission_earned NUMERIC NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: stones ──
+-- ref:          string(50), required
+-- stone_type:   string(50), default "polished"
+-- shape:        string(100), required
+-- carat:        float, required, default 0
+-- color:        string(50), required
+-- clarity:      string(50), default ""
+-- cut:          string(50), default ""
+-- certification: string(50), default ""
+-- category:     string(50), default ""
+-- crystal_form: string(50), default ""
+-- clarity_notes: string(2000), default ""
+-- kp_status:    boolean, default false
+-- price:        float, default 0  (0 = price on request / null)
+-- status:       string(50), default "Available"  (Available | Reserved | Sold | Pending | Rejected)
+-- photo:        string(2000), default ""
+-- source:       string(50), default "Own stock"
+-- trader_id:    string(50), default ""  (FK → traders.$id)
+-- commission:   float, default 0
+-- sale_price:   float, default 0  (0 = null)
+-- photo_path:   string(500), default ""
+-- listing_category: string(50), default "Polished"  (Rough | Polished | Jewelry)
+-- created_at:   datetime
 
--- ── Stone Status Log ──
-CREATE TABLE IF NOT EXISTS stone_status_log (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  stone_id TEXT NOT NULL REFERENCES stones(id),
-  status TEXT NOT NULL,
-  reason TEXT NOT NULL DEFAULT '',
-  changed_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: requests ──
+-- date:           string(20), required
+-- buyer_name:     string(255), default ""
+-- company:        string(255), required
+-- country:        string(255), default ""
+-- contact:        string(255), required
+-- type:           string(50), required
+-- shape:          string(100), required
+-- carat_min:      string(20), default ""
+-- carat_max:      string(20), default ""
+-- color:          string(50), required
+-- clarity:        string(50), required
+-- certification:  string(50), default ""
+-- notes:          string(5000), default ""
+-- kp_licence:     string(100), default ""
+-- kp_country:     string(100), default ""
+-- consent:        boolean, default false
+-- declaration:    boolean, default false
+-- consent_timestamp: string(50), default ""
+-- mandate:        string(10000), default ""
+-- status:         string(50), default "New"  (New | Sourcing | Quoted | Closed)
+-- offer_text:     string(10000), default ""
+-- offer_timestamp: string(50), default ""
+-- created_at:     datetime
 
--- ── Requests ──
-CREATE TABLE IF NOT EXISTS requests (
-  id TEXT PRIMARY KEY,
-  date TEXT NOT NULL,
-  buyer_name TEXT NOT NULL DEFAULT '',
-  company TEXT NOT NULL,
-  country TEXT NOT NULL DEFAULT '',
-  contact TEXT NOT NULL,
-  type TEXT NOT NULL,
-  shape TEXT NOT NULL,
-  carat_min TEXT NOT NULL DEFAULT '',
-  carat_max TEXT NOT NULL DEFAULT '',
-  color TEXT NOT NULL,
-  clarity TEXT NOT NULL,
-  certification TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  kp_licence TEXT NOT NULL DEFAULT '',
-  kp_country TEXT NOT NULL DEFAULT '',
-  consent INTEGER NOT NULL DEFAULT 0,
-  declaration INTEGER NOT NULL DEFAULT 0,
-  consent_timestamp TEXT NOT NULL DEFAULT '',
-  mandate TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'New',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  offer_text TEXT NOT NULL DEFAULT '',
-  offer_timestamp TEXT NOT NULL DEFAULT ''
-);
+-- ── Collection: orders ──
+-- stone_id:       string(50), required  (FK → stones.$id)
+-- stone_ref:      string(50), required
+-- buyer_name:     string(255), default ""
+-- buyer_whatsapp: string(255), default ""
+-- price:          float, default 0  (0 = null)
+-- status:         string(50), default "Reserved"  (Reserved | Invoiced | Paid | Shipped | Closed)
+-- created_at:     datetime
 
--- ── Stones ──
-CREATE TABLE IF NOT EXISTS stones (
-  id TEXT PRIMARY KEY,
-  ref TEXT NOT NULL,
-  stone_type TEXT NOT NULL DEFAULT 'polished',
-  shape TEXT NOT NULL,
-  carat REAL NOT NULL,
-  color TEXT NOT NULL,
-  clarity TEXT NOT NULL DEFAULT '',
-  cut TEXT NOT NULL DEFAULT '',
-  certification TEXT NOT NULL DEFAULT '',
-  category TEXT NOT NULL DEFAULT '',
-  crystal_form TEXT NOT NULL DEFAULT '',
-  clarity_notes TEXT NOT NULL DEFAULT '',
-  kp_status INTEGER NOT NULL DEFAULT 0,
-  price REAL,
-  status TEXT NOT NULL DEFAULT 'Available',
-  photo TEXT NOT NULL DEFAULT '',
-  source TEXT NOT NULL DEFAULT 'Own stock',
-  trader_id BIGINT REFERENCES traders(id),
-  commission REAL NOT NULL DEFAULT 0,
-  sale_price REAL,
-  photo_path TEXT,
-  listing_category TEXT NOT NULL DEFAULT 'Polished',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: reports ──
+-- trader_id:    string(50), required  (FK → traders.$id)
+-- period_start: datetime, required
+-- period_end:   datetime, required
+-- report_date:  datetime, required
+-- summary:      string(10000), default ""
+-- data:         string(50000), default "{}"  (JSON)
+-- created_at:   datetime
 
--- ── Orders (Reserve flow) ──
-CREATE TABLE IF NOT EXISTS orders (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  stone_id TEXT NOT NULL REFERENCES stones(id),
-  stone_ref TEXT NOT NULL,
-  buyer_name TEXT NOT NULL DEFAULT '',
-  buyer_whatsapp TEXT NOT NULL DEFAULT '',
-  price REAL,
-  status TEXT NOT NULL DEFAULT 'Reserved',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
+-- ── Collection: stone_status_log ──
+-- stone_id:   string(50), required  (FK → stones.$id)
+-- status:     string(50), required
+-- reason:     string(2000), default ""
+-- changed_at: datetime, required
 
--- ── Indexes ──
-CREATE INDEX IF NOT EXISTS idx_stones_status ON stones(status);
-CREATE INDEX IF NOT EXISTS idx_stones_source ON stones(source);
-CREATE INDEX IF NOT EXISTS idx_stones_trader ON stones(trader_id);
-CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
+-- ── Collection: models ──
+-- name:                string(255), required
+-- whatsapp:            string(255), default ""
+-- instagram:           string(255), default ""
+-- portal_code:         string(255), default ""
+-- status:              string(50), default "Active"  (Active | Inactive)
+-- monthly_video_quota: integer, default 30
+-- monthly_base_fee:    float, default 200
+-- commission_rate:     float, default 0.005
+-- payment_method:      string(50), default ""
+-- payment_details:     string(1000), default ""
+-- total_paid:          float, default 0
+-- created_at:          datetime
 
--- ── Photo storage bucket ──
--- Run this via Supabase dashboard > Storage > New bucket:
---   Name: stone-photos
---   Public: true
---   File size limit: 5 MB
---   Allowed MIME types: image/jpeg, image/png, image/webp
---
--- Or via SQL (Supabase v2):
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'stone-photos',
-  'stone-photos',
-  true,
-  5242880,
-  ARRAY['image/jpeg', 'image/png', 'image/webp']
-)
-ON CONFLICT (id) DO NOTHING;
+-- ── Collection: videos ──
+-- video_url:         string(2000), required
+-- caption:           string(500), default ""
+-- stone_id:          string(50), default ""  (FK → stones.$id)
+-- published:         boolean, default false
+-- model_id:          string(50), default ""  (FK → models.$id)
+-- status:            string(50), default "Live"  (Live | Pending)
+-- tap_count:         integer, default 0
+-- reserve_count:     integer, default 0
+-- sales_count:       integer, default 0
+-- sales_value:       float, default 0
+-- commission_earned: float, default 0
+-- created_at:        datetime
 
--- ── RLS policies for stone-photos bucket ──
--- Allow public read access
-CREATE POLICY IF NOT EXISTS "Public read for stone photos"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'stone-photos');
+-- ── Storage Bucket: "media" ──
+-- Public read/write
+-- Max file size: 10 MB
+-- Allowed extensions: jpg, jpeg, png, webp, gif
+-- Created automatically by ensureReady()
 
--- Allow authenticated insert/update
-CREATE POLICY IF NOT EXISTS "Authenticated upload for stone photos"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'stone-photos' AND auth.role() = 'authenticated');
-
-CREATE POLICY IF NOT EXISTS "Authenticated update for stone photos"
-  ON storage.objects FOR UPDATE
-  USING (bucket_id = 'stone-photos' AND auth.role() = 'authenticated');
+-- ── Storage Bucket: "jewelry-sources" ──
+-- Private: no public read/write permissions; server API key only.
+-- Max file size: 250 MB
+-- Allowed extensions: obj, glb, fbx, zip, jpg, jpeg, png, webp, pdf
