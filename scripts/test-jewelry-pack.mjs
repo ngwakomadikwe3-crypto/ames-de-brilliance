@@ -26,7 +26,7 @@ test('completed engine packs remain readable as jewelry review evidence', {
   for (const id of ids) {
     const pack = await getPackEvidence(id);
     assert.equal(pack.assetId, id);
-    assert.equal(pack.revisionId, `${id}:1`);
+    assert.equal(pack.revisionId, `${id}:${id === 'dev-test-candidate-ring' ? '2' : '1'}`);
     assert.equal(pack.technicalPass, true);
     assert.match(pack.sourceSha256, /^[a-f0-9]{64}$/);
     assert.match(pack.packHash, /^[a-f0-9]{64}$/);

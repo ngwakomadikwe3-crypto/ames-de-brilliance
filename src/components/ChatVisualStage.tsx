@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import ModelViewer from './ModelViewer';
+import EngineJewelryViewer from './EngineJewelryViewer';
 import { loadChatStageContent, supportedViewerAction, type ChatStageContent, type ViewerAction } from '../lib/ames-chat-content';
 
 type Command = { id: number; value: unknown } | null;
@@ -11,7 +12,13 @@ const actionLabels: Partial<Record<ViewerAction, string>> = {
 };
 
 export default function ChatVisualStage({ command, assetId, compact = false }: { command: Command; assetId?: string | null; compact?: boolean }) {
+  // Remount asset-local loading and command state before rendering a new selection.
+  return <SelectedChatVisualStage key={assetId ?? 'default'} command={command} assetId={assetId} compact={compact} />;
+}
+
+function SelectedChatVisualStage({ command, assetId, compact }: { command: Command; assetId?: string | null; compact: boolean }) {
   const [content, setContent] = useState<ChatStageContent | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rotation, setRotation] = useState(false);
   const [view, setView] = useState('three_quarter');
   const [zoomed, setZoomed] = useState(false);
@@ -24,7 +31,7 @@ export default function ChatVisualStage({ command, assetId, compact = false }: {
       setContent(result);
       setRotation(result.contract.rotationEnabled);
       setView(result.contract.defaultView);
-    }).catch(() => { if (active) setContent(null); });
+    }).catch(() => { if (active) { setContent(null); setLoadFailed(true); } });
     return () => { active = false; };
   }, [assetId]);
 
@@ -49,19 +56,25 @@ export default function ChatVisualStage({ command, assetId, compact = false }: {
   const isJewelry = content?.contract.type === 'jewelry';
   const image = view === 'hero' ? content?.heroUrl : view === 'macro' ? content?.macroUrl : null;
   const ringView = content?.category === 'ring';
-  const stageSrc = content?.contract.assetId === 'dev-test-candidate-ring' ? '/models/mounted-reference-ring.glb' : content?.stageUrl;
+  const stageSrc = content?.stageUrl;
   const angle = view === 'side' ? '90deg 75deg' : view === 'setting' ? (ringView ? '35deg 35deg' : '35deg 65deg') : view === 'three_quarter' ? (ringView ? '35deg 40deg' : '35deg 75deg') : '0deg 75deg';
   const orbit = ringView ? `${angle} ${zoomed ? '2.2m' : '3.3m'}` : `${angle} auto`;
   const stageHeight = compact ? 180 : 220;
   return (
     <div className="shrink-0 mx-auto w-full" style={{ maxWidth: compact ? 420 : 460, padding: compact ? '4px 16px 8px' : '0 16px 12px', textAlign: 'center' }}>
-      <div style={{ height: stageHeight, position: 'relative' }}>
+      <div data-chat-asset-id={content?.contract.assetId} data-chat-revision={content?.contract.revisionId} style={{ height: stageHeight, position: 'relative' }}>
         {content ? (image ? <img src={image} alt={view === 'hero' ? 'Jewelry hero view' : 'Gemstone macro view'} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 14 }} /> :
+          content.contract.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={stageSrc} src={stageSrc!} poster={content.posterUrl} alt={content.name}
+            cameraPreset={view === 'side' ? 'side' : view === 'setting' ? 'setting' : view === 'three_quarter' ? 'three_quarter' : 'front'}
+            zoom={zoomed ? 1.1 : 1} turntableEnabled={rotation} resetToken={resetToken}
+            style={{ width: '100%', height: '100%', borderRadius: 14 }} /> :
           <ModelViewer key={stageSrc} src={stageSrc!} poster={content.posterUrl} alt={content.name}
             autoRotate={false} controlledTurntable turntableEnabled={rotation} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}
             fallbackTitle={isJewelry ? 'Jewelry preview' : 'Gemstone preview'} fallbackSubtitle="3D preview unavailable"
             style={{ width: '100%', height: '100%', borderRadius: 14 }} />) :
-          <ModelViewer src="/models/mounted-reference-ring.glb" poster="/ames-engine/dev-test-candidate-ring/luxury/editorial-hero.png" alt="Solitaire ring" autoRotate fallbackTitle="Solitaire ring" fallbackSubtitle="Ring preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />}
+          <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#9eb8ae' }}>
+            {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
+          </div>}
       </div>
       {content && (
         <details style={{ marginTop: 3, fontSize: 10, color: '#9eb8ae', display: compact ? undefined : 'none' }}>

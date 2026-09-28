@@ -2,19 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { actionFromSameResponse } from '@/lib/chat-viewer-actions';
+import { loadChatStageContent } from '@/lib/ames-chat-content';
 
-async function supportedChatActions(): Promise<string[]> {
-  const path = join(process.cwd(), 'public', 'ames-engine', 'chat.json');
-  const contract = JSON.parse(await readFile(path, 'utf8'));
-  return contract.schemaVersion === 'ames.chat-content/1' && Array.isArray(contract.supportedViewerActions)
-    ? contract.supportedViewerActions : [];
+async function supportedChatActions(assetId?: string): Promise<string[]> {
+  const content = await loadChatStageContent(assetId, async input => {
+    const url = String(input);
+    if (!/^\/ames-engine\/(?:chat\/index\.json|[a-z0-9][a-z0-9-]*\/app\/(?:chat|asset)\.json)$/.test(url)) {
+      throw new Error('Invalid Chat metadata path');
+    }
+    const body = await readFile(join(process.cwd(), 'public', url.slice(1)), 'utf8');
+    return new Response(body);
+  });
+  return content.contract.supportedViewerActions;
 }
 
 export async function POST(req: NextRequest) {
-  const { query, conversation_id, user } = await req.json();
+  const { query, conversation_id, user, assetId } = await req.json();
 
   if (!query || typeof query !== "string") {
     return NextResponse.json({ error: "query is required" }, { status: 400 });
+  }
+
+  if (assetId != null && typeof assetId !== 'string') {
+    return NextResponse.json({ error: 'Invalid Chat assetId' }, { status: 400 });
+  }
+  let supported: string[];
+  try {
+    supported = await supportedChatActions(assetId ?? undefined);
+  } catch {
+    return NextResponse.json({ error: 'Selected Chat asset is unavailable' }, { status: 400 });
   }
 
   const apiKey = process.env.DIFY_API_KEY;
@@ -39,7 +55,6 @@ export async function POST(req: NextRequest) {
   });
 
   const data = await res.json();
-  const supported = await supportedChatActions().catch(() => []);
   const viewerAction = actionFromSameResponse(query, data.viewer_action ?? data.outputs?.viewer_action, supported);
   return NextResponse.json(viewerAction ? { ...data, viewer_action: viewerAction } : data);
 }

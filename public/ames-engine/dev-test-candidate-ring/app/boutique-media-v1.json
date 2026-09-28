@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ames.boutique-content/1",
+  "assetId": "dev-test-candidate-ring",
+  "revisionId": "dev-test-candidate-ring:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "category": "ring",
+  "name": "Solitaire ring",
+  "thumbnail": "web/poster.png",
+  "heroImage": "luxury/editorial-hero.png",
+  "interactiveGlb": "web/jewelry.glb",
+  "poster": "web/poster.png",
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "categoryTags": [
+    "ring"
+  ]
+}

@@ -36,7 +36,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="absolute top-16 left-5 z-10 flex items-center justify-center w-8 h-8 rounded-full" style={{ color: '#dceee8', background: 'rgba(3,24,21,0.42)', border: '1px solid rgba(238,247,244,0.16)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {piece.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={piece.interactiveGlb} src="/models/mounted-reference-ring.glb" poster={piece.poster} alt={piece.name} style={{ width: '100%', height: '100%' }} /> :
+        {piece.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} style={{ width: '100%', height: '100%', boxSizing: 'border-box', padding: 'clamp(24px, 8vh, 56px) clamp(20px, 8vw, 48px) 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name}
             autoRotate={false} cameraControls ar={false} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 3.3m' : undefined}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}

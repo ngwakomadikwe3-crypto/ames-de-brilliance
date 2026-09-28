@@ -1,12 +1,12 @@
 {
   "schemaVersion": "ames.chat-content/1",
   "assetId": "dev-test-candidate-ring",
-  "revisionId": "dev-test-candidate-ring:1",
+  "revisionId": "dev-test-candidate-ring:2",
   "publicationStatus": "review",
   "visualApproval": "pending",
   "type": "jewelry",
   "stageAsset": "web/jewelry.glb",
-  "poster": "web/poster.png",
+  "poster": "web/poster-chat.png",
   "rotationEnabled": true,
   "defaultView": "three_quarter",
   "supportedViewerActions": [

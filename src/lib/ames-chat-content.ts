@@ -18,7 +18,7 @@ const assetSchema = z.object({
   publicationStatus: z.enum(['review', 'published']), visualApproval: z.enum(['pending', 'approved', 'rejected']),
   limitations: z.array(z.string()), verifiedClaims: z.record(z.string(), z.unknown()),
 });
-const indexSchema = z.object({ schemaVersion: z.literal('ames.chat-index/1'), contracts: z.array(relativeAsset).min(1) });
+const indexSchema = z.object({ schemaVersion: z.literal('ames.chat-index/1'), contracts: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]*\/app\/chat\.json$/)).min(1) });
 
 export type ChatContent = z.infer<typeof chatSchema>;
 export type ChatStageContent = {
@@ -41,8 +41,8 @@ export async function loadChatStageContent(assetId?: string, fetcher: typeof fet
   const indexResponse = await fetcher(root + 'chat/index.json');
   if (!indexResponse.ok) throw new Error('AMES Chat index is unavailable');
   const index = indexSchema.parse(await indexResponse.json());
-  const path = assetId ? `${assetId}/app/chat.json` : index.contracts[0];
-  if (!index.contracts.includes(path)) throw new Error(`AMES Chat asset is unavailable: ${assetId}`);
+  const path = assetId === undefined ? index.contracts[0] : index.contracts.find(path => path.split('/')[0] === assetId);
+  if (!path) throw new Error(`AMES Chat asset is unavailable: ${assetId}`);
   const selectedId = path.split('/')[0];
   const [chatResponse, assetResponse] = await Promise.all([fetcher(root + path), fetcher(root + `${selectedId}/app/asset.json`)]);
   if (!chatResponse.ok || !assetResponse.ok) throw new Error('AMES Chat content is unavailable');

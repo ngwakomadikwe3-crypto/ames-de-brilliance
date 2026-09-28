@@ -1,7 +1,7 @@
 {
   "schemaVersion": "ames.app-asset/1",
   "assetId": "dev-test-candidate-ring",
-  "revisionId": "dev-test-candidate-ring:1",
+  "revisionId": "dev-test-candidate-ring:2",
   "publicationStatus": "review",
   "visualApproval": "pending",
   "type": "jewelry",
@@ -15,7 +15,7 @@
   },
   "interactive": {
     "glb": "web/jewelry.glb",
-    "poster": "web/poster.png",
+    "poster": "web/poster-reference.png",
     "viewerConfig": "web/viewer-config.json"
   },
   "media": {
@@ -37,6 +37,7 @@
     "The center-stone macro retains two strong white lower facets and needs jeweler review.",
     "Accent stones retain a warm, textured visual approximation.",
     "The revised 360 and luxury videos need jeweler approval for pacing and placement.",
-    "Commercial imagery and motion require jeweler visual approval before publication."
+    "Commercial imagery and motion require jeweler visual approval before publication.",
+    "Revision 2 changes only center geometry and Engine treatment. Ecommerce, luxury and motion media are inherited from revision 1 and do not certify the revised center appearance."
   ]
 }

@@ -16,7 +16,8 @@ test('loads the engine Boutique record without inventing price or approval', asy
   assert.equal(piece.assetId, 'dev-test-candidate-ring');
   assert.equal(piece.category, 'ring');
   assert.equal(piece.interactiveGlb, '/ames-engine/dev-test-candidate-ring/web/jewelry.glb');
-  assert.equal(piece.poster, '/ames-engine/dev-test-candidate-ring/web/poster.png');
+  assert.equal(piece.revisionId, 'dev-test-candidate-ring:2');
+  assert.equal(piece.poster, '/ames-engine/dev-test-candidate-ring/web/poster-reference.png');
   assert.equal(piece.price, undefined);
   assert.equal(boutiquePrice(piece.price), null);
   assert.equal(piece.essentialSpecs.physicalScaleConfirmed, false);

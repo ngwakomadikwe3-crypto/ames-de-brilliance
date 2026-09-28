@@ -47,5 +47,7 @@
       "aspectRatio": 1,
       "approvalState": "pending"
     }
-  ]
+  ],
+  "boutiqueMetadata": "app/boutique-media-v1.json",
+  "assetMetadata": "app/asset-media-v1.json"
 }

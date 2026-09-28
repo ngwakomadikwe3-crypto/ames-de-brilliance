@@ -8,7 +8,6 @@ import type { MediaRecord } from "../../lib/ames-media-content";
 import type { BoutiquePiece } from "../../lib/ames-boutique-content";
 const ChatVisualStage = dynamic(() => import("../../components/ChatVisualStage"), { ssr: false });
 const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: false });
-/* Native scroll-snap — no framer-motion needed */
 
 /* ═══════════════════════════════════════════
    TYPES
@@ -299,7 +298,7 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
       const amesRes = await fetch("/api/ames", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, conversation_id: conversationId, user: userId }),
+        body: JSON.stringify({ query, conversation_id: conversationId, user: userId, assetId }),
       });
       const amesData = await amesRes.json();
       // SAME may supply a typed action. The stage checks it against the contract.

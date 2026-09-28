@@ -42,3 +42,13 @@ test('local interaction boundary persists toggles and comments', () => {
   assert.deepEqual(localMediaInteractionStore.read(key), next);
   delete globalThis.window;
 });
+
+test('inherited media uses its pinned metadata and still rejects a mismatched revision', async () => {
+  const altered = async url => {
+    const response = await fetcher(url);
+    const value = await response.json();
+    if (url.endsWith('/app/boutique-media-v1.json')) value.revisionId = 'dev-test-candidate-ring:2';
+    return { ok: true, json: async () => value };
+  };
+  await assert.rejects(() => loadMediaContent(altered), /AMES Media metadata mismatch/);
+});

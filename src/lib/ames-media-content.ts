@@ -7,6 +7,8 @@ const publication = z.enum(['review', 'published']);
 const mediaSchema = z.object({
   schemaVersion: z.literal('ames.media-content/1'), assetId, revisionId: z.string().min(1),
   publicationStatus: publication, visualApproval: approval,
+  boutiqueMetadata: packPath.optional(),
+  assetMetadata: packPath.optional(),
   items: z.array(z.object({ assetId, id: z.string().min(1), mediaType: z.enum(['video', 'image']), path: packPath,
     aspectRatio: z.number().positive(), durationSeconds: z.number().positive().optional(), approvalState: approval,
     tags: z.array(z.string().min(1)).optional() })),
@@ -45,8 +47,8 @@ export async function loadMediaContent(fetcher: typeof fetch = fetch): Promise<M
     const media = mediaSchema.parse(await get(root + path));
     if (path !== `${media.assetId}/app/media.json` || media.revisionId.split(':')[0] !== media.assetId) throw new Error('AMES Media identity mismatch');
     const [asset, boutique] = await Promise.all([
-      get(root + `${media.assetId}/app/asset.json`).then(value => assetSchema.parse(value)),
-      get(root + `${media.assetId}/app/boutique.json`).then(value => boutiqueSchema.parse(value)),
+      get(assetUrl(media.assetId, media.assetMetadata ?? 'app/asset.json')).then(value => assetSchema.parse(value)),
+      get(assetUrl(media.assetId, media.boutiqueMetadata ?? 'app/boutique.json')).then(value => boutiqueSchema.parse(value)),
     ]);
     if (asset.assetId !== media.assetId || boutique.assetId !== media.assetId || asset.revisionId !== media.revisionId || boutique.revisionId !== media.revisionId) throw new Error('AMES Media metadata mismatch');
     if (media.publicationStatus === 'published' && media.visualApproval !== 'approved') throw new Error('Unapproved Media content cannot be published');
