@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAllTraders, createTrader } from "@/lib/db";
 
 export async function GET() {
-  return NextResponse.json(getAllTraders());
+  return NextResponse.json(await getAllTraders());
 }
 
 export async function POST(req: NextRequest) {

@@ -87,7 +87,8 @@ function normPrice(v: any): number | null {
 
 /* ── Seed data ── */
 
-async function seedIfEmpty(): Promise<void> {
+/** Explicit development utility only. Never run during normal module imports. */
+export async function seedDemoIfEmpty(): Promise<void> {
   const db = getDbSvc();
   const existing = await db.listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.limit(1)] });
   if (existing.total > 0) return;
@@ -706,6 +707,3 @@ export async function updateBalance(service: string, amount: number, note: strin
     await getDbSvc().createDocument({ databaseId: DB_ID, collectionId: "balances", documentId: ID.unique(), data: { service, amount, note, updated_at: nowISO() } });
   }
 }
-
-/* ── Seed on import ── */
-seedIfEmpty().catch(() => {});

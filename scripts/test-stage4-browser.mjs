@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+const { chromium, webkit, devices } = createRequire(new URL('../../ames-engine-main/package.json',import.meta.url))('playwright');
+const base=process.env.AMES_APP_URL??'http://127.0.0.1:3000';
+const output=process.env.AMES_QA_DIR??join(tmpdir(),'ames-stage4-qa');await mkdir(output,{recursive:true});
+const results=[];
+for(const mobile of [false,true]) {
+ const browser=await (mobile?webkit.launch():chromium.launch({channel:'chrome'}));
+ try {
+  const page=await browser.newPage(mobile?devices['iPhone 13']:{viewport:{width:1440,height:900}});
+  let step='root';const errors=[];page.on('pageerror',e=>errors.push({step,message:e.message}));
+  await page.addInitScript(()=>sessionStorage.setItem('ames_intro_seen','1'));
+  await page.route('**/api/chats',r=>r.fulfill({json:[]}));
+  const root=await page.request.get(base+'/',{maxRedirects:0});assert.equal(root.status(),307);assert.equal(root.headers().location,'/app');
+  await page.goto(base+'/');assert.equal(new URL(page.url()).pathname,'/app');
+  await page.locator('[data-panel="1"] canvas').waitFor({state:'attached',timeout:60000});
+  await page.waitForFunction(()=>!document.querySelector('[data-panel="1"] [data-ames-engine-host] > img'),null,{timeout:60000});
+  await page.screenshot({path:join(output,`app-${mobile?'mobile':'desktop'}.png`)});
+  assert.equal(await page.locator('[data-nextjs-dialog]').count(),0);
+  step='Boutique';await page.getByRole('button',{name:'Boutique',exact:true}).click();
+  const tile=page.locator('[data-boutique-tile="dev-test-candidate-ring"]');await tile.click();
+  await page.waitForFunction(()=>document.querySelector('[data-panel="0"] canvas')&&!document.querySelector('[data-panel="0"] [data-ames-engine-host] > img'),null,{timeout:60000});
+  assert.equal(await page.locator('[data-panel="0"] [data-model-url]').getAttribute('data-model-url'),'/ames-engine/dev-test-candidate-ring/web/jewelry.glb');
+  if(mobile)assert.equal(await page.locator('[data-panel="0"] [data-quality-tier]').getAttribute('data-quality-tier'),'SAFE');
+  step='Media';await page.getByRole('button',{name:'Videos',exact:true}).click();
+  const items=page.locator('[data-media-item]');const mediaItems=await items.count();assert.ok(mediaItems>0);
+  const first=items.first();await first.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{const v=document.querySelector('[data-media-item] video');return v&&v.readyState>=2&&!v.paused&&v.currentTime>0},null,{timeout:30000});
+  const video=await first.locator('video').evaluate(v=>({ready:v.readyState,time:v.currentTime,error:v.error?.code??null}));assert.equal(video.error,null);
+  const like=first.getByRole('button',{name:'Like',exact:true});await like.click();assert.equal(await like.getAttribute('aria-pressed'),'true');
+  await first.getByRole('button',{name:'Comment',exact:true}).click();
+  await page.getByPlaceholder('Add a comment').fill('Stage 4 local check');await page.getByRole('button',{name:'Post',exact:true}).click();
+  await page.getByText('Stage 4 local check',{exact:true}).waitFor();await page.getByRole('button',{name:'Close comments'}).click();
+  await page.screenshot({path:join(output,`media-${mobile?'mobile':'desktop'}.png`)});
+  step='Media to Chat';await first.getByRole('button',{name:'Ask SAME',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[data-panel="1"] [data-chat-asset-id]')?.dataset.chatAssetId==='dev-test-candidate-ring');
+  await page.waitForFunction(()=>document.querySelector('[data-panel="1"] canvas')&&!document.querySelector('[data-panel="1"] [data-ames-engine-host] > img'),null,{timeout:60000});
+  step='direct app navigation';
+  await page.goto(base+'/app');assert.equal(new URL(page.url()).pathname,'/app');
+  await page.waitForFunction(()=>document.querySelector('[data-panel="1"] canvas')&&!document.querySelector('[data-panel="1"] [data-ames-engine-host] > img'),null,{timeout:60000});
+  step='compliance';await page.goto(base+'/compliance');
+  const links=await page.locator('header a').evaluateAll(a=>a.map(el=>el.getAttribute('href')));
+  assert.ok(links.includes('/app'));assert.ok(links.includes('/dashboard'));assert.ok(!links.some(h=>/^\/#(catalogue|results|how-it-works)$/.test(h)));
+  assert.equal((await page.request.get(base+'/api/stones/photo/unused-check.jpg')).status(),404);
+  assert.deepEqual(errors,[]);results.push({browser:mobile?'WebKit iPhone SAFE':'Chrome desktop',redirect:307,mediaItems,video,links,errors});
+ } finally {await browser.close();}
+}
+await writeFile(join(output,'stage4-browser.json'),JSON.stringify(results,null,2));console.log('PASS: root redirect, /app, Boutique, Media playback/local actions/Chat handoff, header navigation, retired 404. '+JSON.stringify(results));

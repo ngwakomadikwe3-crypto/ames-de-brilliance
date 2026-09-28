@@ -5,9 +5,8 @@ import { BrandMark } from "./BrandMark";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { label: "Catalogue", href: "/#catalogue" },
-  { label: "Results", href: "/#results" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "App", href: "/app" },
+  { label: "Dashboard", href: "/dashboard" },
   { label: "Compliance", href: "/compliance" },
 ];
 
@@ -17,8 +16,7 @@ export default function Header() {
   const isHome = pathname === "/";
 
   function isActive(href: string) {
-    if (href.startsWith("/#")) return false;
-    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   return (
@@ -32,7 +30,7 @@ export default function Header() {
       }}
     >
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 md:px-6 py-3">
-        <a href="/" className="flex items-center shrink-0">
+        <a href="/app" className="flex items-center shrink-0">
           <BrandMark variant="full" height={32} dark={isHome} />
         </a>
 
@@ -59,7 +57,7 @@ export default function Header() {
             className="font-medium pb-0.5"
             style={{ color: isHome ? "#A6A6AB" : "#8E8E93" }}
           >
-            Register to bid
+            Sign in
           </a>
         </nav>
 
@@ -107,7 +105,7 @@ export default function Header() {
             className="block py-2.5 text-[13px]"
             style={{ color: isHome ? "#A6A6AB" : "#6E6C69" }}
           >
-            Register to bid
+            Sign in
           </a>
         </nav>
       )}
