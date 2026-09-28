@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import EngineBoutiquePanel from "../../components/EngineBoutiquePanel";
 import EngineMediaPanel from "../../components/EngineMediaPanel";
+import EngineAuctionPanel from "../../components/EngineAuctionPanel";
 import type { MediaRecord } from "../../lib/ames-media-content";
 import type { BoutiquePiece } from "../../lib/ames-boutique-content";
 const ChatVisualStage = dynamic(() => import("../../components/ChatVisualStage"), { ssr: false });
@@ -16,6 +17,8 @@ const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: f
 /* ═══════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════ */
+
+const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Auction"] as const;
 
 export default function AppPage() {
   const [activePanel, setActivePanel] = useState(1);
@@ -48,7 +51,7 @@ export default function AppPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   function swipeTo(idx: number) {
-    const next = Math.max(0, Math.min(2, idx));
+    const next = Math.max(0, Math.min(PANEL_LABELS.length - 1, idx));
     setActivePanel(next);
     const container = scrollRef.current;
     if (container) {
@@ -62,7 +65,7 @@ export default function AppPage() {
     if (!container) return;
     function onScroll() {
       const idx = Math.round(container!.scrollLeft / window.innerWidth);
-      if (idx !== activePanel && idx >= 0 && idx <= 2) setActivePanel(idx);
+      if (idx !== activePanel && idx >= 0 && idx < PANEL_LABELS.length) setActivePanel(idx);
     }
     container.addEventListener('scroll', onScroll, { passive: true });
     return () => container.removeEventListener('scroll', onScroll);
@@ -70,7 +73,7 @@ export default function AppPage() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(2, activePanel + 1)); }
+      if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(PANEL_LABELS.length - 1, activePanel + 1)); }
       if (e.key === "ArrowLeft") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
     }
     window.addEventListener("keydown", onKey);
@@ -160,7 +163,7 @@ export default function AppPage() {
 
       {/* Dot indicator — centred under top bar */}
       <div className="fixed top-11 left-0 right-0 z-50 flex justify-center gap-1.5 py-1.5" style={{ pointerEvents: 'none' }}>
-        {[0, 1, 2].map((i) => (
+        {PANEL_LABELS.map((label, i) => (
           <button
             key={i}
             onClick={() => swipeTo(i)}
@@ -171,14 +174,16 @@ export default function AppPage() {
               height: 6,
               background: activePanel === i ? '#dceee8' : 'rgba(220,238,232,0.32)',
             }}
-            aria-label={['Boutique', 'Chat', 'Videos'][i]}
+            aria-label={label}
+            title={label}
+            aria-current={activePanel === i ? "page" : undefined}
           />
         ))}
       </div>
 
       <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
         <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
-        <div className="flex h-full" style={{ width: '300dvw' }}>
+        <div className="flex h-full" style={{ width: `${PANEL_LABELS.length * 100}dvw` }}>
           <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
             <EngineBoutiquePanel highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
           </section>
@@ -187,6 +192,9 @@ export default function AppPage() {
           </section>
           <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
             <EngineMediaPanel active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
+          </section>
+          <section data-panel="3" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <EngineAuctionPanel onViewPiece={handleSeePiece} onAskSame={handleAskBoutique} />
           </section>
         </div>
       </div>
@@ -197,7 +205,7 @@ export default function AppPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
-      {activePanel < 2 && (
+      {activePanel < PANEL_LABELS.length - 1 && (
         <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-emerald-950/40 backdrop-blur-sm border border-white/10 opacity-60 hover:opacity-90 transition-opacity hidden md:flex" aria-label="Next panel">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
