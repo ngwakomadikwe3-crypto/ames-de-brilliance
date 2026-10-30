@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureReady } from "@/lib/appwrite";
 import { AppwriteAuctionStore } from "@/lib/auction/appwrite-store";
 import { defaultBidderResolver } from "@/lib/auction/auth";
+import { biddingEnabledFor } from "@/lib/auction/bid-gate";
 import { listLotsResolved } from "@/lib/auction/place-bid";
 import { projectLot, reserveMetVisibleFromEnv } from "@/lib/auction/public-projection";
 import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
@@ -28,11 +29,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid query", issues: parsed.error.issues }, { status: 400 });
     }
 
-    // The staff-session resolver doubles as the "can this browser bid?" signal:
-    // the UI enables the bid modal only when the API says the session would be
-    // accepted by the same BidderResolver the POST route enforces. Everyone
-    // else gets the register-to-bid gate. No public bidding until Phase 3.
+    // The resolver doubles as the "can this browser bid?" signal: the UI
+    // enables the bid modal only when the API says the session would be
+    // accepted by the same gates the POST route enforces. The staff house
+    // identity is always bid-capable; a bidder account needs the public
+    // bidding flag ON, verified status and the current terms accepted.
     const bidder = await defaultBidderResolver.resolve(request.headers.get("cookie"));
+    const biddingEnabled = biddingEnabledFor(bidder);
 
     const store = new AppwriteAuctionStore();
     let lots = await listLotsResolved(store);
@@ -53,7 +56,7 @@ export async function GET(request: NextRequest) {
       {
         lots: lots.map((lot) => projectLot(lot, { showReserveMet })),
         serverTime: new Date().toISOString(),
-        biddingEnabled: bidder !== null && bidder.verified,
+        biddingEnabled,
         reserveMetVisible: showReserveMet,
       },
       { headers: { "Cache-Control": "no-store" } },

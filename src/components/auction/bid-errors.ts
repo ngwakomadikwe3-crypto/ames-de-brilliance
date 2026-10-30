@@ -19,7 +19,11 @@ export function bidRejectionMessage(
     case "lot_closed":
       return "Bidding for this lot has closed.";
     case "bidder_unverified":
-      return "Your account is not verified to bid. Complete licence verification first.";
+      return "Your account is not verified to bid yet — our team is reviewing your registration.";
+    case "bidding_not_open":
+      return "Public bidding is not open yet. Your account is registered — we will email you when bidding opens.";
+    case "terms_not_accepted":
+      return "Please review and accept the current auction terms before bidding.";
     case "rate_limited":
       return "Too many bids in a short time — wait a moment and try again.";
     case "lot_not_found":
