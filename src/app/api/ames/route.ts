@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DIFY_API_KEY not configured" }, { status: 500 });
   }
 
-  const res = await fetch("https://api.dify.ai/v1/chat-messages", {
+  const difyBase = (process.env.DIFY_API_URL || "https://api.dify.ai").replace(/\/+$/, "");
+  const res = await fetch(`${difyBase}/v1/chat-messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
