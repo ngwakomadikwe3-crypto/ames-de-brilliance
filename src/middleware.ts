@@ -1,54 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const SESSION_SECRET = process.env.SESSION_SECRET;
-
-async function verifySession(token: string): Promise<boolean> {
-  if (!SESSION_SECRET || SESSION_SECRET.length < 32) return false;
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  try {
-    const payload = parts[0];
-    const signature = parts[1];
-
-    // Decode base64url payload to string
-    const payloadStr = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    const session = JSON.parse(payloadStr);
-    if (typeof session.ts !== "number" || Date.now() - session.ts > 8 * 60 * 60 * 1000) {
-      return false;
-    }
-
-    // Import secret as raw key
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(SESSION_SECRET);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-
-    // Compute expected signature
-    const sigBuffer = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(payloadStr));
-    // Convert to base64url
-    const sigArray = new Uint8Array(sigBuffer);
-    const expectedSig = btoa(String.fromCharCode(...sigArray))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-
-    return signature === expectedSig;
-  } catch {
-    return false;
-  }
-}
-
-function getSessionCookie(request: NextRequest): string | undefined {
-  const cookie = request.headers.get("cookie") || "";
-  const match = cookie.split(";").find((c) => c.trim().startsWith("adb_session="));
-  if (!match) return undefined;
-  return match.trim().split("=").slice(1).join("=");
-}
+import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -66,7 +17,7 @@ export async function middleware(request: NextRequest) {
 
   if (!needsAuth) return NextResponse.next();
 
-  const token = getSessionCookie(request);
+  const token = sessionTokenFromCookieHeader(request.headers.get("cookie"));
   if (token && (await verifySession(token))) {
     return NextResponse.next();
   }
