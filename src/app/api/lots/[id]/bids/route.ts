@@ -3,7 +3,6 @@ import { z } from "zod";
 import { ensureReady } from "@/lib/appwrite";
 import { AppwriteAuctionStore } from "@/lib/auction/appwrite-store";
 import { defaultBidderResolver } from "@/lib/auction/auth";
-import { checkBidGate } from "@/lib/auction/bid-gate";
 import { placeBid } from "@/lib/auction/place-bid";
 
 export const runtime = "nodejs";
@@ -27,22 +26,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ ok: false, reason: "invalid_lot_id" }, { status: 400 });
     }
 
-    // Bidder authz: bidder account (adb_bidder) or the staff house session.
-    // The resolver re-reads the bidder row from shared storage on every call,
-    // so suspension/rejection takes effect immediately — even mid-auction.
+    // Bidder authz: Phase 3a resolves the staff session always, and real
+    // bidder accounts when AUCTION_PUBLIC_BIDDING=1. Verified status and
+    // suspension are enforced here server-side, never only in the UI.
     const bidder = await defaultBidderResolver.resolve(request.headers.get("cookie"));
     if (!bidder) {
       return NextResponse.json({ ok: false, reason: "unauthenticated" }, { status: 401 });
     }
-
-    // Phase 3a gates for real bidder accounts (the staff house identity is
-    // exempt: staff can always bid, exactly as before this phase):
-    //  - AUCTION_PUBLIC_BIDDING flag must be ON (fail-closed default OFF).
-    //  - The bidder must be verified (pending/rejected/suspended are not).
-    //  - The bidder must have accepted the CURRENT terms version.
-    const gate = checkBidGate(bidder);
-    if (!gate.ok) {
-      return NextResponse.json({ ok: false, reason: gate.reason }, { status: 403 });
+    // Terms gate (bidder accounts): acceptance of the CURRENT version is
+    // required to bid; the resolver reports staleness without failing auth.
+    if (bidder.termsCurrent === false) {
+      return NextResponse.json({ ok: false, reason: "terms_not_accepted" }, { status: 403 });
     }
 
     let raw: unknown;
