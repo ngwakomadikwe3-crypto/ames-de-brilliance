@@ -16,6 +16,7 @@ export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
 export const JEWELRY_SOURCES_BUCKET = "jewelry-sources";
+export const BIDDER_KYC_BUCKET = "bidder-kyc-docs";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -285,6 +286,14 @@ const BUCKET_DEFS = [
     name: "Jewelry Sources",
     maximumFileSize: 250 * 1024 * 1024,
     allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
+  },
+  {
+    // Bidder KYC documents (Phase 3a). Server-only; staff access only through
+    // short-lived signed view URLs that audit every view.
+    id: BIDDER_KYC_BUCKET,
+    name: "Bidder KYC Documents",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
   },
 ];
 
@@ -660,12 +669,63 @@ const COLLECTION_DEFS: CollectionDef[] = [
     secure: true,
     waitReady: true,
     attrs: [
-      // Phase 2a stub identity ("staff:session"); Phase 3 adds real accounts/KYC.
+      // Phase 3a: real bidder accounts. Row id is a keyed hash of the
+      // normalized email (pseudonymous; atomic duplicate prevention).
+      { key: "name", type: "string", size: 255, default: "" },
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "phone", type: "string", size: 100, default: "" },
+      { key: "country", type: "string", size: 100, default: "" },
+      { key: "entity_type", type: "string", size: 20, default: "individual" },
+      { key: "licence_number", type: "string", size: 255, default: "" },
+      // pending | verified | rejected | suspended
+      { key: "status", type: "string", size: 20, default: "pending" },
+      { key: "status_reason", type: "string", size: 500, default: "" },
+      { key: "terms_version", type: "string", size: 50, default: "" },
+      { key: "terms_accepted_at", type: "datetime" },
+      { key: "anonymised_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+      // Phase 2a stub columns, retained for compatibility.
       { key: "session_ref", type: "string", size: 255, default: "" },
       { key: "verified", type: "boolean", default: false },
       { key: "verification_tier", type: "string", size: 30, default: "stub" },
       { key: "deposit_status", type: "string", size: 30, default: "none" },
       { key: "created_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "bidders_status", type: DatabasesIndexType.Key, attributes: ["status", "created_at"] },
+    ],
+  },
+  {
+    id: "bidder_otps",
+    name: "Bidder Login Codes",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Row id is a keyed hash of the email: one live code per email, and
+      // reissuing overwrites (and so kills) the previous code.
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "code_hash", type: "string", size: 128, required: true },
+      { key: "expires_at", type: "datetime", required: true },
+      { key: "used_at", type: "datetime" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "bidder_documents",
+    name: "Bidder KYC Documents",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Metadata only; bytes live in the private bidder-kyc-docs bucket.
+      { key: "bidder_id", type: "string", size: 50, required: true },
+      { key: "file_id", type: "string", size: 100, required: true },
+      { key: "file_name", type: "string", size: 255, default: "" },
+      { key: "content_type", type: "string", size: 100, default: "" },
+      { key: "size_bytes", type: "integer", default: 0 },
+      { key: "created_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "bidder_docs_bidder", type: DatabasesIndexType.Key, attributes: ["bidder_id"] },
     ],
   },
   {
@@ -684,6 +744,8 @@ const COLLECTION_DEFS: CollectionDef[] = [
     ],
     indexes: [
       { key: "bids_lot", type: DatabasesIndexType.Key, attributes: ["lot_id", "created_at"] },
+      // Phase 3a: bidder data export (and future bidder dashboards).
+      { key: "bids_bidder", type: DatabasesIndexType.Key, attributes: ["bidder_id", "created_at"] },
     ],
   },
   {
