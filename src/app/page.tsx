@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { serverNowMs } from "@/lib/auction/clock";
 import { BidModal } from "@/components/auction/bid-modal";
+import { BidderAuthModal } from "@/components/auction/bidder-auth-modal";
 import { CatalogueSection } from "@/components/auction/catalogue-section";
-import { GateModal } from "@/components/auction/gate-modal";
 import { HeroSection } from "@/components/auction/hero-section";
 import { ResultsSection } from "@/components/auction/results-section";
 import { Toast } from "@/components/auction/toast";
+import { useBidderMe } from "@/components/auction/use-bidder-me";
 import { useLots } from "@/components/auction/use-lots";
 import {
   ComplianceSection,
@@ -25,11 +26,19 @@ import {
    ═══════════════════════════════════════════ */
 export default function Home() {
   const { lots, serverOffsetMs, biddingEnabled, reserveMetVisible, loading, error, refresh } = useLots();
+  const { me, refresh: refreshMe } = useBidderMe();
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [bidLotId, setBidLotId] = useState<string | null>(null);
   const [showGate, setShowGate] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // After any auth change (register/login/logout/terms), re-read both the
+  // bidder session and the lot feed (biddingEnabled derives from both).
+  const onAuthChange = () => {
+    void refreshMe();
+    void refresh();
+  };
 
   // Tick once a second to re-render countdowns from the server-corrected
   // clock. The tick NEVER decides an outcome — it only moves the display.
@@ -53,7 +62,8 @@ export default function Home() {
         reserveMetVisible={reserveMetVisible}
         onBidClick={(lot) => {
           // Bidding is enabled only for sessions the BidderResolver accepts
-          // (staff for now); everyone else gets the register-to-bid gate.
+          // (staff always; verified bidders once the owner opens the gate).
+          // Everyone else gets registration / sign-in.
           if (biddingEnabled) {
             setBidLotId(lot.id);
           } else {
@@ -83,7 +93,7 @@ export default function Home() {
           setShowGate(true);
         }}
       />
-      {showGate && <GateModal onClose={() => setShowGate(false)} />}
+      {showGate && <BidderAuthModal me={me} onClose={() => setShowGate(false)} onAuthChange={onAuthChange} />}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       {showReportModal && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center" onClick={() => setShowReportModal(false)}>
