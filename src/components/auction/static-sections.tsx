@@ -98,7 +98,7 @@ export function HouseServicesSection() {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {[
-          { title: "Diamond Sourcing", desc: "We source rough and polished stones directly from Botswana’s licensed mines and trading partners." },
+          { title: "Diamond Sourcing", desc: "We source rough and polished stones directly from Botswana\u2019s licensed mines and trading partners." },
           { title: "Private Viewings", desc: "Arrange an in-person or virtual viewing of any lot or piece in the collection." },
           { title: "Custom Commissions", desc: "Work with the desk to design and set a bespoke piece to your specification." },
           { title: "Valuation Support", desc: "Professional valuation and documentation for insurance, resale, or personal records." },
