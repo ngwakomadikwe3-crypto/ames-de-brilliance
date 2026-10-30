@@ -26,11 +26,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ ok: false, reason: "invalid_lot_id" }, { status: 400 });
     }
 
-    // Bidder authz: Phase 2a stub resolves the staff session; Phase 3 swaps in
-    // real bidder accounts + KYC behind the same BidderResolver interface.
+    // Bidder authz: Phase 3a resolves the staff session always, and real
+    // bidder accounts when AUCTION_PUBLIC_BIDDING=1. Verified status and
+    // suspension are enforced here server-side, never only in the UI.
     const bidder = await defaultBidderResolver.resolve(request.headers.get("cookie"));
     if (!bidder) {
       return NextResponse.json({ ok: false, reason: "unauthenticated" }, { status: 401 });
+    }
+    // Terms gate (bidder accounts): acceptance of the CURRENT version is
+    // required to bid; the resolver reports staleness without failing auth.
+    if (bidder.termsCurrent === false) {
+      return NextResponse.json({ ok: false, reason: "terms_not_accepted" }, { status: 403 });
     }
 
     let raw: unknown;

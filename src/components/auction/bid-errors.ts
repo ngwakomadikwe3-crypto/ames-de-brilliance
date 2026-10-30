@@ -20,6 +20,8 @@ export function bidRejectionMessage(
       return "Bidding for this lot has closed.";
     case "bidder_unverified":
       return "Your account is not verified to bid. Complete licence verification first.";
+    case "terms_not_accepted":
+      return "Please accept the current auction terms before bidding.";
     case "rate_limited":
       return "Too many bids in a short time — wait a moment and try again.";
     case "lot_not_found":

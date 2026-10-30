@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureReady, getStorage, LICENCE_DOCS_BUCKET } from "@/lib/appwrite";
-import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
+import { sessionTokenFromCookieHeader, verifyStaffSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -17,7 +17,9 @@ export async function GET(
 ) {
   const { fileId } = await context.params;
   const token = sessionTokenFromCookieHeader(req.headers.get("cookie"));
-  if (!token || !(await verifySession(token))) {
+  // Staff sessions only: a signed bidder cookie (no role claim) must not
+  // read KYC documents through this proxy either.
+  if (!token || !(await verifyStaffSession(token))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!FILE_ID_RE.test(fileId)) {

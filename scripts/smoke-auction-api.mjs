@@ -42,7 +42,9 @@ async function getLots(headers = {}) {
 async function postBid(lotId, amountMinor, idempotencyKey, cookie) {
   const res = await fetch(`${BASE}/api/lots/${lotId}/bids`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+    // Origin is required since Phase 3a: middleware denies mutating API calls
+    // without a matching Origin header (same-origin enforcement).
+    headers: { 'Content-Type': 'application/json', Origin: new URL(BASE).origin, ...(cookie ? { Cookie: cookie } : {}) },
     body: JSON.stringify({ amountMinor, idempotencyKey }),
   });
   return { status: res.status, body: await res.json().catch(() => null) };

@@ -16,6 +16,7 @@ export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
 export const JEWELRY_SOURCES_BUCKET = "jewelry-sources";
+export const BIDDER_DOCS_BUCKET = "bidder-docs";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -285,6 +286,15 @@ const BUCKET_DEFS = [
     name: "Jewelry Sources",
     maximumFileSize: 250 * 1024 * 1024,
     allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
+  },
+  {
+    // Bidder KYC documents (Phase 3a). Server-only; no public URLs ever.
+    // Staff access only through short-lived signed view URLs, and every view
+    // is written to the audit log (see the staff documents/[docId] routes).
+    id: BIDDER_DOCS_BUCKET,
+    name: "Bidder Documents",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
   },
 ];
 
@@ -660,12 +670,69 @@ const COLLECTION_DEFS: CollectionDef[] = [
     secure: true,
     waitReady: true,
     attrs: [
-      // Phase 2a stub identity ("staff:session"); Phase 3 adds real accounts/KYC.
+      // Phase 3a: real bidder accounts. The row id is opaque; PII lives only
+      // in this table and the bidder-docs bucket, so anonymisation erases the
+      // person while bids/audit (which reference the row id) stay intact.
+      { key: "name", type: "string", size: 255, default: "" },
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "phone", type: "string", size: 100, default: "" },
+      { key: "country", type: "string", size: 100, default: "" },
+      { key: "entity_type", type: "string", size: 20, default: "individual" },
+      { key: "licence_number", type: "string", size: 255, default: "" },
+      // pending | verified | rejected | suspended
+      { key: "status", type: "string", size: 20, default: "pending" },
+      { key: "status_reason", type: "string", size: 500, default: "" },
+      { key: "status_by", type: "string", size: 150, default: "" },
+      { key: "status_at", type: "datetime" },
+      { key: "terms_version", type: "string", size: 50, default: "" },
+      { key: "terms_accepted_at", type: "datetime" },
+      { key: "anonymised_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+      // Phase 2a stub columns, retained for compatibility.
       { key: "session_ref", type: "string", size: 255, default: "" },
       { key: "verified", type: "boolean", default: false },
       { key: "verification_tier", type: "string", size: 30, default: "stub" },
       { key: "deposit_status", type: "string", size: 30, default: "none" },
       { key: "created_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "bidders_email", type: DatabasesIndexType.Key, attributes: ["email"] },
+      { key: "bidders_status", type: DatabasesIndexType.Key, attributes: ["status", "created_at"] },
+    ],
+  },
+  {
+    id: "bidder_otps",
+    name: "Bidder Login Codes",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Row id is deterministic per email (see otpRowId): a re-request
+      // overwrites, and so invalidates, the previous code.
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "code_hash", type: "string", size: 128, required: true },
+      { key: "expires_at", type: "datetime", required: true },
+      { key: "attempts", type: "integer", default: 0 },
+      { key: "used", type: "boolean", default: false },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "bidder_documents",
+    name: "Bidder Documents",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Metadata only; bytes live in the private bidder-docs bucket.
+      { key: "bidder_id", type: "string", size: 50, required: true },
+      { key: "file_id", type: "string", size: 100, required: true },
+      { key: "filename", type: "string", size: 255, default: "" },
+      { key: "content_type", type: "string", size: 100, default: "" },
+      { key: "size", type: "integer", default: 0 },
+      { key: "sha256", type: "string", size: 64, default: "" },
+      { key: "uploaded_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "bidder_docs_bidder", type: DatabasesIndexType.Key, attributes: ["bidder_id"] },
     ],
   },
   {

@@ -5,7 +5,7 @@ import { AppwriteAuctionStore } from "@/lib/auction/appwrite-store";
 import { defaultBidderResolver } from "@/lib/auction/auth";
 import { listLotsResolved } from "@/lib/auction/place-bid";
 import { projectLot, reserveMetVisibleFromEnv } from "@/lib/auction/public-projection";
-import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
+import { sessionTokenFromCookieHeader, verifyStaffSession } from "@/lib/session";
 import type { LotStatus } from "@/lib/auction/types";
 
 export const runtime = "nodejs";
@@ -28,18 +28,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid query", issues: parsed.error.issues }, { status: 400 });
     }
 
-    // The staff-session resolver doubles as the "can this browser bid?" signal:
-    // the UI enables the bid modal only when the API says the session would be
-    // accepted by the same BidderResolver the POST route enforces. Everyone
-    // else gets the register-to-bid gate. No public bidding until Phase 3.
+    // The resolved session doubles as the "can this browser bid?" signal:
+    // staff always; bidder accounts when AUCTION_PUBLIC_BIDDING=1 and their
+    // status is verified and their terms acceptance is current. Everyone else
+    // gets the register-to-bid / sign-in flow on the homepage.
     const bidder = await defaultBidderResolver.resolve(request.headers.get("cookie"));
 
     const store = new AppwriteAuctionStore();
     let lots = await listLotsResolved(store);
 
     if (parsed.data.all === "1") {
+      // Full catalogue (draft/withdrawn) is staff-only: requires the role
+      // claim, so a signed bidder cookie cannot widen read access.
       const token = sessionTokenFromCookieHeader(request.headers.get("cookie"));
-      if (!token || !(await verifySession(token))) {
+      if (!token || !(await verifyStaffSession(token))) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     } else {
@@ -53,7 +55,7 @@ export async function GET(request: NextRequest) {
       {
         lots: lots.map((lot) => projectLot(lot, { showReserveMet })),
         serverTime: new Date().toISOString(),
-        biddingEnabled: bidder !== null && bidder.verified,
+        biddingEnabled: bidder !== null && bidder.verified && bidder.termsCurrent !== false,
         reserveMetVisible: showReserveMet,
       },
       { headers: { "Cache-Control": "no-store" } },
