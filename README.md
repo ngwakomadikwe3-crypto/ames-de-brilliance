@@ -1,69 +1,90 @@
 # AMES DE BRILLIANTE
 
-A B2B wholesale diamond sourcing platform for a licensed dealer in Botswana. Built with Next.js, Tailwind CSS, SQLite, and DeepSeek AI.
+B2B diamond sourcing, boutique and auction platform for a licensed diamond dealer in
+Botswana. Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, deployed on
+Vercel, with Appwrite as the data and storage backend and the SAME concierge chat
+powered by a Dify chatflow.
 
-## Quick Start
+## Requirements
+
+- Node.js 22 or newer (see `.nvmrc`; the test runner uses `--experimental-strip-types`)
+- An Appwrite project (cloud or self-hosted) with a server API key
+
+## Quick start
 
 ```bash
-npm install
-cp .env.example .env.local   # edit with your values
-npm run dev                   # http://localhost:3000
+npm ci
+cp .env.example .env.local   # fill in your values
+npm run dev                  # http://localhost:3000
 ```
 
-## Environment Variables
+The Appwrite database, collections and buckets are provisioned automatically on first
+run by `src/lib/appwrite.ts` (`ensureReady`). `schema.sql` is a human-readable
+reference for that schema only — it is not runnable SQL.
 
-| Variable | Default | Description |
-|---|---|---|
-| `SESSION_SECRET` | — | Required HMAC signing secret (at least 32 random characters) |
-| `OWNER_CODE` | — | Optional emergency owner access code |
-| `COUSIN_CODE` | — | Optional emergency staff access code |
-| `DEEPSEEK_API_KEY` | — | API key for DeepSeek or any OpenAI-compatible provider |
-| `AI_BASE_URL` | `https://api.deepseek.com` | LLM API base URL |
-| `AI_MODEL` | `deepseek-chat` | Model name |
-| `SMTP_HOST` | — | SMTP server host (required for email notifications) |
-| `SMTP_PORT` | `587` | SMTP port (587 for TLS, 465 for SSL) |
-| `SMTP_USER` | — | SMTP username / login |
-| `SMTP_PASS` | — | SMTP password |
-| `SMTP_FROM` | `SMTP_USER` | Sender address |
-| `NOTIFY_EMAIL` | `SMTP_USER` | Notification recipient address |
+## Architecture
 
-## Pages
+- **Data & files:** Appwrite (`node-appwrite`) — requests, stones, traders, staff,
+  chats, intelligence, jewelry products and media live in the `ames` database and
+  media buckets. There is no local database.
+- **SAME chat:** `/api/ames` proxies the Dify chatflow. Chat history persists in
+  Appwrite via `/api/chats`. Replies can carry a typed `viewer_action`, validated
+  against the active AMES Engine chat contract before the 3D stage executes it.
+- **3D jewellery:** `@google/model-viewer` for pack assets plus the vendored AMES
+  Engine (`vendor/ames-engine-0.1.0.tgz`, a local `file:` dependency) for the
+  reference ring viewer. Engine asset packs are synced into `public/ames-engine/`
+  from a verified engine checkout — see `scripts/sync-ames-*.mjs`.
+- **Auth:** HMAC-signed session cookie (`adb_session`, 8 h) checked in
+  `src/middleware.ts` for `/dashboard`, `/api/requests` and `/api/traders`. Staff
+  accounts live in Appwrite; optional emergency owner/cousin codes come from the
+  environment only.
+- **AI tools:** DeepSeek-compatible API (`src/lib/ai.ts`) for parsing sourcing
+  requests, drafting replies/offers and bulk stock import.
+- **Email:** SMTP via nodemailer.
+
+## Environment variables
+
+See `.env.example` for the annotated list. Summary:
+
+| Variable | Purpose |
+|---|---|
+| `APPWRITE_ENDPOINT` / `APPWRITE_PROJECT_ID` / `APPWRITE_API_KEY` | Appwrite connection (server-only) |
+| `SESSION_SECRET` | HMAC session signing secret, 32+ random chars (required) |
+| `OWNER_CODE` / `COUSIN_CODE` | Optional emergency staff access codes |
+| `DEEPSEEK_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | AI tools (OpenAI-compatible) |
+| `DIFY_API_KEY` / `DIFY_API_URL` | SAME concierge chatflow |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` / `NOTIFY_EMAIL` | Email notifications |
+
+Never commit real values; `.env*` is git-ignored.
+
+## Routes
 
 | Route | Access | Description |
 |---|---|---|
-| `/` | Public | Available diamond stock (rough + polished) |
-| `/request` | Public | Sourcing request form |
-| `/success` | Public | Post-submission confirmation |
-| `/login` | Public | Dealer login |
-| `/dashboard` | Auth | Requests, Stones, Add Stone, Paste-in, Traders |
-| `/terms` | Public | Terms of Use |
-| `/privacy` | Public | Privacy Policy |
-| `/compliance` | Public | KP compliance & licensing |
+| `/` | Public | Auction room catalogue (currently demo lots; real backend lands in the auction phase) |
+| `/app` | Public | Product shell: Boutique / SAME chat / Media panels |
+| `/app/settings`, `/app/billing` | Public | Shell settings and billing placeholders |
+| `/request`, `/success` | Public | Sourcing request form + confirmation |
+| `/login` | Public | Staff login |
+| `/dashboard` | Staff | Requests, Stones, Add Stone, Paste-in, Traders, Jewelry onboarding |
+| `/intelligence`, `/reports` | Staff | Market intelligence and sales reports |
+| `/partner`, `/model/[code]`, `/trader/[code]` | Mixed | Partner/model/trader portal surfaces |
+| `/terms`, `/privacy`, `/compliance`, `/legal` | Public | Legal and Kimberley Process disclosures |
 
-## Supabase Setup (Production)
+## Scripts
 
-1. Create a new Supabase project
-2. Run `schema.sql` in the SQL Editor to create tables + photo bucket
-3. Set environment variables in the Supabase dashboard
-4. Deploy with `npx vercel --prod` or your preferred platform
+```bash
+npm run dev / build / start / lint
+npm run sync:ames-content      # sync engine chat/boutique/media packs into public/
+npm run test:ames-chat         # chat contract, viewer actions, turntable
+npm run test:ames-boutique     # boutique pack contracts
+npm run test:ames-media        # media pack contracts
+npm run test:jewelry-onboarding
+```
 
-## Features
+## Deployment
 
-- **Rough & polished diamond listings** with KP compliance badges
-- **Sourcing request form** with validation, consent, and KP fields for rough
-- **Dealer dashboard** with 5 tabs: Requests, Stones, Add Stone, Paste-in, Traders
-- **AI-powered tools**: parse requests, draft replies, generate offers, bulk-import stock
-- **Offer generator**: AI matches inventory to buyer specs, produces plain-text offer sheets
-- **Paste-in tab**: bulk paste stock text, AI parses into editable cards, one-click publish
-- **Session-based auth** with HMAC-signed cookies
-- **Responsive design** — mobile hamburger menu, stacked cards, tappable buttons
-- **Legal pages** — Terms, Privacy, Compliance with Kimberley Process disclosures
-
-## Tech Stack
-
-- Next.js 16 (App Router, Turbopack)
-- Tailwind CSS v4
-- SQLite via better-sqlite3
-- DeepSeek API (OpenAI-compatible)
-- Zod validation
-- Inter font
+Vercel. `vercel.json` registers two crons (monthly ground report, quarterly
+compliance briefing). Set every variable from `.env.example` in the Vercel project
+settings. See `docs/STATUS.md` for the honest current-state assessment before any
+production launch.

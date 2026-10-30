@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { loadChatStageContent, supportedViewerAction } from '../src/lib/ames-chat-content.ts';
 import { actionFromSameResponse, parseViewerIntent } from '../src/lib/chat-viewer-actions.ts';
+import { loadSupportedChatActions } from '../src/lib/ames-chat-supported-actions.ts';
 import { createTurntable, turntableEnabled, turntablePointerDown, turntablePointerUp, turntableReady, turntableReset, turntableTick, RESUME_DELAY_MS } from '../src/lib/chat-turntable.ts';
 
 const publicRoot = resolve('public');
@@ -99,4 +100,22 @@ test('turntable waits for GLB, pauses for manual orbit, resumes gently, and obey
   assert.ok(state.angleDeg > afterResume, 'rotate re-enables motion');
   state = turntableReset(state, 3400);
   assert.equal(state.angleDeg, 0, 'reset returns to the default presentation');
+});
+
+test('Server action allowlist comes from the chat index and per-asset contracts', async () => {
+  // Regression: the API route previously read public/ames-engine/chat.json
+  // (ames.chat-content/1), a path that does not exist, so the allowlist was
+  // always empty and chat-driven viewer actions (rotate, zoom, ...) never ran.
+  const actions = await loadSupportedChatActions(publicRoot);
+  assert.ok(actions.includes('rotate'), 'default contract exposes rotate');
+  assert.ok(actions.includes('zoom'), 'default contract exposes zoom');
+  assert.ok(actions.includes('inspect_setting'), 'default contract exposes inspect_setting');
+
+  for (const id of ['dev-test-candidate-ring', 'dev-test-solitaire-mount', 'dev-test-earring-001', 'dev-test-pendant-001']) {
+    const own = await loadSupportedChatActions(publicRoot, id);
+    assert.ok(own.length > 0, `${id} exposes its own allowlist`);
+  }
+
+  assert.deepEqual(await loadSupportedChatActions(publicRoot, 'missing-asset'), [], 'unknown asset yields an empty allowlist');
+  await assert.rejects(loadSupportedChatActions(resolve('does-not-exist')), 'missing public dir rejects so the route can fall back');
 });

@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { actionFromSameResponse } from '@/lib/chat-viewer-actions';
-
-async function supportedChatActions(): Promise<string[]> {
-  const path = join(process.cwd(), 'public', 'ames-engine', 'chat.json');
-  const contract = JSON.parse(await readFile(path, 'utf8'));
-  return contract.schemaVersion === 'ames.chat-content/1' && Array.isArray(contract.supportedViewerActions)
-    ? contract.supportedViewerActions : [];
-}
+import { loadSupportedChatActions } from '@/lib/ames-chat-supported-actions';
 
 export async function POST(req: NextRequest) {
   const { query, conversation_id, user } = await req.json();
@@ -22,7 +14,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DIFY_API_KEY not configured" }, { status: 500 });
   }
 
-  const res = await fetch("https://api.dify.ai/v1/chat-messages", {
+  const difyBase = (process.env.DIFY_API_URL || "https://api.dify.ai").replace(/\/+$/, "");
+  const res = await fetch(`${difyBase}/v1/chat-messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -39,7 +32,7 @@ export async function POST(req: NextRequest) {
   });
 
   const data = await res.json();
-  const supported = await supportedChatActions().catch(() => []);
+  const supported = await loadSupportedChatActions().catch(() => []);
   const viewerAction = actionFromSameResponse(query, data.viewer_action ?? data.outputs?.viewer_action, supported);
   return NextResponse.json(viewerAction ? { ...data, viewer_action: viewerAction } : data);
 }
