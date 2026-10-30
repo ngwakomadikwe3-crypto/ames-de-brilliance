@@ -555,7 +555,7 @@ const COLLECTION_DEFS: CollectionDef[] = [
       { key: "product_slug", type: "string", size: 100, required: true },
       { key: "product_name", type: "string", size: 255, required: true },
       { key: "tier", type: "string", size: 50, required: true },
-      { key: "tier_label", type: "string", size: 50, required: true },
+      { key: "tier_label", type: "string", size: 100, required: true },
       { key: "charge", type: "integer", default: 0 },
       { key: "buyer_name", type: "string", size: 255, default: "" },
       { key: "buyer_email", type: "string", size: 255, default: "" },
