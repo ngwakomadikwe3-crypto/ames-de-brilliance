@@ -7,6 +7,10 @@
     {
       "path": "/api/intelligence/generate?type=compliance_briefing",
       "schedule": "0 6 1 1,4,7,10 *"
+    },
+    {
+      "path": "/api/cron/close-lots",
+      "schedule": "5 0 * * *"
     }
   ]
 }

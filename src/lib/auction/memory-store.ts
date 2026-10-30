@@ -67,6 +67,24 @@ export class MemoryAuctionStore implements AuctionStore {
     this.audits.push({ ...entry });
   }
 
+  async updateLotCloseNotification(
+    lotId: string,
+    state: { status: 'sent' | 'failed'; error: string; at: string },
+  ): Promise<void> {
+    await tick();
+    const stored = this.lots.get(lotId);
+    if (!stored) return;
+    // Deliberately does NOT bump _rev: the lot is terminal by the time the
+    // sweeper writes notification state, and bumping would false-positive the
+    // revision check of any read-only transaction that happened to span us.
+    this.lots.set(lotId, {
+      ...stored,
+      closeNotifyStatus: state.status,
+      closeNotifyError: state.error,
+      closeNotifiedAt: state.at,
+    });
+  }
+
   async rateLimitHit(key: string, windowSeconds: number, maxHits: number, now: Date): Promise<boolean> {
     await tick();
     const windowMs = windowSeconds * 1000;

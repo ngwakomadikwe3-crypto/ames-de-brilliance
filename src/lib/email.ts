@@ -39,6 +39,47 @@ function buildBody(req: SourcingRequestEmail): string {
   return `New sourcing request received.\n\n  Request: ${req.id}\n  Buyer:   ${req.buyer_name} (${req.company})\n  Country: ${req.country}\n  Contact: ${req.contact}\n  Type:    ${req.type}\n\nREQUIREMENT:\n  ${req.shape} ${req.carat_min}\u2013${req.carat_max}ct ${req.color} ${req.clarity}${cert}\n${kp}${decl}\n${req.notes ? `\nNOTES:\n  ${req.notes}\n` : ""}\nLog in to the dashboard to view, update status, or generate an offer.\nhttp://localhost:3000/dashboard`;
 }
 
+export interface OutgoingMail {
+  to: string;
+  subject: string;
+  text: string;
+}
+
+/** True when SMTP is configured enough to attempt a send. */
+export function mailConfigured(): boolean {
+  return Boolean(SMTP_HOST && SMTP_USER);
+}
+
+/**
+ * Generic SMTP send (Phase 2b: auction close notifications). Never throws —
+ * returns false so callers can record the failure and retry on a later sweep.
+ */
+export async function sendMail(msg: OutgoingMail): Promise<boolean> {
+  if (!mailConfigured()) {
+    console.log("[email] SMTP not configured, skipping:", msg.subject);
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+    await transporter.sendMail({
+      from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`,
+      to: msg.to,
+      subject: msg.subject,
+      text: msg.text,
+    });
+    console.log("[email] sent:", msg.subject);
+    return true;
+  } catch (err: unknown) {
+    console.error("[email] send failed:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 export async function sendSourcingNotification(req: SourcingRequestEmail): Promise<boolean> {
   if (!SMTP_HOST || !SMTP_USER) {
     console.log("[email] SMTP not configured, skipping notification for", req.id);
@@ -62,8 +103,8 @@ export async function sendSourcingNotification(req: SourcingRequestEmail): Promi
 
     console.log("[email] Notification sent for", req.id);
     return true;
-  } catch (err: any) {
-    console.error("[email] Failed to send notification:", err.message);
+  } catch (err: unknown) {
+    console.error("[email] Failed to send notification:", err instanceof Error ? err.message : err);
     return false;
   }
 }

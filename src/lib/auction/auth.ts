@@ -14,6 +14,12 @@ import type { BidderIdentity } from './types.ts';
 export interface BidderResolver {
   /** Returns null when the request carries no usable identity. */
   resolve(cookieHeader: string | null): Promise<BidderIdentity | null>;
+  /**
+   * Optional: resolve a bidder id to a notification email for close
+   * notifications. The Phase 2a staff stub has no per-user email and returns
+   * null; Phase 3 bidder accounts provide real addresses.
+   */
+  resolveEmail?(bidderId: string): Promise<string | null>;
 }
 
 export class StaffSessionBidderResolver implements BidderResolver {
@@ -23,6 +29,12 @@ export class StaffSessionBidderResolver implements BidderResolver {
     const valid = await verifySession(token);
     if (!valid) return null;
     return { bidderId: 'staff:session', verified: true, via: 'staff-session-stub' };
+  }
+
+  // The staff session is a shared house identity with no inbox of its own.
+  // The house notification still goes out; the winner copy waits for Phase 3.
+  async resolveEmail(): Promise<string | null> {
+    return null;
   }
 }
 

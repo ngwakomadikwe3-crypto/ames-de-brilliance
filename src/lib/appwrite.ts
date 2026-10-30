@@ -642,6 +642,11 @@ const COLLECTION_DEFS: CollectionDef[] = [
       { key: "current_bid_minor", type: "integer", default: 0 },
       { key: "current_bidder", type: "string", size: 150, default: "" },
       { key: "bid_count", type: "integer", default: 0 },
+      // Phase 2b: close-notification bookkeeping for the cron sweeper.
+      // '' = not attempted, 'sent' = winner+house emailed, 'failed' = retry.
+      { key: "close_notify_status", type: "string", size: 20, default: "" },
+      { key: "close_notify_error", type: "string", size: 500, default: "" },
+      { key: "close_notified_at", type: "datetime" },
       { key: "created_at", type: "datetime" },
     ],
     indexes: [

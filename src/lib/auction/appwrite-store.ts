@@ -73,6 +73,9 @@ function rowToLot(r: Record<string, unknown>): Lot {
     currentBidderId: String(r.current_bidder ?? ''),
     bidCount: Number(r.bid_count ?? 0),
     createdAt: String(r.created_at ?? r.$createdAt),
+    closeNotifyStatus: (r.close_notify_status ?? '') as Lot['closeNotifyStatus'],
+    closeNotifyError: String(r.close_notify_error ?? ''),
+    closeNotifiedAt: String(r.close_notified_at ?? ''),
   };
 }
 
@@ -167,6 +170,23 @@ export class AppwriteAuctionStore implements AuctionStore {
       tableId: AUCTION_TABLES.auditLog,
       rowId: ID.unique(),
       data: auditToRow(entry),
+    });
+  }
+
+  async updateLotCloseNotification(
+    lotId: string,
+    state: { status: 'sent' | 'failed'; error: string; at: string },
+  ): Promise<void> {
+    // Non-transactional partial update on a terminal lot (see store.ts).
+    await this.tables.updateRow({
+      databaseId: DB_ID,
+      tableId: AUCTION_TABLES.lots,
+      rowId: lotId,
+      data: {
+        close_notify_status: state.status,
+        close_notify_error: state.error,
+        close_notified_at: state.at,
+      },
     });
   }
 

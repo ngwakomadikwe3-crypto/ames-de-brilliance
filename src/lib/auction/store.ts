@@ -44,6 +44,16 @@ export interface AuctionStore {
   appendAudit(entry: AuditEntry): Promise<void>;
   inTransaction<T>(work: (tx: AuctionTx) => Promise<T>): Promise<T>;
   /**
+   * Persist the close-notification outcome for a terminal lot. Called by the
+   * cron sweeper after attempting the winner/house emails; the sweeper retries
+   * any lot whose status is not 'sent'. Non-transactional by design: the lot
+   * is terminal, and writing the same outcome twice is harmless.
+   */
+  updateLotCloseNotification(
+    lotId: string,
+    state: { status: 'sent' | 'failed'; error: string; at: string },
+  ): Promise<void>;
+  /**
    * Shared-storage rate limiting. Returns true when the hit is allowed.
    * Implementations must be atomic across processes (no in-memory counters in
    * production); key is scoped per window: hit #maxHits+1 in a window fails.
