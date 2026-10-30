@@ -90,7 +90,9 @@ export async function ensureReady(): Promise<void> {
           databaseId: DB_ID,
           collectionId: col.id,
           name: col.name,
-          permissions: col.id === "jewelry_products" ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
+          // Secure collections (auction data) get NO client permissions: all
+          // reads/writes flow through server routes holding the API key.
+          permissions: col.secure || col.id === "jewelry_products" ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
         });
       } catch { /* exists */ }
       // Create missing attributes
@@ -128,8 +130,22 @@ export async function ensureReady(): Promise<void> {
           }
           if (!indexed) throw new Error("Jewelry asset ID index is not ready");
         }
+        if (col.waitReady) {
+          await waitForAttributes(db, col.id, col.attrs.map(attr => attr.key));
+          for (const index of col.indexes ?? []) {
+            try {
+              await db.createIndex({
+                databaseId: DB_ID, collectionId: col.id, key: index.key,
+                type: index.type, attributes: index.attributes,
+              });
+            } catch { /* Existing index. */ }
+          }
+          for (const index of col.indexes ?? []) {
+            await waitForIndex(db, col.id, index.key);
+          }
+        }
       } catch (error) {
-        if (col.id === "jewelry_products") throw error;
+        if (col.id === "jewelry_products" || col.waitReady) throw error;
         // Preserve the existing best-effort behavior for older collections.
       }
     }
@@ -188,6 +204,26 @@ export async function ensureReady(): Promise<void> {
   }
 }
 
+async function waitForAttributes(db: Databases, collectionId: string, keys: string[]): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const latest = await db.listAttributes({ databaseId: DB_ID, collectionId });
+    const items = latest.attributes as { key: string; status: string }[];
+    if (keys.every(key => items.some(item => item.key === key && item.status === "available"))) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`Attributes for ${collectionId} are not ready`);
+}
+
+async function waitForIndex(db: Databases, collectionId: string, key: string): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const latest = await db.listIndexes({ databaseId: DB_ID, collectionId });
+    const items = latest.indexes as { key: string; status: string }[];
+    if (items.some(item => item.key === key && item.status === "available")) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`Index ${collectionId}.${key} is not ready`);
+}
+
 async function createAttr(db: Databases, collectionId: string, attr: AttrDef): Promise<void> {
   switch (attr.type) {
     case "string":
@@ -232,7 +268,18 @@ type AttrDef = {
   size?: number;
 };
 
-const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
+type CollectionDef = {
+  id: string;
+  name: string;
+  attrs: AttrDef[];
+  /** No client read/write permissions; server routes only. */
+  secure?: boolean;
+  /** Wait for attributes to become available and create indexes (first deploy). */
+  waitReady?: boolean;
+  indexes?: { key: string; type: DatabasesIndexType; attributes: string[] }[];
+};
+
+const COLLECTION_DEFS: CollectionDef[] = [
   {
     id: "jewelry_products",
     name: "Jewelry Products",
@@ -523,6 +570,132 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "amount", type: "float", default: 0 },
       { key: "note", type: "string", size: 500, default: "" },
       { key: "updated_at", type: "datetime" },
+    ],
+  },
+
+  /* ── Auction engine (Phase 2a). All secure: no client access; server routes
+     only. Money is integer minor units + ISO 4217 currency — never floats. ── */
+  {
+    id: "auctions",
+    name: "Auctions",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      { key: "title", type: "string", size: 255, required: true },
+      { key: "description", type: "string", size: 2000, default: "" },
+      { key: "currency", type: "string", size: 3, required: true },
+      { key: "status", type: "string", size: 20, default: "draft" },
+      { key: "opens_at", type: "datetime" },
+      { key: "closes_at", type: "datetime" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "lots",
+    name: "Auction Lots",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      { key: "auction_id", type: "string", size: 50, required: true },
+      { key: "title", type: "string", size: 255, required: true },
+      { key: "description", type: "string", size: 5000, default: "" },
+      { key: "stone_ref", type: "string", size: 50, default: "" },
+      { key: "currency", type: "string", size: 3, required: true },
+      // draft | scheduled | live | closing | sold | unsold | withdrawn
+      // (allowed transitions enforced by src/lib/auction/state-machine.ts)
+      { key: "status", type: "string", size: 20, default: "draft" },
+      { key: "starting_bid_minor", type: "integer", required: true },
+      { key: "reserve_minor", type: "integer", default: 0 },
+      { key: "min_increment_minor", type: "integer", required: true },
+      { key: "anti_snipe_seconds", type: "integer", default: 120 },
+      { key: "opens_at", type: "datetime", required: true },
+      { key: "closes_at", type: "datetime", required: true },
+      { key: "current_bid_minor", type: "integer", default: 0 },
+      { key: "current_bidder", type: "string", size: 150, default: "" },
+      { key: "bid_count", type: "integer", default: 0 },
+      { key: "created_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "lots_status_closes", type: DatabasesIndexType.Key, attributes: ["status", "closes_at"] },
+      { key: "lots_auction", type: DatabasesIndexType.Key, attributes: ["auction_id"] },
+    ],
+  },
+  {
+    id: "bidders",
+    name: "Auction Bidders",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Phase 2a stub identity ("staff:session"); Phase 3 adds real accounts/KYC.
+      { key: "session_ref", type: "string", size: 255, default: "" },
+      { key: "verified", type: "boolean", default: false },
+      { key: "verification_tier", type: "string", size: 30, default: "stub" },
+      { key: "deposit_status", type: "string", size: 30, default: "none" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "bids",
+    name: "Auction Bids",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Row ID is derived from the client idempotency key (see bidRowId).
+      { key: "lot_id", type: "string", size: 50, required: true },
+      { key: "bidder_id", type: "string", size: 150, required: true },
+      { key: "amount_minor", type: "integer", required: true },
+      { key: "currency", type: "string", size: 3, required: true },
+      { key: "idempotency_key", type: "string", size: 255, required: true },
+      { key: "created_at", type: "datetime", required: true },
+    ],
+    indexes: [
+      { key: "bids_lot", type: DatabasesIndexType.Key, attributes: ["lot_id", "created_at"] },
+    ],
+  },
+  {
+    id: "deposits",
+    name: "Bidder Deposits",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Skeleton for Phase 4 settlement; nothing writes here in Phase 2a.
+      { key: "bidder_id", type: "string", size: 150, required: true },
+      { key: "amount_minor", type: "integer", required: true },
+      { key: "currency", type: "string", size: 3, required: true },
+      { key: "status", type: "string", size: 30, default: "pending" },
+      { key: "provider_ref", type: "string", size: 255, default: "" },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "audit_log",
+    name: "Auction Audit Log",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Append-only by convention and by permissions: server code only ever
+      // creates rows; nothing updates or deletes them.
+      { key: "entity", type: "string", size: 30, required: true },
+      { key: "entity_id", type: "string", size: 150, required: true },
+      { key: "action", type: "string", size: 50, required: true },
+      { key: "actor", type: "string", size: 150, required: true },
+      { key: "detail", type: "string", size: 16000, default: "" },
+      { key: "created_at", type: "datetime", required: true },
+    ],
+    indexes: [
+      { key: "audit_entity", type: DatabasesIndexType.Key, attributes: ["entity", "entity_id", "created_at"] },
+    ],
+  },
+  {
+    id: "rate_limits",
+    name: "Rate Limit Windows",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      { key: "key", type: "string", size: 255, required: true },
+      { key: "window_start", type: "integer", required: true },
+      { key: "count", type: "integer", default: 0 },
+      { key: "expires_at", type: "datetime" },
     ],
   },
 ];
