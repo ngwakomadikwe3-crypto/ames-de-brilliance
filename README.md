@@ -53,6 +53,7 @@ See `.env.example` for the annotated list. Summary:
 | `OWNER_CODE` / `COUSIN_CODE` | Optional emergency staff access codes |
 | `DEEPSEEK_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | AI tools (OpenAI-compatible) |
 | `DIFY_API_KEY` / `DIFY_API_URL` | SAME concierge chatflow |
+| `AUCTION_BID_RATE_LIMIT_PER_MINUTE` | Bid rate limit per bidder (shared storage; default 12) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` / `NOTIFY_EMAIL` | Email notifications |
 
 Never commit real values; `.env*` is git-ignored.
@@ -71,6 +72,17 @@ Never commit real values; `.env*` is git-ignored.
 | `/partner`, `/model/[code]`, `/trader/[code]` | Mixed | Partner/model/trader portal surfaces |
 | `/terms`, `/privacy`, `/compliance`, `/legal` | Public | Legal and Kimberley Process disclosures |
 
+### Auction API (Phase 2a)
+
+| Route | Access | Description |
+|---|---|---|
+| `GET /api/lots` | Public | Lots with lazy time transitions applied (draft/withdrawn hidden without a staff session) |
+| `POST /api/lots/[id]/bids` | Verified bidder | Place a bid — `{ amountMinor, idempotencyKey }`; race-safe, anti-snipe, idempotent |
+
+The bid engine (`src/lib/auction/`) is a pure decision module plus a
+transactional Appwrite adapter; money is integer minor units + ISO 4217
+currency. See `docs/STATUS.md` for the current launch position.
+
 ## Scripts
 
 ```bash
@@ -80,6 +92,9 @@ npm run test:ames-chat         # chat contract, viewer actions, turntable
 npm run test:ames-boutique     # boutique pack contracts
 npm run test:ames-media        # media pack contracts
 npm run test:jewelry-onboarding
+npm run test:auction           # state machine, increments/reserve, anti-snipe, idempotency, concurrency
+# Real-Appwrite race test (needs staging credentials; not CI):
+node --experimental-strip-types scripts/auction-concurrency-staging.mjs
 ```
 
 ## Deployment
