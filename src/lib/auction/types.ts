@@ -43,6 +43,14 @@ export interface Lot {
   currentBidderId: string;
   bidCount: number;
   createdAt: string;
+  /**
+   * Close-notification bookkeeping (Phase 2b sweeper). '' until the sweeper
+   * has emailed winner + house; 'sent' or 'failed' afterwards. Optional so
+   * lots provisioned before the columns existed keep deserializing.
+   */
+  closeNotifyStatus?: '' | 'sent' | 'failed';
+  closeNotifyError?: string;
+  closeNotifiedAt?: string;
 }
 
 export interface Bid {
@@ -73,6 +81,8 @@ export const AUDIT_ACTIONS = [
   'bid.rate_limited',
   'lot.extended',
   'lot.transition',
+  'lot.close_notified',
+  'lot.close_notify_failed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
