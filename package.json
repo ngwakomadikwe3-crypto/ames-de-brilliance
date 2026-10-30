@@ -11,6 +11,7 @@
     "test:ames-boutique": "node --experimental-strip-types --test scripts/test-ames-boutique.mjs",
     "test:ames-media": "node --experimental-strip-types --test scripts/test-ames-media.mjs",
     "test:jewelry-onboarding": "node --experimental-strip-types --test scripts/test-jewelry-onboarding.mjs scripts/test-jewelry-pack.mjs",
+    "test:auction": "node --experimental-strip-types --test scripts/test-ames-auction.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
