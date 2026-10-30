@@ -1,58 +1,69 @@
 /**
- * Bidder account records (Phase 3a).
+ * Bidder account data model — Phase 3a.
  *
- * The bidder id is pseudonymous by construction: 'b' + HMAC(SESSION_SECRET,
- * 'bidder:' + normalizedEmail), hex-truncated. Bids and audit entries only
- * ever carry this id — never an email, name or document reference — so
- * anonymisation can erase all PII without breaking the bid history or the
- * immutable audit trail.
+ * PII lives ONLY here (and in the bidder-docs bucket). Bids and the audit
+ * trail reference the bidder row id, never personal data, so anonymisation
+ * erases the person while the immutable history stays intact.
  */
 
 export const BIDDER_STATUSES = ['pending', 'verified', 'rejected', 'suspended'] as const;
 export type BidderStatus = (typeof BIDDER_STATUSES)[number];
 
-export const ENTITY_TYPES = ['individual', 'company'] as const;
-export type EntityType = (typeof ENTITY_TYPES)[number];
+export const BIDDER_ENTITY_TYPES = ['individual', 'company'] as const;
+export type BidderEntityType = (typeof BIDDER_ENTITY_TYPES)[number];
 
-export interface BidderRecord {
+export interface Bidder {
   id: string;
   name: string;
-  /** Normalized (trimmed, lowercased) email — the login identifier. */
+  /** Lowercase-normalised; the login/registration key. */
   email: string;
   phone: string;
   country: string;
-  entityType: EntityType;
+  entityType: BidderEntityType;
+  /** Botswana diamond trading licence number; '' when not supplied. */
   licenceNumber: string;
   status: BidderStatus;
-  /** Staff-supplied reason for the current status (required on decisions). */
+  /** Required reason for reject/suspend; '' otherwise. */
   statusReason: string;
-  /** Terms version accepted ('' = never) and when. */
+  /** Staff actor label (e.g. 'staff:owner') who made the last decision. */
+  statusBy: string;
+  statusAt: string;
+  /** Terms version the bidder last accepted; must equal the current version to bid. */
   termsVersion: string;
   termsAcceptedAt: string;
-  /** Set when PII was erased; the row stays for the audit trail. */
+  /** ISO timestamp when PII was erased; '' while the account is intact. */
   anonymisedAt: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface BidderDocumentRecord {
-  id: string;
-  bidderId: string;
-  /** File id inside the private KYC bucket. */
-  fileId: string;
-  fileName: string;
-  contentType: string;
-  sizeBytes: number;
-  createdAt: string;
-}
-
-export interface BidderOtpRecord {
-  id: string;
+export interface BidderOtp {
+  /** Row key: the lowercase email. */
   email: string;
   /** HMAC of the code — the plaintext code is never stored. */
   codeHash: string;
   expiresAt: string;
-  /** Set on successful verify; the code is single-use. */
-  usedAt: string;
+  attempts: number;
+  used: boolean;
   createdAt: string;
+}
+
+export interface BidderDocument {
+  id: string;
+  bidderId: string;
+  /** File id inside the private bidder-docs bucket. */
+  fileId: string;
+  filename: string;
+  /** Sniffed from magic bytes, never trusted from the client. */
+  contentType: string;
+  size: number;
+  sha256: string;
+  uploadedAt: string;
+}
+
+export class DuplicateEmailError extends Error {
+  constructor(email: string) {
+    super(`bidder already exists: ${email}`);
+    this.name = 'DuplicateEmailError';
+  }
 }

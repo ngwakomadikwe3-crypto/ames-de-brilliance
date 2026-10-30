@@ -51,3 +51,22 @@ export function sessionTokenFromCookieHeader(cookieHeader: string | null): strin
   if (!match) return undefined;
   return match.trim().split("=").slice(1).join("=");
 }
+
+/**
+ * Staff-session check (Phase 3a hardening): the payload must carry a string
+ * role. verifySession alone only proves the HMAC signature — a validly signed
+ * NON-staff token (e.g. the adb_bidder cookie, which has no role) would
+ * otherwise pass middleware and reach staff surfaces. The bidder payload has
+ * `kind: 'bidder'` and no role, so it can never satisfy this check.
+ */
+export async function verifyStaffSession(token: string): Promise<boolean> {
+  if (!(await verifySession(token))) return false;
+  try {
+    const payload = token.split(".")[0];
+    const payloadStr = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const session = JSON.parse(payloadStr);
+    return typeof session.role === "string" && session.role.length > 0;
+  } catch {
+    return false;
+  }
+}

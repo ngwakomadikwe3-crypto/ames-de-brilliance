@@ -69,14 +69,14 @@ export interface Bid {
 export interface BidderIdentity {
   bidderId: string;
   verified: boolean;
-  /**
-   * Which resolver produced this identity: 'staff-session-stub' (house
-   * session, always bid-capable) or 'bidder-account' (Phase 3a real account,
-   * subject to the public-bidding flag and the terms gate).
-   */
+  /** Which resolver produced this identity (e.g. 'staff-session-stub', 'bidder-account'). */
   via: string;
-  /** Terms version accepted by the bidder ('' = never). Staff stub omits it. */
-  termsVersion?: string;
+  /**
+   * Phase 3a: whether the bidder accepted the current terms version.
+   * Undefined for identities where terms do not apply (staff); false blocks
+   * bidding with reason 'terms_not_accepted'.
+   */
+  termsCurrent?: boolean;
 }
 
 export type AuditEntity = 'lot' | 'bid' | 'bidder';
@@ -91,14 +91,14 @@ export const AUDIT_ACTIONS = [
   'lot.close_notify_failed',
   'bidder.registered',
   'bidder.login',
-  'bidder.terms_accepted',
+  'bidder.login_failed',
   'bidder.approved',
   'bidder.rejected',
   'bidder.suspended',
-  'bidder.reinstated',
-  'bidder.doc_uploaded',
-  'bidder.doc_viewed',
-  'bidder.exported',
+  'bidder.terms_accepted',
+  'bidder.document_uploaded',
+  'bidder.document_viewed',
+  'bidder.data_exported',
   'bidder.anonymised',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
