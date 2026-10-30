@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, LICENCE_DOCS_BUCKET } from "@/lib/appwrite";
+import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
 import { ID } from "node-appwrite";
 
@@ -29,7 +29,10 @@ export async function POST(req: Request) {
       const buffer = Buffer.from(await logo.arrayBuffer());
       const file = InputFile.fromBuffer(buffer, fileName);
       const res = await storage.createFile({
-        bucketId: LICENCE_DOCS_BUCKET,
+        // Logos are public imagery → media bucket (served via /api/media proxy).
+        // Was LICENCE_DOCS_BUCKET with a media URL minted for it — a
+        // cross-bucket mismatch that could never have resolved.
+        bucketId: MEDIA_BUCKET,
         fileId: ID.unique(),
         file,
       });

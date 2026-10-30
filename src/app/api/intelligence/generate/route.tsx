@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureReady, getDb, getStorage, doc, nowISO, DB_ID, REPORTS_BUCKET } from "@/lib/appwrite";
+import { ensureReady, getDb, getStorage, doc, nowISO, DB_ID, REPORTS_BUCKET, getReportFileUrl } from "@/lib/appwrite";
 import { ID, Query } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
       file: InputFile.fromBuffer(pdfBuffer, filename),
       permissions: [],
     });
-    const pdfUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${REPORTS_BUCKET}/files/${file.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+    const pdfUrl = getReportFileUrl(file.$id);
     const db = getDb();
     await db.createDocument({
       databaseId: DB_ID,
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
       permissions: [/* inherit bucket permissions */],
     });
 
-    const pdfUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${REPORTS_BUCKET}/files/${file.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+    const pdfUrl = getReportFileUrl(file.$id);
 
     // 5. Save record
     const db = getDb();
