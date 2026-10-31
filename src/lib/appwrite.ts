@@ -3,8 +3,6 @@ import {
   Databases,
   Storage,
   ID,
-  Permission,
-  Role,
   DatabasesIndexType,
 } from "node-appwrite";
 
@@ -43,11 +41,17 @@ export function getStorage(): Storage {
 }
 
 export function getMediaUrl(fileId: string): string {
-  return `${ENDPOINT}/storage/buckets/${MEDIA_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
+  // Buckets are server-only; media is served through the public read proxy.
+  return `/api/media/${fileId}`;
 }
 
 export function getLicenceUrl(fileId: string): string {
-  return `${ENDPOINT}/storage/buckets/${LICENCE_DOCS_BUCKET}/files/${fileId}/view?project=${PROJECT_ID}`;
+  // Staff-session-gated proxy; the bucket has no client access at all.
+  return `/api/licence-docs/${fileId}`;
+}
+
+export function getReportFileUrl(fileId: string): string {
+  return `/api/reports/file/${fileId}`;
 }
 
 /* ── Helpers ── */
@@ -90,7 +94,9 @@ export async function ensureReady(): Promise<void> {
           databaseId: DB_ID,
           collectionId: col.id,
           name: col.name,
-          permissions: col.id === "jewelry_products" ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
+          // ALL collections are server-only: no client reads or writes.
+          // Every read/write flows through server routes holding the API key.
+          permissions: [],
         });
       } catch { /* exists */ }
       // Create missing attributes
@@ -134,59 +140,55 @@ export async function ensureReady(): Promise<void> {
       }
     }
 
-    // 3. Create storage bucket
-    try {
-      await sto.createBucket({
-        bucketId: MEDIA_BUCKET,
-        name: "Media",
-        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
-        enabled: true,
-        maximumFileSize: 10 * 1024 * 1024,
-        allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "gif"],
-      });
-    } catch { /* exists */ }
+    // 3. Storage buckets — ALL server-only (permissions: []). Browsers never
+    // touch Appwrite storage directly; reads go through /api proxy routes.
+    for (const bucket of BUCKET_DEFS) {
+      try {
+        await sto.createBucket({
+          bucketId: bucket.id,
+          name: bucket.name,
+          permissions: [],
+          enabled: true,
+          maximumFileSize: bucket.maximumFileSize,
+          allowedFileExtensions: bucket.allowedFileExtensions,
+        });
+      } catch { /* exists */ }
+    }
 
-    // 4. Create reports storage bucket
-    try {
-      await sto.createBucket({
-        bucketId: "reports",
-        name: "Reports",
-        permissions: [Permission.read(Role.any()), Permission.write(Role.any())],
-        enabled: true,
-        maximumFileSize: 50 * 1024 * 1024,
-        allowedFileExtensions: ["pdf"],
-      });
-    } catch { /* exists */ }
-
-    // 5. Create private licence documents bucket (dashboard-only read)
-    try {
-      await sto.createBucket({
-        bucketId: LICENCE_DOCS_BUCKET,
-        name: "Licence Documents",
-        permissions: [Permission.write(Role.any())],
-        enabled: true,
-        maximumFileSize: 20 * 1024 * 1024,
-        allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
-      });
-    } catch { /* exists */ }
-
-    // Raw jewelry sources are never publicly readable or writable.
-    try {
-      await sto.createBucket({
-        bucketId: JEWELRY_SOURCES_BUCKET,
-        name: "Jewelry Sources",
-        permissions: [],
-        enabled: true,
-        maximumFileSize: 250 * 1024 * 1024,
-        allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
-      });
-    } catch { /* exists */ }
+    // 4. Reconcile permissions on pre-existing resources. The creates above
+    // are no-ops when the resource already exists, so collections/buckets
+    // provisioned before the lockdown would keep write(Role.any()). Enforce
+    // server-only access explicitly. Full bucket options are passed so
+    // nothing else is reset.
+    for (const col of COLLECTION_DEFS) {
+      try {
+        await db.updateCollection({
+          databaseId: DB_ID,
+          collectionId: col.id,
+          name: col.name,
+          permissions: [],
+        });
+      } catch { /* missing or unchanged */ }
+    }
+    for (const bucket of BUCKET_DEFS) {
+      try {
+        await sto.updateBucket({
+          bucketId: bucket.id,
+          name: bucket.name,
+          permissions: [],
+          enabled: true,
+          maximumFileSize: bucket.maximumFileSize,
+          allowedFileExtensions: bucket.allowedFileExtensions,
+        });
+      } catch { /* missing or unchanged */ }
+    }
 
     _ready = true;
   } catch (err) {
     console.error("[appwrite] ensureReady failed:", err);
   }
 }
+
 
 async function createAttr(db: Databases, collectionId: string, attr: AttrDef): Promise<void> {
   switch (attr.type) {
@@ -222,6 +224,35 @@ async function createAttr(db: Databases, collectionId: string, attr: AttrDef): P
       break;
   }
 }
+
+/* ── Bucket definitions (all server-only; reads via /api proxy routes) ── */
+const BUCKET_DEFS = [
+  {
+    id: MEDIA_BUCKET,
+    name: "Media",
+    maximumFileSize: 10 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "gif"],
+  },
+  {
+    id: REPORTS_BUCKET,
+    name: "Reports",
+    maximumFileSize: 50 * 1024 * 1024,
+    allowedFileExtensions: ["pdf"],
+  },
+  {
+    id: LICENCE_DOCS_BUCKET,
+    name: "Licence Documents",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+  },
+  {
+    // Raw jewelry sources are never proxied to clients.
+    id: JEWELRY_SOURCES_BUCKET,
+    name: "Jewelry Sources",
+    maximumFileSize: 250 * 1024 * 1024,
+    allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
+  },
+];
 
 /* ── Collection schemas ── */
 type AttrDef = {
