@@ -4,6 +4,7 @@ import {
 } from "./appwrite";
 import { ID, Query } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
+import { rewritePhotoList, rewriteStoredUrl } from "./storage-urls";
 
 /* ── Interfaces ── */
 
@@ -22,6 +23,7 @@ export interface DbTrader {
   portal_code: string; email: string; status: "Pending" | "Active" | "Declined";
   company: string; country: string; licence_photo: string;
   created_at: string;
+  logo_photo?: string;
 }
 
 export interface DbReport {
@@ -64,6 +66,7 @@ export interface DbModel {
   portal_code: string; status: string; created_at: string;
   monthly_video_quota: number; monthly_base_fee: number; commission_rate: number;
   payment_method: string; payment_details: string; total_paid: number;
+  profile_photo?: string;
 }
 
 /* ── Placeholder ── */
@@ -166,7 +169,10 @@ export async function createTrader(name: string, whatsapp: string): Promise<DbTr
 export async function getAllTraders(): Promise<DbTrader[]> {
   await ensureReady();
   const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "traders" });
-  const traders = res.documents.map(d => doc<DbTrader>(d));
+  const traders = res.documents.map(d => {
+    const t = doc<DbTrader>(d);
+    return { ...t, licence_photo: rewriteStoredUrl(t.licence_photo || ""), logo_photo: rewriteStoredUrl(t.logo_photo || "") };
+  });
   const order: Record<string, number> = { Pending: 0, Active: 1, Declined: 2 };
   return traders.sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3) || a.name.localeCompare(b.name));
 }
@@ -275,7 +281,7 @@ async function enrichStones(stones: any[]): Promise<any[]> {
   const traderIds = [...new Set(stones.map(s => s.trader_id).filter(Boolean))];
   const traderMap = new Map<string, any>();
   for (const tid of traderIds) { try { traderMap.set(tid, await db.getDocument({ databaseId: DB_ID, collectionId: "traders", documentId: tid })); } catch {} }
-  return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null, trader_preferred: s.trader_id ? !!(traderMap.get(s.trader_id) as any)?.preferred : false }));
+  return stones.map(s => ({ ...s, kp_status: !!s.kp_status, price: normPrice(s.price), sale_price: normPrice(s.sale_price), photo: rewritePhotoList(s.photo || ""), trader_name: s.trader_id ? (traderMap.get(s.trader_id)?.name || null) : null, trader_whatsapp: s.trader_id ? (traderMap.get(s.trader_id)?.whatsapp || null) : null, trader_licence: s.trader_id ? (traderMap.get(s.trader_id)?.licence || null) : null, trader_preferred: s.trader_id ? !!(traderMap.get(s.trader_id) as any)?.preferred : false }));
 }
 
 export async function getAllStones() { await ensureReady(); const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "stones", queries: [Query.orderDesc("created_at")] }); return enrichStones(res.documents.map(d => doc<any>(d))); }
@@ -393,7 +399,7 @@ export async function getAllVideos() {
   const stoneMap = new Map<string, any>(); const modelMap = new Map<string, any>();
   for (const sid of stoneIds) { const s = await getStoneById(sid); if (s) stoneMap.set(sid, s); }
   for (const mid of modelIds) { try { modelMap.set(mid, await db.getDocument({ databaseId: DB_ID, collectionId: "models", documentId: mid })); } catch {} }
-  return videos.map((v: any) => ({ ...v, published: !!v.published, stone_ref: stoneMap.get(v.stone_id)?.ref || null, model_name: modelMap.get(v.model_id)?.name || null, model_instagram: modelMap.get(v.model_id)?.instagram || null }));
+  return videos.map((v: any) => ({ ...v, video_url: rewriteStoredUrl(v.video_url || ""), published: !!v.published, stone_ref: stoneMap.get(v.stone_id)?.ref || null, model_name: modelMap.get(v.model_id)?.name || null, model_instagram: modelMap.get(v.model_id)?.instagram || null }));
 }
 
 export async function getPublishedVideos() {
@@ -404,7 +410,7 @@ export async function getPublishedVideos() {
     let stone = null, model = null;
     if (v.stone_id) { try { stone = await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id }); } catch {} }
     if (v.model_id) { try { model = await db.getDocument({ databaseId: DB_ID, collectionId: "models", documentId: v.model_id }); } catch {} }
-    return { ...v, published: true, stone_ref: stone?.ref || null, shape: stone?.shape || null, carat: stone?.carat || null, color: stone?.color || null, clarity: stone?.clarity || null, certification: stone?.certification || null, price: normPrice(stone?.price), stone_status: stone?.status || null, model_instagram: model?.instagram || null, stone_photo: stone?.photo || null, house_note: v.house_note || '', featured_piece: v.featured_piece || null };
+    return { ...v, video_url: rewriteStoredUrl(v.video_url || ""), published: true, stone_ref: stone?.ref || null, shape: stone?.shape || null, carat: stone?.carat || null, color: stone?.color || null, clarity: stone?.clarity || null, certification: stone?.certification || null, price: normPrice(stone?.price), stone_status: stone?.status || null, model_instagram: model?.instagram || null, stone_photo: rewritePhotoList(stone?.photo || ""), house_note: v.house_note || '', featured_piece: v.featured_piece || null };
   }));
 }
 
@@ -446,7 +452,7 @@ export async function getActiveModelCount(): Promise<number> {
   return res.total;
 }
 
-export async function getModelByPortalCode(code: string): Promise<DbModel | undefined> { await ensureReady(); try { const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "models", queries: [Query.equal("portal_code", code), Query.limit(1)] }); return res.documents.length ? doc<DbModel>(res.documents[0]) : undefined; } catch { return undefined; } }
+export async function getModelByPortalCode(code: string): Promise<DbModel | undefined> { await ensureReady(); try { const res = await getDbSvc().listDocuments({ databaseId: DB_ID, collectionId: "models", queries: [Query.equal("portal_code", code), Query.limit(1)] }); if (!res.documents.length) return undefined; const m = doc<DbModel>(res.documents[0]); return { ...m, profile_photo: rewriteStoredUrl(m.profile_photo || "") }; } catch { return undefined; } }
 export async function getModelById(id: string): Promise<DbModel | undefined> { await ensureReady(); try { return doc<DbModel>(await getDbSvc().getDocument({ databaseId: DB_ID, collectionId: "models", documentId: id })); } catch { return undefined; } }
 
 export async function addModel(name: string, whatsapp: string, instagram: string): Promise<DbModel> {
@@ -467,7 +473,7 @@ export async function getModelVideos(modelId: string) {
   return Promise.all(res.documents.map(async (d) => {
     const v = doc<any>(d); let stone = null;
     if (v.stone_id) { try { stone = await db.getDocument({ databaseId: DB_ID, collectionId: "stones", documentId: v.stone_id }); } catch {} }
-    return { ...v, stone_ref: stone?.ref || null, stone_status: stone?.status || null };
+    return { ...v, video_url: rewriteStoredUrl(v.video_url || ""), stone_ref: stone?.ref || null, stone_status: stone?.status || null };
   }));
 }
 
@@ -549,7 +555,8 @@ export async function savePhotos(files: File[]): Promise<string[]> {
 
 export function parsePhotos(photoField: string): string[] {
   if (!photoField) return [];
-  return photoField.split("|").filter(u => u.length > 10 && u.startsWith("http"));
+  // Accept both legacy absolute URLs and same-origin proxy paths (/api/media/…).
+  return photoField.split("|").map(u => u.trim()).filter(u => u.length > 1 && (u.startsWith("http") || u.startsWith("/api/")));
 }
 
 /* ── Licence Document Storage ── */

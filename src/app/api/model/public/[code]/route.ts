@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc, doc, DB_ID } from "@/lib/appwrite";
+import { rewriteStoredUrl } from "@/lib/storage-urls";
 import { Query } from "node-appwrite";
 
 export async function GET(
@@ -23,7 +24,7 @@ export async function GET(
       name: m.name,
       instagram: m.instagram,
       bio: m.bio,
-      photo: m.profile_photo,
+      photo: rewriteStoredUrl(m.profile_photo || ""),
     };
 
     const videoRes = await db.listDocuments({
@@ -37,7 +38,10 @@ export async function GET(
 
     return NextResponse.json({
       model: safeModel,
-      videos: videoRes.documents,
+      videos: videoRes.documents.map((v) => ({
+        ...doc(v) as Record<string, unknown>,
+        video_url: rewriteStoredUrl(String((v as { video_url?: string }).video_url || "")),
+      })),
     });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
