@@ -1,39 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureReady, getStorage, REPORTS_BUCKET } from "@/lib/appwrite";
+import { serveStorageFile } from "@/lib/file-proxy";
+import { verifyReportShareLink } from "@/lib/report-share";
+import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
 
 export const runtime = "nodejs";
 
-const FILE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,35}$/;
-
 /**
- * Read proxy for generated report PDFs. Published report issues were publicly
- * downloadable before the lockdown (public bucket), so this proxy stays public
- * to preserve that behavior exactly. TODO(owner): paid/bespoke reports may
- * need entitlement checks — flagged as a Phase 4 decision.
+ * Read proxy for generated report PDFs — STAFF-ONLY by default (owner
+ * decision 2026-10-31; supersedes the pre-lockdown public behaviour).
+ *
+ * Access is granted by either:
+ *   1. a valid staff session cookie, or
+ *   2. a short-lived signed share link (?expires=&sig=) minted by a staff
+ *      member via POST /api/reports/share.
+ *
+ * The bucket id is a server-side constant; the file id is validated in
+ * serveStorageFile before any storage call (see src/lib/file-proxy.ts).
+ * Responses are private, no-store: a shared link is not a cacheable asset.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ fileId: string }> }
 ) {
   const { fileId } = await context.params;
-  if (!FILE_ID_RE.test(fileId)) {
-    return NextResponse.json({ error: "Invalid file id" }, { status: 400 });
+
+  const token = sessionTokenFromCookieHeader(req.headers.get("cookie"));
+  const staff = !!token && (await verifySession(token));
+  const shared = verifyReportShareLink(
+    fileId,
+    req.nextUrl.searchParams.get("expires") ?? "",
+    req.nextUrl.searchParams.get("sig") ?? ""
+  );
+  if (!staff && !shared) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  try {
-    await ensureReady();
-    const storage = getStorage();
-    const meta = await storage.getFile({ bucketId: REPORTS_BUCKET, fileId });
-    const view = await storage.getFileView({ bucketId: REPORTS_BUCKET, fileId });
-    const bytes = new Uint8Array(view);
-    return new NextResponse(bytes, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Length": String(bytes.byteLength),
-        "Content-Disposition": `inline; filename="${(meta.name || "report.pdf").replace(/[^a-zA-Z0-9._-]/g, "_")}"`,
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+
+  await ensureReady();
+  return serveStorageFile({
+    storage: getStorage(),
+    bucketId: REPORTS_BUCKET,
+    fileId,
+    contentType: "application/pdf",
+    inlineFilename: true,
+    cacheControl: "private, no-store",
+  });
 }
