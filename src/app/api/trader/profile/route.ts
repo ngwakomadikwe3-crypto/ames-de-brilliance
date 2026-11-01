@@ -30,13 +30,14 @@ export async function POST(req: Request) {
       const file = InputFile.fromBuffer(buffer, fileName);
       const res = await storage.createFile({
         // Logos are public imagery → media bucket (served via /api/media proxy).
-        // Was LICENCE_DOCS_BUCKET with a media URL minted for it — a
-        // cross-bucket mismatch that could never have resolved.
+        // Field name is logo_photo — the traders collection attribute and the
+        // read path in src/lib/db.ts agree on it (fixes a write/read mismatch
+        // where uploads landed in a `logo` key nothing ever read).
         bucketId: MEDIA_BUCKET,
         fileId: ID.unique(),
         file,
       });
-      data.logo = getMediaUrl(res.$id);
+      data.logo_photo = getMediaUrl(res.$id);
     }
 
     if (Object.keys(data).length > 0) {
