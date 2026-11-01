@@ -929,7 +929,7 @@ function PasteInTab() {
                       </div>
                       <div>
                         <label className="text-muted text-[10px]">Clarity</label>
-                        <input value={s.clarity || ""} onChange={e => updateEdit(i, "clarity", e.target.value)} className="field-input min-h-[32px] text-[11px]" />
+                        <input value={s.color || ""} onChange={e => updateEdit(i, "clarity", e.target.value)} className="field-input min-h-[32px] text-[11px]" />
                       </div>
                       <div>
                         <label className="text-muted text-[10px]">Certification</label>
@@ -1406,7 +1406,7 @@ function OrdersTab() {
                 <td className="px-3 py-1.5 font-mono">{o.stone_ref}<span className="text-muted ml-1">{o.shape} {o.carat}ct {o.color}</span></td>
                 <td className="px-3 py-1.5 text-right font-mono">{o.price ? "$" + o.price.toLocaleString() : "\u2014"}</td>
                 <td className="px-3 py-1.5">
-                  <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
+                  <select value={o.status} onChange={(e) => handleStatusChange(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
                     {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </td>
