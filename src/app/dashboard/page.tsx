@@ -891,7 +891,7 @@ function PasteInTab() {
 
       {/* Parse button */}
       <button onClick={handleParse} disabled={parsing || !stockText.trim()} className="w-full py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
-        {publishing ? "Publishing..." : "Parse"}
+        {parsing ? "Parsing..." : "Parse"}
       </button>
 
       {parseError && <div className="border border-red-300 bg-red-50 p-3 text-[11px] text-red-700">{parseError}</div>}
@@ -1406,7 +1406,7 @@ function OrdersTab() {
                 <td className="px-3 py-1.5 font-mono">{o.stone_ref}<span className="text-muted ml-1">{o.shape} {o.carat}ct {o.color}</span></td>
                 <td className="px-3 py-1.5 text-right font-mono">{o.price ? "$" + o.price.toLocaleString() : "\u2014"}</td>
                 <td className="px-3 py-1.5">
-                  <select value={o.status} onChange={(e) => handleStatusChange(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
+                  <select value={o.status} onChange={(e) => handleOrderStatus(o.id, e.target.value)} className={"text-[10px] font-semibold uppercase px-1.5 py-0.5 cursor-default " + statusColor(o.status) + " border-0 outline-none"}>
                     {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </td>
