@@ -236,7 +236,8 @@ test('share mint endpoint: staff-gated, validates the file id', () => {
 
 test('licence-docs proxy: staff session required, shared validator used', () => {
   const src = read('../src/app/api/licence-docs/[fileId]/route.ts');
-  assert.match(src, /verifySession/, 'staff session required');
+  // Hardened in (b): requires the staff role claim, not just any valid session.
+  assert.match(src, /verifyStaffSession/, 'staff session required');
   assert.match(src, /status: 401/, 'unauthorised rejected');
   assert.match(src, /serveStorageFile/, 'shared validator used');
 });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureReady, getStorage, LICENCE_DOCS_BUCKET } from "@/lib/appwrite";
 import { serveStorageFile } from "@/lib/file-proxy";
-import { sessionTokenFromCookieHeader, verifySession } from "@/lib/session";
+import { sessionTokenFromCookieHeader, verifyStaffSession } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,7 @@ export async function GET(
 ) {
   const { fileId } = await context.params;
   const token = sessionTokenFromCookieHeader(req.headers.get("cookie"));
-  if (!token || !(await verifySession(token))) {
+  if (!token || !(await verifyStaffSession(token))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   await ensureReady();
