@@ -929,7 +929,7 @@ function PasteInTab() {
                       </div>
                       <div>
                         <label className="text-muted text-[10px]">Clarity</label>
-                        <input value={s.color || ""} onChange={e => updateEdit(i, "clarity", e.target.value)} className="field-input min-h-[32px] text-[11px]" />
+                        <input value={s.clarity || ""} onChange={e => updateEdit(i, "clarity", e.target.value)} className="field-input min-h-[32px] text-[11px]" />
                       </div>
                       <div>
                         <label className="text-muted text-[10px]">Certification</label>
@@ -1937,7 +1937,7 @@ function ModelsTab() {
                   <td className="px-2 py-1.5 text-right font-mono">{m.pending_count}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{m.approved_this_month}/{m.monthly_video_quota}</td>
                   <td className="px-2 py-1.5 text-right font-mono">${baseEarned(m).toFixed(0)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earnings.toFixed(0)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earned.toFixed(0)}</td>
                   <td className="px-2 py-1.5 text-right font-mono font-medium">${totalDue(m).toFixed(2)}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
