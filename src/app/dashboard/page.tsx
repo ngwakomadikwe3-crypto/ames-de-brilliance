@@ -4,6 +4,7 @@ import React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import JewelryOnboardingTab from "@/components/JewelryOnboardingTab";
+import BuyerReviewTab from "@/components/BuyerReviewTab";
 
 interface Request {
   id: string; date: string; company: string; country: string; buyerName: string;
@@ -29,7 +30,7 @@ interface Trader {
   stone_count?: number; sales_count?: number;
 }
 
-type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "videos" | "models" | "intelligence" | "billing";
+type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "buyers" | "videos" | "models" | "intelligence" | "billing";
 
 function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
   const esc = (v: string|number) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -71,7 +72,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
-            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
+            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"]] : []),...(role === "owner" || role === "staff" ? [["buyers","Buyers"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
               <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b border-[#1A1A1A] text-[#171717]":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[#A6A6AB] text-[#EAE8E4] rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
@@ -86,6 +87,7 @@ export default function Dashboard() {
         {tab==="pastein" && <PasteInTab />}
         {tab==="traders" && <TradersTab />}
         {tab==="jewelry" && role === "owner" && <JewelryOnboardingTab />}
+        {tab==="buyers" && (role === "owner" || role === "staff") && <BuyerReviewTab />}
         {tab==="videos" && <VideosTab />}
         {tab==="models" && <ModelsTab />}
         {tab==="intelligence" && <IntelligenceTab />}
@@ -611,7 +613,7 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Certification</label><input value={cert} onChange={e=>setCert(e.target.value)} className="field-input min-h-[36px]" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[40px]" placeholder="Optional" /></div>
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
               <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
           </div>
