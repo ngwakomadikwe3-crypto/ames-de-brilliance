@@ -613,7 +613,7 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Certification</label><input value={cert} onChange={e=>setCert(e.target.value)} className="field-input min-h-[36px]" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[40px]" placeholder="Optional" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
               <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
           </div>
@@ -891,7 +891,7 @@ function PasteInTab() {
 
       {/* Parse button */}
       <button onClick={handleParse} disabled={parsing || !stockText.trim()} className="w-full py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[13px] font-medium cursor-default disabled:opacity-50 min-h-[40px]">
-        {parsing ? "Parsing..." : "Parse"}
+        {publishing ? "Publishing..." : "Parse"}
       </button>
 
       {parseError && <div className="border border-red-300 bg-red-50 p-3 text-[11px] text-red-700">{parseError}</div>}
