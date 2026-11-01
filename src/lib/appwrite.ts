@@ -16,6 +16,7 @@ export const MEDIA_BUCKET = "media";
 export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
 export const JEWELRY_SOURCES_BUCKET = "jewelry-sources";
+export const BUYER_DOCS_BUCKET = "buyer-docs";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -134,8 +135,22 @@ export async function ensureReady(): Promise<void> {
           }
           if (!indexed) throw new Error("Jewelry asset ID index is not ready");
         }
+        if (col.waitReady) {
+          await waitForAttributes(db, col.id, col.attrs.map(attr => attr.key));
+          for (const index of col.indexes ?? []) {
+            try {
+              await db.createIndex({
+                databaseId: DB_ID, collectionId: col.id, key: index.key,
+                type: index.type, attributes: index.attributes,
+              });
+            } catch { /* Existing index. */ }
+          }
+          for (const index of col.indexes ?? []) {
+            await waitForIndex(db, col.id, index.key);
+          }
+        }
       } catch (error) {
-        if (col.id === "jewelry_products") throw error;
+        if (col.id === "jewelry_products" || col.waitReady) throw error;
         // Preserve the existing best-effort behavior for older collections.
       }
     }
@@ -189,6 +204,26 @@ export async function ensureReady(): Promise<void> {
   }
 }
 
+
+async function waitForAttributes(db: Databases, collectionId: string, keys: string[]): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const latest = await db.listAttributes({ databaseId: DB_ID, collectionId });
+    const items = latest.attributes as { key: string; status: string }[];
+    if (keys.every(key => items.some(item => item.key === key && item.status === "available"))) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`Attributes for ${collectionId} are not ready`);
+}
+
+async function waitForIndex(db: Databases, collectionId: string, key: string): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const latest = await db.listIndexes({ databaseId: DB_ID, collectionId });
+    const items = latest.indexes as { key: string; status: string }[];
+    if (items.some(item => item.key === key && item.status === "available")) return;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error(`Index ${collectionId}.${key} is not ready`);
+}
 
 async function createAttr(db: Databases, collectionId: string, attr: AttrDef): Promise<void> {
   switch (attr.type) {
@@ -252,6 +287,15 @@ const BUCKET_DEFS = [
     maximumFileSize: 250 * 1024 * 1024,
     allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
   },
+  {
+    // Buyer KYC documents. Server-only; no public URLs ever.
+    // Staff access only through short-lived signed view URLs, and every view
+    // is written to the audit log (see the staff documents/[docId] routes).
+    id: BUYER_DOCS_BUCKET,
+    name: "Buyer Documents",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+  },
 ];
 
 /* ── Collection schemas ── */
@@ -263,7 +307,18 @@ type AttrDef = {
   size?: number;
 };
 
-const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
+type CollectionDef = {
+  id: string;
+  name: string;
+  attrs: AttrDef[];
+  /** No client read/write permissions; server routes only. */
+  secure?: boolean;
+  /** Wait for attributes to become available and create indexes (first deploy). */
+  waitReady?: boolean;
+  indexes?: { key: string; type: DatabasesIndexType; attributes: string[] }[];
+};
+
+const COLLECTION_DEFS: CollectionDef[] = [
   {
     id: "jewelry_products",
     name: "Jewelry Products",
@@ -554,6 +609,110 @@ const COLLECTION_DEFS: { id: string; name: string; attrs: AttrDef[] }[] = [
       { key: "amount", type: "float", default: 0 },
       { key: "note", type: "string", size: 500, default: "" },
       { key: "updated_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "buyers",
+    name: "Catalogue Buyers",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Real buyer accounts for the rough catalogue. The row id is opaque;
+      // PII lives only in this table and the buyer-docs bucket, so
+      // anonymisation erases the person while offers/deals/audit (which
+      // reference the row id) stay intact.
+      { key: "name", type: "string", size: 255, default: "" },
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "phone", type: "string", size: 100, default: "" },
+      { key: "country", type: "string", size: 100, default: "" },
+      { key: "entity_type", type: "string", size: 20, default: "individual" },
+      { key: "licence_number", type: "string", size: 255, default: "" },
+      { key: "licence_type", type: "string", size: 100, default: "" },
+      // ISO date string (YYYY-MM-DD or full ISO-8601) — a plain string keeps
+      // date-only expiries unambiguous across time zones.
+      { key: "licence_expiry", type: "string", size: 50, default: "" },
+      { key: "licence_verified_at", type: "datetime" },
+      { key: "licence_verified_by", type: "string", size: 150, default: "" },
+      // pending | verified | rejected | suspended
+      { key: "status", type: "string", size: 20, default: "pending" },
+      { key: "status_reason", type: "string", size: 500, default: "" },
+      { key: "status_by", type: "string", size: 150, default: "" },
+      { key: "status_at", type: "datetime" },
+      { key: "terms_version", type: "string", size: 50, default: "" },
+      { key: "terms_accepted_at", type: "datetime" },
+      { key: "anonymised_at", type: "datetime" },
+      { key: "created_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "buyers_email", type: DatabasesIndexType.Key, attributes: ["email"] },
+      { key: "buyers_status", type: DatabasesIndexType.Key, attributes: ["status", "created_at"] },
+    ],
+  },
+  {
+    id: "buyer_otps",
+    name: "Buyer Login Codes",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Row id is deterministic per email (see otpRowId): a re-request
+      // overwrites, and so invalidates, the previous code.
+      { key: "email", type: "string", size: 255, default: "" },
+      { key: "code_hash", type: "string", size: 128, required: true },
+      { key: "expires_at", type: "datetime", required: true },
+      { key: "attempts", type: "integer", default: 0 },
+      { key: "used", type: "boolean", default: false },
+      { key: "created_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "buyer_documents",
+    name: "Buyer Documents",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Metadata only; bytes live in the private buyer-docs bucket.
+      { key: "buyer_id", type: "string", size: 50, required: true },
+      { key: "file_id", type: "string", size: 100, required: true },
+      { key: "filename", type: "string", size: 255, default: "" },
+      { key: "content_type", type: "string", size: 100, default: "" },
+      { key: "size", type: "integer", default: 0 },
+      { key: "sha256", type: "string", size: 64, default: "" },
+      { key: "uploaded_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "buyer_docs_buyer", type: DatabasesIndexType.Key, attributes: ["buyer_id"] },
+    ],
+  },
+  {
+    id: "audit_log",
+    name: "Audit Log",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Append-only by convention and by permissions: server code only ever
+      // creates rows; nothing updates or deletes them.
+      { key: "entity", type: "string", size: 30, required: true },
+      { key: "entity_id", type: "string", size: 150, required: true },
+      { key: "action", type: "string", size: 50, required: true },
+      { key: "actor", type: "string", size: 150, required: true },
+      { key: "detail", type: "string", size: 16000, default: "" },
+      { key: "created_at", type: "datetime", required: true },
+    ],
+    indexes: [
+      { key: "audit_entity", type: DatabasesIndexType.Key, attributes: ["entity", "entity_id", "created_at"] },
+    ],
+  },
+  {
+    id: "rate_limits",
+    name: "Rate Limit Windows",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      { key: "key", type: "string", size: 255, required: true },
+      { key: "window_start", type: "integer", required: true },
+      { key: "count", type: "integer", default: 0 },
+      { key: "expires_at", type: "datetime" },
     ],
   },
 ];
