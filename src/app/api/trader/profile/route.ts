@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, LICENCE_DOCS_BUCKET } from "@/lib/appwrite";
+import { ensureReady, getDb as getDbSvc, getStorage, getMediaUrl, doc, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
 import { ID } from "node-appwrite";
 
@@ -29,11 +29,15 @@ export async function POST(req: Request) {
       const buffer = Buffer.from(await logo.arrayBuffer());
       const file = InputFile.fromBuffer(buffer, fileName);
       const res = await storage.createFile({
-        bucketId: LICENCE_DOCS_BUCKET,
+        // Logos are public imagery → media bucket (served via /api/media proxy).
+        // Field name is logo_photo — the traders collection attribute and the
+        // read path in src/lib/db.ts agree on it (fixes a write/read mismatch
+        // where uploads landed in a `logo` key nothing ever read).
+        bucketId: MEDIA_BUCKET,
         fileId: ID.unique(),
         file,
       });
-      data.logo = getMediaUrl(res.$id);
+      data.logo_photo = getMediaUrl(res.$id);
     }
 
     if (Object.keys(data).length > 0) {
