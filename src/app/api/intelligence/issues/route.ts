@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureReady, getDb as getDbSvc } from "@/lib/appwrite";
+import { rewriteStoredUrl } from "@/lib/storage-urls";
 import { Query } from "node-appwrite";
 
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
       id: d.$id,
       report_type: d.report_type,
       issue_label: d.issue_label,
-      pdf_url: d.pdf_url,
+      pdf_url: rewriteStoredUrl(d.pdf_url || ""),
       created_at: d.created_at,
     })));
   } catch (e: any) {

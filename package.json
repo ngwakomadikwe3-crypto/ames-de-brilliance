@@ -10,11 +10,13 @@
     "test:ames-chat": "node --experimental-strip-types --test scripts/test-ames-chat.mjs",
     "test:ames-boutique": "node --experimental-strip-types --test scripts/test-ames-boutique.mjs",
     "test:ames-media": "node --experimental-strip-types --test scripts/test-ames-media.mjs",
+    "test:file-proxy": "node --experimental-strip-types --test scripts/test-file-proxy.mjs",
     "test:jewelry-onboarding": "node --experimental-strip-types --test scripts/test-jewelry-onboarding.mjs scripts/test-jewelry-pack.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "reconcile:permissions": "node scripts/reconcile-permissions.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
