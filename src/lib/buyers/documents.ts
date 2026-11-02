@@ -1,4 +1,5 @@
-import { createHash, createHmac } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
+import { hmacSignFor } from '../hmac-domain.ts';
 
 /**
  * KYC document handling (Phase 3a).
@@ -9,7 +10,9 @@ import { createHash, createHmac } from 'node:crypto';
  *   are never executed or rendered from an untrusted path.
  * - Staff view files through short-lived (5 min) HMAC-signed URLs bound to
  *   the document, the staff actor and the expiry; every view is audited by
- *   the serving route.
+ *   the serving route. Signatures use the domain-separated "buyer-doc-link"
+ *   key (owner instruction 2026-11-01), so a staff session, buyer session,
+ *   OTP hash or report share signature can never be replayed here.
  */
 
 export const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024;
@@ -66,20 +69,30 @@ function b64url(input: string | Uint8Array): string {
   return Buffer.from(input).toString('base64url');
 }
 
-function sign(value: string): string {
-  const secret = process.env.SESSION_SECRET || '';
-  return createHmac('sha256', secret).update(value).digest('base64url');
+function sign(value: string): string | null {
+  return hmacSignFor('buyer-doc-link', value);
 }
 
-/** Mint a signed document-view token (URL path segment + query sig). */
-export function mintDocumentLink(payload: DocumentLinkPayload): { token: string; sig: string } {
+/**
+ * Mint a signed document-view token (URL path segment + query sig), or null
+ * when signing is unavailable — the mint route must refuse, never 500 a
+ * half-minted link.
+ */
+export function mintDocumentLink(payload: DocumentLinkPayload): { token: string; sig: string } | null {
   const token = b64url(JSON.stringify(payload));
-  return { token, sig: sign(token) };
+  const sig = sign(token);
+  if (!sig) return null;
+  return { token, sig };
 }
 
 /** Verify a signed document-view token. Returns the payload or null. */
 export function verifyDocumentLink(token: string, sig: string, now = Date.now()): DocumentLinkPayload | null {
-  if (!token || !sig || sign(token) !== sig) return null;
+  if (!token || !sig) return null;
+  const expected = sign(token);
+  if (!expected) return null;
+  const expectedBuf = Buffer.from(expected);
+  const presentedBuf = Buffer.from(sig);
+  if (expectedBuf.length !== presentedBuf.length || !timingSafeEqual(expectedBuf, presentedBuf)) return null;
   try {
     const payload = JSON.parse(Buffer.from(token, 'base64url').toString()) as Partial<DocumentLinkPayload>;
     if (typeof payload.docId !== 'string' || typeof payload.buyerId !== 'string') return null;

@@ -1,10 +1,13 @@
-import { createHmac, randomInt } from 'node:crypto';
+import { randomInt } from 'node:crypto';
+import { hmacSignHexFor } from '../hmac-domain.ts';
 import type { BuyerStore } from './store.ts';
 
 /**
  * Email one-time-code login (Phase 3a).
  *
- * - 6-digit code; only HMAC(code) under SESSION_SECRET is stored.
+ * - 6-digit code; only HMAC(code) is stored, under the domain-separated
+ *   "buyer-otp" key (owner instruction 2026-11-01) — the same code hashed
+ *   for any other purpose never matches.
  * - 10-minute expiry, single-use, max 5 verify attempts per code.
  * - Request side is rate-limited through the SHARED store (per email and per
  *   IP) so limits hold across serverless instances.
@@ -25,9 +28,9 @@ export type OtpVerifyResult =
   | 'too_many_attempts'
   | 'mismatch';
 
-export function hashOtpCode(email: string, code: string): string {
-  const secret = process.env.SESSION_SECRET || '';
-  return createHmac('sha256', secret).update(`${email.toLowerCase()}:${code}`).digest('hex');
+/** Hash a code for storage/comparison, or null when signing is unavailable. */
+export function hashOtpCode(email: string, code: string): string | null {
+  return hmacSignHexFor('buyer-otp', `${email.toLowerCase()}:${code}`);
 }
 
 export interface RequestOtpDeps {
@@ -48,9 +51,11 @@ export async function requestOtp(store: BuyerStore, email: string, deps: Request
   if (!emailOk || !ipOk) return false; // silent — caller still answers success
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  const codeHash = hashOtpCode(normalised, code);
+  if (!codeHash) return false; // signing unavailable — fail closed, silently
   await store.putOtp({
     email: normalised,
-    codeHash: hashOtpCode(normalised, code),
+    codeHash,
     expiresAt: new Date(now.getTime() + OTP_TTL_MS).toISOString(),
     attempts: 0,
     used: false,
@@ -71,7 +76,9 @@ export async function verifyOtp(
   if (row.used) return 'used';
   if (Date.parse(row.expiresAt) <= now.getTime()) return 'expired';
   if (row.attempts >= OTP_MAX_ATTEMPTS) return 'too_many_attempts';
-  if (row.codeHash !== hashOtpCode(normalised, code)) {
+  const expected = hashOtpCode(normalised, code);
+  if (!expected) return 'no_code'; // signing unavailable — fail closed
+  if (row.codeHash !== expected) {
     await store.updateOtp(normalised, { attempts: row.attempts + 1 });
     return 'mismatch';
   }

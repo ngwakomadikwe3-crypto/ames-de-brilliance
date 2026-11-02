@@ -2,10 +2,15 @@
  * Buyer session cookie (adb_buyer).
  *
  * Same HMAC-SHA256 scheme as the staff session (base64url(payload) + '.' +
- * base64url(signature)) but a distinct cookie name and a `kind: 'buyer'`
- * marker, so a buyer token can never be replayed as a staff session and vice
- * versa. Edge-safe: Web Crypto only.
+ * base64url(signature)) but a distinct cookie name, a `kind: 'buyer'` marker
+ * AND a domain-separated signing key (owner instruction 2026-11-01):
+ * HMAC-SHA256(BUYER_SESSION_SECRET || SESSION_SECRET,
+ * "ames:hmac:buyer-session:v1"). A buyer token can never be replayed as a
+ * staff session and vice versa — the keys differ even under one shared base
+ * secret. Edge-safe: Web Crypto only.
  */
+
+import { hmacKeyFor } from '../session-keys.ts';
 
 const BUYER_COOKIE = 'adb_buyer';
 const MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8h, matching the staff session
@@ -32,15 +37,7 @@ function b64urlDecode(value: string): string {
 }
 
 async function hmacKey(): Promise<CryptoKey | null> {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) return null;
-  return crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  );
+  return hmacKeyFor('buyer-session');
 }
 
 function sigBytes(sig: string): Uint8Array<ArrayBuffer> {
