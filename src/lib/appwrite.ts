@@ -155,32 +155,49 @@ export async function ensureReady(): Promise<void> {
       } catch { /* exists */ }
     }
 
-    // 4. Reconcile permissions on pre-existing resources. The creates above
-    // are no-ops when the resource already exists, so collections/buckets
-    // provisioned before the lockdown would keep write(Role.any()). Enforce
-    // server-only access explicitly. Full bucket options are passed so
-    // nothing else is reset.
-    for (const col of COLLECTION_DEFS) {
-      try {
-        await db.updateCollection({
-          databaseId: DB_ID,
-          collectionId: col.id,
-          name: col.name,
-          permissions: [],
-        });
-      } catch { /* missing or unchanged */ }
-    }
-    for (const bucket of BUCKET_DEFS) {
-      try {
-        await sto.updateBucket({
-          bucketId: bucket.id,
-          name: bucket.name,
-          permissions: [],
-          enabled: true,
-          maximumFileSize: bucket.maximumFileSize,
-          allowedFileExtensions: bucket.allowedFileExtensions,
-        });
-      } catch { /* missing or unchanged */ }
+    // 4. Permission reconciliation — DISABLED by default (owner instruction
+    // 2026-11-01): production startup must never mutate existing resources.
+    // The creates above already lock NEW collections/buckets to server-only
+    // (permissions: []), so reconciliation is only needed to strip legacy
+    // permissions from resources provisioned before the lockdown. Run it
+    // deliberately, never implicitly:
+    //   - one-off deploy with APPWRITE_RECONCILE_PERMISSIONS=1 (remove the
+    //     variable again afterwards), or
+    //   - node scripts/reconcile-permissions.mjs          (dry-run), then
+    //     node scripts/reconcile-permissions.mjs --apply  (writes a rollback
+    //     snapshot of every pre-change permission set BEFORE touching
+    //     anything, and logs each change).
+    // Each update is individually try/caught: a failure partway leaves the
+    // remaining resources untouched (already-updated ones stay locked down;
+    // re-running is safe and idempotent). Concurrent cold starts may run the
+    // loop more than once, but every instance writes the SAME permissions
+    // ([]), so the outcome is identical — no interleaving hazard.
+    if (process.env.APPWRITE_RECONCILE_PERMISSIONS === "1") {
+      console.warn("[appwrite] APPWRITE_RECONCILE_PERMISSIONS=1 — reconciling collection/bucket permissions to server-only");
+      for (const col of COLLECTION_DEFS) {
+        try {
+          await db.updateCollection({
+            databaseId: DB_ID,
+            collectionId: col.id,
+            name: col.name,
+            permissions: [],
+          });
+          console.info(`[appwrite] reconciled collection ${col.id} → permissions []`);
+        } catch { /* missing or unchanged */ }
+      }
+      for (const bucket of BUCKET_DEFS) {
+        try {
+          await sto.updateBucket({
+            bucketId: bucket.id,
+            name: bucket.name,
+            permissions: [],
+            enabled: true,
+            maximumFileSize: bucket.maximumFileSize,
+            allowedFileExtensions: bucket.allowedFileExtensions,
+          });
+          console.info(`[appwrite] reconciled bucket ${bucket.id} → permissions []`);
+        } catch { /* missing or unchanged */ }
+      }
     }
 
     _ready = true;

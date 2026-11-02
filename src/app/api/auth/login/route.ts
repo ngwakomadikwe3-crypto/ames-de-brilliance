@@ -1,15 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getStaffByCodeAndPassword } from "@/lib/db";
+import { hmacSignFor } from "@/lib/hmac-domain";
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
 const SESSION_MAX_AGE = 60 * 60 * 8; // 8 hours
 
-function getSessionSecret(): string {
-  if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
-    throw new Error("SESSION_SECRET must be set to a value of at least 32 characters.");
+/**
+ * Staff sessions sign with the domain-separated "staff-session" key
+ * (STAFF_SESSION_SECRET || SESSION_SECRET, labelled) — tokens minted for any
+ * other purpose can never verify as a staff session. The same derivation
+ * runs in src/lib/session.ts (edge) via Web Crypto, so middleware and this
+ * node route agree byte-for-byte.
+ */
+function sign(payload: string): string {
+  const sig = hmacSignFor("staff-session", payload);
+  if (!sig) {
+    throw new Error(
+      "STAFF_SESSION_SECRET or SESSION_SECRET must be set to a value of at least 32 characters.",
+    );
   }
-  return SESSION_SECRET;
+  return Buffer.from(payload).toString("base64url") + "." + sig;
+}
+
+function verify(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const payload = Buffer.from(parts[0], "base64url").toString();
+  const expectedSig = hmacSignFor("staff-session", payload);
+  if (!expectedSig) return false;
+  const presented = Buffer.from(parts[1]);
+  const expected = Buffer.from(expectedSig);
+  return presented.length === expected.length && crypto.timingSafeEqual(presented, expected);
 }
 
 function getFallbackCodes(): Record<string, string> {
@@ -19,22 +40,9 @@ function getFallbackCodes(): Record<string, string> {
   return codes;
 }
 
-function sign(payload: string, secret: string): string {
-  const sig = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-  return Buffer.from(payload).toString("base64url") + "." + sig;
-}
-
-function verify(token: string, secret: string): boolean {
-  const parts = token.split(".");
-  if (parts.length !== 2) return false;
-  const payload = Buffer.from(parts[0], "base64url").toString();
-  const expectedSig = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
-  return parts[1] === expectedSig;
-}
-
 export function createSessionCookie(role: string): string {
   const payload = JSON.stringify({ ts: Date.now(), role });
-  const token = sign(payload, getSessionSecret());
+  const token = sign(payload);
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   return `adb_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${secure}`;
 }
@@ -44,7 +52,7 @@ export function getSessionRole(cookie: string | undefined): string | null {
   const match = cookie.split(";").find((c) => c.trim().startsWith("adb_session="));
   if (!match) return null;
   const token = match.trim().split("=").slice(1).join("=");
-  if (!verify(token, getSessionSecret())) return null;
+  if (!verify(token)) return null;
   try {
     const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString());
     if (typeof payload.ts !== "number" || Date.now() - payload.ts > SESSION_MAX_AGE * 1000) return null;
