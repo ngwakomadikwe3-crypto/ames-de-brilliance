@@ -278,7 +278,7 @@ async function createAttr(db: Databases, collectionId: string, attr: AttrDef): P
 }
 
 /* ── Bucket definitions (all server-only; reads via /api proxy routes) ── */
-const BUCKET_DEFS = [
+export const BUCKET_DEFS = [
   {
     id: MEDIA_BUCKET,
     name: "Media",
@@ -335,7 +335,7 @@ type CollectionDef = {
   indexes?: { key: string; type: DatabasesIndexType; attributes: string[] }[];
 };
 
-const COLLECTION_DEFS: CollectionDef[] = [
+export const COLLECTION_DEFS: CollectionDef[] = [
   {
     id: "jewelry_products",
     name: "Jewelry Products",

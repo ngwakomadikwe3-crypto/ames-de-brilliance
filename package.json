@@ -17,7 +17,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "reconcile:permissions": "node scripts/reconcile-permissions.mjs"
+    "reconcile:permissions": "node scripts/reconcile-permissions.mjs",
+    "verify:lockdown": "node --experimental-strip-types scripts/verify-lockdown.mjs",
+    "test:verify-lockdown": "node --experimental-strip-types --test scripts/test-verify-lockdown.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",

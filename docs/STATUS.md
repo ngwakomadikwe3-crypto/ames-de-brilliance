@@ -36,6 +36,7 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
 | #30 | Server-only permissions for every collection/bucket; reconcile gate (`APPWRITE_RECONCILE_PERMISSIONS=1`, default OFF) + `scripts/reconcile-permissions.mjs` (dry-run default, `--apply` snapshots rollback first, `--restore`); domain-separated HMAC signing; `REPORT_SHARE_SECRET` required in production | Open, staged |
 | #31 | Buyer accounts (OTP login, KYC documents, staff review, terms, export/anonymisation) on the catalogue stack; unique `buyers.email` + race-safe registration; OTP refuses production without SMTP; licence expiry as an inclusive Africa/Gaborone calendar date; `docs/ci-workflow.yml` for manual CI install | Open, staged |
 | #32 | STEP 1 carry-over fixes: `middleware.ts` → `proxy.ts` rename (Next 16 convention; proxy runs on the Node.js runtime, not Edge), this STATUS rewrite, registration/login anti-enumeration, server-side public-access flag guard. package-lock regeneration is NOT in the PR — Ngwako regenerates locally on Node 22 | In review |
+| #33 | `scripts/verify-lockdown.mjs` — keyless outside-in lockdown proof (56 GET-only probes from the app's own constants, both Databases and TablesDB route families; populated-2xx FAIL, empty-2xx UNPROVEN, not-provisioned tracked separately with `--expect-provisioned`, sentinel file fetch informational only) + unit tests + runbook section below | In review |
 
 ## Binding product amendments (STEP 0, approved 2026-10-31)
 
@@ -67,6 +68,55 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
   criterion for the offers/deals work below.
 - (e) `CATALOGUE_PUBLIC_ACCESS` is read server-side on every request and is
   never a `NEXT_PUBLIC` variable, with a test — **done** (carry-over PR).
+
+## Verifying the Appwrite lockdown (scripts/verify-lockdown.mjs)
+
+`scripts/verify-lockdown.mjs` proves the server-only lockdown from the
+OUTSIDE: given only `APPWRITE_ENDPOINT` and `APPWRITE_PROJECT_ID` (no API
+key, no session), it tries to list documents/rows in every collection via
+BOTH the legacy Databases route and the TablesDB route, and to list files
+in every bucket. The collection/bucket names come from the same
+`COLLECTION_DEFS` / `BUCKET_DEFS` / `DB_ID` constants in
+`src/lib/appwrite.ts`, so the probe set cannot drift from the provisioned
+schema. Read-only: GET requests only. A direct file fetch per bucket with
+a sentinel id is also made, but it is **informational only** — a 404 for a
+nonexistent file id cannot distinguish a locked bucket from an open one,
+so it is excluded from the pass criteria.
+
+    APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1 \
+    APPWRITE_PROJECT_ID=<project id> \
+    node --experimental-strip-types scripts/verify-lockdown.mjs [--expect-provisioned]
+
+Verdicts: a 2xx WITH rows/files is FAIL; a 2xx with `total: 0` is UNPROVEN
+(an empty list cannot distinguish protection from an empty resource);
+401/403 is refused; a 404 whose Appwrite error `type` is a recognised
+resource-not-found (`table_not_found`, `collection_not_found`,
+`database_not_found`, `storage_bucket_not_found`, …) is reported separately
+as **not provisioned** with a per-route-family count; `project_not_found`
+or any unrecognised/unparseable 404 body, any other status, or a network
+error is INCONCLUSIVE — a mistyped project ID can never produce a PASS.
+Exit codes: 0 = PASS, 1 = FAIL, 2 = UNPROVEN/INCONCLUSIVE.
+`--expect-provisioned` turns every not-provisioned resource into a FAIL
+(use it once the schema is meant to exist).
+
+Procedure around reconciliation:
+
+1. **Seed first.** Before running the verifier, put one row in every
+   collection and one file in every bucket (a staging project; trivial
+   placeholder content is fine). Without this, an open-but-empty resource
+   reports UNPROVEN rather than FAIL.
+2. **Positive control.** On staging, create one throwaway collection and
+   one throwaway bucket with `read("any")` plus one row and one file, and
+   add them temporarily to `COLLECTION_DEFS`/`BUCKET_DEFS` — or simply
+   probe them by hand with curl using the same keyless headers. Run the
+   verifier: it MUST report FAIL naming the throwaway resources (and the
+   curl probes must return 2xx with the seeded content). Then delete the
+   throwaway collection and bucket and revert the temporary constant
+   edits. A verifier run that has never caught an open resource proves
+   nothing.
+3. Run the verifier BEFORE `node scripts/reconcile-permissions.mjs
+   --apply` (expect FAIL listing every open collection/bucket on a legacy
+   project) and again AFTER `--apply` (expect PASS).
 
 ## Acceptance criteria for the offers/deals work (STEP 2, not started)
 
