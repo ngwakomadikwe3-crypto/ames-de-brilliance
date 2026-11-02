@@ -32,12 +32,17 @@ export async function GET(
     }
 
     const exp = Date.now() + DOCUMENT_LINK_TTL_MS;
-    const { token, sig } = mintDocumentLink({
+    const minted = mintDocumentLink({
       docId: document.id,
       buyerId: id,
       staff: staffActor(role as string),
       exp,
     });
+    if (!minted) {
+      // Signing is unavailable (no usable secret) — fail closed.
+      return NextResponse.json({ error: "signing_unavailable" }, { status: 503 });
+    }
+    const { token, sig } = minted;
     const url = `/api/staff/buyers/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}/view?token=${encodeURIComponent(token)}&sig=${encodeURIComponent(sig)}`;
     return NextResponse.json(
       { ok: true, url, expiresAt: new Date(exp).toISOString() },

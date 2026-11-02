@@ -6,11 +6,10 @@ import { AppwriteBuyerStore } from "@/lib/buyers/appwrite-store";
 import { registerBuyer } from "@/lib/buyers/service";
 import { BUYER_TERMS_VERSION } from "@/lib/buyers/terms";
 import { DuplicateEmailError } from "@/lib/buyers/types";
+import { isValidLicenceDate } from "@/lib/buyers/licence";
 import { clientIp } from "@/lib/staff-auth";
 
 export const runtime = "nodejs";
-
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 
 const RegisterSchema = z.object({
   name: z.string().trim().min(2).max(255),
@@ -19,14 +18,16 @@ const RegisterSchema = z.object({
   country: z.string().trim().min(2).max(100),
   entityType: z.enum(["individual", "company"]),
   // Licence number, type and expiry are REQUIRED (STEP 0 amendment 2). Staff
-  // verify them at approval; an expired licence blocks offers.
+  // verify them at approval; an expired licence blocks offers. Expiry is
+  // stored as a strict calendar date (YYYY-MM-DD); it is INCLUSIVE of the
+  // final day, judged in Africa/Gaborone (owner instruction 2026-11-01).
   licenceNumber: z.string().trim().min(2).max(100),
   licenceType: z.string().trim().min(2).max(100),
   licenceExpiry: z
     .string()
     .trim()
-    .regex(ISO_DATE_RE, "licenceExpiry must be an ISO date (YYYY-MM-DD)")
-    .refine((v) => Number.isFinite(Date.parse(v)), "licenceExpiry must be a real date"),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "licenceExpiry must be a calendar date (YYYY-MM-DD)")
+    .refine(isValidLicenceDate, "licenceExpiry must be a real calendar date"),
   acceptTerms: z.literal(true),
 });
 

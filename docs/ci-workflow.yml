@@ -1,0 +1,62 @@
+# CI workflow — INSTALL MANUALLY as .github/workflows/ci.yml
+#
+# Owner instruction 2026-11-01 (item 5): this file is delivered under docs/
+# because the automation account must not push workflow files. Ngwako
+# installs it by copying it to .github/workflows/ci.yml (any filename) and
+# committing from his own account.
+#
+# What it does on every pull request and every push to main:
+#   1. npm ci on Node 22 (the required runtime — engines.node >= 22)
+#   2. next build (full TypeScript check)
+#   3. every test suite (node:test, strip-types)
+#
+# The build and tests need no real secrets or Appwrite access: the suites
+# set their own SESSION_SECRET test fixture, and provisioning short-circuits
+# when Appwrite env vars are absent. The dummy values below exist only so
+# the build never reads an unset variable.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build (next build)
+        run: npm run build
+        env:
+          SESSION_SECRET: ci-build-secret-0123456789abcdef0123456789abcdef
+          APPWRITE_ENDPOINT: https://ci.invalid/v1
+          APPWRITE_PROJECT_ID: ci
+          APPWRITE_API_KEY: ci
+
+      - name: Test — storage proxies, share links, domain-separated signing
+        run: npm run test:file-proxy
+
+      - name: Test — buyer accounts (authz, OTP, licences, access resolver)
+        run: npm run test:buyers
+
+      - name: Test — AMES chat engine
+        run: npm run test:ames-chat
+
+      - name: Test — AMES boutique engine
+        run: npm run test:ames-boutique
+
+      - name: Test — AMES media engine
+        run: npm run test:ames-media
+
+      - name: Test — jewelry onboarding
+        run: npm run test:jewelry-onboarding
