@@ -3,12 +3,18 @@
  * Edge-safe: only Web Crypto and atob/btoa, so middleware (edge runtime) and
  * route handlers (node runtime) can both use it. SESSION_SECRET never leaves
  * the server.
+ *
+ * The signing key is domain-separated (owner instruction 2026-11-01):
+ * HMAC-SHA256(STAFF_SESSION_SECRET || SESSION_SECRET,
+ * "ames:hmac:staff-session:v1") — a buyer token, report share signature or
+ * document link minted under the same base secret can never verify here.
  */
 
-const SESSION_SECRET = process.env.SESSION_SECRET;
+import { hmacKeyFor } from "./session-keys.ts";
 
 export async function verifySession(token: string): Promise<boolean> {
-  if (!SESSION_SECRET || SESSION_SECRET.length < 32) return false;
+  const cryptoKey = await hmacKeyFor("staff-session");
+  if (!cryptoKey) return false;
   const parts = token.split(".");
   if (parts.length !== 2) return false;
   try {
@@ -22,15 +28,6 @@ export async function verifySession(token: string): Promise<boolean> {
     }
 
     const encoder = new TextEncoder();
-    const keyData = encoder.encode(SESSION_SECRET);
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-
     const sigBuffer = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(payloadStr));
     const sigArray = new Uint8Array(sigBuffer);
     const expectedSig = btoa(String.fromCharCode(...sigArray))
