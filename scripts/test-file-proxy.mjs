@@ -11,7 +11,8 @@
  *      bucket to a client-reachable path.
  *
  * Plus the report share-link scheme (staff-only default, expiring signed
- * links) and static guards on the route sources.
+ * links), the domain-separated signing scheme (owner instruction
+ * 2026-11-01), the reconcile gate, and static guards on the route sources.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -243,4 +244,142 @@ test('licence-docs proxy: staff session required, shared validator used', () => 
 
 test('file id regex constant is exported and matches the documented charset', () => {
   assert.equal(FILE_ID_RE.source, '^[a-zA-Z0-9][a-zA-Z0-9._-]{0,35}$');
+});
+
+/* ── 6. Domain-separated signing (owner instruction 2026-11-01) ── */
+
+const { hmacSignFor } = await import('../src/lib/hmac-domain.ts');
+const { selectSigningSecret, isProductionEnv } = await import('../src/lib/signing-labels.ts');
+const sessionLib = await import('../src/lib/session.ts');
+const reconcile = await import('./reconcile-permissions.mjs');
+const { createHmac } = await import('node:crypto');
+
+test('domain separation: the same value signs differently per purpose', () => {
+  const value = 'fileabc123.1999999999';
+  const sigs = [
+    hmacSignFor('staff-session', value),
+    hmacSignFor('buyer-session', value),
+    hmacSignFor('buyer-otp', value),
+    hmacSignFor('buyer-doc-link', value),
+    hmacSignFor('report-share', value),
+  ];
+  assert.ok(sigs.every((s) => typeof s === 'string' && s.length > 20), 'all purposes can sign');
+  assert.equal(new Set(sigs).size, sigs.length, 'every purpose produces a distinct signature');
+});
+
+test('domain separation: a signature minted for one purpose is rejected for another', () => {
+  // A staff-session signature over the exact string a share link signs must
+  // not open the share link.
+  const now = Date.now();
+  const expires = Math.floor(now / 1000) + 600;
+  const crossSig = hmacSignFor('staff-session', `fileabc123.${expires}`);
+  assert.ok(crossSig);
+  assert.equal(
+    share.verifyReportShareLink('fileabc123', String(expires), crossSig, now),
+    false,
+    'staff-session signature must not verify as a report share link',
+  );
+  // A document-link signature must not either.
+  const docSig = hmacSignFor('buyer-doc-link', `fileabc123.${expires}`);
+  assert.equal(share.verifyReportShareLink('fileabc123', String(expires), docSig, now), false);
+});
+
+test('staff session: node-minted token verifies via the edge path; legacy and cross-domain tokens rejected', async () => {
+  const now = Date.now();
+  const payloadStr = JSON.stringify({ ts: now, role: 'owner' });
+  const payloadB64 = Buffer.from(payloadStr).toString('base64url');
+  // Positive control: node hmac-domain derivation == edge Web Crypto derivation.
+  const good = `${payloadB64}.${hmacSignFor('staff-session', payloadStr)}`;
+  assert.equal(await sessionLib.verifySession(good), true, 'node-minted staff session verifies (edge/node parity)');
+  // Cross-domain: a report-share signature over the same payload is rejected.
+  const cross = `${payloadB64}.${hmacSignFor('report-share', payloadStr)}`;
+  assert.equal(await sessionLib.verifySession(cross), false, 'share signature rejected as a staff session');
+  // Legacy scheme (raw SESSION_SECRET, no domain label) is rejected.
+  const legacySig = createHmac('sha256', SECRET).update(payloadStr).digest('base64url');
+  assert.equal(await sessionLib.verifySession(`${payloadB64}.${legacySig}`), false, 'pre-lockdown session scheme rejected');
+});
+
+test('report share: REPORT_SHARE_SECRET required in production — no SESSION_SECRET fallback', () => {
+  const savedNodeEnv = process.env.NODE_ENV;
+  const savedShare = process.env.REPORT_SHARE_SECRET;
+  process.env.NODE_ENV = 'production';
+  delete process.env.REPORT_SHARE_SECRET;
+  try {
+    assert.equal(selectSigningSecret('report-share'), null, 'no fallback secret in production');
+    assert.equal(share.mintReportShareLink('fileabc123'), null, 'mint refuses in production without REPORT_SHARE_SECRET');
+    const now = Date.now();
+    const expires = String(Math.floor(now / 1000) + 600);
+    assert.equal(
+      share.verifyReportShareLink('fileabc123', expires, 'A'.repeat(43), now),
+      false,
+      'verify refuses in production without REPORT_SHARE_SECRET',
+    );
+    // A dedicated secret re-enables minting in production.
+    process.env.REPORT_SHARE_SECRET = 'prod-share-secret-0123456789abcdef0123456789ab';
+    const link = share.mintReportShareLink('fileabc123', now, 600);
+    assert.ok(link, 'mint works with the dedicated secret');
+    assert.equal(share.verifyReportShareLink('fileabc123', String(link.expires), link.sig, now), true);
+  } finally {
+    if (savedNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = savedNodeEnv;
+    if (savedShare === undefined) delete process.env.REPORT_SHARE_SECRET; else process.env.REPORT_SHARE_SECRET = savedShare;
+  }
+});
+
+test('secret selection: short dedicated secret fails closed; VERCEL_ENV=production counts as production', () => {
+  const saved = process.env.REPORT_SHARE_SECRET;
+  process.env.REPORT_SHARE_SECRET = 'too-short';
+  try {
+    assert.equal(selectSigningSecret('report-share'), null, 'a misconfigured dedicated secret never falls back');
+  } finally {
+    if (saved === undefined) delete process.env.REPORT_SHARE_SECRET; else process.env.REPORT_SHARE_SECRET = saved;
+  }
+  assert.equal(isProductionEnv({ NODE_ENV: 'production' }), true);
+  assert.equal(isProductionEnv({ VERCEL_ENV: 'production' }), true);
+  assert.equal(isProductionEnv({ NODE_ENV: 'development' }), false);
+  assert.equal(
+    selectSigningSecret('report-share', { VERCEL_ENV: 'production', SESSION_SECRET: SECRET }),
+    null,
+    'VERCEL_ENV=production also blocks the SESSION_SECRET fallback',
+  );
+});
+
+test('permission reconcile: ensureReady only reconciles behind APPWRITE_RECONCILE_PERMISSIONS=1', () => {
+  const src = read('../src/lib/appwrite.ts');
+  const gate = src.indexOf('process.env.APPWRITE_RECONCILE_PERMISSIONS === "1"');
+  assert.notEqual(gate, -1, 'reconcile gate present');
+  const reconcileUpdate = src.indexOf('await db.updateCollection({', gate);
+  assert.ok(reconcileUpdate > gate, 'the updateCollection reconcile loop is inside the gate');
+  const firstCreate = src.indexOf('await db.createCollection({');
+  assert.ok(firstCreate !== -1 && firstCreate < gate, 'provisioning still runs with the flag off');
+});
+
+test('reconcile script: dry-run default; --apply snapshots rollback BEFORE changing; --restore supported', () => {
+  const src = read('./reconcile-permissions.mjs');
+  assert.match(src, /DRY-RUN \(default/, 'dry-run is the default mode');
+  assert.match(src, /--apply/, 'explicit apply flag required');
+  assert.match(src, /--restore/, 'rollback restore supported');
+  const fn = src.indexOf('async function applyPlan');
+  const write = src.indexOf('await writeFile(rollbackPath', fn);
+  const update = src.indexOf('await databases.updateCollection({', fn);
+  assert.ok(fn !== -1 && write > fn && update > write, 'rollback snapshot is written before any change');
+  // Pure planners behave on fixture data without a server.
+  const plan = reconcile.planChanges(
+    [
+      { $id: 'legacy', name: 'Legacy', $permissions: ['read("any")', 'write("any")'] },
+      { $id: 'locked', name: 'Locked', $permissions: [] },
+    ],
+    [{ $id: 'media', name: 'Media', $permissions: ['read("any")'] }],
+  );
+  assert.deepEqual(plan.map((c) => `${c.kind}:${c.id}`), ['collection:legacy', 'bucket:media']);
+  assert.deepEqual(plan[0].after, []);
+  const snap = reconcile.snapshotForRollback(
+    [{ $id: 'legacy', name: 'Legacy', $permissions: ['read("any")'], enabled: true, documentSecurity: false }],
+    [{ $id: 'media', name: 'Media', $permissions: ['read("any")'], enabled: true, maximumFileSize: 1000, allowedFileExtensions: ['jpg'] }],
+    'ames',
+  );
+  assert.deepEqual(snap.collections[0].permissions, ['read("any")'], 'pre-change permissions captured');
+  assert.deepEqual(snap.buckets[0], {
+    id: 'media', name: 'Media', permissions: ['read("any")'],
+    enabled: true, maximumFileSize: 1000, allowedFileExtensions: ['jpg'],
+  });
 });
