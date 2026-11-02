@@ -32,15 +32,18 @@ const otp = await import('../src/lib/buyers/otp.ts');
 const service = await import('../src/lib/buyers/service.ts');
 const authz = await import('../src/lib/buyers/authz.ts');
 const docs = await import('../src/lib/buyers/documents.ts');
+const licence = await import('../src/lib/buyers/licence.ts');
 const { BUYER_TERMS_VERSION } = await import('../src/lib/buyers/terms.ts');
 const access = await import('../src/lib/buyers/access.ts');
 const { sameOrigin } = await import('../src/lib/same-origin.ts');
+const { hmacSignFor, hmacSignHexFor } = await import('../src/lib/hmac-domain.ts');
 
 const NOW = new Date('2026-10-31T12:00:00Z');
 
+/** Staff token minted exactly as the login route does (domain-separated key). */
 function staffToken(role) {
   const payload = JSON.stringify({ ts: Date.now(), ...(role ? { role } : {}) });
-  const sig = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
+  const sig = hmacSignFor('staff-session', payload);
   return `${Buffer.from(payload).toString('base64url')}.${sig}`;
 }
 
@@ -84,10 +87,14 @@ test('buyer session: tampering and expiry are rejected', async () => {
   const token = await buyerToken('buyer-alice');
   const tampered = token.slice(0, -2) + (token.endsWith('a') ? 'b' : 'a') + token.slice(-1);
   assert.equal(await buyerSession.verifyBuyerSession(tampered), null);
-  // Correctly signed but 9 hours old (lifetime is 8h).
+  // Correctly signed (domain key) but 9 hours old (lifetime is 8h).
   const oldPayload = Buffer.from(JSON.stringify({ ts: Date.now() - 9 * 3600_000, kind: 'buyer', buyerId: 'buyer-alice' })).toString('base64url');
-  const oldSig = crypto.createHmac('sha256', SECRET).update(oldPayload).digest('base64url');
+  const oldSig = hmacSignFor('buyer-session', oldPayload);
   assert.equal(await buyerSession.verifyBuyerSession(`${oldPayload}.${oldSig}`), null);
+  // Fresh but signed with the legacy raw-secret scheme: rejected.
+  const freshPayload = Buffer.from(JSON.stringify({ ts: Date.now(), kind: 'buyer', buyerId: 'buyer-alice' })).toString('base64url');
+  const legacySig = crypto.createHmac('sha256', SECRET).update(freshPayload).digest('base64url');
+  assert.equal(await buyerSession.verifyBuyerSession(`${freshPayload}.${legacySig}`), null, 'legacy raw-secret scheme rejected');
 });
 
 /* ── 2. OTP security ── */
@@ -295,12 +302,13 @@ test('buyerMayOffer: fails closed on every missing or lapsed licence condition',
   assert.equal(service.buyerStatusMessage(expired, NOW).state, 'licence_expired');
 });
 
-test('register route: all three licence fields are required by the schema (static)', () => {
+test('register route: all three licence fields are required; expiry is a strict calendar date (static)', () => {
   const route = readFileSync(new URL('../src/app/api/buyers/register/route.ts', import.meta.url), 'utf8');
   assert.match(route, /licenceNumber: z\.string\(\)\.trim\(\)\.min\(2\)/);
   assert.match(route, /licenceType: z\.string\(\)\.trim\(\)\.min\(2\)/);
   assert.match(route, /licenceExpiry: z/);
-  assert.match(route, /Date\.parse/, 'expiry must be a real date');
+  assert.match(route, /isValidLicenceDate/, 'expiry validated as a real calendar date');
+  assert.ok(!route.includes('Date.parse'), 'no timestamp parsing — date-only semantics (owner instruction 2026-11-01)');
 });
 
 /* ── 6. Authz matrix ── */
@@ -465,4 +473,154 @@ test('sameOrigin: exact-origin semantics, no-Origin denied, AMES_APP_ORIGIN hono
     if (saved === undefined) delete process.env.AMES_APP_ORIGIN;
     else process.env.AMES_APP_ORIGIN = saved;
   }
+});
+
+/* ── 11. Licence expiry as a calendar date (owner instruction 2026-11-01, item 4) ── */
+
+test('licence date: strict YYYY-MM-DD validation, real calendar days only', () => {
+  assert.equal(licence.isValidLicenceDate('2026-06-15'), true);
+  assert.equal(licence.isValidLicenceDate('2026-02-30'), false, 'nonexistent day rejected');
+  assert.equal(licence.isValidLicenceDate('2026-6-15'), false, 'unpadded rejected');
+  assert.equal(licence.isValidLicenceDate('15/06/2026'), false, 'locale format rejected');
+  assert.equal(licence.isValidLicenceDate('2026-06-15T00:00:00Z'), false, 'timestamps rejected — date only');
+  assert.equal(licence.isValidLicenceDate(''), false);
+});
+
+test('licence expiry: inclusive of the final day; unparseable fails closed', () => {
+  assert.equal(licence.licenceCurrentOn('2026-06-15', '2026-06-14'), true, 'day before expiry: valid');
+  assert.equal(licence.licenceCurrentOn('2026-06-15', '2026-06-15'), true, 'last day: still valid (inclusive)');
+  assert.equal(licence.licenceCurrentOn('2026-06-15', '2026-06-16'), false, 'day after: expired');
+  assert.equal(licence.licenceCurrentOn('garbage', '2026-06-14'), false, 'unparseable fails closed');
+  assert.equal(licence.licenceCurrentOn('', '2026-06-14'), false, 'empty fails closed');
+});
+
+test('licence expiry: "today" is judged in Africa/Gaborone (UTC+2), not the host clock', () => {
+  // 22:30 UTC on the 14th is already 00:30 on the 15th in Gaborone.
+  assert.equal(licence.todayInGaborone(new Date('2026-06-14T22:30:00Z')), '2026-06-15');
+  assert.equal(licence.todayInGaborone(new Date('2026-06-15T21:59:00Z')), '2026-06-15');
+  assert.equal(licence.todayInGaborone(new Date('2026-06-15T22:00:00Z')), '2026-06-16');
+});
+
+test('licence expiry end-to-end: offers allowed through the final Gaborone day, blocked after', async () => {
+  const store = new MemoryBuyerStore();
+  await service.registerBuyer(store, {
+    id: 'buyer-eve', name: 'Eve Example', email: 'eve@example.test',
+    phone: '', country: 'BW', entityType: 'individual',
+    licenceNumber: 'TEST-LIC-009', licenceType: 'dealer', licenceExpiry: '2026-06-15',
+    termsVersion: BUYER_TERMS_VERSION,
+  }, NOW);
+  await service.decideBuyer(store, 'buyer-eve', 'approve', 'ok', 'staff:owner', NOW);
+  const eve = await store.getBuyer('buyer-eve');
+  assert.equal(service.buyerMayOffer(eve, new Date('2026-06-14T22:30:00Z')), true, 'last Gaborone day: may offer');
+  assert.equal(service.buyerMayOffer(eve, new Date('2026-06-15T21:59:00Z')), true, 'still the final day in Gaborone');
+  assert.equal(service.buyerMayOffer(eve, new Date('2026-06-15T22:00:00Z')), false, 'Gaborone midnight: expired');
+  assert.equal(service.buyerStatusMessage(eve, new Date('2026-06-15T22:00:00Z')).state, 'licence_expired');
+});
+
+/* ── 12. Unique email index + race-safe registration (item 3) ── */
+
+test('buyers.email: provisioned as a UNIQUE index (static)', () => {
+  const src = readFileSync(new URL('../src/lib/appwrite.ts', import.meta.url), 'utf8');
+  assert.match(src, /key: "buyers_email", type: DatabasesIndexType\.Unique/, 'buyers_email must be a Unique index');
+});
+
+test('registration race: unique-index 409 on insert translates to DuplicateEmailError', async () => {
+  const { AppwriteBuyerStore } = await import('../src/lib/buyers/appwrite-store.ts');
+  const { DuplicateEmailError } = await import('../src/lib/buyers/types.ts');
+  const existingRow = {
+    $id: 'buyer-existing', email: 'alice@example.test', name: 'Alice Example',
+    entity_type: 'individual', status: 'pending',
+  };
+  const dupError = Object.assign(new Error('Document with the requested ID already exists.'), {
+    code: 409, type: 'document_already_exists',
+  });
+  // Model the race: the pre-check passes for BOTH concurrent registrations
+  // (no row visible yet), the loser's insert hits the unique index, and the
+  // confirming re-read then sees the winner's row.
+  let winnerVisible = false;
+  const fakeTables = {
+    async listRows() { return { rows: winnerVisible ? [existingRow] : [] }; },
+    async createRow() { winnerVisible = true; throw dupError; },
+  };
+
+  const store = new AppwriteBuyerStore(fakeTables);
+  await assert.rejects(
+    service.registerBuyer(store, {
+      id: 'buyer-new', name: 'Alice Second', email: 'alice@example.test',
+      phone: '', country: 'BW', entityType: 'individual',
+      licenceNumber: 'TEST-LIC-010', licenceType: 'dealer', licenceExpiry: '2027-01-01',
+      termsVersion: BUYER_TERMS_VERSION,
+    }, NOW),
+    (err) => err instanceof DuplicateEmailError,
+    'concurrent duplicate email must surface as DuplicateEmailError',
+  );
+});
+
+test('registration race: a 409 with NO matching email row rethrows the original error', async () => {
+  const { AppwriteBuyerStore } = await import('../src/lib/buyers/appwrite-store.ts');
+  const rowIdCollision = Object.assign(new Error('Document with the requested ID already exists.'), {
+    code: 409, type: 'document_already_exists',
+  });
+  const fakeTables = {
+    async listRows() { return { rows: [] }; }, // no email conflict even after the 409
+    async createRow() { throw rowIdCollision; },
+  };
+  const store = new AppwriteBuyerStore(fakeTables);
+  await assert.rejects(
+    store.createBuyer({
+      id: 'buyer-collide', name: 'Collide Example', email: 'collide@example.test',
+      phone: '', country: 'BW', entityType: 'individual',
+      licenceNumber: 'L', licenceType: 'dealer', licenceExpiry: '2027-01-01',
+      licenceVerifiedAt: '', licenceVerifiedBy: '', status: 'pending',
+      statusReason: '', statusBy: '', statusAt: '', termsVersion: BUYER_TERMS_VERSION,
+      termsAcceptedAt: NOW.toISOString(), anonymisedAt: '',
+      createdAt: NOW.toISOString(), updatedAt: NOW.toISOString(),
+    }),
+    (err) => err === rowIdCollision,
+    'non-email duplicates (row-id collision) must not be masked',
+  );
+});
+
+/* ── 13. OTP production posture (item 3) ── */
+
+test('OTP login: refuses to run in production when SMTP is unconfigured (static)', () => {
+  const route = readFileSync(new URL('../src/app/api/buyers/login/request-code/route.ts', import.meta.url), 'utf8');
+  assert.match(route, /isProductionEnv\(\)/, 'production detection present');
+  assert.match(route, /production && !mailConfigured\(\)/, 'SMTP check gates production');
+  assert.match(route, /email_unconfigured/, 'refusal error code');
+  assert.match(route, /status: 503/, 'refusal is a 503');
+  assert.match(route, /!sent && !production/, 'codes are console-logged only OUTSIDE production');
+});
+
+test('mailConfigured: reflects SMTP_HOST + SMTP_USER presence', async () => {
+  const emailLib = await import('../src/lib/email.ts');
+  // The test environment has no SMTP configured; the helper must report false.
+  assert.equal(process.env.SMTP_HOST ?? '', '', 'fixture: no SMTP_HOST in tests');
+  assert.equal(emailLib.mailConfigured(), false, 'unconfigured SMTP detected');
+});
+
+/* ── 14. Domain-separated signing across buyer surfaces (item 2) ── */
+
+test('domain separation: buyer, staff, doc-link and OTP signatures are mutually unusable', async () => {
+  // A buyer payload signed with the STAFF key is not a buyer session.
+  const buyerPayloadStr = JSON.stringify({ ts: Date.now(), kind: 'buyer', buyerId: 'buyer-alice' });
+  const staffSignedBuyer = `${Buffer.from(buyerPayloadStr).toString('base64url')}.${hmacSignFor('staff-session', Buffer.from(buyerPayloadStr).toString('base64url'))}`;
+  assert.equal(await buyerSession.verifyBuyerSession(staffSignedBuyer), null, 'staff-domain signature rejected as buyer session');
+  // A staff payload signed with the BUYER key is not a staff session.
+  const staffPayloadStr = JSON.stringify({ ts: Date.now(), role: 'owner' });
+  const buyerSignedStaff = `${Buffer.from(staffPayloadStr).toString('base64url')}.${hmacSignFor('buyer-session', staffPayloadStr)}`;
+  assert.equal(await staffSession.verifySession(buyerSignedStaff), false, 'buyer-domain signature rejected as staff session');
+  assert.equal(await staffSession.verifyStaffSession(buyerSignedStaff), false);
+  // Document links: a report-share signature over the token is rejected.
+  const minted = docs.mintDocumentLink({ docId: 'doc-a', buyerId: 'buyer-alice', staff: 'staff:owner', exp: Date.now() + 60_000 });
+  assert.ok(minted, 'doc link mints under the buyer-doc-link key');
+  const crossSig = hmacSignFor('report-share', minted.token);
+  assert.equal(docs.verifyDocumentLink(minted.token, crossSig), null, 'report-share signature rejected as document link');
+  const legacyDocSig = crypto.createHmac('sha256', SECRET).update(minted.token).digest('base64url');
+  assert.equal(docs.verifyDocumentLink(minted.token, legacyDocSig), null, 'legacy raw-secret doc link rejected');
+  // OTP hashes differ from every other domain over the same input.
+  const otpHash = otp.hashOtpCode('alice@example.test', '123456');
+  assert.ok(otpHash);
+  assert.notEqual(otpHash, hmacSignHexFor('staff-session', 'alice@example.test:123456'), 'OTP domain isolated from staff');
+  assert.notEqual(otpHash, hmacSignHexFor('report-share', 'alice@example.test:123456'), 'OTP domain isolated from share links');
 });
