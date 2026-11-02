@@ -106,32 +106,47 @@ export class AppwriteBuyerStore implements BuyerStore {
   async createBuyer(buyer: Buyer): Promise<void> {
     const existing = await this.getBuyerByEmail(buyer.email);
     if (existing) throw new DuplicateEmailError(buyer.email);
-    await this.tables.createRow({
-      databaseId: DB_ID,
-      tableId: BUYER_TABLES.buyers,
-      rowId: buyer.id,
-      data: {
-        name: buyer.name,
-        email: buyer.email,
-        phone: buyer.phone,
-        country: buyer.country,
-        entity_type: buyer.entityType,
-        licence_number: buyer.licenceNumber,
-        licence_type: buyer.licenceType,
-        licence_expiry: buyer.licenceExpiry,
-        licence_verified_at: buyer.licenceVerifiedAt,
-        licence_verified_by: buyer.licenceVerifiedBy,
-        status: buyer.status,
-        status_reason: buyer.statusReason,
-        status_by: buyer.statusBy,
-        status_at: buyer.statusAt,
-        terms_version: buyer.termsVersion,
-        terms_accepted_at: buyer.termsAcceptedAt,
-        anonymised_at: buyer.anonymisedAt,
-        created_at: buyer.createdAt,
-        updated_at: buyer.updatedAt,
-      },
-    });
+    try {
+      await this.tables.createRow({
+        databaseId: DB_ID,
+        tableId: BUYER_TABLES.buyers,
+        rowId: buyer.id,
+        data: {
+          name: buyer.name,
+          email: buyer.email,
+          phone: buyer.phone,
+          country: buyer.country,
+          entity_type: buyer.entityType,
+          licence_number: buyer.licenceNumber,
+          licence_type: buyer.licenceType,
+          licence_expiry: buyer.licenceExpiry,
+          licence_verified_at: buyer.licenceVerifiedAt,
+          licence_verified_by: buyer.licenceVerifiedBy,
+          status: buyer.status,
+          status_reason: buyer.statusReason,
+          status_by: buyer.statusBy,
+          status_at: buyer.statusAt,
+          terms_version: buyer.termsVersion,
+          terms_accepted_at: buyer.termsAcceptedAt,
+          anonymised_at: buyer.anonymisedAt,
+          created_at: buyer.createdAt,
+          updated_at: buyer.updatedAt,
+        },
+      });
+    } catch (error) {
+      // Race-safe (owner instruction 2026-11-01): the buyers_email UNIQUE
+      // index is the authoritative guard. Two concurrent registrations can
+      // both pass the pre-check above; the loser's insert then fails with a
+      // duplicate-key 409, which we translate to DuplicateEmailError so the
+      // route can answer with the deliberately vague success response.
+      if (isDuplicateRow(error)) {
+        const winner = await this.getBuyerByEmail(buyer.email);
+        if (winner) throw new DuplicateEmailError(buyer.email);
+      }
+      // Not an email conflict (e.g. an astronomically unlikely row-id
+      // collision) — surface the original error.
+      throw error;
+    }
   }
 
   async getBuyer(id: string): Promise<Buyer | null> {

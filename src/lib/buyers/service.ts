@@ -1,4 +1,5 @@
 import { BUYER_TERMS_VERSION } from './terms.ts';
+import { licenceCurrentOn, todayInGaborone } from './licence.ts';
 import type { BuyerStore } from './store.ts';
 import type { Buyer, BuyerStatus } from './types.ts';
 
@@ -18,7 +19,7 @@ export interface RegisterInput {
   /** All three licence fields are REQUIRED (STEP 0 amendment 2). */
   licenceNumber: string;
   licenceType: string;
-  /** ISO date/datetime string. */
+  /** Calendar date, strict YYYY-MM-DD (see licence.ts). */
   licenceExpiry: string;
   termsVersion: string;
 }
@@ -131,7 +132,9 @@ export async function acceptTerms(store: BuyerStore, buyerId: string, now = new 
  * verified account, current terms accepted, all three licence fields present,
  * staff-verified licence, and the licence not expired. `now` is injectable
  * for tests; expiry is checked at request time so a licence that lapses
- * mid-relationship blocks the very next offer without staff action.
+ * mid-relationship blocks the very next offer without staff action. Expiry
+ * is a calendar date (YYYY-MM-DD), inclusive of the final day, judged in
+ * Africa/Gaborone — see licence.ts (owner instruction 2026-11-01).
  */
 export function buyerMayOffer(buyer: Buyer | null, now: Date = new Date()): boolean {
   if (!buyer) return false;
@@ -139,8 +142,7 @@ export function buyerMayOffer(buyer: Buyer | null, now: Date = new Date()): bool
   if (buyer.termsVersion !== BUYER_TERMS_VERSION) return false;
   if (!buyer.licenceNumber || !buyer.licenceType || !buyer.licenceExpiry) return false;
   if (!buyer.licenceVerifiedAt) return false;
-  const expiry = Date.parse(buyer.licenceExpiry);
-  if (!Number.isFinite(expiry) || expiry <= now.getTime()) return false;
+  if (!licenceCurrentOn(buyer.licenceExpiry, todayInGaborone(now))) return false;
   return true;
 }
 
@@ -155,8 +157,7 @@ export function buyerStatusMessage(buyer: Buyer | null, now: Date = new Date()):
       if (buyer.termsVersion !== BUYER_TERMS_VERSION) {
         return { state: 'terms_stale', message: 'The buyer terms have changed — please accept the current version to keep making offers.' };
       }
-      const expiry = Date.parse(buyer.licenceExpiry || '');
-      if (!buyer.licenceExpiry || !Number.isFinite(expiry) || expiry <= now.getTime()) {
+      if (!licenceCurrentOn(buyer.licenceExpiry, todayInGaborone(now))) {
         return { state: 'licence_expired', message: 'Your diamond trading licence on file has expired. Provide a current licence to resume making offers.' };
       }
       return { state: 'verified', message: '' };
