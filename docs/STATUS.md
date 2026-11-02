@@ -35,7 +35,7 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
 | #29 | Bidder accounts on the auction stack — rebuilt as #31 | Superseded |
 | #30 | Server-only permissions for every collection/bucket; reconcile gate (`APPWRITE_RECONCILE_PERMISSIONS=1`, default OFF) + `scripts/reconcile-permissions.mjs` (dry-run default, `--apply` snapshots rollback first, `--restore`); domain-separated HMAC signing; `REPORT_SHARE_SECRET` required in production | Open, staged |
 | #31 | Buyer accounts (OTP login, KYC documents, staff review, terms, export/anonymisation) on the catalogue stack; unique `buyers.email` + race-safe registration; OTP refuses production without SMTP; licence expiry as an inclusive Africa/Gaborone calendar date; `docs/ci-workflow.yml` for manual CI install | Open, staged |
-| (next) | STEP 1 carry-over fixes: lockfile regeneration, this STATUS rewrite, registration/login anti-enumeration, server-side public-access flag guard | In review |
+| #32 | STEP 1 carry-over fixes: `middleware.ts` → `proxy.ts` rename (Next 16 convention; proxy runs on the Node.js runtime, not Edge), this STATUS rewrite, registration/login anti-enumeration, server-side public-access flag guard. package-lock regeneration is NOT in the PR — Ngwako regenerates locally on Node 22 | In review |
 
 ## Binding product amendments (STEP 0, approved 2026-10-31)
 
@@ -101,8 +101,12 @@ secure MVP**. Those findings still stand:
   auction engine built on branches (#26/#28) is disabled and will not ship.
 - Staff dashboard (`/dashboard`: requests, stones, paste-in import, traders,
   jewelry onboarding), sourcing request flow, intelligence + reports, trader
-  and model portals, HMAC session auth (`src/proxy.ts`, the Next 16 convention
-  formerly `middleware.ts`).
+  and model portals, HMAC session auth (`src/proxy.ts` — the Next 16
+  convention formerly `middleware.ts`; proxy runs on the **Node.js runtime
+  only** and the runtime is not configurable — it is NOT the Edge runtime
+  `middleware.ts` ran on. Nothing in `src/proxy.ts` or its imports depends
+  on Edge-only behaviour: every API used (Web Crypto, `atob`/`btoa`, `URL`,
+  `NextRequest`/`NextResponse`) behaves identically on Node 22).
 - Appwrite backend with auto-provisioning, DeepSeek AI tools, Dify SAME chat,
   SMTP email, Vercel crons (ground report, compliance briefing).
 - Clean `npm ci && next build`; packaged test suites pass under Node 22+.
