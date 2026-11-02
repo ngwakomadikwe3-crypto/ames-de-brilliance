@@ -68,6 +68,30 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
 - (e) `CATALOGUE_PUBLIC_ACCESS` is read server-side on every request and is
   never a `NEXT_PUBLIC` variable, with a test — **done** (carry-over PR).
 
+## Verifying the Appwrite lockdown (scripts/verify-lockdown.mjs)
+
+`scripts/verify-lockdown.mjs` proves the server-only lockdown from the
+OUTSIDE: given only `APPWRITE_ENDPOINT` and `APPWRITE_PROJECT_ID` (no API
+key, no session), it tries to list documents in every collection, list
+files in every bucket, and fetch a file directly from every bucket. The
+collection/bucket names come from the same `COLLECTION_DEFS` / `BUCKET_DEFS`
+/ `DB_ID` constants in `src/lib/appwrite.ts`, so the probe set cannot drift
+from the provisioned schema. Read-only: GET requests only.
+
+    APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1 \
+    APPWRITE_PROJECT_ID=<project id> \
+    node --experimental-strip-types scripts/verify-lockdown.mjs
+
+Exit codes: 0 = PASS (every call refused with 401/403, or 404 where the
+resource is not provisioned), 1 = FAIL (a call returned data — the exposed
+resources are printed), 2 = inconclusive (network error or unexpected
+status; the lockdown is not proven).
+
+Run it BEFORE `node scripts/reconcile-permissions.mjs --apply` against a
+legacy project to see the exposed surface (expect FAIL listing every open
+collection/bucket), and again AFTER `--apply` to prove the lockdown
+(expect PASS).
+
 ## Acceptance criteria for the offers/deals work (STEP 2, not started)
 
 - Staff data export for a buyer includes that buyer's **offers and audit
