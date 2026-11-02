@@ -60,6 +60,17 @@ export async function registerBuyer(store: BuyerStore, input: RegisterInput, now
   return buyer;
 }
 
+/**
+ * The ONLY body the register route may return for an accepted request
+ * (carry-over item (c), anti-enumeration). Identical whether the email is
+ * new or already registered: no buyerId, no difference in status or shape.
+ * The route returns it with HTTP 201 on BOTH paths, and the buyers test
+ * suite guards that contract.
+ */
+export function registrationAcceptedBody(): { ok: true; status: 'pending' } {
+  return { ok: true, status: 'pending' };
+}
+
 export type StaffDecision = 'approve' | 'reject' | 'suspend';
 
 const DECISION_TARGET: Record<StaffDecision, BuyerStatus> = {

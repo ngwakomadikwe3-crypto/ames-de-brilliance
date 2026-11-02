@@ -1,7 +1,7 @@
 # AMES DE BRILLIANTE
 
-B2B diamond sourcing, boutique and auction platform for a licensed diamond dealer in
-Botswana. Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, deployed on
+B2B diamond sourcing, boutique and rough-diamond catalogue platform for a licensed
+diamond dealer in Botswana. Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4, deployed on
 Vercel, with Appwrite as the data and storage backend and the SAME concierge chat
 powered by a Dify chatflow.
 
@@ -35,7 +35,8 @@ reference for that schema only — it is not runnable SQL.
   reference ring viewer. Engine asset packs are synced into `public/ames-engine/`
   from a verified engine checkout — see `scripts/sync-ames-*.mjs`.
 - **Auth:** HMAC-signed session cookie (`adb_session`, 8 h) checked in
-  `src/middleware.ts` for `/dashboard`, `/api/requests` and `/api/traders`. Staff
+  `src/proxy.ts` (the Next 16 convention, formerly `middleware.ts`) for
+  `/dashboard`, `/api/requests` and `/api/traders`. Staff
   accounts live in Appwrite; optional emergency owner/cousin codes come from the
   environment only.
 - **AI tools:** DeepSeek-compatible API (`src/lib/ai.ts`) for parsing sourcing
@@ -61,7 +62,7 @@ Never commit real values; `.env*` is git-ignored.
 
 | Route | Access | Description |
 |---|---|---|
-| `/` | Public | Auction room catalogue (currently demo lots; real backend lands in the auction phase) |
+| `/` | Public | Demo auction room (demo lots only; the auction engine stays disabled — STEP 5 replaces this page with the rough catalogue homepage) |
 | `/app` | Public | Product shell: Boutique / SAME chat / Media panels |
 | `/app/settings`, `/app/billing` | Public | Shell settings and billing placeholders |
 | `/request`, `/success` | Public | Sourcing request form + confirmation |

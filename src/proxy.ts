@@ -3,7 +3,9 @@ import { sessionTokenFromCookieHeader, verifyStaffSession } from "@/lib/session"
 import { sameOrigin } from "@/lib/same-origin";
 
 /**
- * Edge middleware — buyer accounts.
+ * Request proxy (Next 16 convention — formerly "middleware") — buyer accounts.
+ * Renamed middleware.ts → proxy.ts in the STEP 1 carry-over PR; behaviour and
+ * matcher are unchanged, the export is now `proxy`.
  *
  * Ported from recovery/ames-visual proxy.ts (deliberate, partial port):
  *  - /login and /api/auth pass through FIRST (recovery order), so the login
@@ -23,7 +25,7 @@ import { sameOrigin } from "@/lib/same-origin";
  * demands the role claim, so a validly signed buyer cookie (adb_buyer)
  * can never widen into the dashboard or staff APIs.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Login page and auth API pass through first (recovery order).

@@ -7,6 +7,10 @@
  * CATALOGUE_PUBLIC_ACCESS, the offer-access predicate (amendment 2), the
  * staff-role authz matrix, IDOR resistance, document sniffing + signed links,
  * export/anonymisation, audited document views, and same-origin enforcement.
+ * Carry-over additions (Ngwako 2026-11-02): anti-enumeration — register and
+ * login return identical responses for known and unknown emails (item (c));
+ * the public-access flag is read server-side on every request and is never
+ * a NEXT_PUBLIC variable (item (e)).
  *
  * All fixtures are invented people (example.test) — no real personal data,
  * no real ID documents.
@@ -17,7 +21,9 @@
  */
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 // SESSION_SECRET must exist BEFORE session.ts is imported (read at load).
@@ -322,7 +328,7 @@ test('authz matrix: only owner and staff can review or decide buyers', () => {
   }
 });
 
-test('authz matrix: every staff route calls its guard; middleware gates staff surfaces', () => {
+test('authz matrix: every staff route calls its guard; proxy gates staff surfaces', () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
   const staffRoutes = [
     ['../src/app/api/staff/buyers/route.ts', /canReviewBuyers/],
@@ -337,8 +343,8 @@ test('authz matrix: every staff route calls its guard; middleware gates staff su
     assert.match(read(path), guard, `${path} must call its guard`);
     assert.match(read(path), /getStaffSessionRole|verifyDocumentLink/, `${path} must establish the staff actor`);
   }
-  const mw = read('../src/middleware.ts');
-  assert.match(mw, /verifyStaffSession/, 'middleware requires a staff session for staff surfaces');
+  const mw = read('../src/proxy.ts');
+  assert.match(mw, /verifyStaffSession/, 'proxy requires a staff session for staff surfaces');
   assert.match(mw, /\/api\/buyers\/:path\*/, 'buyer API inside the matcher');
   assert.match(mw, /\/api\/staff\/:path\*/, 'staff API inside the matcher');
   assert.match(mw, /sameOrigin/, 'same-origin enforcement present');
@@ -623,4 +629,80 @@ test('domain separation: buyer, staff, doc-link and OTP signatures are mutually 
   assert.ok(otpHash);
   assert.notEqual(otpHash, hmacSignHexFor('staff-session', 'alice@example.test:123456'), 'OTP domain isolated from staff');
   assert.notEqual(otpHash, hmacSignHexFor('report-share', 'alice@example.test:123456'), 'OTP domain isolated from share links');
+});
+
+/* ── 15. Anti-enumeration: identical responses for known/unknown emails (carry-over item (c)) ── */
+
+test('register route: success and duplicate-email paths return the identical body (static)', () => {
+  const route = readFileSync(new URL('../src/app/api/buyers/register/route.ts', import.meta.url), 'utf8');
+  const accepted = route.match(/NextResponse\.json\(registrationAcceptedBody\(\), \{ status: 201 \}\)/g) || [];
+  assert.equal(accepted.length, 2, 'success AND duplicate-email paths return the same helper body with 201');
+  assert.match(route, /error instanceof DuplicateEmailError/, 'duplicate branch still keyed on the race-safe error');
+  assert.ok(!route.includes('buyerId'), 'register route never returns a buyerId — the body cannot differ by account existence');
+});
+
+test('registrationAcceptedBody: one constant shape, no identifiers', () => {
+  const a = service.registrationAcceptedBody();
+  const b = service.registrationAcceptedBody();
+  assert.deepEqual(a, { ok: true, status: 'pending' });
+  assert.deepEqual(a, b, 'identical for every caller');
+  assert.ok(!('buyerId' in a) && !('email' in a), 'no account-identifying fields');
+});
+
+test('request-code route: one shared success body for known and unknown emails (static)', () => {
+  const route = readFileSync(new URL('../src/app/api/buyers/login/request-code/route.ts', import.meta.url), 'utf8');
+  const successBodies = route.match(/NextResponse\.json\(\{ ok: true, message:/g) || [];
+  assert.equal(successBodies.length, 1, 'exactly one success response exists in the route');
+  assert.match(route, /If the email is registered, a sign-in code is on its way\./);
+  const branchAt = route.indexOf('if (buyer && !buyer.anonymisedAt)');
+  const successAt = route.indexOf('If the email is registered');
+  assert.ok(branchAt > 0 && successAt > branchAt, 'the sole success response sits AFTER the existence branch — both paths converge on it');
+});
+
+test('verify route: unknown email and wrong code return the identical 401 body (static)', () => {
+  const route = readFileSync(new URL('../src/app/api/buyers/login/verify/route.ts', import.meta.url), 'utf8');
+  const invalid = route.match(/\{ ok: false, error: "invalid_code" \}, \{ status: 401 \}\)/g) || [];
+  assert.equal(invalid.length, 2, 'unknown-email and bad-code paths share the identical 401 body');
+});
+
+/* ── 16. Public-access flag: server-side, per request, never NEXT_PUBLIC (carry-over item (e)) ── */
+
+test('public-access flag: read from process.env on every call, exact "1" only (behavioral)', () => {
+  delete process.env.CATALOGUE_PUBLIC_ACCESS;
+  assert.equal(access.cataloguePublicAccessEnabled(), false);
+  process.env.CATALOGUE_PUBLIC_ACCESS = '1';
+  try {
+    assert.equal(access.cataloguePublicAccessEnabled(), true, 'flips without module reload — per-request read, not a cached constant');
+  } finally {
+    delete process.env.CATALOGUE_PUBLIC_ACCESS;
+  }
+  for (const bad of ['0', 'true', 'yes', 'on', ' 1', '1 ']) {
+    process.env.CATALOGUE_PUBLIC_ACCESS = bad;
+    assert.equal(access.cataloguePublicAccessEnabled(), false, `value ${JSON.stringify(bad)} must not open the catalogue`);
+  }
+  delete process.env.CATALOGUE_PUBLIC_ACCESS;
+});
+
+test('public-access flag: never a NEXT_PUBLIC variable anywhere in src (static tree scan)', () => {
+  const srcRoot = fileURLToPath(new URL('../src', import.meta.url));
+  const stack = [srcRoot];
+  let scanned = 0;
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      scanned++;
+      const text = readFileSync(full, 'utf8');
+      assert.ok(!text.includes('NEXT_PUBLIC_CATALOGUE'), `${entry.name} leaks the catalogue flag to the client bundle`);
+    }
+  }
+  assert.ok(scanned > 40, `scan covered the source tree (${scanned} files)`);
+  const envExample = readFileSync(new URL('../.env.example', import.meta.url), 'utf8');
+  assert.match(envExample, /CATALOGUE_PUBLIC_ACCESS/, 'server-side flag documented');
+  assert.ok(!envExample.includes('NEXT_PUBLIC_CATALOGUE'), 'no NEXT_PUBLIC variant documented');
 });

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { ID } from "node-appwrite";
 import { ensureReady } from "@/lib/appwrite";
 import { AppwriteBuyerStore } from "@/lib/buyers/appwrite-store";
-import { registerBuyer } from "@/lib/buyers/service";
+import { registerBuyer, registrationAcceptedBody } from "@/lib/buyers/service";
 import { BUYER_TERMS_VERSION } from "@/lib/buyers/terms";
 import { DuplicateEmailError } from "@/lib/buyers/types";
 import { isValidLicenceDate } from "@/lib/buyers/licence";
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const buyer = await registerBuyer(store, {
+      await registerBuyer(store, {
         id: ID.unique(),
         name: parsed.data.name,
         email: parsed.data.email,
@@ -68,11 +68,14 @@ export async function POST(request: NextRequest) {
         licenceExpiry: parsed.data.licenceExpiry,
         termsVersion: BUYER_TERMS_VERSION,
       });
-      return NextResponse.json({ ok: true, buyerId: buyer.id, status: buyer.status }, { status: 201 });
+      // Anti-enumeration (carry-over item (c)): the success body is byte-
+      // identical to the duplicate-email body below — no account id, same
+      // status, same HTTP code. The modal only reads res.ok / data.error.
+      return NextResponse.json(registrationAcceptedBody(), { status: 201 });
     } catch (error) {
       if (error instanceof DuplicateEmailError) {
         // Deliberately vague: do not confirm whether an account exists.
-        return NextResponse.json({ ok: true, status: "pending" }, { status: 201 });
+        return NextResponse.json(registrationAcceptedBody(), { status: 201 });
       }
       throw error;
     }
