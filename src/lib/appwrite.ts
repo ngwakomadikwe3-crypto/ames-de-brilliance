@@ -416,6 +416,7 @@ export const COLLECTION_DEFS: CollectionDef[] = [
     name: "Stones",
     attrs: [
       { key: "ref", type: "string", size: 50, required: true },
+      { key: "stone_type", type: "string", size: 50, default: "polished" },
       { key: "shape", type: "string", size: 100, required: true },
       { key: "carat", type: "float", required: true, default: 0 },
       { key: "color", type: "string", size: 50, required: true },
@@ -453,10 +454,7 @@ export const COLLECTION_DEFS: CollectionDef[] = [
       { key: "carat_max", type: "string", size: 20, default: "" },
       { key: "color", type: "string", size: 50, required: true },
       { key: "clarity", type: "string", size: 50, required: true },
-      { key: "certification", type: "string", size: 50, default: "" },
-      { key: "notes", type: "string", size: 5000, default: "" },
-      { key: "kp_licence", type: "string", size: 100, default: "" },
-      { key: "kp_country", type: "string", size: 100, default: "" },
+      { key: "certification", type: "string", size: 50, required: true },
       { key: "consent", type: "boolean", default: false },
       { key: "declaration", type: "boolean", default: false },
       { key: "consent_timestamp", type: "string", size: 50, default: "" },
@@ -609,7 +607,7 @@ export const COLLECTION_DEFS: CollectionDef[] = [
     attrs: [
       { key: "product_slug", type: "string", size: 100, required: true },
       { key: "product_name", type: "string", size: 255, required: true },
-      { key: "tier", type: "string", size: 100, required: true },
+      { key: "tier", type: "string", size: 50, required: true },
       { key: "tier_label", type: "string", size: 100, required: true },
       { key: "charge", type: "integer", default: 0 },
       { key: "buyer_name", type: "string", size: 255, default: "" },
