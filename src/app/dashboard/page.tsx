@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import JewelryOnboardingTab from "@/components/JewelryOnboardingTab";
 import BuyerReviewTab from "@/components/BuyerReviewTab";
+import LotsTab from "@/components/LotsTab";
 
 interface Request {
   id: string; date: string; company: string; country: string; buyerName: string;
@@ -30,7 +31,7 @@ interface Trader {
   stone_count?: number; sales_count?: number;
 }
 
-type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "buyers" | "videos" | "models" | "intelligence" | "billing";
+type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "buyers" | "lots" | "videos" | "models" | "intelligence" | "billing";
 
 function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
   const esc = (v: string|number) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -72,7 +73,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
-            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"]] : []),...(role === "owner" || role === "staff" ? [["buyers","Buyers"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
+            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"]] : []),...(role === "owner" || role === "staff" ? [["buyers","Buyers"],["lots","Lots"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
               <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b border-[#1A1A1A] text-[#171717]":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[#A6A6AB] text-[#EAE8E4] rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
@@ -88,6 +89,7 @@ export default function Dashboard() {
         {tab==="traders" && <TradersTab />}
         {tab==="jewelry" && role === "owner" && <JewelryOnboardingTab />}
         {tab==="buyers" && (role === "owner" || role === "staff") && <BuyerReviewTab />}
+        {tab==="lots" && (role === "owner" || role === "staff") && <LotsTab role={role} />}
         {tab==="videos" && <VideosTab />}
         {tab==="models" && <ModelsTab />}
         {tab==="intelligence" && <IntelligenceTab />}
@@ -612,11 +614,10 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Clarity</label><input value={clarity} onChange={e=>setClarity(e.target.value)} className="field-input min-h-[36px]" /></div>
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Certification</label><input value={cert} onChange={e=>setCert(e.target.value)} className="field-input min-h-[36px]" /></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
-            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
-              <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
-          </div>
+          <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
+          <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
+            <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
+        </div>
         </div>
         <div className="flex gap-2 justify-end mt-4">
           <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
@@ -1472,7 +1473,7 @@ function OrdersTab() {
                       setCopiedId(o.id + 0.5); setTimeout(() => setCopiedId(null), 1500);
                     }
                   } catch { /* */ }
-                }} className="flex-1 py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default">
+                }} className="flex-1 py-1.5 border border-border text-[10px] text-muted cursor-default">
                   {copiedId === o.id + 0.5 ? "Copied" : "Copy report link"}
                 </button>
               )}
