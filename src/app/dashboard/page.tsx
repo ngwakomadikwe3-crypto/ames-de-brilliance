@@ -1056,7 +1056,7 @@ function TradersTab() {
   }
 
   async function togglePreferred(t: Trader) {
-    const res = await fetch("/api/traders/preferred", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: t.id }) });
+    const res = await fetch("/api/traders/preferred", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ id: t.id }) });
     if (res.ok) {
       const data = await res.json();
       setTraders(prev => prev.map(tr => tr.id === t.id ? { ...tr, preferred: data.preferred } : tr));
