@@ -37,6 +37,7 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
 | #31 | Buyer accounts (OTP login, KYC documents, staff review, terms, export/anonymisation) on the catalogue stack; unique `buyers.email` + race-safe registration; OTP refuses production without SMTP; licence expiry as an inclusive Africa/Gaborone calendar date; `docs/ci-workflow.yml` for manual CI install | Open, staged |
 | #32 | STEP 1 carry-over fixes: `middleware.ts` → `proxy.ts` rename (Next 16 convention; proxy runs on the Node.js runtime, not Edge), this STATUS rewrite, registration/login anti-enumeration, server-side public-access flag guard. package-lock regeneration is NOT in the PR — Ngwako regenerates locally on Node 22 | In review |
 | #33 | `scripts/verify-lockdown.mjs` — keyless outside-in lockdown proof (56 GET-only probes from the app's own constants, both Databases and TablesDB route families; populated-2xx FAIL, empty-2xx UNPROVEN, not-provisioned tracked separately with `--expect-provisioned`, sentinel file fetch informational only) + unit tests + runbook section below | In review |
+| #34 | STEP d1 — customer-visible rough catalogue: `lots`/`lot_compliance` tables, owner-only publish state machine, seller/buyer licence gating, staff+verified-buyer price visibility, private compliance bucket, single-file GLB per lot (server-mediated HMAC-ticket upload — flagged amendment-8 deviation; 5-minute signed view links), Lots dashboard tab, catalogue homepage replacing the demo auction room | In review |
 
 ## Binding product amendments (STEP 0, approved 2026-10-31)
 
@@ -118,7 +119,7 @@ Procedure around reconciliation:
    --apply` (expect FAIL listing every open collection/bucket on a legacy
    project) and again AFTER `--apply` (expect PASS).
 
-## STEP d1 — the rough catalogue (branch `feat/lots-catalogue`, in review)
+## STEP d1 — the rough catalogue (PR #34, branch `feat/lots-catalogue`, in review)
 
 The customer-visible catalogue half of STEP 2 + the STEP 5 homepage.
 
