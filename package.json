@@ -12,6 +12,7 @@
     "test:ames-media": "node --experimental-strip-types --test scripts/test-ames-media.mjs",
     "test:file-proxy": "node --experimental-strip-types --test scripts/test-file-proxy.mjs",
     "test:buyers": "node --experimental-strip-types --test scripts/test-ames-buyers.mjs",
+    "test:ames-lots": "node --experimental-strip-types --test scripts/test-ames-lots.mjs",
     "test:jewelry-onboarding": "node --experimental-strip-types --test scripts/test-jewelry-onboarding.mjs scripts/test-jewelry-pack.mjs",
     "dev": "next dev",
     "build": "next build",
