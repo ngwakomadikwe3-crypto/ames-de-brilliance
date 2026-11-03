@@ -18,8 +18,11 @@ import { sameOrigin } from "@/lib/same-origin";
  * Left out (legacy-only concerns): the legacyPolicy route table, the
  * customerIdentity/portalIdentity plumbing, and the /api/chat carve-out.
  * /api/cron stays outside the matcher entirely (Bearer-authed,
- * server-to-server, no Origin header by design). /api/lots is deliberately
- * NOT covered: the auction engine stays unrouted and disabled.
+ * server-to-server, no Origin header by design). /api/lots is the STEP d1
+ * catalogue API: GETs stay open (the route itself resolves catalogue access
+ * per request), while mutating calls (the model-link mint) are same-origin
+ * checked like the buyer and staff APIs. The auction engine stays unrouted
+ * and disabled.
  *
  * Staff surfaces additionally require a STAFF session: verifyStaffSession
  * demands the role claim, so a validly signed buyer cookie (adb_buyer)
@@ -36,7 +39,8 @@ export async function proxy(request: NextRequest) {
   // Same-origin enforcement on mutating calls (ported from proxy.ts).
   const originChecked =
     pathname.startsWith("/api/buyers") ||
-    pathname.startsWith("/api/staff");
+    pathname.startsWith("/api/staff") ||
+    pathname.startsWith("/api/lots");
   if (originChecked && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
     if (!sameOrigin(request)) {
       return NextResponse.json({ error: "Origin denied" }, { status: 403 });
@@ -73,5 +77,6 @@ export const config = {
     "/api/traders/:path*",
     "/api/staff/:path*",
     "/api/buyers/:path*",
+    "/api/lots/:path*",
   ],
 };
