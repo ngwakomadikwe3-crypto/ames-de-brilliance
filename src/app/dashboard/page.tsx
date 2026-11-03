@@ -1056,7 +1056,7 @@ function TradersTab() {
   }
 
   async function togglePreferred(t: Trader) {
-    const res = await fetch("/api/traders/preferred", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ id: t.id }) });
+    const res = await fetch("/api/traders/preferred", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: t.id }) });
     if (res.ok) {
       const data = await res.json();
       setTraders(prev => prev.map(tr => tr.id === t.id ? { ...tr, preferred: data.preferred } : tr));
@@ -1939,7 +1939,7 @@ function ModelsTab() {
                   <td className="px-2 py-1.5 text-right font-mono">{m.pending_count}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{m.approved_this_month}/{m.monthly_video_quota}</td>
                   <td className="px-2 py-1.5 text-right font-mono">${baseEarned(m).toFixed(0)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earned.toFixed(0)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earnings.toFixed(0)}</td>
                   <td className="px-2 py-1.5 text-right font-mono font-medium">${totalDue(m).toFixed(2)}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
