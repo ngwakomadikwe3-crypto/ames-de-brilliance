@@ -614,10 +614,11 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Clarity</label><input value={clarity} onChange={e=>setClarity(e.target.value)} className="field-input min-h-[36px]" /></div>
             <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Certification</label><input value={cert} onChange={e=>setCert(e.target.value)} className="field-input min-h-[36px]" /></div>
           </div>
-          <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
-          <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
-            <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Price (USD)</label><input value={price} onChange={e=>setPrice(e.target.value)} type="number" className="field-input min-h-[36px]" placeholder="Optional" /></div>
+            <div><label className="block text-[10px] uppercase tracking-wider font-medium text-muted mb-1">Listing</label>
+              <select value={lc} onChange={e=>setLc(e.target.value)} className="field-input min-h-[36px]"><option>Rough</option><option>Polished</option><option>Jewelry</option></select></div>
+          </div>
         </div>
         <div className="flex gap-2 justify-end mt-4">
           <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
@@ -1473,7 +1474,7 @@ function OrdersTab() {
                       setCopiedId(o.id + 0.5); setTimeout(() => setCopiedId(null), 1500);
                     }
                   } catch { /* */ }
-                }} className="flex-1 py-1.5 border border-border text-[10px] text-muted cursor-default">
+                }} className="flex-1 py-1.5 border border-border text-[10px] text-muted hover:bg-surface cursor-default">
                   {copiedId === o.id + 0.5 ? "Copied" : "Copy report link"}
                 </button>
               )}
@@ -1938,7 +1939,7 @@ function ModelsTab() {
                   <td className="px-2 py-1.5 text-right font-mono">{m.pending_count}</td>
                   <td className="px-2 py-1.5 text-right font-mono">{m.approved_this_month}/{m.monthly_video_quota}</td>
                   <td className="px-2 py-1.5 text-right font-mono">${baseEarned(m).toFixed(0)}</td>
-                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earnings.toFixed(0)}</td>
+                  <td className="px-2 py-1.5 text-right font-mono">${m.commission_earned.toFixed(0)}</td>
                   <td className="px-2 py-1.5 text-right font-mono font-medium">${totalDue(m).toFixed(2)}</td>
                   <td className="px-2 py-1.5">
                     <div className="flex gap-1">
