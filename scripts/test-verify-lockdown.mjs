@@ -64,7 +64,9 @@ test('normalizeEndpoint strips trailing slashes and ensures /v1', () => {
 test('probe set covers both route families from the app constants', () => {
   const probes = buildProbes({ dbId: DB_ID, collections: COLLECTION_DEFS, buckets: BUCKET_DEFS });
 
-  // 23 collections x 2 route families + 5 buckets files-list + 5 sentinel fetches.
+  // Collections x 2 route families + buckets files-list + sentinel fetches —
+  // the count derives from the app constants, so new resources extend the
+  // probe set automatically (25 collections + 8 buckets as of STEP d1).
   assert.equal(probes.length, COLLECTION_DEFS.length * 2 + BUCKET_DEFS.length * 2);
   assert.equal(probes.filter((p) => p.passRelevant).length, COLLECTION_DEFS.length * 2 + BUCKET_DEFS.length);
 
