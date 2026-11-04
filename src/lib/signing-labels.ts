@@ -22,7 +22,10 @@ export type SigningPurpose =
   | "buyer-session"
   | "buyer-otp"
   | "buyer-doc-link"
-  | "report-share";
+  | "report-share"
+  | "lot-model-link"
+  | "lot-upload-ticket"
+  | "lot-compliance-link";
 
 export const SIGNING_LABELS: Record<SigningPurpose, string> = {
   "staff-session": "ames:hmac:staff-session:v1",
@@ -30,6 +33,9 @@ export const SIGNING_LABELS: Record<SigningPurpose, string> = {
   "buyer-otp": "ames:hmac:buyer-otp:v1",
   "buyer-doc-link": "ames:hmac:buyer-doc-link:v1",
   "report-share": "ames:hmac:report-share:v1",
+  "lot-model-link": "ames:hmac:lot-model-link:v1",
+  "lot-upload-ticket": "ames:hmac:lot-upload-ticket:v1",
+  "lot-compliance-link": "ames:hmac:lot-compliance-link:v1",
 };
 
 /** Dedicated secret env var per purpose; SESSION_SECRET is the fallback. */
@@ -39,6 +45,9 @@ export const SIGNING_SECRET_ENV: Record<SigningPurpose, string> = {
   "buyer-otp": "BUYER_OTP_SECRET",
   "buyer-doc-link": "BUYER_DOC_LINK_SECRET",
   "report-share": "REPORT_SHARE_SECRET",
+  "lot-model-link": "LOT_MODEL_LINK_SECRET",
+  "lot-upload-ticket": "LOT_UPLOAD_TICKET_SECRET",
+  "lot-compliance-link": "LOT_COMPLIANCE_LINK_SECRET",
 };
 
 export const MIN_SECRET_LENGTH = 32;

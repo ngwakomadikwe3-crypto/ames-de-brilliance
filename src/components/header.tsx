@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { label: "Catalogue", href: "/#catalogue" },
-  { label: "Results", href: "/#results" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Compliance", href: "/compliance" },
 ];
@@ -55,11 +54,11 @@ export default function Header() {
             </a>
           ))}
           <a
-            href="/login"
+            href="/buyer"
             className="font-medium pb-0.5"
             style={{ color: isHome ? "#A6A6AB" : "#8E8E93" }}
           >
-            Register to bid
+            Buyer sign in
           </a>
         </nav>
 
@@ -103,11 +102,11 @@ export default function Header() {
             </a>
           ))}
           <a
-            href="/login"
+            href="/buyer"
             className="block py-2.5 text-[13px]"
             style={{ color: isHome ? "#A6A6AB" : "#6E6C69" }}
           >
-            Register to bid
+            Buyer sign in
           </a>
         </nav>
       )}

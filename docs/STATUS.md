@@ -1,6 +1,6 @@
 # AMES current state — honest assessment
 
-_Last updated: 2026-11-02, after the rough-diamond direction change. Written
+_Last updated: 2026-11-03, after the rough-diamond direction change. Written
 for review by Ngwako Madikwe; owner-level decisions go to Same Thwabi._
 
 ## Direction (2026-10-31, supersedes all auction-era planning)
@@ -37,6 +37,7 @@ buyers** — NOT an auction. The auction engine (PRs #26 and #28) stays
 | #31 | Buyer accounts (OTP login, KYC documents, staff review, terms, export/anonymisation) on the catalogue stack; unique `buyers.email` + race-safe registration; OTP refuses production without SMTP; licence expiry as an inclusive Africa/Gaborone calendar date; `docs/ci-workflow.yml` for manual CI install | Open, staged |
 | #32 | STEP 1 carry-over fixes: `middleware.ts` → `proxy.ts` rename (Next 16 convention; proxy runs on the Node.js runtime, not Edge), this STATUS rewrite, registration/login anti-enumeration, server-side public-access flag guard. package-lock regeneration is NOT in the PR — Ngwako regenerates locally on Node 22 | In review |
 | #33 | `scripts/verify-lockdown.mjs` — keyless outside-in lockdown proof (56 GET-only probes from the app's own constants, both Databases and TablesDB route families; populated-2xx FAIL, empty-2xx UNPROVEN, not-provisioned tracked separately with `--expect-provisioned`, sentinel file fetch informational only) + unit tests + runbook section below | In review |
+| #34 | STEP d1 — customer-visible rough catalogue: `lots`/`lot_compliance` tables, owner-only publish state machine, seller/buyer licence gating, staff+verified-buyer price visibility, private compliance bucket, single-file GLB per lot (server-mediated HMAC-ticket upload — flagged amendment-8 deviation; 5-minute signed view links), Lots dashboard tab, catalogue homepage replacing the demo auction room | In review |
 
 ## Binding product amendments (STEP 0, approved 2026-10-31)
 
@@ -118,6 +119,82 @@ Procedure around reconciliation:
    --apply` (expect FAIL listing every open collection/bucket on a legacy
    project) and again AFTER `--apply` (expect PASS).
 
+## STEP d1 — the rough catalogue (PR #34, branch `feat/lots-catalogue`, in review)
+
+The customer-visible catalogue half of STEP 2 + the STEP 5 homepage.
+
+**Schema (server-only, permissions `[]` like every other table):**
+
+- Tables `lots` and `lot_compliance` (unique index `lots_lot_no` is the
+  authoritative duplicate guard; `lots_state` supports the catalogue query).
+- Buckets `lot-photos` (jpeg/png/webp, 20 MB), `lot-compliance`
+  (pdf/jpeg/png/webp, 20 MB, private — buyers never see these), `lot-models`
+  (GLB only, 100 MB ceiling). All three are probed by
+  `scripts/verify-lockdown.mjs` automatically — the probe set derives from
+  the same `COLLECTION_DEFS`/`BUCKET_DEFS` constants.
+
+**State machine (amendments 1, 2, 6):** `draft → pending_review → approved →
+published`, plus `withdrawn` and `reopen`. Approve/reject/publish/withdraw
+are **owner-only** (staff prepare and submit). Submit requires every
+material field, a valid price (integer minor units + ISO 4217 alphabetic
+code, per lot, no default — amendment 5), a complete seller licence, and at
+least one photo. Publishing is refused while the seller licence is expired
+(inclusive Africa/Gaborone calendar date — amendment 2). Editing a material
+field of an approved/published lot demotes it to `pending_review` and a
+published lot leaves the catalogue immediately (amendment 6; photo and model
+changes are material).
+
+**Access and price visibility:** `/api/lots` serves published lots only, to
+staff and verified buyers always, to anonymous visitors only when
+`CATALOGUE_PUBLIC_ACCESS=1` (server-side, read per request). Prices are in
+the payload ONLY for staff and verified buyers (`maySeeLotPrice` — single
+tested predicate). Unpublished lots are invisible to the catalogue API
+(404, existence not leaked). Lot photos proxy through
+`/api/lots/[id]/photo/[fileId]`, which binds the file id to the lot (no
+IDOR) and requires browse access.
+
+**3D models (amendment 8, with one flagged deviation):** single-file GLB
+only, magic bytes + glTF version checked server-side, size cap
+`LOT_MODEL_MAX_BYTES` (default 50 MB, ceiling 100 MB). Viewing: 5-minute
+HMAC-signed URLs (purpose `lot-model-link`) binding lot, current file id,
+viewer and expiry; replacing the model kills outstanding links. Policy
+`LOT_MODEL_ACCESS`: `verified` (default — verified buyers and staff, every
+served view audited BEFORE the bytes stream) or `browsers`.
+**Deviation from the letter of amendment 8 ("direct-to-storage upload"),
+flagged for review:** the buckets are server-only (PR #30 lockdown), the app
+has no Appwrite Auth user sessions, and Appwrite offers no presigned-upload
+mechanism — a browser cannot write to storage directly. Uploads are instead
+server-mediated through a 2-minute single-purpose HMAC ticket
+(`lot-upload-ticket`, minted per lot per staff actor). Lots without a model
+render photos-only.
+
+**Compliance documents:** KP certificates, origin declarations, valuations,
+assays. Magic-byte sniffed at upload (filename/MIME never trusted), bytes in
+the private bucket, staff view via 5-minute signed links
+(`lot-compliance-link`); every served view is audited first.
+
+**Surfaces:** `/` is now the rough catalogue homepage (replacing the demo
+auction room — same dark/platinum visual language, no auction wording, no
+demo lots, no jewellery); `/lots/[id]` is the lot detail (photos-first, 3D
+on demand); `/dashboard` gains a **Lots** tab for owner/staff with the full
+lifecycle, media and compliance management. Staff and owner see identical
+screens except that approve/reject/publish/withdraw controls render for the
+owner only (the server re-checks regardless).
+
+**Audit:** every create/edit/transition/photo/model/compliance action and
+every restricted model or document view lands in the shared `audit_log`
+table with the `lot.*` action vocabulary.
+
+**Owner decisions flagged for Same Thwabi:** (1) price visibility default =
+staff + verified buyers only, anonymous browsers never; (2) withdrawal is
+owner-only, not just publishing; (3) the server-mediated upload deviation
+above; (4) `LOT_MODEL_ACCESS` default `verified`.
+
+**Tests:** `scripts/test-ames-lots.mjs` — 23 tests over the memory store and
+the pure functions (state machine, owner-only enforcement, expired-licence
+publish refusal, amendment-6 demotion, price stripping, GLB sniffing, link
+and ticket tamper/expiry, catalogue access gating).
+
 ## Acceptance criteria for the offers/deals work (STEP 2, not started)
 
 - Staff data export for a buyer includes that buyer's **offers and audit
@@ -147,8 +224,10 @@ secure MVP**. Those findings still stand:
 - Product shell at `/app`: Boutique / SAME chat / Media panels driven by AMES
   Engine content packs in `public/ames-engine/`.
 - Auction room at `/` — **demo only**: 8 hardcoded lots, client-side bids, no
-  backend. STEP 5 replaces it with the rough catalogue homepage. The real
-  auction engine built on branches (#26/#28) is disabled and will not ship.
+  backend. **Replaced on `feat/lots-catalogue`** (STEP d1): `/` becomes the
+  rough catalogue homepage, live from the `lots` table, no auction wording or
+  demo lots. The real auction engine built on branches (#26/#28) is disabled
+  and will not ship.
 - Staff dashboard (`/dashboard`: requests, stones, paste-in import, traders,
   jewelry onboarding), sourcing request flow, intelligence + reports, trader
   and model portals, HMAC session auth (`src/proxy.ts` — the Next 16
@@ -178,8 +257,9 @@ secure MVP**. Those findings still stand:
 
 ## Launch position
 
-**Not launch-ready.** STEP 2 (lots, compliance, offers, deals) and STEP 5
-(catalogue UI) must complete first. Owner decisions (currency per lot,
+**Not launch-ready.** STEP 2's offers/deals half (d2) must complete first —
+the lots catalogue (d1) is built and in review on `feat/lots-catalogue`.
+Owner decisions (currency per lot,
 payment rails and fee model for invoiced/paid, seller policy, legal/licensing
 confirmation for selling rough diamonds in Botswana, cousin-role PII access,
 buyer terms text, data-retention defaults) are flagged per PR for Same

@@ -17,6 +17,9 @@ export const REPORTS_BUCKET = "reports";
 export const LICENCE_DOCS_BUCKET = "licence-docs";
 export const JEWELRY_SOURCES_BUCKET = "jewelry-sources";
 export const BUYER_DOCS_BUCKET = "buyer-docs";
+export const LOT_PHOTOS_BUCKET = "lot-photos";
+export const LOT_COMPLIANCE_BUCKET = "lot-compliance";
+export const LOT_MODELS_BUCKET = "lot-models";
 
 /* ── Singletons ── */
 let _client: Client | null = null;
@@ -312,6 +315,32 @@ export const BUCKET_DEFS = [
     name: "Buyer Documents",
     maximumFileSize: 20 * 1024 * 1024,
     allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+  },
+  {
+    // Rough-lot photography for the catalogue. Server-only; served through
+    // the access-gated /api/lots/[id]/photo/[fileId] proxy, which requires
+    // catalogue browse access and binds the file id to the lot.
+    id: LOT_PHOTOS_BUCKET,
+    name: "Lot Photos",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp"],
+  },
+  {
+    // Lot compliance documents (KP certificates, origin declarations,
+    // valuations). Private: no buyer access at all — staff view only through
+    // short-lived signed URLs, every view audited.
+    id: LOT_COMPLIANCE_BUCKET,
+    name: "Lot Compliance Documents",
+    maximumFileSize: 20 * 1024 * 1024,
+    allowedFileExtensions: ["jpg", "jpeg", "png", "webp", "pdf"],
+  },
+  {
+    // Single-file GLB lot models. Server-only; browsers receive short-lived
+    // HMAC-signed view URLs (verified buyers by default — LOT_MODEL_ACCESS).
+    id: LOT_MODELS_BUCKET,
+    name: "Lot Models",
+    maximumFileSize: 100 * 1024 * 1024,
+    allowedFileExtensions: ["glb"],
   },
 ];
 
@@ -736,6 +765,81 @@ export const COLLECTION_DEFS: CollectionDef[] = [
       { key: "window_start", type: "integer", required: true },
       { key: "count", type: "integer", default: 0 },
       { key: "expires_at", type: "datetime" },
+    ],
+  },
+  {
+    id: "lots",
+    name: "Rough Lots",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // The customer-visible rough catalogue (STEP d1). Server-only: reads
+      // flow through the access-gated /api/lots routes, management through
+      // /api/staff/lots. State machine (amendments 1 + 6):
+      // draft → pending_review → approved → published, with withdraw and
+      // material-edit demotion back to pending_review; publishing is
+      // owner-only and refused while the seller licence is expired
+      // (amendment 2, inclusive Africa/Gaborone calendar date).
+      { key: "lot_no", type: "string", size: 50, required: true },
+      { key: "title", type: "string", size: 255, required: true },
+      { key: "description", type: "string", size: 5000, default: "" },
+      { key: "origin", type: "string", size: 100, default: "" },
+      { key: "carat_total", type: "float", default: 0 },
+      { key: "stones_count", type: "integer", default: 0 },
+      { key: "colour", type: "string", size: 100, default: "" },
+      { key: "clarity", type: "string", size: 100, default: "" },
+      { key: "crystal_form", type: "string", size: 100, default: "" },
+      // Amendment 5: asking price in integer minor units plus an ISO 4217
+      // alphabetic code, per lot, with NO hardcoded default currency.
+      { key: "price_minor", type: "integer", default: 0 },
+      { key: "currency", type: "string", size: 3, default: "" },
+      // Seller licence per lot (amendment 2). Expiry is a strict YYYY-MM-DD
+      // calendar date — see buyers/licence.ts for the shared date rules.
+      { key: "seller_licence_number", type: "string", size: 255, default: "" },
+      { key: "seller_licence_type", type: "string", size: 100, default: "" },
+      { key: "seller_licence_expiry", type: "string", size: 50, default: "" },
+      // draft | pending_review | approved | published | withdrawn
+      { key: "state", type: "string", size: 20, default: "draft" },
+      { key: "state_reason", type: "string", size: 500, default: "" },
+      // JSON array of file ids in the lot-photos bucket.
+      { key: "photo_file_ids", type: "string", size: 8192, default: "[]" },
+      // Single GLB file id in the lot-models bucket; '' when none.
+      { key: "model_file_id", type: "string", size: 100, default: "" },
+      { key: "created_by", type: "string", size: 150, default: "" },
+      { key: "approved_by", type: "string", size: 150, default: "" },
+      { key: "approved_at", type: "datetime" },
+      { key: "published_by", type: "string", size: 150, default: "" },
+      { key: "published_at", type: "datetime" },
+      { key: "created_at", type: "datetime" },
+      { key: "updated_at", type: "datetime" },
+    ],
+    indexes: [
+      // Lot numbers are unique stock references.
+      { key: "lots_lot_no", type: DatabasesIndexType.Unique, attributes: ["lot_no"] },
+      { key: "lots_state", type: DatabasesIndexType.Key, attributes: ["state", "created_at"] },
+    ],
+  },
+  {
+    id: "lot_compliance",
+    name: "Lot Compliance Records",
+    secure: true,
+    waitReady: true,
+    attrs: [
+      // Metadata only; bytes live in the private lot-compliance bucket and
+      // are served to staff exclusively through audited signed links.
+      { key: "lot_id", type: "string", size: 50, required: true },
+      { key: "doc_type", type: "string", size: 50, required: true },
+      { key: "file_id", type: "string", size: 100, required: true },
+      { key: "filename", type: "string", size: 255, default: "" },
+      { key: "content_type", type: "string", size: 100, default: "" },
+      { key: "size", type: "integer", default: 0 },
+      { key: "sha256", type: "string", size: 64, default: "" },
+      { key: "notes", type: "string", size: 1000, default: "" },
+      { key: "uploaded_by", type: "string", size: 150, default: "" },
+      { key: "uploaded_at", type: "datetime" },
+    ],
+    indexes: [
+      { key: "lot_compliance_lot", type: DatabasesIndexType.Key, attributes: ["lot_id"] },
     ],
   },
 ];
