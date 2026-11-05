@@ -81,7 +81,7 @@ function SelectedViewer({
         onModelReady={handleReady}
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></ViewerBoundary>}
-      {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/25 bg-[#031815]/90 px-4 text-[11px] text-[#eef5f2] shadow-lg backdrop-blur-md">View interactive 3D</button>}
+      {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-[#eef5f2]">Loading interactive 3D…</span>}
       {state === 'fallback' && <div role="status" style={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 20, color: '#eef5f2', fontSize: 12, textAlign: 'center' }}>
         <span style={{ background: 'rgba(3,24,21,0.92)', padding: '6px 10px', borderRadius: 12 }}>

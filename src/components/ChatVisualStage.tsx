@@ -94,7 +94,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
           <summary style={{ cursor: 'pointer', listStyle: 'none', opacity: 0.78 }}>Viewer details</summary>
           <div className="flex justify-center gap-1.5 flex-wrap mt-2" aria-label="Jewelry viewer actions">
             {content.contract.supportedViewerActions.map(action =>
-              <button key={action} type="button" onClick={() => applyAction(action)} className="px-2 py-1 rounded-full text-[10px]" style={{ background: 'rgba(3,24,21,0.42)', color: '#dceee8', border: '1px solid rgba(238,247,244,0.16)' }}>{actionLabels[action]}</button>)}
+              <button key={action} type="button" onClick={() => applyAction(action)} className="ames-pill px-3 min-h-8 rounded-full text-[11px]">{actionLabels[action]}</button>)}
           </div>
           {!content.commerciallyApproved && <p style={{ fontSize: 10, color: '#b8cdbf', marginTop: 5 }}>Visual review pending · Not approved for publication</p>}
           {content.contract.essentialSpecs.physicalScaleConfirmed === false && <p style={{ fontSize: 10, color: '#9eb8ae' }}>Physical scale unverified; dimensions and carat are not claimed.</p>}

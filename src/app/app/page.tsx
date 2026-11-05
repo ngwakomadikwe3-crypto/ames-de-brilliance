@@ -8,6 +8,7 @@ import EngineBoutiquePanel from "../../components/EngineBoutiquePanel";
 import EngineMediaPanel from "../../components/EngineMediaPanel";
 import PageCurl, { usePageCurl, curlPageStyle } from '../../components/PageCurl';
 import EngineCataloguePanel from "../../components/EngineCataloguePanel";
+import PullToRefresh from "../../components/PullToRefresh";
 import type { MediaRecord } from "../../lib/ames-media-content";
 import type { BoutiquePiece } from "../../lib/ames-boutique-content";
 import { assetSelectionMessage, parseAssetSelection, validatedAssetSelection, DEFAULT_CHAT_ASSET_ID } from '../../lib/chat-asset-selection';
@@ -33,6 +34,13 @@ export default function AppPage() {
   const [chatDraft, setChatDraft] = useState("");
   const [chatAssetId, setChatAssetId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Each page reloads its own content when pulled down; the other pages keep their state.
+  const [refreshTokens, setRefreshTokens] = useState([0, 0, 0, 0]);
+  const magazineRef = useRef<HTMLDivElement>(null);
+  const refreshActivePage = useCallback(() => {
+    hapticTap();
+    setRefreshTokens(tokens => tokens.map((token, index) => index === activePanel ? token + 1 : token));
+  }, [activePanel]);
 
   const [introDone, setIntroDone] = useState(true);
   const mediaOpened = useRef(false);
@@ -146,20 +154,21 @@ export default function AppPage() {
         </button>)}
       </nav>
       <span className="sr-only" role="status">{PANEL_LABELS[activePanel]}, page {activePanel + 1} of {PANEL_LABELS.length}</span>
-      <div className="ames-magazine" data-turning={turn ? true : undefined}>
+      <div ref={magazineRef} className="ames-magazine" data-turning={turn ? true : undefined}>
         <section id="ames-page-0" data-panel="0" aria-label="Boutique" hidden={activePanel !== 0 && turn?.from !== 0} aria-hidden={activePanel !== 0} data-curl-source={turn?.from === 0} style={curlPageStyle(turn, 0)} inert={activePanel !== 0} className="ames-magazine-page flex-col">
-          <EngineBoutiquePanel highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
+          <EngineBoutiquePanel key={`boutique-${refreshTokens[0]}`} highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
         </section>
         <section id="ames-page-1" data-panel="1" aria-label="Chat" hidden={activePanel !== 1 && turn?.from !== 1} aria-hidden={activePanel !== 1} data-curl-source={turn?.from === 1} style={curlPageStyle(turn, 1)} inert={activePanel !== 1} className="ames-magazine-page flex-col">
-          <ChatPanel stageActive={activePanel === 1} assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => turnTo(0)} />
+          <ChatPanel stageActive={activePanel === 1} assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => turnTo(0)} refreshToken={refreshTokens[1]} />
         </section>
         <section id="ames-page-2" data-panel="2" aria-label="Videos" hidden={activePanel !== 2 && turn?.from !== 2} aria-hidden={activePanel !== 2} data-curl-source={turn?.from === 2} style={curlPageStyle(turn, 2)} inert={activePanel !== 2} className="ames-magazine-page">
-          <EngineMediaPanel active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
+          <EngineMediaPanel key={`media-${refreshTokens[2]}`} active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
         </section>
         <section id="ames-page-3" data-panel="3" aria-label="Catalogue" hidden={activePanel !== 3 && turn?.from !== 3} aria-hidden={activePanel !== 3} data-curl-source={turn?.from === 3} style={curlPageStyle(turn, 3)} inert={activePanel !== 3} className="ames-magazine-page">
-          <EngineCataloguePanel />
+          <EngineCataloguePanel key={`catalogue-${refreshTokens[3]}`} />
         </section>
       </div>
+      <PullToRefresh rootRef={magazineRef} disabled={!!turn || drawerOpen || !introDone} onRefresh={refreshActivePage} />
       <PageCurl turn={turn} />
       {/* Folded-corner page controls */}
       {(turn?.from ?? activePanel) > 0 && (
@@ -190,7 +199,7 @@ interface ChatMessage {
 
 
 
-function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique }: { stageActive: boolean; assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void }) {
+function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique, refreshToken = 0 }: { stageActive: boolean; assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void; refreshToken?: number }) {
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -207,6 +216,7 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(assetId ?? DEFAULT_CHAT_ASSET_ID);
   const selectionVersion = useRef(0);
+  const [stageRefresh, setStageRefresh] = useState(0);
 
   useEffect(() => {
     selectionVersion.current += 1;
@@ -242,6 +252,21 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
     return sessionReady.current;
   }, []);
   useEffect(() => { prepareSession().catch(error => setSendError(error.message)); }, [prepareSession]);
+
+  // Pull-to-refresh: reload the conversation list, the open conversation and the 3D stage,
+  // while keeping the visitor's draft, selected piece and page.
+  const refreshedToken = useRef(refreshToken);
+  useEffect(() => {
+    if (refreshToken === refreshedToken.current) return;
+    refreshedToken.current = refreshToken;
+    queueMicrotask(() => {
+      setSendError('');
+      setStageRefresh(value => value + 1);
+      sessionReady.current = null;
+      prepareSession().catch(error => setSendError(error.message));
+      if (activeChatId) fetch(`/api/chats/${activeChatId}/messages`).then(res => res.ok ? res.json() : null).then(list => { if (Array.isArray(list)) setMessages(list); }).catch(() => {});
+    });
+  }, [refreshToken, prepareSession, activeChatId]);
 
   useEffect(() => {
     if (!prefill) return;
@@ -347,13 +372,13 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
             <div style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 10, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FCFCFB', border: '1px solid rgba(23,23,23,0.08)' }}>
               <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
             </div>
-            <div className="flex rounded-full p-[2px] ml-auto" style={{ background: '#F5F4F2' }}>
-              <button onClick={() => setMode("instant")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "instant" ? "#FCFCFB" : "transparent", color: mode === "instant" ? "#171717" : "#6E6C69" }}>Instant</button>
-              <button onClick={() => setMode("expert")} className="px-3 py-1 rounded-full text-[10px] transition-all" style={{ background: mode === "expert" ? "#FCFCFB" : "transparent", color: mode === "expert" ? "#171717" : "#6E6C69" }}>Expert</button>
+            <div className="flex gap-1.5 ml-auto" role="group" aria-label="Answer mode">
+              <button onClick={() => setMode("instant")} aria-pressed={mode === "instant"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]" style={{ color: mode === "instant" ? "#eef5f2" : "#9eb8ae" }}>Instant</button>
+              <button onClick={() => setMode("expert")} aria-pressed={mode === "expert"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]" style={{ color: mode === "expert" ? "#eef5f2" : "#9eb8ae" }}>Expert</button>
             </div>
           </div>
 
-          <ChatVisualStage key={selectedAssetId ?? 'default'} command={stageCommand} assetId={selectedAssetId} active={stageActive} compact />
+          <ChatVisualStage key={`${selectedAssetId ?? 'default'}-${stageRefresh}`} command={stageCommand} assetId={selectedAssetId} active={stageActive} compact />
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
@@ -396,12 +421,12 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
                 </div>
               )}
               <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+                <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
                 <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
-                <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} className="ames-pill" aria-pressed={input.trim() ? true : undefined} style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eef5f2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>
             </div>
@@ -409,9 +434,10 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
         </div>
       ) : (
         /* === EMPTY STATE — Claude-mobile minimalism === */
-        <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: 'transparent' }}>
+        /* The fixed top bar and page tabs cover the first 84px, so centre the piece in the visible area below them. */
+        <div data-chat-empty-stage className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: 'transparent', paddingTop: 84 }}>
 
-          <ChatVisualStage key={selectedAssetId ?? 'default'} command={stageCommand} assetId={selectedAssetId} active={stageActive} />
+          <ChatVisualStage key={`${selectedAssetId ?? 'default'}-${stageRefresh}`} command={stageCommand} assetId={selectedAssetId} active={stageActive} />
         </div>
       )}
 
@@ -421,12 +447,12 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
           <div className="mx-auto" style={{ maxWidth: 360 }}>
             {/* Floating card */}
             <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
+              <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
               <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
-              <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+              <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} className="ames-pill" aria-pressed={input.trim() ? true : undefined} style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eef5f2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
             </div>
           </div>

@@ -43,7 +43,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain pt-20" data-boutique-detail={piece.assetId}>
       <div className="ames-jewelry-stage relative shrink-0 mx-auto w-full" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
-        <button type="button" onClick={onClose} aria-label="Back to Boutique" className="absolute top-3 left-5 z-10 flex items-center justify-center w-10 h-10 rounded-full" style={{ color: '#dceee8', background: 'rgba(3,24,21,0.42)', border: '1px solid rgba(238,247,244,0.16)' }}>
+        <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
         {piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset="three_quarter" zoom={piece.assetId === 'demo-pave-solitaire' ? 1 : 0.78} autoLoad={piece.assetId === 'demo-pave-solitaire'} opticsProfile={piece.assetId === 'demo-pave-solitaire' ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
@@ -64,7 +64,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#b8d0c8' }}>{piece.inquiryState}</p>}
         {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#b8d0c8' }}>{piece.availabilityState}</p>}
         <div className="mt-4 space-y-3">{piece.listing?.price && <PurchaseActions assetId={piece.assetId} />}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
-        <button type="button" onClick={onAskSame} className="mt-5 text-[12px]" style={{ color: '#eef5f2', borderBottom: '1px solid rgba(238,247,244,0.55)', paddingBottom: 2 }}>Ask SAME</button>
+        <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex items-center min-h-11 rounded-full px-5 text-[12px]">Ask SAME</button>
       </div>
     </div>
   );
