@@ -90,7 +90,7 @@ export async function ensureReady(): Promise<void> {
           databaseId: DB_ID,
           collectionId: col.id,
           name: col.name,
-          permissions: col.id === "jewelry_products" ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
+          permissions: ["jewelry_products", "chats", "chat_messages", "request_limits", "videos"].includes(col.id) ? [] : [Permission.read(Role.any()), Permission.write(Role.any())],
         });
       } catch { /* exists */ }
       // Create missing attributes
@@ -178,7 +178,7 @@ export async function ensureReady(): Promise<void> {
         permissions: [],
         enabled: true,
         maximumFileSize: 250 * 1024 * 1024,
-        allowedFileExtensions: ["obj", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
+        allowedFileExtensions: ["3dm", "obj", "stl", "glb", "fbx", "zip", "jpg", "jpeg", "png", "webp", "pdf"],
       });
     } catch { /* exists */ }
 

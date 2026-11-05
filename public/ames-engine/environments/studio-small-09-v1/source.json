@@ -1,0 +1,21 @@
+{
+  "title": "Studio Small 09",
+  "author": "Sergej Majboroda",
+  "source": "https://polyhaven.com/a/studio_small_09",
+  "download": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+  "license": "CC0-1.0",
+  "licenseUrl": "https://polyhaven.com/license",
+  "sourceSha256": "e7cfda5f4e98e623db12b8bfd0184e048488e4855d9c83e2751fb44a32e80c45",
+  "processor": "scripts/build-mobile-studio-environment.mjs",
+  "cubeSize": 256,
+  "rgbmRange": 64,
+  "encoding": "Linear RGBM in RGBA8 PNG; display cube is sRGB Reinhard WebP",
+  "faces": [
+    "px",
+    "nx",
+    "py",
+    "ny",
+    "pz",
+    "nz"
+  ]
+}

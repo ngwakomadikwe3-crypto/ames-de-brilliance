@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jewelryOwnerGuard } from "@/lib/jewelry-auth";
+import { checkChatOrigin } from "@/lib/chat-security";
+import { mediaFeed } from "@/lib/customer-media";
 import {
   getAllVideos,
   getPublishedVideos,
@@ -14,8 +17,11 @@ export async function GET(req: NextRequest) {
   try {
     const published = req.nextUrl.searchParams.get("published");
     if (published === "1") {
-      return NextResponse.json(await getPublishedVideos());
+      const feed = await mediaFeed();
+      if (feed.warning) return NextResponse.json({ error: feed.warning }, { status: 503 });
+      return NextResponse.json(feed.records.filter(r => r.key.startsWith('video:')).map(r => ({ id: r.id, caption: r.name, video_url: r.mediaUrl, published: true, status: 'Live', featured_piece: r.product.assetId })), { headers: { 'Cache-Control': 'no-store' } });
     }
+    const denied = jewelryOwnerGuard(req); if (denied) return denied;
     const pending = req.nextUrl.searchParams.get("pending");
     if (pending === "1") {
       const all = await getAllVideos();
@@ -28,25 +34,30 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = jewelryOwnerGuard(req); if (denied) return denied;
   try {
-    const { video_url, caption, stone_id, model_id } = await req.json();
+    checkChatOrigin(req);
+    const { video_url, caption, stone_id, model_id, featured_piece } = await req.json();
     if (!video_url) {
       return NextResponse.json({ error: "video_url required" }, { status: 400 });
     }
+    if (featured_piece && (typeof featured_piece !== 'string' || !/^listing-[a-f0-9-]{36}$/.test(featured_piece))) return NextResponse.json({ error: 'Choose a reviewed listing' }, { status: 400 });
     // Model videos go through a separate path with Pending status
     if (model_id) {
       const video = await addModelVideo(String(model_id), video_url, caption || "", stone_id || null);
       return NextResponse.json(video);
     }
     const video = await addVideo(video_url, caption || "", stone_id || null);
-    return NextResponse.json(video);
+    return NextResponse.json(featured_piece ? await updateVideo(String(video.id), { featured_piece }) : video);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
+  const denied = jewelryOwnerGuard(req); if (denied) return denied;
   try {
+    checkChatOrigin(req);
     const { id, action, ...updates } = await req.json();
     if (!id) {
       return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -74,7 +85,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = jewelryOwnerGuard(req); if (denied) return denied;
   try {
+    checkChatOrigin(req);
     const id = req.nextUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json({ error: "id required" }, { status: 400 });

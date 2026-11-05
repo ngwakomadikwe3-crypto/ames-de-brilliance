@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { approveStone, rejectStone, getStoneById } from "@/lib/db";
+import { stoneWriteGuard } from '@/lib/stone-auth';
 
 export async function POST(request: NextRequest) {
+  const denied = stoneWriteGuard(request);
+  if (denied) return denied;
   try {
     const { id, edits, action, reason } = await request.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

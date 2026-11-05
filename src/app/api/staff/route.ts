@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionRole } from "../auth/login/route";
+import { getSessionRole } from "@/lib/staff-session";
 
 export async function GET(request: NextRequest) {
   const role = getSessionRole(request.headers.get("cookie") || undefined);

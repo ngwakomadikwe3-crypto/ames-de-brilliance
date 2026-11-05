@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionRole } from "@/app/api/auth/login/route";
+import { getSessionRole } from "@/lib/staff-session";
 import { isJewelryOwner } from "./jewelry-workflow";
 
 export function jewelryOwnerGuard(request: Request): NextResponse | null {

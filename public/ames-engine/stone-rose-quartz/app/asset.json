@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-rose-quartz",
+  "revisionId": "stone-rose-quartz:2",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "quartz",
+  "name": "Rose Quartz",
+  "aliases": [
+    "pink quartz",
+    "rose coloured quartz",
+    "rose colored quartz"
+  ],
+  "form": "cabochon",
+  "representativeCut": "high dome cabochon",
+  "defaultColors": [
+    "pink",
+    "rose",
+    "pale pink"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative polished rose quartz cabochon, not a stock item.",
+    "Cloudiness and microscopic inclusions are simplified.",
+    "Exact dimensions, weight, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-rose-quartz.blend"
+  }
+}

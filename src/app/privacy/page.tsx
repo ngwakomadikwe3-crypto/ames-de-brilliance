@@ -1,9 +1,10 @@
+import AppAccountShell from "@/components/AppAccountShell";
+
 export default function PrivacyPage() {
   return (
-    <div className="px-4 md:px-6 py-8 max-w-2xl mx-auto w-full">
-      <h2 className="text-[13px] font-bold mb-6">Privacy Policy</h2>
+    <AppAccountShell title="Privacy Policy">
 
-      <div className="text-[11px] leading-relaxed space-y-4">
+      <div className="ames-editorial-copy">
         <div>
           <h3 className="font-bold mb-1">1. Data Controller</h3>
           <p>AMES DE BRILLIANTE (Pty) Ltd is the data controller responsible for your personal data. We are a licensed diamond dealer registered in the Republic of Botswana.</p>
@@ -11,6 +12,9 @@ export default function PrivacyPage() {
 
         <div>
           <h3 className="font-bold mb-1">2. Data We Collect</h3>
+          <p>Customer accounts store your email address, display name, email verification status and account preferences using Appwrite authentication. Guest preferences remain in browser storage. Signing in does not transfer guest chat history or saved media between devices.</p>
+          <p>Account likes, saved videos, carts and purchase requests are stored with your account. Saved videos, carts and invoices are private to you and authorised AMES staff. Comments and your display name are public; like totals are public. You can remove your likes, saved videos and own comments. Comment reports are sent privately to AMES for review.</p>
+          <p>For an invoice request, we store the selected pieces, prices, your account name and email, notes, issued invoice instructions, payment confirmation references and fulfilment status. Requesting an invoice does not initiate a bank transfer.</p>
           <p>When you submit a sourcing request through this website, we collect the following personal information:</p>
           <ul className="list-disc ml-4 mt-1 space-y-0.5">
             <li>Full name</li>
@@ -29,6 +33,8 @@ export default function PrivacyPage() {
           <p>We collect and process your personal data solely to:</p>
           <ul className="list-disc ml-4 mt-1 space-y-0.5">
             <li>Respond to your sourcing requests and source diamonds on your behalf</li>
+            <li>Provide account sign-in, profile preferences, email verification and password recovery</li>
+            <li>Provide saved videos, comments, moderation, carts, bank-transfer invoices and purchase fulfilment</li>
             <li>Meet our regulatory and compliance obligations under Botswana law, including the Kimberley Process and anti-money laundering requirements</li>
             <li>Maintain records as required by our diamond dealer licence</li>
           </ul>
@@ -39,6 +45,7 @@ export default function PrivacyPage() {
           <p>We do not sell, rent, or trade your personal data to any third party. Your data may be shared only with:</p>
           <ul className="list-disc ml-4 mt-1 space-y-0.5">
             <li>Our authorised suppliers, solely to the extent necessary to source diamonds on your behalf</li>
+            <li>Appwrite, to provide account authentication, account activity and private purchase storage</li>
             <li>Regulatory authorities, where required by law</li>
           </ul>
         </div>
@@ -75,6 +82,6 @@ export default function PrivacyPage() {
           <p>We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date.</p>
         </div>
       </div>
-    </div>
+    </AppAccountShell>
   );
 }

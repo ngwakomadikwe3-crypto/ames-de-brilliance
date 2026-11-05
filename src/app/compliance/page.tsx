@@ -1,9 +1,10 @@
+import AppAccountShell from "@/components/AppAccountShell";
+
 export default function CompliancePage() {
   return (
-    <div className="px-4 md:px-6 py-8 max-w-2xl mx-auto w-full">
-      <h2 className="text-[13px] font-bold mb-6">Compliance and Regulatory Information</h2>
+    <AppAccountShell title="Compliance and Regulatory Information">
 
-      <div className="text-[11px] leading-relaxed space-y-4">
+      <div className="ames-editorial-copy">
         <div>
           <h3 className="font-bold mb-1">1. Licensing</h3>
           <p>AMES DE BRILLIANTE (Pty) Ltd is a licensed diamond dealer in the Republic of Botswana, operating under the provisions of the Diamond Trading Act and applicable regulations of the Ministry of Minerals and Energy. Our dealer licence number is displayed in the footer of this website.</p>
@@ -52,6 +53,6 @@ export default function CompliancePage() {
           <p>We maintain comprehensive records of all transactions, compliance checks, and due diligence activities in accordance with Botswana law. These records are available for inspection by relevant regulatory authorities upon request.</p>
         </div>
       </div>
-    </div>
+    </AppAccountShell>
   );
 }

@@ -1,28 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createOrder, getStoneById, getAllOrders, updateOrderStatus } from "@/lib/db";
+import { jewelryOwnerGuard } from "@/lib/jewelry-auth";
+import { checkChatOrigin } from "@/lib/chat-security";
+import { getAllOrders, updateOrderStatus } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = jewelryOwnerGuard(request); if (denied) return denied;
   return NextResponse.json(await getAllOrders());
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const { stoneId, buyerName, buyerWhatsapp, price } = await request.json();
-    if (!stoneId) return NextResponse.json({ error: "stoneId required" }, { status: 400 });
-
-    const stone = await getStoneById(stoneId);
-    if (!stone) return NextResponse.json({ error: "Stone not found" }, { status: 404 });
-    if (stone.status !== "Available") return NextResponse.json({ error: "Stone is not available" }, { status: 409 });
-
-    const order = await createOrder(stoneId, stone.ref, buyerName || "", buyerWhatsapp || "", price ?? stone.price);
-    return NextResponse.json({ order, message: "Reserved" });
-  } catch {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
-  }
+  return NextResponse.json({ error: "Use your account cart to request an invoice." }, { status: 409 });
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = jewelryOwnerGuard(request); if (denied) return denied;
   try {
+    checkChatOrigin(request);
     const { id, status } = await request.json();
     if (!id || !status) return NextResponse.json({ error: "id and status required" }, { status: 400 });
 

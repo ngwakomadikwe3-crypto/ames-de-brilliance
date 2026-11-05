@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-tourmaline",
+  "revisionId": "stone-tourmaline:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "tourmaline",
+  "name": "Tourmaline",
+  "aliases": [
+    "green tourmaline",
+    "verdelite"
+  ],
+  "form": "faceted",
+  "representativeCut": "elongated emerald",
+  "defaultColors": [
+    "green"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative green tourmaline preview; tourmaline species and colours vary widely.",
+    "Pleochroism, zoning, and natural inclusions are simplified.",
+    "Exact dimensions, carat, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-tourmaline.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

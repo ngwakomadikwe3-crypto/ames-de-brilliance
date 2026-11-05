@@ -1,0 +1,17 @@
+import {randomUUID} from 'node:crypto';
+import {z} from 'zod';
+import {readActivity,writeActivity,deleteActivity,listActivity,activityId,type Activity} from './account-activity-store';
+import {withListingLock} from './jeweller-listing-store';
+import {resolveMedia} from './customer-media';
+import {resolveCommentPiece} from './community-piece';
+async function resolveSubject(key:string){return key.startsWith('piece:')?resolveCommentPiece(key):resolveMedia(key);}
+export type Reaction={liked:boolean;saved:boolean};
+export type Comment={text:string;author:string};
+export const commentText=z.string().trim().min(1).max(500).refine(v=>!/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(v),'Remove control characters');
+export const mediaKey=z.string().min(3).max(180);
+export function reactionStatus(v:Reaction){return v.liked?(v.saved?'liked_saved':'liked'):(v.saved?'saved':'none');}
+export async function communityView(key:string,userId?:string,cursor?:string){await resolveSubject(key);const [reaction,likes,comments]=await Promise.all([userId?readActivity<Reaction>(activityId('reaction',userId+':'+key)):null,listActivity('reaction',{subject:key,status:['liked','liked_saved']},1),listActivity<Comment>('comment',{subject:key,status:'visible'},30,cursor)]);return{authenticated:!!userId,liked:reaction?.data.liked===true,saved:reaction?.data.saved===true,likes:likes.total,commentCount:comments.total,comments:comments.records.map(c=>({id:c.id,text:c.data.text,author:c.data.author,createdAt:c.createdAt,own:c.owner===userId})),next:comments.next};}
+export async function setReaction(userId:string,key:string,change:{liked?:boolean;saved?:boolean}){if(change.liked===true||change.saved===true)await resolveSubject(key);const id=activityId('reaction',userId+':'+key);await withListingLock(id,async()=>{const current=await readActivity<Reaction>(id),data={liked:current?.data.liked||false,saved:current?.data.saved||false,...change};await writeActivity({id,kind:'reaction',owner:userId,subject:key,status:reactionStatus(data),createdAt:current?.createdAt||new Date().toISOString(),data});});}
+export async function postComment(user:{$id:string;name:string},key:string,text:unknown){await resolveSubject(key);const entry:Activity<Comment>={id:randomUUID(),kind:'comment',owner:user.$id,subject:key,status:'visible',createdAt:new Date().toISOString(),data:{text:commentText.parse(text),author:user.name.trim().slice(0,80)||'AMES member'}};await writeActivity(entry,true);return entry;}
+export async function editComment(userId:string,key:string,id:string,action:'delete'|'hide',staff:boolean){await withListingLock(id,async()=>{const c=await readActivity<Comment>(id);if(!c||c.kind!=='comment'||c.subject!==key||!staff&&c.owner!==userId)throw Error('Comment unavailable');if(action==='hide'){if(!staff)throw Error('Staff review required');await writeActivity({...c,status:'hidden'});}else await deleteActivity(id);});}
+export async function reportComment(userId:string,key:string,id:string,reason:unknown){const c=await readActivity<Comment>(id);if(!c||c.kind!=='comment'||c.subject!==key||c.status!=='visible')throw Error('Comment unavailable');const reportId=activityId('comment-report',userId+':'+id);await withListingLock(reportId,async()=>{if(await readActivity(reportId))return;await writeActivity({id:reportId,kind:'report',owner:userId,subject:id,status:'open',createdAt:new Date().toISOString(),data:{reason:z.string().trim().min(5).max(500).parse(reason),mediaKey:key}},true);});}

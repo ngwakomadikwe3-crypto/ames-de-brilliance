@@ -77,6 +77,14 @@ export async function addJewelryFile(product: JewelryProduct, file: File): Promi
   const bytes = Buffer.from(await file.arrayBuffer());
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const sourceExtension = file.name.toLowerCase().split(".").pop() || "";
+  if (["stl", "3dm"].includes(sourceExtension)) {
+    const bucket = await getStorage().getBucket({ bucketId: JEWELRY_SOURCES_BUCKET });
+    if (bucket.allowedFileExtensions.length && !bucket.allowedFileExtensions.includes(sourceExtension)) {
+      await getStorage().updateBucket({ bucketId: JEWELRY_SOURCES_BUCKET, name: bucket.name,
+        allowedFileExtensions: [...bucket.allowedFileExtensions, sourceExtension] });
+    }
+  }
   const stored = await getStorage().createFile({
     bucketId: JEWELRY_SOURCES_BUCKET, fileId: ID.unique(),
     file: InputFile.fromBuffer(bytes, safeName),

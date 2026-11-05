@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "demo-modern-diamond",
+  "revisionId": "demo-modern-diamond:1",
+  "name": "AMES Éclat — Octagonal concept diamond",
+  "category": "diamond",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "educationalPreview": true,
+  "demonstrationOnly": true,
+  "verifiedClaims": {
+    "representativeDefaultOnly": true,
+    "commercialStock": false
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept proportions in metres; not a measured physical stone.",
+    "manufacturingReady": false
+  },
+  "limitations": [
+    "Original AMES concept model, not a jeweller upload or an offer for sale.",
+    "Authored proportions do not establish physical dimensions, carat, colour/clarity grade, origin or certification.",
+    "RGB internal refraction is illustrative; spectral dispersion and gemological cut grading are not implemented.",
+    "Visual and physical-device approval remain pending."
+  ],
+  "source": {
+    "license": "AMES original parametric geometry",
+    "generator": "scripts/blender/create_chat_statement_diamond.py",
+    "editableScene": "source-assets/chat-statement-diamond/revision-1/eclat-diamond.blend"
+  }
+}

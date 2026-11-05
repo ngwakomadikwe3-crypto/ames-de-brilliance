@@ -1,0 +1,8 @@
+{
+  "assetId": "demo-reference-ring",
+  "sourceImageSha256": "7c388b6424171897555059722aaecfe9367bc6ca779a8adfda5fc8020cbe6460",
+  "background": "alpha transparent",
+  "method": "Imagegen cutout from user-supplied image, WebP encoding",
+  "threeDimensionalModel": false,
+  "rightsVerified": false
+}

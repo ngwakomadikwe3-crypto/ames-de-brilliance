@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionRole } from "../auth/login/route";
+import { getSessionRole } from "@/lib/staff-session";
 import { getUsageStats } from "@/lib/db";
 
 export async function GET(request: NextRequest) {

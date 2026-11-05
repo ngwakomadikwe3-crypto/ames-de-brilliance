@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jewelryOwnerGuard } from "@/lib/jewelry-auth";
+import { checkChatOrigin } from "@/lib/chat-security";
 import { getStorage, getMediaUrl, DB_ID, MEDIA_BUCKET } from "@/lib/appwrite";
 import { ID } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
 
 export async function POST(req: NextRequest) {
+  const denied=jewelryOwnerGuard(req);if(denied)return denied;
   try {
+    checkChatOrigin(req);
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) {

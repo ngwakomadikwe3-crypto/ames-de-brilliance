@@ -14,20 +14,25 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cad:worker": "node --env-file-if-exists=.env.cad-worker.local scripts/cad/worker.mjs",
+    "test:cad": "node --test scripts/test-cad-processing.mjs",
+    "test:cad:studio": "node --experimental-strip-types --test scripts/test-cad-studio.mjs",
+    "test:jewellers": "node --experimental-strip-types --test scripts/test-jeweller-profiles.mjs",
+    "cad:listing": "node --env-file=.env.cad-worker.local scripts/cad/listing-operator.mjs"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1",
     "@react-pdf/renderer": "^4.8.1",
+    "ames-engine": "file:vendor/ames-engine-0.1.5.tgz",
     "better-sqlite3": "^13.0.3",
-    "framer-motion": "^13.1.1",
-    "next": "16.3.2",
+    "fflate": "^0.8.3",
+    "next": "16.4.3",
     "node-appwrite": "^28.0.0",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "10.1.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "^4.4.3",
-    "ames-engine": "file:vendor/ames-engine-0.1.0.tgz"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -37,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.2",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-sunstone",
+  "revisionId": "stone-sunstone:2",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "feldspar",
+  "name": "Sunstone",
+  "aliases": [
+    "sun stone",
+    "aventurine feldspar"
+  ],
+  "form": "cabochon with inclusions",
+  "representativeCut": "freeform cabochon",
+  "defaultColors": [
+    "orange",
+    "copper",
+    "peach"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative sunstone with procedural reflective flecks.",
+    "Aventurescence and natural inclusion patterns vary and are simplified.",
+    "Exact dimensions, weight, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-sunstone.blend"
+  }
+}

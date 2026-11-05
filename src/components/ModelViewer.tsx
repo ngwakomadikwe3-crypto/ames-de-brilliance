@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import {useReducedMotion} from '@/lib/use-reduced-motion';
 import { createTurntable, turntableEnabled, turntablePointerDown, turntablePointerUp, turntableReady, turntableReset, turntableTick } from '../lib/chat-turntable';
 
 const guardedArRenderers = new WeakSet<object>();
@@ -16,6 +17,9 @@ interface ModelViewerProps {
   shadowIntensity?: string;
   cameraOrbit?: string;
   fieldOfView?: string;
+  jewelryPresentation?: boolean;
+  /** Explicit material study for an untextured mount; never changes source files. */
+  metalPreview?: 'yellow-gold';
   controlledTurntable?: boolean;
   turntableEnabled?: boolean;
   turntableResetToken?: number;
@@ -36,12 +40,15 @@ export default function ModelViewer({
   shadowIntensity = "1",
   cameraOrbit,
   fieldOfView,
+  jewelryPresentation = false,
+  metalPreview,
   controlledTurntable = false,
   turntableEnabled: turntableEnabledProp = false,
   turntableResetToken = 0,
   fallbackTitle,
   fallbackSubtitle = "Photography coming soon",
 }: ModelViewerProps) {
+  const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLElement | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -49,8 +56,9 @@ export default function ModelViewer({
   const turntableState = useRef(createTurntable(turntableEnabledProp));
 
   useEffect(() => {
-    if (controlledTurntable) turntableState.current = turntableEnabled(turntableState.current, turntableEnabledProp, performance.now());
-  }, [controlledTurntable, turntableEnabledProp]);
+    if (controlledTurntable) turntableState.current = turntableEnabled(turntableState.current, turntableEnabledProp && !reducedMotion, performance.now());
+  }, [controlledTurntable, turntableEnabledProp, reducedMotion]);
+  useEffect(() => { if(reducedMotion)(viewerRef.current as (HTMLElement & {pause?:()=>void}) | null)?.pause?.(); }, [reducedMotion, loaded]);
 
   useEffect(() => {
     if (controlledTurntable && turntableResetToken > 0) turntableState.current = turntableReset(turntableState.current, performance.now());
@@ -61,6 +69,15 @@ export default function ModelViewer({
     if (!el) return;
 
     const onLoad = () => {
+      if (metalPreview === 'yellow-gold') {
+        type PreviewMaterial = { pbrMetallicRoughness: { setBaseColorFactor: (rgba: number[]) => void; setMetallicFactor: (value: number) => void; setRoughnessFactor: (value: number) => void } };
+        const model = (el as HTMLElement & { model?: { materials: PreviewMaterial[] } }).model;
+        model?.materials.forEach(({ pbrMetallicRoughness: material }) => {
+          material.setBaseColorFactor([1, 0.766, 0.336, 1]);
+          material.setMetallicFactor(1);
+          material.setRoughnessFactor(0.24);
+        });
+      }
       setLoaded(true);
       if (controlledTurntable) turntableState.current = turntableReady(turntableState.current, performance.now());
     };
@@ -114,11 +131,12 @@ export default function ModelViewer({
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [src, controlledTurntable]);
+  }, [src, controlledTurntable, metalPreview]);
 
   if (error) {
     return (
       <div
+        className={jewelryPresentation ? "ames-object-display" : undefined}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -152,7 +170,7 @@ export default function ModelViewer({
   }
 
   return (
-    <div ref={containerRef} style={{ position: "relative", width: "100%", ...style }}>
+    <div ref={containerRef} className={jewelryPresentation ? "ames-object-display" : undefined} style={{ position: "relative", width: "100%", ...style }}>
       {poster && !loaded && <img src={poster} alt={alt} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />}
       {/* @ts-expect-error — model-viewer is a custom element */}
       <model-viewer
@@ -162,15 +180,17 @@ export default function ModelViewer({
         poster={poster || ""}
         camera-orbit={cameraOrbit}
         field-of-view={fieldOfView}
-        auto-rotate={controlledTurntable ? false : autoRotate}
+        auto-rotate={controlledTurntable || reducedMotion ? false : autoRotate}
         camera-controls={cameraControls}
-        shadow-intensity={shadowIntensity}
-        shadow-softness="0.5"
-        exposure="1.2"
-        environment-image="neutral"
+        shadow-intensity={jewelryPresentation ? '0.55' : shadowIntensity}
+        shadow-softness={jewelryPresentation ? '1' : '0.5'}
+        exposure={jewelryPresentation ? '1' : '1.2'}
+        min-camera-orbit={jewelryPresentation ? 'auto auto 45%' : undefined}
+        max-camera-orbit={jewelryPresentation ? 'auto auto 160%' : undefined}
+        environment-image={jewelryPresentation ? "/ames-engine/environments/studio-small-09-v1/studio.hdr" : "neutral"}
         interaction-prompt="none"
         touch-action="pan-y"
-        autoplay
+        autoplay={!reducedMotion}
         {...(ar ? { ar: true, "ar-modes": "webxr scene-viewer quick-look" } : {})}
         style={{
           width: "100%",

@@ -12,18 +12,18 @@ const fetcher = async url => {
 
 test('engine items keep exact asset identity and approval state', async () => {
   const records = await loadMediaContent(fetcher);
-  assert.equal(records.length, 21);
+  assert.equal(records.length, 17);
   assert.deepEqual([...new Set(records.map(record => record.assetId))], ['dev-test-candidate-ring', 'dev-test-solitaire-mount', 'dev-test-earring-001', 'dev-test-pendant-001']);
   assert.ok(records.every(record => record.product.assetId === record.assetId));
   assert.ok(records.every(isMediaReview));
-  assert.equal(records.filter(record => record.mediaType === 'video').length, 8);
-  assert.equal(records[0].poster, '/ames-engine/dev-test-candidate-ring/web/poster.png');
+  assert.equal(records.filter(record => record.mediaType === 'video').length, 6);
+  assert.equal(records[0].poster, '/ames-engine/dev-test-candidate-ring/web/presentation-ring-studio.webp');
 });
 
 test('search uses supplied name and category without invented metal or shape', async () => {
   const records = await loadMediaContent(fetcher);
-  assert.equal(searchMedia(records, 'solitaire ring').length, 10);
-  assert.equal(searchMedia(records, 'ring').length, 10);
+  assert.equal(searchMedia(records, 'openwork pavé ring').length, 1);
+  assert.equal(searchMedia(records, 'ring').length, 6);
   assert.equal(searchMedia(records, 'earrings').length, 6);
   assert.ok(searchMedia(records, 'earrings').every(record => record.product.assetId === 'dev-test-earring-001'));
   assert.equal(searchMedia(records, 'pendant').length, 5);
@@ -43,12 +43,24 @@ test('local interaction boundary persists toggles and comments', () => {
   delete globalThis.window;
 });
 
-test('inherited media uses its pinned metadata and still rejects a mismatched revision', async () => {
+test('current ring Media rejects metadata from the archived geometry revision', async () => {
   const altered = async url => {
     const response = await fetcher(url);
     const value = await response.json();
-    if (url.endsWith('/app/boutique-media-v1.json')) value.revisionId = 'dev-test-candidate-ring:2';
+    if (url.endsWith('/dev-test-candidate-ring/app/boutique.json')) value.revisionId = 'dev-test-candidate-ring:1';
     return { ok: true, json: async () => value };
   };
   await assert.rejects(() => loadMediaContent(altered), /AMES Media metadata mismatch/);
+});
+
+test('ring presentation uses the current render and keeps old motion out of customer media', async () => {
+  const [media, boutique, chat, archived] = await Promise.all(['media.json','boutique.json','chat.json','media-revision1.json'].map(path => readFile(new URL(`dev-test-candidate-ring/app/${path}`,root),'utf8').then(JSON.parse)));
+  assert.equal(media.revisionId, boutique.revisionId);
+  assert.equal(media.revisionId, chat.revisionId);
+  assert.equal(media.items.length, 1);
+  assert.equal(media.items[0].path, boutique.heroImage);
+  assert.equal(chat.heroImage, boutique.heroImage);
+  assert.ok(archived.items.some(item => item.mediaType === 'video'));
+  assert.equal(media.visualApproval, 'pending');
+  assert.equal(media.publicationStatus, 'review');
 });

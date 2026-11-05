@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import { subscribeCustomerPreferences, readCustomerDisplayName, hapticTap } from '../../lib/customer-preferences';
+import { customerAnswer } from '../../lib/same-answer';
 import dynamic from "next/dynamic";
 import EngineBoutiquePanel from "../../components/EngineBoutiquePanel";
 import EngineMediaPanel from "../../components/EngineMediaPanel";
-import EngineAuctionPanel from "../../components/EngineAuctionPanel";
+import PageCurl, { usePageCurl, curlPageStyle } from '../../components/PageCurl';
+import EngineCataloguePanel from "../../components/EngineCataloguePanel";
 import type { MediaRecord } from "../../lib/ames-media-content";
 import type { BoutiquePiece } from "../../lib/ames-boutique-content";
+import { assetSelectionMessage, parseAssetSelection, validatedAssetSelection, DEFAULT_CHAT_ASSET_ID } from '../../lib/chat-asset-selection';
+import { parseViewerIntent } from '../../lib/chat-viewer-actions';
 const ChatVisualStage = dynamic(() => import("../../components/ChatVisualStage"), { ssr: false });
 const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: false });
 
@@ -18,95 +23,66 @@ const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: f
    MAIN PAGE
    ═══════════════════════════════════════════ */
 
-const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Auction"] as const;
+const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Catalogue"] as const;
 
 export default function AppPage() {
-  const [activePanel, setActivePanel] = useState(1);
+  const displayName = useSyncExternalStore(subscribeCustomerPreferences, readCustomerDisplayName, () => '');
+  const { activePage: activePanel, turn, turnTo, cornerGesture } = usePageCurl(1, PANEL_LABELS.length);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
   const [chatPrefill, setChatPrefill] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatAssetId, setChatAssetId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [chatLoaded, setChatLoaded] = useState(false);
-  const [ringLoaded, setRingLoaded] = useState(false);
+
   const [introDone, setIntroDone] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mediaOpened = useRef(false);
+  useEffect(() => { if (mediaOpened.current) return; mediaOpened.current = true; if (new URLSearchParams(location.search).has("catalogue")) turnTo(3); else if (new URLSearchParams(location.search).has("media")) turnTo(2); }, [turnTo]);
 
   useEffect(() => {
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && !sessionStorage.getItem("ames_intro_seen")) queueMicrotask(() => setIntroDone(false));
   }, []);
 
   useEffect(() => {
-    const c = containerRef.current;
-    if (!c) return;
-    const obs = new IntersectionObserver(
-      (entries) => { entries.forEach((e) => { if (e.isIntersecting && e.intersectionRatio > 0.5) setActivePanel(Number(e.target.getAttribute("data-panel"))); }); },
-      { root: c, threshold: 0.5 }
-    );
-    c.querySelectorAll("[data-panel]").forEach((p) => obs.observe(p));
-    return () => obs.disconnect();
-  }, []);
-
-  /* ── Native scroll-snap navigation ── */
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  function swipeTo(idx: number) {
-    const next = Math.max(0, Math.min(PANEL_LABELS.length - 1, idx));
-    setActivePanel(next);
-    const container = scrollRef.current;
-    if (container) {
-      container.scrollTo({ left: next * window.innerWidth, behavior: 'smooth' });
-    }
-  }
-
-  /* Sync panel indicator with scroll position */
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-    function onScroll() {
-      const idx = Math.round(container!.scrollLeft / window.innerWidth);
-      if (idx !== activePanel && idx >= 0 && idx < PANEL_LABELS.length) setActivePanel(idx);
-    }
-    container.addEventListener('scroll', onScroll, { passive: true });
-    return () => container.removeEventListener('scroll', onScroll);
-  }, [activePanel]);
-
-  useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "ArrowRight") { e.preventDefault(); swipeTo(Math.min(PANEL_LABELS.length - 1, activePanel + 1)); }
-      if (e.key === "ArrowLeft") { e.preventDefault(); swipeTo(Math.max(0, activePanel - 1)); }
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || drawerOpen) return;
+      if (e.target instanceof Element && e.target.closest('input,textarea,select,[contenteditable="true"],model-viewer,[data-ames-engine-host],button,a')) return;
+      if (e.key === "ArrowRight") { e.preventDefault(); turnTo(activePanel + 1); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); turnTo(activePanel - 1); }
     }
     window.addEventListener("keydown", onKey);
     return () => { window.removeEventListener("keydown", onKey); };
-  }, [activePanel]);
+  }, [activePanel, drawerOpen, turnTo]);
 
   function handleSeePiece(stoneId: string) {
     setHighlightStone(stoneId);
-    swipeTo(0);
+    turnTo(0);
     setTimeout(() => setHighlightStone(null), 3000);
   }
 
   function handleAskMedia(record: MediaRecord) {
     setChatAssetId(record.assetId);
     setChatDraft(`Tell me about ${record.name} (AMES asset ${record.assetId})`);
-    swipeTo(1);
+    turnTo(1);
   }
 
   function handleAskBoutique(piece: BoutiquePiece) {
     setChatAssetId(piece.assetId);
     setChatDraft(`Tell me about ${piece.name} (AMES asset ${piece.assetId})`);
-    swipeTo(1);
+    turnTo(1);
   }
 
   const NAV_ITEMS = [
-    { label: "Settings", href: "/app/settings" },
-    { label: "Billing", href: "/app/billing" },
+    { label: "My workspace", href: "/workspace" },
+    { label: "Profile & settings", href: "/app/account" },
+    { label: "Jeweller studio", href: "/jeweller" },
+    { label: "My cart", href: "/cart" },
+    { label: "Purchases & invoices", href: "/app/billing" },
   ];
 
   return (
     <div data-ames-app className="ames-app-shell">
       <style>{`
-        :root { font-family: var(--font-geist), Arial, sans-serif; background: #061d19; }
+        :root { background: #061d19; }
         footer { display: none !important; }
         body { overflow: hidden; }
       `}</style>
@@ -116,7 +92,7 @@ export default function AppPage() {
 
       {/* Minimal transparent top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(3,24,21,0.46)', borderBottom: '1px solid rgba(238,247,244,0.1)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
-        <button onClick={() => setDrawerOpen(!drawerOpen)} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu">
+        <button onClick={() => { hapticTap(); setDrawerOpen(!drawerOpen); }} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu" aria-expanded={drawerOpen}>
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
@@ -141,6 +117,7 @@ export default function AppPage() {
           <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: 'rgba(3,25,22,0.92)', border: '1px solid rgba(238,247,244,0.14)', backdropFilter: 'blur(18px)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(238,247,244,0.12)' }}>
               <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#eef5f2' }}>AMES</div>
+              <div className="mt-2 break-words text-sm text-[#eef5f2]" data-customer-name>{displayName || 'Guest profile'}</div>
             </div>
             <div className="py-2">
               {NAV_ITEMS.map((item) => (
@@ -161,52 +138,37 @@ export default function AppPage() {
         </div>
       )}
 
-      {/* Dot indicator — centred under top bar */}
-      <div className="fixed top-11 left-0 right-0 z-50 flex justify-center gap-1.5 py-1.5" style={{ pointerEvents: 'none' }}>
-        {PANEL_LABELS.map((label, i) => (
-          <button
-            key={i}
-            onClick={() => swipeTo(i)}
-            className="rounded-full transition-all duration-200"
-            style={{
-              pointerEvents: 'auto',
-              width: activePanel === i ? 16 : 6,
-              height: 6,
-              background: activePanel === i ? '#dceee8' : 'rgba(220,238,232,0.32)',
-            }}
-            aria-label={label}
-            title={label}
-            aria-current={activePanel === i ? "page" : undefined}
-          />
-        ))}
+      <nav className="ames-page-index" aria-label="Magazine pages">
+        {PANEL_LABELS.map((label, i) => <button key={label} type="button" data-page-tab={i}
+          onClick={() => { hapticTap(); turnTo(i); }} aria-current={activePanel === i ? 'page' : undefined}
+          aria-controls={`ames-page-${i}`} aria-label={label}>
+          <span className="ames-page-number" aria-hidden="true">0{i + 1}</span>{label}
+        </button>)}
+      </nav>
+      <span className="sr-only" role="status">{PANEL_LABELS[activePanel]}, page {activePanel + 1} of {PANEL_LABELS.length}</span>
+      <div className="ames-magazine" data-turning={turn ? true : undefined}>
+        <section id="ames-page-0" data-panel="0" aria-label="Boutique" hidden={activePanel !== 0 && turn?.from !== 0} aria-hidden={activePanel !== 0} data-curl-source={turn?.from === 0} style={curlPageStyle(turn, 0)} inert={activePanel !== 0} className="ames-magazine-page flex-col">
+          <EngineBoutiquePanel highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
+        </section>
+        <section id="ames-page-1" data-panel="1" aria-label="Chat" hidden={activePanel !== 1 && turn?.from !== 1} aria-hidden={activePanel !== 1} data-curl-source={turn?.from === 1} style={curlPageStyle(turn, 1)} inert={activePanel !== 1} className="ames-magazine-page flex-col">
+          <ChatPanel stageActive={activePanel === 1} assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => turnTo(0)} />
+        </section>
+        <section id="ames-page-2" data-panel="2" aria-label="Videos" hidden={activePanel !== 2 && turn?.from !== 2} aria-hidden={activePanel !== 2} data-curl-source={turn?.from === 2} style={curlPageStyle(turn, 2)} inert={activePanel !== 2} className="ames-magazine-page">
+          <EngineMediaPanel active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
+        </section>
+        <section id="ames-page-3" data-panel="3" aria-label="Catalogue" hidden={activePanel !== 3 && turn?.from !== 3} aria-hidden={activePanel !== 3} data-curl-source={turn?.from === 3} style={curlPageStyle(turn, 3)} inert={activePanel !== 3} className="ames-magazine-page">
+          <EngineCataloguePanel />
+        </section>
       </div>
-
-      <div ref={scrollRef} className="fixed inset-0 h-[100dvh] w-full overflow-x-auto" style={{ scrollSnapType: 'x mandatory', scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
-        <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}`}</style>
-        <div className="flex h-full" style={{ width: `${PANEL_LABELS.length * 100}dvw` }}>
-          <section data-panel="0" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <EngineBoutiquePanel highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
-          </section>
-          <section data-panel="1" className="w-[100dvw] h-full flex-shrink-0 flex flex-col" style={{ scrollSnapAlign: 'start' }}>
-            <ChatPanel assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => swipeTo(0)} />
-          </section>
-          <section data-panel="2" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <EngineMediaPanel active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
-          </section>
-          <section data-panel="3" className="w-[100dvw] h-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <EngineAuctionPanel onViewPiece={handleSeePiece} onAskSame={handleAskBoutique} />
-          </section>
-        </div>
-      </div>
-
-      {/* Desktop edge arrows */}
-      {activePanel > 0 && (
-        <button onClick={() => swipeTo(activePanel - 1)} className="fixed left-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-emerald-950/40 backdrop-blur-sm border border-white/10 opacity-60 hover:opacity-90 transition-opacity hidden md:flex" aria-label="Previous panel">
+      <PageCurl turn={turn} />
+      {/* Folded-corner page controls */}
+      {(turn?.from ?? activePanel) > 0 && (
+        <button {...cornerGesture(-1)} className="ames-curl-corner ames-curl-corner-left" aria-label="Turn to previous page" title="Drag inward or tap to turn back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
       )}
-      {activePanel < PANEL_LABELS.length - 1 && (
-        <button onClick={() => swipeTo(activePanel + 1)} className="fixed right-2 top-1/2 -translate-y-1/2 z-40 w-10 h-10 flex items-center justify-center rounded-full bg-emerald-950/40 backdrop-blur-sm border border-white/10 opacity-60 hover:opacity-90 transition-opacity hidden md:flex" aria-label="Next panel">
+      {(turn?.from ?? activePanel) < PANEL_LABELS.length - 1 && (
+        <button {...cornerGesture(1)} className="ames-curl-corner" aria-label="Turn to next page" title="Drag inward or tap to turn forward">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       )}
@@ -228,7 +190,7 @@ interface ChatMessage {
 
 
 
-function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique }: { assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void }) {
+function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique }: { stageActive: boolean; assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void }) {
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -237,10 +199,32 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
   const [mode, setMode] = useState<"instant" | "expert">("instant");
   const [deepThink, setDeepThink] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-  const [conversationId, setConversationId] = useState("");
+  const sessionReady = useRef<Promise<void> | null>(null);
+  const sending = useRef(false);
+  const [sendError, setSendError] = useState("");
   const [stageCommand, setStageCommand] = useState<{ id: number; value: unknown } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(assetId ?? DEFAULT_CHAT_ASSET_ID);
+  const selectionVersion = useRef(0);
+
+  useEffect(() => {
+    selectionVersion.current += 1;
+    let active = true;
+    queueMicrotask(() => {
+      if (active) {
+        setStageCommand(null);
+        setSelectedAssetId(assetId ?? DEFAULT_CHAT_ASSET_ID);
+      }
+    });
+    return () => { active = false; };
+  }, [assetId]);
+
+  function selectStageAsset(nextAssetId: string | null) {
+    selectionVersion.current += 1;
+    setStageCommand(null);
+    setSelectedAssetId(nextAssetId);
+  }
 
   const chatStarted = messages.length > 0;
   const hasAmesReply = messages.some(m => m.role === "assistant");
@@ -248,9 +232,16 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
   useEffect(() => { inputRef.current?.focus(); }, []);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, typing]);
 
-  useEffect(() => {
-    fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+  const prepareSession = useCallback(() => {
+    if (!sessionReady.current) {
+      sessionReady.current = fetch("/api/chats").then(async response => {
+        if (!response.ok) throw new Error("Chat is temporarily unavailable. Please try again shortly.");
+        setChats(await response.json());
+      }).catch(error => { sessionReady.current = null; throw error; });
+    }
+    return sessionReady.current;
   }, []);
+  useEffect(() => { prepareSession().catch(error => setSendError(error.message)); }, [prepareSession]);
 
   useEffect(() => {
     if (!prefill) return;
@@ -276,7 +267,9 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
 
   async function ensureChat(): Promise<string> {
     if (activeChatId) return activeChatId;
+    await prepareSession();
     const res = await fetch("/api/chats", { method: "POST" });
+    if (!res.ok) throw new Error((await res.json()).error || "Could not start a private conversation");
     const chat: ChatHistory = await res.json();
     setChats(p => [chat, ...p]);
     setActiveChatId(chat.id);
@@ -285,64 +278,66 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
 
   async function handleSend(text?: string) {
     const rawMsg = (text || input).trim();
-    if (!rawMsg) return;
-    setInput("");
+    if (!rawMsg || sending.current) return;
+    const query = deepThink ? `Consider this carefully and give a concise answer: ${rawMsg}` : rawMsg;
+    if (query.length > 4000) { setSendError('Please shorten your message before sending.'); return; }
 
-    const chatId = await ensureChat();
-    const userRes = await fetch(`/api/chats/${chatId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "user", text: rawMsg }),
-    });
-    const userMsg: ChatMessage = await userRes.json();
-    setMessages(p => [...p, userMsg]);
-    setTyping(true);
+    // Visual intent is local and independent of Appwrite/Dify availability.
+    const intent = parseAssetSelection(rawMsg, selectedAssetId);
+    const clarification = assetSelectionMessage(intent);
+    if (clarification) {
+      const stamp = Date.now();
+      setInput('');
+      setSendError('');
+      setMessages(previous => [...previous,
+        { id: `local-user-${stamp}`, chat_id: activeChatId ?? 'local', role: 'user', text: rawMsg, thinking: '', created_at: new Date(stamp).toISOString() },
+        { id: `local-assistant-${stamp}`, chat_id: activeChatId ?? 'local', role: 'assistant', text: clarification, thinking: '', created_at: new Date(stamp + 1).toISOString() },
+      ]);
+      return;
+    }
+    const requestedAssetId = intent.kind === 'select' || intent.kind === 'ring' ? intent.assetId : selectedAssetId;
+    if (intent.kind === 'select' || intent.kind === 'ring') selectStageAsset(requestedAssetId);
+    const localViewerAction = parseViewerIntent(rawMsg);
+    if (localViewerAction) setStageCommand({ id: Date.now(), value: localViewerAction });
+    const requestSelectionVersion = selectionVersion.current;
 
-    /* DeepThink prefixes the query; Expert mode sends as-is */
-    const query = deepThink ? `Think step by step, then answer: ${rawMsg}` : rawMsg;
-    const userId = typeof window !== "undefined" ? localStorage.getItem("ames_uid") || (() => { const u = `u-${Date.now()}-${Math.random().toString(36).slice(2,8)}`; localStorage.setItem("ames_uid", u); return u; })() : "web-visitor";
-
+    sending.current = true; setTyping(true); setSendError('');
+    let stored = false;
     try {
-      const amesRes = await fetch("/api/ames", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, conversation_id: conversationId, user: userId, assetId }),
+      const chatId = await ensureChat();
+      const userRes = await fetch(`/api/chats/${chatId}/messages`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', text: rawMsg }),
       });
-      const amesData = await amesRes.json();
-      // SAME may supply a typed action. The stage checks it against the contract.
-      const viewerAction = amesData.viewer_action ?? amesData.outputs?.viewer_action;
-      if (viewerAction !== undefined) setStageCommand({ id: Date.now(), value: viewerAction });
-
-      /* Store conversation_id for multi-turn continuity */
-      if (amesData.conversation_id) setConversationId(amesData.conversation_id);
-
-      const replyText = amesData.answer || "That\u2019s a good question \u2014 let me confirm it with the desk so I give you the exact answer. You can also reach a human now on WhatsApp: +267 72 839 152.";
-      const thinking = deepThink ? "Let me consider the details of this question carefully..." : "";
-
-      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "assistant", text: replyText, thinking }),
+      const userMsg = await userRes.json();
+      if (!userRes.ok) throw new Error(userMsg.error || 'Could not save your message');
+      stored = true; setInput(''); setMessages(previous => [...previous, userMsg]);
+      const response = await fetch('/api/ames', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, chatId, assetId: requestedAssetId }),
       });
-      const assistantMsg: ChatMessage = await assistantRes.json();
-      setMessages(p => [...p, assistantMsg]);
-    } catch {
-      const fallback = "The desk is quiet right now \u2014 please try again.";
-      const assistantRes = await fetch(`/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "assistant", text: fallback }),
-      });
-      const assistantMsg: ChatMessage = await assistantRes.json();
-      setMessages(p => [...p, assistantMsg]);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'SAME is temporarily unavailable');
+      // A delayed response may answer in text, but cannot restore an older stage or camera action.
+      if (selectionVersion.current === requestSelectionVersion) {
+        const remoteSelection = validatedAssetSelection(data.asset_selection);
+        if (remoteSelection) selectStageAsset(remoteSelection.assetId);
+        if (data.viewer_action !== undefined) setStageCommand({ id: Date.now(), value: data.viewer_action });
+      }
+      if (data.message) setMessages(previous => [...previous, data.message]);
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : 'Please try again shortly');
+      if (!stored) setInput(rawMsg);
     } finally {
-      setTyping(false);
-      fetch("/api/chats").then(r => r.ok ? r.json() : []).then((d: ChatHistory[]) => setChats(d)).catch(() => {});
+      sending.current = false; setTyping(false);
+      fetch('/api/chats').then(r => r.ok ? r.json() : []).then(setChats).catch(() => {});
     }
   }
 
   return (
     <div data-chat-panel className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: 'transparent', position: 'relative' }}>
+
+      {sendError && <p role="alert" className="absolute top-20 left-4 right-4 z-30 rounded-lg bg-[#082820] p-3 text-sm text-[#eef5f2]">{sendError}</p>}
 
       {chatStarted ? (
         /* === CHAT MODE === */
@@ -358,21 +353,13 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
             </div>
           </div>
 
-          <ChatVisualStage key={assetId ?? 'default'} command={stageCommand} assetId={assetId} compact />
+          <ChatVisualStage key={selectedAssetId ?? 'default'} command={stageCommand} assetId={selectedAssetId} active={stageActive} compact />
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain">
             <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
               {messages.map((m) => (
                 <div key={m.id} className="space-y-2">
-                  {m.role === "assistant" && m.thinking && (
-                    <div className="ml-2">
-                      <details className="group">
-                        <summary style={{ fontSize: 11, cursor: 'pointer', userSelect: 'none', color: '#6E6C69' }}>Reasoning</summary>
-                        <div style={{ marginTop: 4, padding: '8px 12px', fontSize: 11, lineHeight: 1.5, borderRadius: 12, background: '#F5F4F2', border: '1px solid rgba(23,23,23,0.08)', color: '#6E6C69' }}>{m.thinking}</div>
-                      </details>
-                    </div>
-                  )}
                   <div className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     {m.role === "assistant" && (
                       <div style={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 8, marginTop: 2, background: '#F5F4F2', border: '1px solid rgba(23,23,23,0.08)' }}>
@@ -380,7 +367,7 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
                       </div>
                     )}
                     <div data-chat-message={m.role} className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: 'rgba(236,246,242,0.92)', color: '#08231e', borderRadius: '18px 18px 4px 18px' } : { background: 'rgba(4,31,27,0.58)', border: '1px solid rgba(235,247,243,0.14)', color: '#eef5f2', borderRadius: '18px 18px 18px 4px' }) }}>
-                      {m.text}
+                      {m.role === 'assistant' ? customerAnswer(m.text) : m.text}
                     </div>
                   </div>
                 </div>
@@ -409,11 +396,11 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
                 </div>
               )}
               <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+                <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
-                <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+                <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
+                <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
               </div>
@@ -424,7 +411,7 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
         /* === EMPTY STATE — Claude-mobile minimalism === */
         <div className="flex-1 flex flex-col items-center justify-center px-6" style={{ background: 'transparent' }}>
 
-          <ChatVisualStage key={assetId ?? 'default'} command={stageCommand} assetId={assetId} />
+          <ChatVisualStage key={selectedAssetId ?? 'default'} command={stageCommand} assetId={selectedAssetId} active={stageActive} />
         </div>
       )}
 
@@ -434,11 +421,11 @@ function ChatPanel({ assetId, prefill, onPrefillConsumed, draft, onDraftConsumed
           <div className="mx-auto" style={{ maxWidth: 360 }}>
             {/* Floating card */}
             <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
+              <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F2', flexShrink: 0, border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6E6C69" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
-              <button onClick={() => handleSend()} disabled={!input.trim()} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
+              <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
+              <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s', border: 'none', cursor: 'pointer', background: input.trim() ? '#171717' : '#D9D7D3' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={input.trim() ? '#FCFCFB' : '#FFFFFF'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>
             </div>

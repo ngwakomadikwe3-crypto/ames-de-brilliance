@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-pearl",
+  "revisionId": "stone-pearl:2",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "organic gem",
+  "name": "Pearl",
+  "aliases": [
+    "white pearl",
+    "cultured pearl"
+  ],
+  "form": "pearl",
+  "representativeCut": "near-round pearl",
+  "defaultColors": [
+    "white",
+    "cream",
+    "ivory"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative near-round pearl with procedural nacre-like reflections.",
+    "Natural versus cultured origin, mollusc type, and nacre thickness are not identified.",
+    "Exact dimensions, weight, lustre grade, surface grade, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-pearl.blend"
+  }
+}

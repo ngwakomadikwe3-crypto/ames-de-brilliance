@@ -1,12 +1,12 @@
 {
   "schemaVersion": "ames.chat-content/1",
   "assetId": "dev-test-candidate-ring",
-  "revisionId": "dev-test-candidate-ring:2",
+  "revisionId": "dev-test-candidate-ring:3",
   "publicationStatus": "review",
   "visualApproval": "pending",
   "type": "jewelry",
   "stageAsset": "web/jewelry.glb",
-  "poster": "web/poster-chat.png",
+  "poster": "web/presentation-ring-studio.webp",
   "rotationEnabled": true,
   "defaultView": "three_quarter",
   "supportedViewerActions": [
@@ -24,8 +24,8 @@
     "unitMeaning": "unresolved",
     "manufacturingReady": false
   },
-  "heroImage": "luxury/editorial-hero.png",
-  "macroImage": "luxury/gemstone-macro.png",
+  "heroImage": "web/presentation-ring-studio.webp",
+  "macroImage": "web/presentation-ring-studio.webp",
   "visualModes": [
     "interactive",
     "hero",

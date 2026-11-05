@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+import vm from 'node:vm';
+const require=createRequire(import.meta.url),ts=require('typescript');
+test('cloud activity provisions private indexed storage, creates first records, updates, and preserves create-only conflicts',async()=>{
+ const records=new Map(),indexes=[],attributes=[],calls=[];
+ const missing=()=>Object.assign(Error('Not found'),{code:404});
+ const db={getCollection:async()=>{throw missing();},createCollection:async i=>{calls.push(i);},updateCollection:async i=>{calls.push(i);},listAttributes:async()=>({attributes}),createStringAttribute:async i=>attributes.push({key:i.key,status:'available'}),createDatetimeAttribute:async i=>attributes.push({key:i.key,status:'available'}),createIndex:async i=>indexes.push({...i,status:'available'}),listIndexes:async()=>({indexes}),getDocument:async i=>{if(!records.has(i.documentId))throw missing();return records.get(i.documentId);},updateDocument:async i=>{if(!records.has(i.documentId))throw missing();records.set(i.documentId,i.data);},createDocument:async i=>{assert.deepEqual(Array.from(i.permissions),[]);if(records.has(i.documentId))throw Object.assign(Error('Conflict'),{code:409});records.set(i.documentId,i.data);},deleteDocument:async i=>records.delete(i.documentId),listDocuments:async()=>({documents:[...records.values()],total:records.size})};
+ const exports={};
+ vm.runInNewContext(ts.transpileModule(readFileSync('src/lib/account-activity-store.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,Buffer,Date,process:{env:{VERCEL:'1'}},setTimeout,require:name=>name==='./appwrite'?{getDb:()=>db,DB_ID:'isolated-qa'}:require(name)});
+ const id=exports.activityId('cart','buyer-a'),record={id,kind:'cart',owner:'buyer-a',subject:'cart',status:'active',createdAt:new Date().toISOString(),data:{version:1,items:[]}};
+ await exports.writeActivity(record);
+ assert.equal(records.size,1);assert.equal((await exports.readActivity(id)).data.version,1);
+ await exports.writeActivity({...record,data:{version:2,items:['fixture']}});
+ assert.equal((await exports.readActivity(id)).data.version,2);
+ await assert.rejects(exports.writeActivity(record,true),/Conflict/);
+ assert.equal(indexes.length,8);assert.ok(calls.every(i=>i.documentSecurity===false&&i.permissions.length===0));
+ assert.ok(attributes.some(a=>a.key==='payload'));
+ await exports.deleteActivity(id);assert.equal(await exports.readActivity(id),null);
+});

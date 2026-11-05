@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-sapphire",
+  "revisionId": "stone-sapphire:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "corundum",
+  "name": "Sapphire",
+  "aliases": [
+    "blue sapphire",
+    "blue corundum"
+  ],
+  "form": "faceted",
+  "representativeCut": "oval",
+  "defaultColors": [
+    "blue",
+    "royal blue",
+    "cornflower blue"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "The representative default is blue; unsupported requested colours are not substituted.",
+    "Colour is illustrative and does not assert a trade colour grade, origin, or treatment.",
+    "Exact dimensions, carat, clarity, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-sapphire.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

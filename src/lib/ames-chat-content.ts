@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import chatDefault from './chat-default.json' with { type: 'json' };
 
 export const viewerActionSchema = z.enum(['rotate', 'stop_rotation', 'zoom', 'reset', 'hero_view', 'macro_view', 'side_view', 'inspect_setting']);
 export type ViewerAction = z.infer<typeof viewerActionSchema>;
@@ -8,6 +9,7 @@ const specsSchema = z.object({ physicalScaleConfirmed: z.boolean(), unitMeaning:
 const chatSchema = z.object({
   schemaVersion: z.literal('ames.chat-content/1'), assetId: z.string().regex(/^[a-z0-9][a-z0-9-]*$/), revisionId: z.string().min(1),
   publicationStatus: z.enum(['review', 'published']), visualApproval: z.enum(['pending', 'approved', 'rejected']),
+  presentation: z.enum(['interactive', 'reference-image']).optional(),
   type: z.enum(['jewelry', 'gemstone']), stageAsset: relativeAsset, poster: relativeAsset,
   rotationEnabled: z.boolean(), defaultView: z.string().min(1), supportedViewerActions: z.array(viewerActionSchema),
   essentialSpecs: specsSchema, heroImage: relativeAsset, macroImage: relativeAsset, visualModes: z.array(z.string()),
@@ -37,11 +39,28 @@ const baseFor = (assetId: string) => `/ames-engine/${assetId}/`;
 const urlFor = (base: string, path: string) => base + path.split('/').map(encodeURIComponent).join('/');
 
 export async function loadChatStageContent(assetId?: string, fetcher: typeof fetch = fetch): Promise<ChatStageContent> {
+  if (assetId?.startsWith('listing-')) {
+    const id = assetId.slice(8); if (!z.uuid().safeParse(id).success) throw new Error('Invalid listing identity');
+    const response = await fetcher(`/api/catalogue/${id}`); if (!response.ok) throw new Error('Published listing unavailable');
+    const origin = z.object({ country: z.string(), verified: z.boolean() });
+    const l = z.object({ id: z.uuid(), assetId: z.string(), revisionId: z.string(), name: z.string(), category: z.string(), price: z.object({ amount: z.number().positive(), currency: z.string().regex(/^[A-Z]{3}$/) }).nullable(), madeIn: origin,
+      gemstones: z.array(z.object({ name: z.string(), origin: z.string(), verified: z.boolean() })), previewUrl: z.string(), posterUrl: z.string() }).parse(await response.json());
+    if (l.id !== id || l.assetId !== assetId || !l.revisionId.startsWith(`${assetId}:`) || ![l.previewUrl, l.posterUrl].every(url => new RegExp(`^/api/catalogue/${id}/files/[a-f0-9-]{36}$`).test(url))) throw new Error('Listing content identity mismatch');
+    const essentialSpecs = { physicalScaleConfirmed: false, unitMeaning: 'unverified', manufacturingReady: false,
+      price: l.price ? `${l.price.amount} ${l.price.currency}` : 'Price on request', manufacturingOrigin: l.madeIn.country || 'Not stated', manufacturingOriginEvidenceReviewed: l.madeIn.verified,
+      gemstoneOrigins: l.gemstones.map(g => `${g.name}: ${g.origin || 'Not stated'} (${g.verified ? 'evidence reviewed' : 'declared / unknown'})`).join('; ') };
+    return { name: l.name, category: l.category, commerciallyApproved: true, limitations: ['A visual preview does not certify manufacturing dimensions or gemstone identity.'],
+      stageUrl: l.previewUrl, posterUrl: l.posterUrl, heroUrl: l.posterUrl, macroUrl: l.posterUrl,
+      contract: { schemaVersion: 'ames.chat-content/1', assetId, revisionId: l.revisionId, publicationStatus: 'published', visualApproval: 'approved', type: 'jewelry',
+        stageAsset: 'web/jewelry.glb', poster: 'web/poster.png', rotationEnabled: false, defaultView: 'three_quarter', supportedViewerActions: ['rotate','stop_rotation','zoom','reset','side_view'], essentialSpecs,
+        heroImage: 'web/poster.png', macroImage: 'web/poster.png', visualModes: ['interactive'] } };
+  }
   const root = '/ames-engine/';
   const indexResponse = await fetcher(root + 'chat/index.json');
   if (!indexResponse.ok) throw new Error('AMES Chat index is unavailable');
   const index = indexSchema.parse(await indexResponse.json());
-  const path = assetId === undefined ? index.contracts[0] : index.contracts.find(path => path.split('/')[0] === assetId);
+  const requestedId = assetId ?? chatDefault.assetId;
+  const path = index.contracts.find(path => path.split('/')[0] === requestedId);
   if (!path) throw new Error(`AMES Chat asset is unavailable: ${assetId}`);
   const selectedId = path.split('/')[0];
   const [chatResponse, assetResponse] = await Promise.all([fetcher(root + path), fetcher(root + `${selectedId}/app/asset.json`)]);

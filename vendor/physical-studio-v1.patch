@@ -1,0 +1,3553 @@
+--- a/src/engine/jewelry/createStudioBrilliantGeometry.ts
++++ b/src/engine/jewelry/createStudioBrilliantGeometry.ts
+@@ -0,0 +1,32 @@
++import { Vector3 } from 'three'
++import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js'
++import { createRoundBrilliantGeometry } from './createRoundBrilliantGeometry'
++
++/** Preserve eightfold brilliant optics, refine both closed girdle boundaries. */
++export function createStudioBrilliantGeometry(outline: 'round'|'oval'|'pear'|'cushion'|'radiant' = 'round') {
++  const base=createRoundBrilliantGeometry(), attribute=base.getAttribute('position')
++  const points:Vector3[]=[],seen=new Set<string>()
++  for(let i=0;i<attribute.count;i++) {
++    const v=new Vector3().fromBufferAttribute(attribute,i),key=v.toArray().map(x=>x.toFixed(7)).join(',')
++    if(!seen.has(key)){seen.add(key);points.push(v)}
++  }
++  for(let i=0;i<64;i++)for(const y of [-.02,.02]) {
++    const a=i*Math.PI*2/64,v=new Vector3(Math.cos(a),y,Math.sin(a)),key=v.toArray().map(x=>x.toFixed(7)).join(',')
++    if(!seen.has(key)){seen.add(key);points.push(v)}
++  }
++  base.dispose()
++  // Keep each authored cut's outline. The host subsequently fits its exact bounds.
++  for(const v of points){
++    const radius=Math.hypot(v.x,v.z);if(radius<1e-8)continue
++    const c=v.x/radius,s=v.z/radius
++    if(outline==='pear'){v.x=radius*c*(.78-.25*s);v.z=radius*s*1.28}
++    if(outline==='cushion'){v.x=radius*Math.sign(c)*Math.abs(c)**.68;v.z=radius*Math.sign(s)*Math.abs(s)**.68}
++    if(outline==='radiant'){const edge=Math.min(1/Math.max(Math.abs(c),Math.abs(s)),1.75/(Math.abs(c)+Math.abs(s)));v.x=radius*c*edge;v.z=radius*s*edge}
++  }
++  const geometry=new ConvexGeometry(points)
++  geometry.computeBoundingBox();geometry.computeBoundingSphere()
++  const normals=geometry.getAttribute('normal'),planes=new Set<string>()
++  for(let i=0;i<normals.count;i+=3)planes.add([normals.getX(i),normals.getY(i),normals.getZ(i)].map(n=>n.toFixed(5)).join(','))
++  geometry.userData={cut:'eightfold-brilliant-refined-girdle',outline,flatFacets:planes.size,girdleSegments:64}
++  return geometry
++}
+--- a/src/engine/jewelry/jewelryGlbMaterials.ts
++++ b/src/engine/jewelry/jewelryGlbMaterials.ts
+@@ -1,260 +1,260 @@
+-import { Color, MeshPhysicalMaterial } from 'three'
+-import type { BufferGeometry, Material, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
+-import { JEWELRY_OPTICS_PROFILES } from '../renderer/opticsProfiles'
+-import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
+-
+-export type JewelrySurfaceKind = 'gem' | 'metal' | 'other'
+-
+-/**
+- * Names observed on the prepared validation asset
+- * (/models/diamond_ring_candidate_blender.glb):
+- *   Ring/Circle002   -> material "Gold"    (band)
+- *   Ring/Circle002_1 -> material "Dimond"  (pave on band)
+- *   Ring/Diamond     -> material "Material"(centre stone)
+- *   Ring/GEMS        -> material "Dimond"  (melee)
+- * The exporter spells diamond as "Dimond", so both spellings are matched.
+- */
+-const GEM_NAME = /diamond|dimond|gem|stone|crystal|brilliant|ruby|emerald|sapphire|topaz|opal/i
+-const METAL_NAME = /gold|platinum|silver|rhodium|palladium|titanium|metal|ring|band|setting|shank/i
+-
+-export function classifyJewelrySurface(nodeName?: string | null, materialName?: string | null): JewelrySurfaceKind {
+-  const material = materialName ?? ''
+-  if (GEM_NAME.test(material)) return 'gem'
+-  if (METAL_NAME.test(material)) return 'metal'
+-  const node = nodeName ?? ''
+-  if (GEM_NAME.test(node)) return 'gem'
+-  if (METAL_NAME.test(node)) return 'metal'
+-  return 'other'
+-}
+-
+-export const JEWELRY_METAL_PROFILE = Object.freeze({
+-  metalness: 1,
+-  roughness: 0.14,
+-  clearcoat: 0.5,
+-  clearcoatRoughness: 0.18,
+-  envMapIntensity: 1.6,
+-})
+-
+-/**
+- * Diamond optics for the ray-marched refraction material. `bounces` (internal
+- * reflections) and `fresnel` give facet contrast and white brilliance;
+- * `aberrationStrength` is kept very small so dispersion reads as subtle fire
+- * rather than obvious rainbow fringing.
+- */
+-export const JEWELRY_DIAMOND_OPTICS = Object.freeze({
+-  ior: 2.417,
+-  fresnel: 0.12,
+-  aberrationStrength: 0.004,
+-  fastChroma: true,
+-  maxBounces: 5,
+-})
+-
+-export interface GemQualityProfile {
+-  bounces: number
+-  fresnel: number
+-  aberrationStrength: number
+-}
+-
+-/**
+- * Per-surface gem quality. The hero centre stone gets the most internal light
+- * return; the dense melee and pave get progressively calmer optics (and fewer
+- * bounces) so small stones read clean instead of noisy.
+- */
+-export function gemQualityForGeometry(geometry?: BufferGeometry): GemQualityProfile {
+-  const count = geometry?.getAttribute('position')?.count ?? 0
+-  if (count > 20000) return { bounces: 2, fresnel: 0.09, aberrationStrength: 0 }
+-  if (count > 3000) return { bounces: 3, fresnel: 0.1, aberrationStrength: 0.002 }
+-  return {
+-    bounces: JEWELRY_DIAMOND_OPTICS.maxBounces,
+-    fresnel: JEWELRY_DIAMOND_OPTICS.fresnel,
+-    aberrationStrength: JEWELRY_DIAMOND_OPTICS.aberrationStrength,
+-  }
+-}
+-
+-/** Lower-cost, calmer profile for touch/small screens. */
+-export function mobileGemProfile(profile: GemQualityProfile): GemQualityProfile {
+-  return {
+-    bounces: Math.max(1, profile.bounces - 2),
+-    fresnel: profile.fresnel * 0.85,
+-    aberrationStrength: profile.aberrationStrength * 0.5,
+-  }
+-}
+-
+-export const JEWELRY_DIAMOND_PROFILE = Object.freeze({
+-  roughness: 0.02,
+-  thickness: 0.6,
+-  ior: 2.417,
+-  envMapIntensity: 2.2,
+-  dispersion: 0.12,
+-})
+-
+-function sourceColor(source?: Material): Color {
+-  const color = (source as MeshStandardMaterial | undefined)?.color
+-  return color ? color.clone() : new Color(0xd4d4d4)
+-}
+-
+-/** Physically based polished metal that keeps the asset's source colour. */
+-export function createMetalMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
+-  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
+-  const material = new MeshPhysicalMaterial({
+-    color: sourceColor(source),
+-    metalness: JEWELRY_METAL_PROFILE.metalness,
+-    roughness: optics.roughness,
+-    clearcoat: opticsProfile === 'mounted-gem-studio' ? 0 : JEWELRY_METAL_PROFILE.clearcoat,
+-    clearcoatRoughness: JEWELRY_METAL_PROFILE.clearcoatRoughness,
+-    envMapIntensity: optics.envMapIntensity,
+-    envMap: envMap ?? null,
+-  })
+-  material.name = `${source?.name ?? 'metal'}::enhanced`
+-  return material
+-}
+-
+-/**
+- * Physical gem material. Used only as a fallback when a mesh cannot be rendered
+- * with the refraction path; the live viewer routes gems to the ray-marched
+- * refraction material instead.
+- */
+-export function createGemMaterial(source?: Material, envMap?: Texture | null): MeshPhysicalMaterial {
+-  const sourcePhysical = source as MeshPhysicalMaterial | undefined
+-  const material = new MeshPhysicalMaterial({
+-    color: sourceColor(source),
+-    metalness: 0,
+-    roughness: Math.min(sourcePhysical?.roughness ?? JEWELRY_DIAMOND_PROFILE.roughness, 0.035),
+-    transmission: Math.max(sourcePhysical?.transmission ?? 1, 0.9),
+-    thickness: JEWELRY_DIAMOND_PROFILE.thickness,
+-    ior: sourcePhysical?.ior || JEWELRY_DIAMOND_PROFILE.ior,
+-    envMapIntensity: JEWELRY_DIAMOND_PROFILE.envMapIntensity,
+-    attenuationColor: sourceColor(source),
+-    attenuationDistance: 3,
+-    flatShading: true,
+-    envMap: envMap ?? null,
+-  })
+-  const refractive = material as MeshPhysicalMaterial & { dispersion?: number }
+-  if ('dispersion' in refractive) refractive.dispersion = JEWELRY_DIAMOND_PROFILE.dispersion
+-  material.name = `${source?.name ?? 'gem'}::refractive-gem`
+-  return material
+-}
+-
+-/**
+- * Neutral visual treatment for supplied geometry whose exported material identity
+- * is explicitly unqualified. This creates readable studio reflections only; it
+- * is not an alloy, gemstone, physical-scale, or manufacturing claim.
+- */
+-export function createUnqualifiedVisualMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
+-  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
+-  const material = new MeshPhysicalMaterial({
+-    color: new Color(0xc9cdd4),
+-    metalness: 0.92,
+-    roughness: Math.max(0.2, optics.roughness + 0.04),
+-    clearcoat: 0.16,
+-    clearcoatRoughness: 0.26,
+-    envMapIntensity: optics.envMapIntensity * 0.95,
+-    envMap: envMap ?? null,
+-  })
+-  material.name = `${source?.name ?? 'surface'}::unqualified-studio-visual`
+-  return material
+-}
+-
+-export function isQualifiedDielectricMesh(mesh: Mesh): boolean {
+-  return mesh.userData?.ames_optical_mode === 'closed-dielectric-visual'
+-}
+-
+-/** Backwards-compatible bounce lookup derived from the shared quality profile. */
+-export function bouncesForGeometry(geometry?: BufferGeometry): number {
+-  return gemQualityForGeometry(geometry).bounces
+-}
+-
+-/** True only when every surface on the mesh is a gem, so extraction is safe. */
+-export function isPureGemMesh(mesh: Mesh): boolean {
+-  if (!mesh.isMesh) return false
+-  const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+-  return sources.length > 0 && sources.every((source) => classifyJewelrySurface(mesh.name, source?.name) === 'gem')
+-}
+-
+-export interface JewelryMaterialResult {
+-  gemSurfaces: number
+-  metalSurfaces: number
+-  otherSurfaces: number
+-  materials: Material[]
+-}
+-
+-/**
+- * Replace an imported GLB clone's materials with premium ones while leaving
+- * geometry, transforms and node structure untouched. Metal keeps the source
+- * colour; any gem surface still present gets the physical fallback (the viewer
+- * extracts pure gem meshes for the refraction path before calling this).
+- * Every material the viewer creates is returned so its owner can dispose of it.
+- */
+-export function applyJewelryMaterials(
+-  root: Object3D,
+-  envMap?: Texture | null,
+-  options?: { preserveMesh?: (mesh: Mesh) => boolean; opticsProfile?: JewelryOpticsProfile },
+-): JewelryMaterialResult {
+-  const result: JewelryMaterialResult = { gemSurfaces: 0, metalSurfaces: 0, otherSurfaces: 0, materials: [] }
+-
+-  root.traverse((object) => {
+-    const mesh = object as Mesh
+-    if (!mesh.isMesh) return
+-    if (options?.preserveMesh?.(mesh)) return
+-    const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+-
+-    const enhanced = sources.map((source) => {
+-      const kind = classifyJewelrySurface(object.name, source?.name)
+-      const opticalMode = mesh.userData?.ames_optical_mode
+-      const sourceUnqualified = mesh.userData?.ames_material_key === 'source-unqualified'
+-      let material: Material
+-      if (isQualifiedDielectricMesh(mesh)) {
+-        result.gemSurfaces += 1
+-        material = createGemMaterial(source, envMap)
+-      } else if (sourceUnqualified) {
+-        result.metalSurfaces += 1
+-        material = createUnqualifiedVisualMaterial(source, envMap, options?.opticsProfile)
+-      } else if (opticalMode === 'conductor' || kind === 'metal') {
+-        result.metalSurfaces += 1
+-        material = createMetalMaterial(source, envMap, options?.opticsProfile)
+-      } else {
+-        result.otherSurfaces += 1
+-        const clone = (source?.clone() as MeshPhysicalMaterial) ?? new MeshPhysicalMaterial()
+-        // A suggestive node/material name is not evidence of closed gem geometry.
+-        clone.envMap = envMap ?? null
+-        const gemstoneId = String(mesh.userData?.ames_gemstone_id ?? '')
+-        if (opticalMode === 'polished-gemstone-visual' || opticalMode === 'polished-cabochon-visual') {
+-          clone.envMapIntensity = 1.65
+-          clone.clearcoat = Math.max(clone.clearcoat ?? 0, 0.65)
+-          clone.clearcoatRoughness = Math.min(clone.clearcoatRoughness ?? 0.12, 0.08)
+-          clone.roughness = Math.min(clone.roughness ?? 0.12, gemstoneId === 'stone-jade' ? 0.22 : 0.12)
+-        }
+-        if (opticalMode === 'nacre-visual') {
+-          clone.envMapIntensity = 1.45
+-          clone.roughness = 0.16
+-          clone.clearcoat = 0.72
+-          clone.clearcoatRoughness = 0.12
+-          clone.sheen = 0.65
+-          clone.sheenRoughness = 0.32
+-          clone.sheenColor = new Color(0xffe8f0)
+-          clone.iridescence = 0.28
+-          clone.iridescenceIOR = 1.3
+-          clone.iridescenceThicknessRange = [180, 420]
+-        }
+-        if (gemstoneId === 'stone-opal') {
+-          clone.iridescence = 0.22
+-          clone.iridescenceIOR = 1.3
+-          clone.iridescenceThicknessRange = [240, 520]
+-        }
+-        if (kind === 'gem' && opticalMode !== 'polished-gemstone-visual' && opticalMode !== 'polished-cabochon-visual' && opticalMode !== 'nacre-visual') {
+-          clone.transmission = 0
+-          clone.metalness = 0
+-          clone.roughness = Math.max(0.12, clone.roughness ?? 0.12)
+-        }
+-        material = clone
+-      }
+-      material.needsUpdate = true
+-      result.materials.push(material)
+-      return material
+-    })
+-
+-    mesh.material = Array.isArray(mesh.material) ? enhanced : enhanced[0]
+-  })
+-
+-  return result
+-}
++import { Color, MeshPhysicalMaterial } from 'three'
++import type { BufferGeometry, Material, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
++import { JEWELRY_OPTICS_PROFILES } from '../renderer/opticsProfiles'
++import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
++
++export type JewelrySurfaceKind = 'gem' | 'metal' | 'other'
++
++/**
++ * Names observed on the prepared validation asset
++ * (/models/diamond_ring_candidate_blender.glb):
++ *   Ring/Circle002   -> material "Gold"    (band)
++ *   Ring/Circle002_1 -> material "Dimond"  (pave on band)
++ *   Ring/Diamond     -> material "Material"(centre stone)
++ *   Ring/GEMS        -> material "Dimond"  (melee)
++ * The exporter spells diamond as "Dimond", so both spellings are matched.
++ */
++const GEM_NAME = /diamond|dimond|gem|stone|crystal|brilliant|ruby|emerald|sapphire|topaz|opal/i
++const METAL_NAME = /gold|platinum|silver|rhodium|palladium|titanium|metal|ring|band|setting|shank/i
++
++export function classifyJewelrySurface(nodeName?: string | null, materialName?: string | null): JewelrySurfaceKind {
++  const material = materialName ?? ''
++  if (GEM_NAME.test(material)) return 'gem'
++  if (METAL_NAME.test(material)) return 'metal'
++  const node = nodeName ?? ''
++  if (GEM_NAME.test(node)) return 'gem'
++  if (METAL_NAME.test(node)) return 'metal'
++  return 'other'
++}
++
++export const JEWELRY_METAL_PROFILE = Object.freeze({
++  metalness: 1,
++  roughness: 0.14,
++  clearcoat: 0.5,
++  clearcoatRoughness: 0.18,
++  envMapIntensity: 1.6,
++})
++
++/**
++ * Diamond optics for the ray-marched refraction material. `bounces` (internal
++ * reflections) and `fresnel` give facet contrast and white brilliance;
++ * `aberrationStrength` is kept very small so dispersion reads as subtle fire
++ * rather than obvious rainbow fringing.
++ */
++export const JEWELRY_DIAMOND_OPTICS = Object.freeze({
++  ior: 2.417,
++  fresnel: 0.12,
++  aberrationStrength: 0.004,
++  fastChroma: true,
++  maxBounces: 5,
++})
++
++export interface GemQualityProfile {
++  bounces: number
++  fresnel: number
++  aberrationStrength: number
++}
++
++/**
++ * Per-surface gem quality. The hero centre stone gets the most internal light
++ * return; the dense melee and pave get progressively calmer optics (and fewer
++ * bounces) so small stones read clean instead of noisy.
++ */
++export function gemQualityForGeometry(geometry?: BufferGeometry): GemQualityProfile {
++  const count = geometry?.getAttribute('position')?.count ?? 0
++  if (count > 20000) return { bounces: 2, fresnel: 0.09, aberrationStrength: 0 }
++  if (count > 3000) return { bounces: 3, fresnel: 0.1, aberrationStrength: 0.002 }
++  return {
++    bounces: JEWELRY_DIAMOND_OPTICS.maxBounces,
++    fresnel: JEWELRY_DIAMOND_OPTICS.fresnel,
++    aberrationStrength: JEWELRY_DIAMOND_OPTICS.aberrationStrength,
++  }
++}
++
++/** Lower-cost, calmer profile for touch/small screens. */
++export function mobileGemProfile(profile: GemQualityProfile): GemQualityProfile {
++  return {
++    bounces: Math.max(1, profile.bounces - 2),
++    fresnel: profile.fresnel * 0.85,
++    aberrationStrength: profile.aberrationStrength * 0.5,
++  }
++}
++
++export const JEWELRY_DIAMOND_PROFILE = Object.freeze({
++  roughness: 0.02,
++  thickness: 0.6,
++  ior: 2.417,
++  envMapIntensity: 2.2,
++  dispersion: 0.12,
++})
++
++function sourceColor(source?: Material): Color {
++  const color = (source as MeshStandardMaterial | undefined)?.color
++  return color ? color.clone() : new Color(0xd4d4d4)
++}
++
++/** Physically based polished metal that keeps the asset's source colour. */
++export function createMetalMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
++  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
++  const material = new MeshPhysicalMaterial({
++    color: sourceColor(source),
++    metalness: JEWELRY_METAL_PROFILE.metalness,
++    roughness: optics.roughness,
++    clearcoat: opticsProfile === 'mounted-gem-studio' ? 0 : JEWELRY_METAL_PROFILE.clearcoat,
++    clearcoatRoughness: JEWELRY_METAL_PROFILE.clearcoatRoughness,
++    envMapIntensity: optics.envMapIntensity,
++    envMap: envMap ?? null,
++  })
++  material.name = `${source?.name ?? 'metal'}::enhanced`
++  return material
++}
++
++/**
++ * Physical gem material. Used only as a fallback when a mesh cannot be rendered
++ * with the refraction path; the live viewer routes gems to the ray-marched
++ * refraction material instead.
++ */
++export function createGemMaterial(source?: Material, envMap?: Texture | null): MeshPhysicalMaterial {
++  const sourcePhysical = source as MeshPhysicalMaterial | undefined
++  const material = new MeshPhysicalMaterial({
++    color: sourceColor(source),
++    metalness: 0,
++    roughness: Math.min(sourcePhysical?.roughness ?? JEWELRY_DIAMOND_PROFILE.roughness, 0.035),
++    transmission: Math.max(sourcePhysical?.transmission ?? 1, 0.9),
++    thickness: JEWELRY_DIAMOND_PROFILE.thickness,
++    ior: sourcePhysical?.ior || JEWELRY_DIAMOND_PROFILE.ior,
++    envMapIntensity: JEWELRY_DIAMOND_PROFILE.envMapIntensity,
++    attenuationColor: sourceColor(source),
++    attenuationDistance: 3,
++    flatShading: true,
++    envMap: envMap ?? null,
++  })
++  const refractive = material as MeshPhysicalMaterial & { dispersion?: number }
++  if ('dispersion' in refractive) refractive.dispersion = JEWELRY_DIAMOND_PROFILE.dispersion
++  material.name = `${source?.name ?? 'gem'}::refractive-gem`
++  return material
++}
++
++/**
++ * Neutral visual treatment for supplied geometry whose exported material identity
++ * is explicitly unqualified. This creates readable studio reflections only; it
++ * is not an alloy, gemstone, physical-scale, or manufacturing claim.
++ */
++export function createUnqualifiedVisualMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
++  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
++  const material = new MeshPhysicalMaterial({
++    color: new Color(0xc9cdd4),
++    metalness: 0.92,
++    roughness: Math.max(0.2, optics.roughness + 0.04),
++    clearcoat: 0.16,
++    clearcoatRoughness: 0.26,
++    envMapIntensity: optics.envMapIntensity * 0.95,
++    envMap: envMap ?? null,
++  })
++  material.name = `${source?.name ?? 'surface'}::unqualified-studio-visual`
++  return material
++}
++
++export function isQualifiedDielectricMesh(mesh: Mesh): boolean {
++  return mesh.userData?.ames_optical_mode === 'closed-dielectric-visual'
++}
++
++/** Backwards-compatible bounce lookup derived from the shared quality profile. */
++export function bouncesForGeometry(geometry?: BufferGeometry): number {
++  return gemQualityForGeometry(geometry).bounces
++}
++
++/** True only when every surface on the mesh is a gem, so extraction is safe. */
++export function isPureGemMesh(mesh: Mesh): boolean {
++  if (!mesh.isMesh) return false
++  const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
++  return sources.length > 0 && sources.every((source) => classifyJewelrySurface(mesh.name, source?.name) === 'gem')
++}
++
++export interface JewelryMaterialResult {
++  gemSurfaces: number
++  metalSurfaces: number
++  otherSurfaces: number
++  materials: Material[]
++}
++
++/**
++ * Replace an imported GLB clone's materials with premium ones while leaving
++ * geometry, transforms and node structure untouched. Metal keeps the source
++ * colour; any gem surface still present gets the physical fallback (the viewer
++ * extracts pure gem meshes for the refraction path before calling this).
++ * Every material the viewer creates is returned so its owner can dispose of it.
++ */
++export function applyJewelryMaterials(
++  root: Object3D,
++  envMap?: Texture | null,
++  options?: { preserveMesh?: (mesh: Mesh) => boolean; opticsProfile?: JewelryOpticsProfile },
++): JewelryMaterialResult {
++  const result: JewelryMaterialResult = { gemSurfaces: 0, metalSurfaces: 0, otherSurfaces: 0, materials: [] }
++
++  root.traverse((object) => {
++    const mesh = object as Mesh
++    if (!mesh.isMesh) return
++    if (options?.preserveMesh?.(mesh)) return
++    const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
++
++    const enhanced = sources.map((source) => {
++      const kind = classifyJewelrySurface(object.name, source?.name)
++      const opticalMode = mesh.userData?.ames_optical_mode
++      const sourceUnqualified = mesh.userData?.ames_material_key === 'source-unqualified'
++      let material: Material
++      if (isQualifiedDielectricMesh(mesh)) {
++        result.gemSurfaces += 1
++        material = createGemMaterial(source, envMap)
++      } else if (sourceUnqualified) {
++        result.metalSurfaces += 1
++        material = createUnqualifiedVisualMaterial(source, envMap, options?.opticsProfile)
++      } else if (opticalMode === 'conductor' || kind === 'metal') {
++        result.metalSurfaces += 1
++        material = createMetalMaterial(source, envMap, options?.opticsProfile)
++      } else {
++        result.otherSurfaces += 1
++        const clone = (source?.clone() as MeshPhysicalMaterial) ?? new MeshPhysicalMaterial()
++        // A suggestive node/material name is not evidence of closed gem geometry.
++        clone.envMap = envMap ?? null
++        const gemstoneId = String(mesh.userData?.ames_gemstone_id ?? '')
++        if (opticalMode === 'polished-gemstone-visual' || opticalMode === 'polished-cabochon-visual') {
++          clone.envMapIntensity = 1.65
++          clone.clearcoat = Math.max(clone.clearcoat ?? 0, 0.65)
++          clone.clearcoatRoughness = Math.min(clone.clearcoatRoughness ?? 0.12, 0.08)
++          clone.roughness = Math.min(clone.roughness ?? 0.12, gemstoneId === 'stone-jade' ? 0.22 : 0.12)
++        }
++        if (opticalMode === 'nacre-visual') {
++          clone.envMapIntensity = 1.45
++          clone.roughness = 0.16
++          clone.clearcoat = 0.72
++          clone.clearcoatRoughness = 0.12
++          clone.sheen = 0.65
++          clone.sheenRoughness = 0.32
++          clone.sheenColor = new Color(0xffe8f0)
++          clone.iridescence = 0.28
++          clone.iridescenceIOR = 1.3
++          clone.iridescenceThicknessRange = [180, 420]
++        }
++        if (gemstoneId === 'stone-opal') {
++          clone.iridescence = 0.22
++          clone.iridescenceIOR = 1.3
++          clone.iridescenceThicknessRange = [240, 520]
++        }
++        if (kind === 'gem' && opticalMode !== 'polished-gemstone-visual' && opticalMode !== 'polished-cabochon-visual' && opticalMode !== 'nacre-visual') {
++          clone.transmission = 0
++          clone.metalness = 0
++          clone.roughness = Math.max(0.12, clone.roughness ?? 0.12)
++        }
++        material = clone
++      }
++      material.needsUpdate = true
++      result.materials.push(material)
++      return material
++    })
++
++    mesh.material = Array.isArray(mesh.material) ? enhanced : enhanced[0]
++  })
++
++  return result
++}
+--- a/src/engine/jewelry/JewelryGlbModel.tsx
++++ b/src/engine/jewelry/JewelryGlbModel.tsx
+@@ -1,304 +1,304 @@
+-import { MoonstoneMaterial } from '../materials/MoonstoneMaterial'
+-import { createPortal, useFrame, useThree } from '@react-three/fiber'
+-import { useGLTF, MeshRefractionMaterial } from '@react-three/drei'
+-import { useEffect, useMemo, useRef } from 'react'
+-import { Box3, Color, Group, Mesh, Vector3 } from 'three'
+-import type { BufferGeometry, Matrix4, MeshPhysicalMaterial, Texture } from 'three'
+-import {
+-  applyJewelryMaterials,
+-  gemQualityForGeometry,
+-  isPureGemMesh,
+-  isQualifiedDielectricMesh,
+-  JEWELRY_DIAMOND_OPTICS,
+-  mobileGemProfile,
+-} from './jewelryGlbMaterials'
+-import type { GemQualityProfile } from './jewelryGlbMaterials'
+-import { RoundBrilliantGem } from './RoundBrilliantGem'
+-import { convexGemVolume, convexGemAssemblyVolume } from '../materials/convexGemVolume'
+-import type { ConvexGemVolume } from '../materials/convexGemVolume'
+-import { GemstoneFacetMaterial } from '../materials/GemstoneFacetMaterial'
+-import { GemstonePreviewMaterial } from '../materials/GemstonePreviewMaterial'
+-import { MountedCenterDiamondMaterial } from '../materials/MountedCenterDiamondMaterial'
+-import type { ViewerQualityProfile } from '../renderer/viewerQuality'
+-import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
+-
+-const STUDIO_BODY_COLORS: Record<string, string> = {
+-  'stone-ruby': '#d71d42', 'stone-emerald': '#15945e',
+-  'stone-sapphire': '#4268cc', 'stone-garnet': '#b52339',
+-  'stone-amethyst': '#a879cd', 'stone-tanzanite': '#6f71c4', 'stone-iolite': '#7c79b5',
+-  'stone-aquamarine': '#91cedf', 'stone-topaz': '#79c6df', 'stone-kunzite': '#dfa6ca',
+-}
+-
+-/** Approved mounted production asset for the live dev viewer. */
+-export const DEFAULT_JEWELRY_GLB_URL = '/models/mounted-reference-ring.glb'
+-
+-/** Longest-axis fit size in world units, matched to the calibrated camera framing. */
+-export const JEWELRY_FIT_SIZE = 2.6
+-
+-/** Idle turntable angular speed in radians per second. */
+-export const JEWELRY_TURNTABLE_SPEED = 0.18
+-
+-/** How quickly the turntable eases in after interaction (higher = quicker). */
+-const TURNTABLE_EASE = 2.5
+-
+-interface ExtractedGem {
+-  key: string
+-  geometry: BufferGeometry
+-  matrix: Matrix4
+-  profile: GemQualityProfile
+-  color: Color
+-  ior: number
+-  aberrationStrength: number
+-  volume: ConvexGemVolume | null
+-  colorDepth: number
+-  bodyFill: number
+-}
+-
+-interface ExtractedCenterStone {
+-  key: string
+-  matrix: Matrix4
+-}
+-
+-/**
+- * The legacy prepared asset exposes its unsuitable centre stone as the
+- * `Diamond` node with the `dmesh` geometry. The approved mounted reference
+- * asset keeps its imported centre stone and bypasses this replacement path.
+- */
+-const CENTER_STONE_NODE = 'diamond'
+-const CENTER_STONE_GEOMETRY = 'dmesh'
+-
+-function isCenterStoneMesh(mesh: Mesh): boolean {
+-  const nodeName = (mesh.name ?? '').trim().toLowerCase()
+-  if (nodeName === CENTER_STONE_NODE) return true
+-  const geometryName = (mesh.geometry?.name ?? '').trim().toLowerCase()
+-  return geometryName === CENTER_STONE_GEOMETRY
+-}
+-
+-export function isReferenceDiamond001Mesh(mesh: Mesh): boolean {
+-  const metadata = mesh.userData as {
+-    ames_asset_id?: unknown
+-    ames_role?: unknown
+-    ames_part_id?: unknown
+-    ames_source_binding?: unknown
+-  }
+-  return metadata.ames_asset_id === 'reference-diamond-001'
+-    && metadata.ames_role === 'center'
+-    && metadata.ames_part_id === 'C00'
+-    && metadata.ames_source_binding === 'center-stone'
+-}
+-
+-function findReferenceDiamond001Mesh(root: Group): Mesh | undefined {
+-  let center: Mesh | undefined
+-  root.traverse((object) => {
+-    if (!center && object instanceof Mesh && isReferenceDiamond001Mesh(object)) center = object
+-  })
+-  return center
+-}
+-
+-function collectGemMeshes(root: Group, includeBicolor = false): Mesh[] {
+-  const gems: Mesh[] = []
+-  root.traverse((object) => {
+-    const mesh = object as Mesh
+-    const bicolor = includeBicolor && mesh instanceof Mesh && mesh.parent?.userData.ames_gemstone_id === 'stone-ametrine' && [3, 4].includes(Number(mesh.parent?.userData.ames_cut_revision))
+-    if (bicolor || (isQualifiedDielectricMesh(mesh) && isPureGemMesh(mesh))) gems.push(mesh)
+-  })
+-  return gems
+-}
+-
+-/**
+- * Generic real-jewelry GLB model.
+- *
+- * Preserves the loaded node and material hierarchy and only adds a
+- * centering/scaling wrapper so an arbitrary catalog asset fits the calibrated
+- * camera. Geometry is never rewritten. Gem meshes are lifted out of the clone
+- * and rendered with the ray-marched refraction material (real internal
+- * reflections and facet contrast); metal keeps a physically based material.
+- *
+- * A smooth idle turntable spins the fitted model around its vertical axis and
+- * eases to a stop while `interactionRef` is true, then eases back in.
+- */
+-export function JewelryGlbModel({
+-  url,
+-  envMap,
+-  gemEnvMap,
+-  fit = JEWELRY_FIT_SIZE,
+-  turntable = true,
+-  refining = true,
+-  interactionRef,
+-  quality,
+-  onReady,
+-  opticsProfile = 'reference',
+-}: {
+-  url: string
+-  envMap?: Texture | null
+-  gemEnvMap?: Texture | null
+-  fit?: number
+-  turntable?: boolean
+-  refining?: boolean
+-  /** Set to true while the user is dragging so the turntable eases to a stop. */
+-  interactionRef?: { current: boolean }
+-  quality: ViewerQualityProfile
+-  onReady?: () => void
+-  opticsProfile?: JewelryOpticsProfile
+-}) {
+-  const { scene } = useGLTF(url)
+-  const maxUniforms = useThree(state => state.gl.capabilities.maxFragmentUniforms)
+-  const spin = useRef(0)
+-  const pivot = useRef<Group>(null)
+-
+-  const invalidate = useThree(state => state.invalidate)
+-  useEffect(() => {
+-    // SAFE renders on demand. Let the committed model draw before the host
+-    // removes its poster; invalidate schedules R3F's frame before our callback.
+-    let frame = requestAnimationFrame(() => {
+-      invalidate()
+-      frame = requestAnimationFrame(() => onReady?.())
+-    })
+-    return () => cancelAnimationFrame(frame)
+-  }, [invalidate, onReady, scene])
+-
+-  const { root, gems, centerStones, scale, materials, mountedCenter, moonstones } = useMemo(() => {
+-    const root = scene.clone(true)
+-
+-    const box = new Box3().setFromObject(root)
+-    const size = box.getSize(new Vector3())
+-    const center = box.getCenter(new Vector3())
+-    const scale = fit / Math.max(size.x, size.y, size.z, 0.001)
+-    root.position.sub(center)
+-    root.updateMatrixWorld(true)
+-
+-    // Capture gem transforms in pivot space, then lift them out of the metal hierarchy.
+-    // Without an environment the ray-marched path is unavailable, so gems stay in
+-    // the hierarchy and receive the physical fallback material instead.
+-    const gemMeshes = envMap ? collectGemMeshes(root, (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')) : []
+-    const bicolorMeshes = gemMeshes.filter(mesh => mesh.parent?.userData.ames_gemstone_id === 'stone-ametrine')
+-    const sameFrame = bicolorMeshes.every(mesh => mesh.matrixWorld.elements.every((value, i) => Math.abs(value - bicolorMeshes[0].matrixWorld.elements[i]) < 1e-7))
+-    const bicolorVolume = sameFrame && bicolorMeshes.length > 1 ? convexGemAssemblyVolume(bicolorMeshes.map(mesh => mesh.geometry)) : null
+-    const mountedCenter = findReferenceDiamond001Mesh(root)
+-    const preserveImportedCenterStone = Boolean(mountedCenter)
+-    const centerMeshes = preserveImportedCenterStone ? [] : gemMeshes.filter(isCenterStoneMesh)
+-    const extractedGemMeshes = preserveImportedCenterStone
+-      ? gemMeshes.filter((mesh) => mesh !== mountedCenter)
+-      : gemMeshes
+-    const gems: ExtractedGem[] = extractedGemMeshes
+-      .map((mesh, index) => {
+-        const source = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as MeshPhysicalMaterial | undefined
+-        const gemId = String(mesh.userData?.ames_gemstone_id ?? mesh.parent?.userData.ames_gemstone_id ?? '')
+-        const dispersive = gemId.includes('diamond') || gemId === 'stone-zircon' || !gemId
+-        return {
+-          key: `${mesh.name || 'gem'}-${index}`,
+-          geometry: mesh.geometry,
+-          matrix: mesh.matrixWorld.clone(),
+-          profile: gemQualityForGeometry(mesh.geometry),
+-          color: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') && STUDIO_BODY_COLORS[gemId]
+-            ? new Color(STUDIO_BODY_COLORS[gemId]) : source?.color?.clone() ?? new Color(0xffffff),
+-          bodyFill: gemId === 'stone-diamond' ? 0.004 : 0.012,
+-          colorDepth: ({ 'stone-ruby': 1.1, 'stone-sapphire': .9, 'stone-emerald': 1.1, 'stone-garnet': 1.6 } as Record<string, number>)[gemId] ?? .65,
+-          volume: (() => {
+-            const volume = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? (gemId === 'stone-ametrine' ? bicolorVolume : convexGemVolume(mesh.geometry)) : null
+-            return volume && volume.planes.length + 24 <= maxUniforms ? volume : null
+-          })(),
+-          ior: source?.ior || JEWELRY_DIAMOND_OPTICS.ior,
+-          aberrationStrength: dispersive ? JEWELRY_DIAMOND_OPTICS.aberrationStrength : JEWELRY_DIAMOND_OPTICS.aberrationStrength * 0.3,
+-        }
+-      })
+-    const centerStones: ExtractedCenterStone[] = centerMeshes.map((mesh, index) => ({
+-      key: `${mesh.name || 'center-stone'}-${index}`,
+-      matrix: mesh.matrixWorld.clone(),
+-    }))
+-    for (const mesh of extractedGemMeshes) mesh.parent?.remove(mesh)
+-
+-    const moonstones: {key:string;geometry:BufferGeometry;matrix:Matrix4;baseFraction:number}[] = []
+-    const moonstoneMeshes: Mesh[] = []
+-    if((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio'))root.traverse(object=>{
+-      if(object instanceof Mesh && object.userData?.ames_gemstone_id === 'stone-moonstone')moonstoneMeshes.push(object)
+-    })
+-    for(const mesh of moonstoneMeshes){
+-      moonstones.push({key:mesh.uuid,geometry:mesh.geometry,matrix:mesh.matrixWorld.clone(),baseFraction:Number(mesh.userData.ames_cabochon_base_fraction??.2)})
+-      mesh.parent?.remove(mesh)
+-    }
+-
+-    const assignment = applyJewelryMaterials(root, envMap, {
+-      preserveMesh: mountedCenter ? (mesh) => mesh === mountedCenter : undefined,
+-      opticsProfile,
+-    })
+-    return { root, gems, centerStones, scale, materials: assignment.materials, mountedCenter, moonstones }
+-  }, [scene, envMap, fit, url, opticsProfile, maxUniforms])
+-
+-  useEffect(() => () => {
+-    for (const material of materials) material.dispose()
+-  }, [materials])
+-
+-  useEffect(() => () => {
+-    useGLTF.clear(url)
+-  }, [url])
+-
+-  useFrame((_, delta) => {
+-    const interacting = interactionRef?.current === true
+-    const target = turntable && !interacting ? JEWELRY_TURNTABLE_SPEED : 0
+-    spin.current += (target - spin.current) * Math.min(1, delta * TURNTABLE_EASE)
+-    if (pivot.current) pivot.current.rotation.y += spin.current * delta
+-  })
+-
+-  return (
+-    <group ref={pivot}>
+-      <group scale={scale}>
+-        <primitive object={root} />
+-        {mountedCenter && envMap ? createPortal(<MountedCenterDiamondMaterial quality={quality} center={mountedCenter} opticsProfile={opticsProfile} />, mountedCenter) : null}
+-        {envMap ? centerStones.map((stone) => (
+-          <RoundBrilliantGem
+-            key={stone.key}
+-            envMap={envMap}
+-            matrix={stone.matrix}
+-            constrained={quality.tier !== 'HIGH'}
+-          />
+-        )) : null}
+-        {envMap ? moonstones.map(gem=><mesh key={gem.key} geometry={gem.geometry} dispose={null} matrixAutoUpdate={false}
+-          ref={mesh=>{if(mesh){mesh.matrix.copy(gem.matrix);mesh.matrixWorldNeedsUpdate=true}}}>
+-          <MoonstoneMaterial envMap={gemEnvMap ?? envMap} geometry={gem.geometry} baseFraction={gem.baseFraction} />
+-        </mesh>) : null}
+-        {envMap ? gems.map((gem) => {
+-          const gemQuality = quality.tier === 'HIGH' ? gem.profile : mobileGemProfile(gem.profile)
+-          return (
+-            <mesh
+-              key={gem.key}
+-              geometry={gem.geometry}
+-              dispose={null}
+-              matrixAutoUpdate={false}
+-              ref={(mesh) => {
+-                if (!mesh) return
+-                mesh.matrix.copy(gem.matrix)
+-                mesh.matrixWorldNeedsUpdate = true
+-              }}
+-            >
+-              {gem.volume ? <GemstoneFacetMaterial envMap={gemEnvMap ?? envMap} color={gem.color} ior={gem.ior} volume={gem.volume} colorDepth={gem.colorDepth} bodyFill={gem.bodyFill} refining={refining} bounces={quality.tier === 'SAFE' || quality.tier === 'LOW' ? 4 : 6} /> : (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? <GemstonePreviewMaterial envMap={envMap} color={gem.color} ior={gem.ior} /> : quality.refraction ? <MeshRefractionMaterial
+-                envMap={envMap}
+-                ior={gem.ior}
+-                fresnel={gemQuality.fresnel}
+-                aberrationStrength={quality.tier === 'IOS_LOW' || quality.tier === 'LOW' ? 0 : gem.aberrationStrength}
+-                fastChroma={JEWELRY_DIAMOND_OPTICS.fastChroma}
+-                bounces={Math.min(gemQuality.bounces, quality.gemBounces)}
+-                color={gem.color}
+-                toneMapped
+-              /> : <meshPhysicalMaterial
+-                envMap={envMap}
+-                color={gem.color}
+-                roughness={0.025}
+-                metalness={0}
+-                transmission={0.88}
+-                thickness={0.8}
+-                ior={gem.ior}
+-                clearcoat={0.25}
+-                clearcoatRoughness={0.08}
+-                envMapIntensity={1.8}
+-                toneMapped
+-              />}
+-            </mesh>
+-          )
+-        }) : null}
+-      </group>
+-    </group>
+-  )
+-}
+-
+-
++import { MoonstoneMaterial } from '../materials/MoonstoneMaterial'
++import { createPortal, useFrame, useThree } from '@react-three/fiber'
++import { useGLTF, MeshRefractionMaterial } from '@react-three/drei'
++import { useEffect, useMemo, useRef } from 'react'
++import { Box3, Color, Group, Mesh, Vector3 } from 'three'
++import type { BufferGeometry, Matrix4, MeshPhysicalMaterial, Texture } from 'three'
++import {
++  applyJewelryMaterials,
++  gemQualityForGeometry,
++  isPureGemMesh,
++  isQualifiedDielectricMesh,
++  JEWELRY_DIAMOND_OPTICS,
++  mobileGemProfile,
++} from './jewelryGlbMaterials'
++import type { GemQualityProfile } from './jewelryGlbMaterials'
++import { RoundBrilliantGem } from './RoundBrilliantGem'
++import { convexGemVolume, convexGemAssemblyVolume } from '../materials/convexGemVolume'
++import type { ConvexGemVolume } from '../materials/convexGemVolume'
++import { GemstoneFacetMaterial } from '../materials/GemstoneFacetMaterial'
++import { GemstonePreviewMaterial } from '../materials/GemstonePreviewMaterial'
++import { MountedCenterDiamondMaterial } from '../materials/MountedCenterDiamondMaterial'
++import type { ViewerQualityProfile } from '../renderer/viewerQuality'
++import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
++
++const STUDIO_BODY_COLORS: Record<string, string> = {
++  'stone-ruby': '#d71d42', 'stone-emerald': '#15945e',
++  'stone-sapphire': '#4268cc', 'stone-garnet': '#b52339',
++  'stone-amethyst': '#a879cd', 'stone-tanzanite': '#6f71c4', 'stone-iolite': '#7c79b5',
++  'stone-aquamarine': '#91cedf', 'stone-topaz': '#79c6df', 'stone-kunzite': '#dfa6ca',
++}
++
++/** Approved mounted production asset for the live dev viewer. */
++export const DEFAULT_JEWELRY_GLB_URL = '/models/mounted-reference-ring.glb'
++
++/** Longest-axis fit size in world units, matched to the calibrated camera framing. */
++export const JEWELRY_FIT_SIZE = 2.6
++
++/** Idle turntable angular speed in radians per second. */
++export const JEWELRY_TURNTABLE_SPEED = 0.18
++
++/** How quickly the turntable eases in after interaction (higher = quicker). */
++const TURNTABLE_EASE = 2.5
++
++interface ExtractedGem {
++  key: string
++  geometry: BufferGeometry
++  matrix: Matrix4
++  profile: GemQualityProfile
++  color: Color
++  ior: number
++  aberrationStrength: number
++  volume: ConvexGemVolume | null
++  colorDepth: number
++  bodyFill: number
++}
++
++interface ExtractedCenterStone {
++  key: string
++  matrix: Matrix4
++}
++
++/**
++ * The legacy prepared asset exposes its unsuitable centre stone as the
++ * `Diamond` node with the `dmesh` geometry. The approved mounted reference
++ * asset keeps its imported centre stone and bypasses this replacement path.
++ */
++const CENTER_STONE_NODE = 'diamond'
++const CENTER_STONE_GEOMETRY = 'dmesh'
++
++function isCenterStoneMesh(mesh: Mesh): boolean {
++  const nodeName = (mesh.name ?? '').trim().toLowerCase()
++  if (nodeName === CENTER_STONE_NODE) return true
++  const geometryName = (mesh.geometry?.name ?? '').trim().toLowerCase()
++  return geometryName === CENTER_STONE_GEOMETRY
++}
++
++export function isReferenceDiamond001Mesh(mesh: Mesh): boolean {
++  const metadata = mesh.userData as {
++    ames_asset_id?: unknown
++    ames_role?: unknown
++    ames_part_id?: unknown
++    ames_source_binding?: unknown
++  }
++  return metadata.ames_asset_id === 'reference-diamond-001'
++    && metadata.ames_role === 'center'
++    && metadata.ames_part_id === 'C00'
++    && metadata.ames_source_binding === 'center-stone'
++}
++
++function findReferenceDiamond001Mesh(root: Group): Mesh | undefined {
++  let center: Mesh | undefined
++  root.traverse((object) => {
++    if (!center && object instanceof Mesh && isReferenceDiamond001Mesh(object)) center = object
++  })
++  return center
++}
++
++function collectGemMeshes(root: Group, includeBicolor = false): Mesh[] {
++  const gems: Mesh[] = []
++  root.traverse((object) => {
++    const mesh = object as Mesh
++    const bicolor = includeBicolor && mesh instanceof Mesh && mesh.parent?.userData.ames_gemstone_id === 'stone-ametrine' && [3, 4].includes(Number(mesh.parent?.userData.ames_cut_revision))
++    if (bicolor || (isQualifiedDielectricMesh(mesh) && isPureGemMesh(mesh))) gems.push(mesh)
++  })
++  return gems
++}
++
++/**
++ * Generic real-jewelry GLB model.
++ *
++ * Preserves the loaded node and material hierarchy and only adds a
++ * centering/scaling wrapper so an arbitrary catalog asset fits the calibrated
++ * camera. Geometry is never rewritten. Gem meshes are lifted out of the clone
++ * and rendered with the ray-marched refraction material (real internal
++ * reflections and facet contrast); metal keeps a physically based material.
++ *
++ * A smooth idle turntable spins the fitted model around its vertical axis and
++ * eases to a stop while `interactionRef` is true, then eases back in.
++ */
++export function JewelryGlbModel({
++  url,
++  envMap,
++  gemEnvMap,
++  fit = JEWELRY_FIT_SIZE,
++  turntable = true,
++  refining = true,
++  interactionRef,
++  quality,
++  onReady,
++  opticsProfile = 'reference',
++}: {
++  url: string
++  envMap?: Texture | null
++  gemEnvMap?: Texture | null
++  fit?: number
++  turntable?: boolean
++  refining?: boolean
++  /** Set to true while the user is dragging so the turntable eases to a stop. */
++  interactionRef?: { current: boolean }
++  quality: ViewerQualityProfile
++  onReady?: () => void
++  opticsProfile?: JewelryOpticsProfile
++}) {
++  const { scene } = useGLTF(url)
++  const maxUniforms = useThree(state => state.gl.capabilities.maxFragmentUniforms)
++  const spin = useRef(0)
++  const pivot = useRef<Group>(null)
++
++  const invalidate = useThree(state => state.invalidate)
++  useEffect(() => {
++    // SAFE renders on demand. Let the committed model draw before the host
++    // removes its poster; invalidate schedules R3F's frame before our callback.
++    let frame = requestAnimationFrame(() => {
++      invalidate()
++      frame = requestAnimationFrame(() => onReady?.())
++    })
++    return () => cancelAnimationFrame(frame)
++  }, [invalidate, onReady, scene])
++
++  const { root, gems, centerStones, scale, materials, mountedCenter, moonstones } = useMemo(() => {
++    const root = scene.clone(true)
++
++    const box = new Box3().setFromObject(root)
++    const size = box.getSize(new Vector3())
++    const center = box.getCenter(new Vector3())
++    const scale = fit / Math.max(size.x, size.y, size.z, 0.001)
++    root.position.sub(center)
++    root.updateMatrixWorld(true)
++
++    // Capture gem transforms in pivot space, then lift them out of the metal hierarchy.
++    // Without an environment the ray-marched path is unavailable, so gems stay in
++    // the hierarchy and receive the physical fallback material instead.
++    const gemMeshes = envMap ? collectGemMeshes(root, (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')) : []
++    const bicolorMeshes = gemMeshes.filter(mesh => mesh.parent?.userData.ames_gemstone_id === 'stone-ametrine')
++    const sameFrame = bicolorMeshes.every(mesh => mesh.matrixWorld.elements.every((value, i) => Math.abs(value - bicolorMeshes[0].matrixWorld.elements[i]) < 1e-7))
++    const bicolorVolume = sameFrame && bicolorMeshes.length > 1 ? convexGemAssemblyVolume(bicolorMeshes.map(mesh => mesh.geometry)) : null
++    const mountedCenter = findReferenceDiamond001Mesh(root)
++    const preserveImportedCenterStone = Boolean(mountedCenter)
++    const centerMeshes = preserveImportedCenterStone ? [] : gemMeshes.filter(isCenterStoneMesh)
++    const extractedGemMeshes = preserveImportedCenterStone
++      ? gemMeshes.filter((mesh) => mesh !== mountedCenter)
++      : gemMeshes
++    const gems: ExtractedGem[] = extractedGemMeshes
++      .map((mesh, index) => {
++        const source = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as MeshPhysicalMaterial | undefined
++        const gemId = String(mesh.userData?.ames_gemstone_id ?? mesh.parent?.userData.ames_gemstone_id ?? '')
++        const dispersive = gemId.includes('diamond') || gemId === 'stone-zircon' || !gemId
++        return {
++          key: `${mesh.name || 'gem'}-${index}`,
++          geometry: mesh.geometry,
++          matrix: mesh.matrixWorld.clone(),
++          profile: gemQualityForGeometry(mesh.geometry),
++          color: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') && STUDIO_BODY_COLORS[gemId]
++            ? new Color(STUDIO_BODY_COLORS[gemId]) : source?.color?.clone() ?? new Color(0xffffff),
++          bodyFill: gemId === 'stone-diamond' ? 0.004 : 0.012,
++          colorDepth: ({ 'stone-ruby': 1.1, 'stone-sapphire': .9, 'stone-emerald': 1.1, 'stone-garnet': 1.6 } as Record<string, number>)[gemId] ?? .65,
++          volume: (() => {
++            const volume = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? (gemId === 'stone-ametrine' ? bicolorVolume : convexGemVolume(mesh.geometry)) : null
++            return volume && volume.planes.length + 24 <= maxUniforms ? volume : null
++          })(),
++          ior: source?.ior || JEWELRY_DIAMOND_OPTICS.ior,
++          aberrationStrength: dispersive ? JEWELRY_DIAMOND_OPTICS.aberrationStrength : JEWELRY_DIAMOND_OPTICS.aberrationStrength * 0.3,
++        }
++      })
++    const centerStones: ExtractedCenterStone[] = centerMeshes.map((mesh, index) => ({
++      key: `${mesh.name || 'center-stone'}-${index}`,
++      matrix: mesh.matrixWorld.clone(),
++    }))
++    for (const mesh of extractedGemMeshes) mesh.parent?.remove(mesh)
++
++    const moonstones: {key:string;geometry:BufferGeometry;matrix:Matrix4;baseFraction:number}[] = []
++    const moonstoneMeshes: Mesh[] = []
++    if((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio'))root.traverse(object=>{
++      if(object instanceof Mesh && object.userData?.ames_gemstone_id === 'stone-moonstone')moonstoneMeshes.push(object)
++    })
++    for(const mesh of moonstoneMeshes){
++      moonstones.push({key:mesh.uuid,geometry:mesh.geometry,matrix:mesh.matrixWorld.clone(),baseFraction:Number(mesh.userData.ames_cabochon_base_fraction??.2)})
++      mesh.parent?.remove(mesh)
++    }
++
++    const assignment = applyJewelryMaterials(root, envMap, {
++      preserveMesh: mountedCenter ? (mesh) => mesh === mountedCenter : undefined,
++      opticsProfile,
++    })
++    return { root, gems, centerStones, scale, materials: assignment.materials, mountedCenter, moonstones }
++  }, [scene, envMap, fit, url, opticsProfile, maxUniforms])
++
++  useEffect(() => () => {
++    for (const material of materials) material.dispose()
++  }, [materials])
++
++  useEffect(() => () => {
++    useGLTF.clear(url)
++  }, [url])
++
++  useFrame((_, delta) => {
++    const interacting = interactionRef?.current === true
++    const target = turntable && !interacting ? JEWELRY_TURNTABLE_SPEED : 0
++    spin.current += (target - spin.current) * Math.min(1, delta * TURNTABLE_EASE)
++    if (pivot.current) pivot.current.rotation.y += spin.current * delta
++  })
++
++  return (
++    <group ref={pivot}>
++      <group scale={scale}>
++        <primitive object={root} />
++        {mountedCenter && envMap ? createPortal(<MountedCenterDiamondMaterial quality={quality} center={mountedCenter} opticsProfile={opticsProfile} />, mountedCenter) : null}
++        {envMap ? centerStones.map((stone) => (
++          <RoundBrilliantGem
++            key={stone.key}
++            envMap={envMap}
++            matrix={stone.matrix}
++            constrained={quality.tier !== 'HIGH'}
++          />
++        )) : null}
++        {envMap ? moonstones.map(gem=><mesh key={gem.key} geometry={gem.geometry} dispose={null} matrixAutoUpdate={false}
++          ref={mesh=>{if(mesh){mesh.matrix.copy(gem.matrix);mesh.matrixWorldNeedsUpdate=true}}}>
++          <MoonstoneMaterial envMap={gemEnvMap ?? envMap} geometry={gem.geometry} baseFraction={gem.baseFraction} />
++        </mesh>) : null}
++        {envMap ? gems.map((gem) => {
++          const gemQuality = quality.tier === 'HIGH' ? gem.profile : mobileGemProfile(gem.profile)
++          return (
++            <mesh
++              key={gem.key}
++              geometry={gem.geometry}
++              dispose={null}
++              matrixAutoUpdate={false}
++              ref={(mesh) => {
++                if (!mesh) return
++                mesh.matrix.copy(gem.matrix)
++                mesh.matrixWorldNeedsUpdate = true
++              }}
++            >
++              {gem.volume ? <GemstoneFacetMaterial envMap={gemEnvMap ?? envMap} color={gem.color} ior={gem.ior} volume={gem.volume} colorDepth={gem.colorDepth} bodyFill={gem.bodyFill} refining={refining} bounces={quality.tier === 'SAFE' || quality.tier === 'LOW' ? 4 : 6} /> : (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? <GemstonePreviewMaterial envMap={envMap} color={gem.color} ior={gem.ior} /> : quality.refraction ? <MeshRefractionMaterial
++                envMap={envMap}
++                ior={gem.ior}
++                fresnel={gemQuality.fresnel}
++                aberrationStrength={quality.tier === 'IOS_LOW' || quality.tier === 'LOW' ? 0 : gem.aberrationStrength}
++                fastChroma={JEWELRY_DIAMOND_OPTICS.fastChroma}
++                bounces={Math.min(gemQuality.bounces, quality.gemBounces)}
++                color={gem.color}
++                toneMapped
++              /> : <meshPhysicalMaterial
++                envMap={envMap}
++                color={gem.color}
++                roughness={0.025}
++                metalness={0}
++                transmission={0.88}
++                thickness={0.8}
++                ior={gem.ior}
++                clearcoat={0.25}
++                clearcoatRoughness={0.08}
++                envMapIntensity={1.8}
++                toneMapped
++              />}
++            </mesh>
++          )
++        }) : null}
++      </group>
++    </group>
++  )
++}
++
++
+--- a/src/engine/jewelry/PhysicalStudioModel.tsx
++++ b/src/engine/jewelry/PhysicalStudioModel.tsx
+@@ -0,0 +1,75 @@
++import { useGLTF } from '@react-three/drei'
++import { useThree } from '@react-three/fiber'
++import { useEffect, useMemo, useRef } from 'react'
++import { Box3, Group, Matrix4, Mesh, Vector3 } from 'three'
++import type { BufferGeometry, Material, MeshPhysicalMaterial } from 'three'
++import { applyJewelryMaterials, isQualifiedDielectricMesh } from './jewelryGlbMaterials'
++import { createStudioBrilliantGeometry } from './createStudioBrilliantGeometry'
++import { createPhysicalStudioGem } from '../materials/PhysicalStudioGem'
++import { useControlledTurntable } from '../renderer/useControlledTurntable'
++import type { PhysicalStudio } from '../renderer/usePhysicalStudio'
++
++const BRILLIANT_IDS = new Set(['stone-diamond','stone-fancy-color-diamond','stone-ruby','stone-sapphire','stone-morganite','stone-alexandrite','stone-spinel','stone-garnet','stone-zircon','stone-peridot'])
++
++export function PhysicalStudioModel({url, studio, enabled, interacting, resetToken, onReady}: {
++  url: string; studio: PhysicalStudio; enabled: boolean; interacting: boolean; resetToken?: number; onReady?: () => void
++}) {
++  const {scene} = useGLTF(url)
++  const {gl, invalidate} = useThree()
++  const pivot = useRef<Group>(null)
++  const built = useMemo(() => {
++    const root=scene.clone(true), geometries: BufferGeometry[]=[], materials: Material[]=[], diagnostics: object[]=[]
++    const bounds=new Box3().setFromObject(root), scale=2.6/Math.max(...bounds.getSize(new Vector3()).toArray())
++    root.position.sub(bounds.getCenter(new Vector3())); root.updateMatrixWorld(true)
++    const gems: Mesh[]=[]
++    root.traverse(object=>{if(object instanceof Mesh && isQualifiedDielectricMesh(object))gems.push(object)})
++    const assignment=applyJewelryMaterials(root,studio.environment,{preserveMesh:mesh=>gems.includes(mesh),opticsProfile:'mounted-gem-studio'})
++    materials.push(...assignment.materials)
++    for(const mesh of gems) {
++      const source=(Array.isArray(mesh.material)?mesh.material[0]:mesh.material) as MeshPhysicalMaterial
++      const id=String(mesh.userData.ames_gemstone_id ?? mesh.parent?.userData.ames_gemstone_id ?? 'stone-diamond')
++      // Replace only AMES-authored representative cuts. Uploaded jeweller geometry is retained.
++      if(BRILLIANT_IDS.has(id) && /\/(stone-[a-z-]+|demo-pave-solitaire)\//.test(url)) {
++        mesh.geometry.computeBoundingBox();const old=mesh.geometry.boundingBox!, size=old.getSize(new Vector3()),center=old.getCenter(new Vector3())
++        const outline = id==='stone-morganite' ? 'pear' : id==='stone-fancy-color-diamond' ? 'radiant' : ['stone-garnet','stone-spinel'].includes(id) ? 'cushion' : ['stone-sapphire','stone-alexandrite','stone-peridot'].includes(id) ? 'oval' : 'round'
++        const geometry=createStudioBrilliantGeometry(outline);geometry.computeBoundingBox()
++        const own=geometry.boundingBox!, ownSize=own.getSize(new Vector3()),ownCenter=own.getCenter(new Vector3())
++        geometry.translate(-ownCenter.x,-ownCenter.y,-ownCenter.z)
++        geometry.scale(size.x/ownSize.x,size.y/ownSize.y,size.z/ownSize.z)
++        geometry.translate(center.x,center.y,center.z);mesh.geometry=geometry;geometries.push(geometry)
++      }
++      // GPU intersection tolerances operate in geometry-local coordinates. Authoring
++      // units can be metres or millimetres: normalise each stone before building its
++      // BVH, then preserve its exact placement with the inverse mesh transform.
++      mesh.geometry.computeBoundingBox()
++      const opticalBounds=mesh.geometry.boundingBox!, opticalCenter=opticalBounds.getCenter(new Vector3())
++      const opticalScale=opticalBounds.getSize(new Vector3()).length()
++      if(!Number.isFinite(opticalScale)||opticalScale<=0)throw Error('Invalid gemstone volume.')
++      const normalised=mesh.geometry.clone()
++      normalised.translate(-opticalCenter.x,-opticalCenter.y,-opticalCenter.z)
++      normalised.scale(1/opticalScale,1/opticalScale,1/opticalScale)
++      mesh.geometry=normalised;geometries.push(normalised)
++      mesh.updateMatrix()
++      mesh.matrix.multiply(new Matrix4().makeTranslation(opticalCenter)).multiply(new Matrix4().makeScale(opticalScale,opticalScale,opticalScale))
++      mesh.matrix.decompose(mesh.position,mesh.quaternion,mesh.scale);mesh.updateMatrixWorld(true)
++      const worldScale=scale * mesh.getWorldScale(new Vector3()).y
++      mesh.geometry.computeBoundingBox()
++      const small=mesh.geometry.boundingBox!.getSize(new Vector3()).length()*worldScale<.2
++      const material=createPhysicalStudioGem(mesh.geometry,id,source,studio.environment,studio.radiance,worldScale,small)
++      mesh.material=material;materials.push(material)
++      diagnostics.push({id,type:material.type,ior:material.ior,transmission:material.transmission,roughness:material.roughness,
++        color:material.color.getHexString(),attenuationColor:material.attenuationColor.getHexString(),attenuationDistance:material.attenuationDistance,
++        thickness:material.thickness,dispersion:material.dispersion,triangles:(mesh.geometry.index?.count??mesh.geometry.getAttribute('position').count)/3,
++        cut:mesh.geometry.userData.cut??'imported',...mesh.geometry.userData})
++    }
++    return {root,scale,materials,geometries,diagnostics}
++  },[scene,studio,url])
++  useEffect(()=>()=>{built.materials.forEach(m=>m.dispose());built.geometries.forEach(g=>g.dispose())},[built])
++  useEffect(()=>{
++    gl.domElement.dataset.gemMaterials=JSON.stringify(built.diagnostics)
++    let frame=requestAnimationFrame(()=>{invalidate();frame=requestAnimationFrame(()=>onReady?.())})
++    return()=>{cancelAnimationFrame(frame);delete gl.domElement.dataset.gemMaterials}
++  },[built,gl,invalidate,onReady])
++  useControlledTurntable(pivot,enabled,true,interacting,resetToken,invalidate)
++  return <group ref={pivot} name="ames-physical-turntable" scale={built.scale}><primitive object={built.root}/></group>
++}
+--- a/src/engine/materials/convexGemVolume.ts
++++ b/src/engine/materials/convexGemVolume.ts
+@@ -1,52 +1,52 @@
+-import { Vector3, Vector4, BufferGeometry, Float32BufferAttribute } from 'three'
+-export interface ConvexGemVolume { planes: Vector4[]; diameter: number }
+-/** Facet half-spaces in mesh-local coordinates. Reject unsupported/non-convex meshes. */
+-export function convexGemVolume(geometry: BufferGeometry): ConvexGemVolume | null {
+-  const position = geometry.getAttribute('position'), index = geometry.index
+-  if (!position || position.count < 4 || position.count > 4000) return null
+-  const points = Array.from({ length: position.count }, (_, i) => new Vector3().fromBufferAttribute(position, i))
+-  const center = points.reduce((sum, p) => sum.add(p), new Vector3()).divideScalar(points.length)
+-  geometry.computeBoundingBox()
+-  const diameter = geometry.boundingBox!.getSize(new Vector3()).length()
+-  if (!Number.isFinite(diameter) || diameter < 1e-8) return null
+-  const tolerance = diameter * 2e-5, planes: Vector4[] = []
+-  const edges = new Map<string, number>()
+-  const pointKey = (p: Vector3) => [p.x, p.y, p.z].map(v => Math.round(v / (diameter * 1e-6))).join(',')
+-  for (let i = 0; i < (index?.count ?? position.count); i += 3) {
+-    const [a, b, c] = [0, 1, 2].map(offset => points[index ? index.getX(i + offset) : i + offset])
+-    if (!a || !b || !c) return null
+-    const normal = b.clone().sub(a).cross(c.clone().sub(a))
+-    if (normal.lengthSq() < tolerance ** 4) continue
+-    for (const [start, end] of [[a, b], [b, c], [c, a]]) {
+-      const edge = [pointKey(start), pointKey(end)].sort().join('|')
+-      edges.set(edge, (edges.get(edge) ?? 0) + 1)
+-    }
+-    normal.normalize()
+-    if (normal.dot(a.clone().sub(center)) < 0) normal.negate()
+-    const distance = normal.dot(a)
+-    if (planes.some(p => normal.x * p.x + normal.y * p.y + normal.z * p.z > 1 - 1e-6 && Math.abs(p.w - distance) < tolerance)) continue
+-    if (points.some(point => normal.dot(point) > distance + tolerance)) return null
+-    planes.push(new Vector4(normal.x, normal.y, normal.z, distance))
+-    if (planes.length > 144) return null
+-  }
+-  if ([...edges.values()].some(count => count !== 2)) return null
+-  return planes.length >= 4 ? { planes, diameter } : null
+-}
+-
+-/** Material primitives may partition one closed gem; combine only in the same local frame. */
+-export function convexGemAssemblyVolume(geometries: BufferGeometry[]): ConvexGemVolume | null {
+-  if (!geometries.length || geometries.length > 8) return null
+-  const positions: number[] = []
+-  for (const geometry of geometries) {
+-    const position = geometry.getAttribute('position'), index = geometry.index
+-    if (!position || (positions.length / 3 + (index?.count ?? position.count)) > 4000) return null
+-    for (let i = 0; i < (index?.count ?? position.count); i++) {
+-      const v = index ? index.getX(i) : i
+-      positions.push(position.getX(v), position.getY(v), position.getZ(v))
+-    }
+-  }
+-  const merged = new BufferGeometry().setAttribute('position', new Float32BufferAttribute(positions, 3))
+-  const volume = convexGemVolume(merged)
+-  merged.dispose()
+-  return volume
+-}
++import { Vector3, Vector4, BufferGeometry, Float32BufferAttribute } from 'three'
++export interface ConvexGemVolume { planes: Vector4[]; diameter: number }
++/** Facet half-spaces in mesh-local coordinates. Reject unsupported/non-convex meshes. */
++export function convexGemVolume(geometry: BufferGeometry): ConvexGemVolume | null {
++  const position = geometry.getAttribute('position'), index = geometry.index
++  if (!position || position.count < 4 || position.count > 4000) return null
++  const points = Array.from({ length: position.count }, (_, i) => new Vector3().fromBufferAttribute(position, i))
++  const center = points.reduce((sum, p) => sum.add(p), new Vector3()).divideScalar(points.length)
++  geometry.computeBoundingBox()
++  const diameter = geometry.boundingBox!.getSize(new Vector3()).length()
++  if (!Number.isFinite(diameter) || diameter < 1e-8) return null
++  const tolerance = diameter * 2e-5, planes: Vector4[] = []
++  const edges = new Map<string, number>()
++  const pointKey = (p: Vector3) => [p.x, p.y, p.z].map(v => Math.round(v / (diameter * 1e-6))).join(',')
++  for (let i = 0; i < (index?.count ?? position.count); i += 3) {
++    const [a, b, c] = [0, 1, 2].map(offset => points[index ? index.getX(i + offset) : i + offset])
++    if (!a || !b || !c) return null
++    const normal = b.clone().sub(a).cross(c.clone().sub(a))
++    if (normal.lengthSq() < tolerance ** 4) continue
++    for (const [start, end] of [[a, b], [b, c], [c, a]]) {
++      const edge = [pointKey(start), pointKey(end)].sort().join('|')
++      edges.set(edge, (edges.get(edge) ?? 0) + 1)
++    }
++    normal.normalize()
++    if (normal.dot(a.clone().sub(center)) < 0) normal.negate()
++    const distance = normal.dot(a)
++    if (planes.some(p => normal.x * p.x + normal.y * p.y + normal.z * p.z > 1 - 1e-6 && Math.abs(p.w - distance) < tolerance)) continue
++    if (points.some(point => normal.dot(point) > distance + tolerance)) return null
++    planes.push(new Vector4(normal.x, normal.y, normal.z, distance))
++    if (planes.length > 144) return null
++  }
++  if ([...edges.values()].some(count => count !== 2)) return null
++  return planes.length >= 4 ? { planes, diameter } : null
++}
++
++/** Material primitives may partition one closed gem; combine only in the same local frame. */
++export function convexGemAssemblyVolume(geometries: BufferGeometry[]): ConvexGemVolume | null {
++  if (!geometries.length || geometries.length > 8) return null
++  const positions: number[] = []
++  for (const geometry of geometries) {
++    const position = geometry.getAttribute('position'), index = geometry.index
++    if (!position || (positions.length / 3 + (index?.count ?? position.count)) > 4000) return null
++    for (let i = 0; i < (index?.count ?? position.count); i++) {
++      const v = index ? index.getX(i) : i
++      positions.push(position.getX(v), position.getY(v), position.getZ(v))
++    }
++  }
++  const merged = new BufferGeometry().setAttribute('position', new Float32BufferAttribute(positions, 3))
++  const volume = convexGemVolume(merged)
++  merged.dispose()
++  return volume
++}
+--- a/src/engine/materials/GemstoneFacetMaterial.tsx
++++ b/src/engine/materials/GemstoneFacetMaterial.tsx
+@@ -1,144 +1,144 @@
+-import { useEffect, useMemo } from 'react'
+-import { useThree } from '@react-three/fiber'
+-import { Matrix4, ShaderMaterial } from 'three'
+-import type { Color, Texture } from 'three'
+-import type { ConvexGemVolume } from './convexGemVolume'
+-
+-/** Trace a bounded convex faceted volume without BVH textures, recursion or traversal stacks. */
+-export function GemstoneFacetMaterial({ envMap, color, ior, volume, bounces = 5, refining = true, colorDepth = 0.9, bodyFill = 0.012 }: {
+-  envMap: Texture; color: Color; ior: number; volume: ConvexGemVolume; bounces?: number; refining?: boolean; colorDepth?: number; bodyFill?: number
+-}) {
+-  const invalidate = useThree(state => state.invalidate)
+-  const traceBudget = volume.planes.length > 80 && bounces <= 4 ? 4 : 6
+-  const material = useMemo(() => {
+-    const value = new ShaderMaterial({
+-      defines: { FACET_COUNT: volume.planes.length, BOUNCE_COUNT: traceBudget },
+-      uniforms: {
+-        envMap: { value: envMap }, radianceRange: { value: Number(envMap.userData.rgbmRange ?? 0) }, photographicHDR: { value: envMap.userData.photographicHDR ? 1 : 0 }, colorDepth: { value: colorDepth }, bodyFill: { value: bodyFill }, bodyColor: { value: color }, ior: { value: ior },
+-        facetCount: { value: volume.planes.length }, facets: { value: volume.planes }, diameter: { value: volume.diameter }, detailSamples: { value: 1 }, traceBounces: { value: Math.min(traceBudget, bounces) },
+-        worldToLocal: { value: new Matrix4() }, localToWorld: { value: new Matrix4() },
+-      },
+-      vertexShader: `
+-        varying vec3 localPosition;
+-        varying vec3 localNormal;
+-        void main() {
+-          localPosition = position;
+-          localNormal = normal;
+-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+-        }`,
+-      fragmentShader: `
+-        uniform samplerCube envMap;
+-        uniform float radianceRange;
+-        uniform float photographicHDR;
+-        uniform float colorDepth;
+-        uniform float bodyFill;
+-        uniform vec3 bodyColor;
+-        uniform float ior;
+-        uniform vec4 facets[FACET_COUNT];
+-        uniform int facetCount;
+-        uniform float diameter;
+-        uniform float detailSamples;
+-        uniform int traceBounces;
+-        uniform mat4 worldToLocal;
+-        uniform mat4 localToWorld;
+-        varying vec3 localPosition;
+-        varying vec3 localNormal;
+-        vec3 environmentDx;
+-        vec3 environmentDy;
+-        vec3 environment(vec3 direction) {
+-          vec4 packedLight = textureCubeGradEXT(envMap, normalize(mat3(localToWorld) * direction), environmentDx, environmentDy);
+-          if (photographicHDR > 0.5) return packedLight.rgb;
+-          if (radianceRange > 0.0) return packedLight.rgb * packedLight.a * radianceRange;
+-          vec3 light = packedLight.rgb;
+-          // Display-light reconstruction gives softboxes radiance above the room fill
+-          // without requiring float render targets or HDR texture extensions on mobile.
+-          float luminance = dot(light, vec3(0.2126, 0.7152, 0.0722));
+-          return light * (1.0 + 8.0 * pow(luminance, 8.0));
+-        }
+-        vec3 shadeGem(vec3 point, vec3 normal, vec3 localCamera) {
+-          vec3 incident = normalize(point - localCamera);
+-          vec3 surface = environment(reflect(incident, normal));
+-          vec3 ray = refract(incident, normal, 1.0 / ior);
+-          float epsilon = diameter * 0.00003;
+-          vec3 origin = point + ray * epsilon;
+-          vec3 throughput = vec3(1.0);
+-          vec3 interior = vec3(0.0);
+-          for (int bounce = 0; bounce < BOUNCE_COUNT; bounce++) {
+-            if (bounce >= traceBounces) break;
+-            float nearest = diameter * 100.0;
+-            vec3 exitNormal = normal;
+-            bool hit = false;
+-            for (int facet = 0; facet < facetCount; facet++) {
+-              vec3 n = facets[facet].xyz;
+-              float denominator = dot(n, ray);
+-              if (denominator > 0.000001) {
+-                float distanceToFacet = (facets[facet].w - dot(n, origin)) / denominator;
+-                if (distanceToFacet > epsilon * 0.1 && distanceToFacet < nearest) {
+-                  nearest = distanceToFacet; exitNormal = n; hit = true;
+-                }
+-              }
+-            }
+-            if (!hit) { interior += throughput * environment(ray); throughput = vec3(0.0); break; }
+-            throughput *= pow(max(bodyColor, vec3(0.002)), vec3(nearest / diameter * colorDepth));
+-            vec3 boundary = origin + ray * nearest;
+-            vec3 transmitted = refract(ray, -exitNormal, ior);
+-            if (dot(transmitted, transmitted) > 0.00001) {
+-              float interfaceF0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
+-              float interfaceFresnel = interfaceF0 + (1.0 - interfaceF0) * pow(1.0 - clamp(dot(ray, exitNormal), 0.0, 1.0), 5.0);
+-              interior += throughput * (1.0 - interfaceFresnel) * environment(transmitted);
+-              throughput *= interfaceFresnel;
+-            }
+-            ray = reflect(ray, exitNormal);
+-            origin = boundary + ray * epsilon;
+-
+-          }
+-          // Preserve bounded residual energy, including paths still under total
+-          // internal reflection when the mobile bounce budget is exhausted.
+-          interior += throughput * environment(ray) * 0.25 + bodyColor * bodyFill;
+-          float f0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
+-          float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(dot(-incident, normal), 0.0, 1.0), 5.0);
+-          return mix(interior, surface, fresnel);
+-        }
+-        void main() {
+-          vec3 localCamera = (worldToLocal * vec4(cameraPosition, 1.0)).xyz;
+-          // Derivatives of traced exit directions jump at facet boundaries. Use
+-          // the smooth camera ray for mip selection so triangulation cannot create
+-          // dotted seams or wash out internal reflections.
+-          vec3 cameraRay = normalize(mat3(localToWorld) * (localPosition - localCamera));
+-          environmentDx = dFdx(cameraRay) * 1.25;
+-          environmentDy = dFdy(cameraRay) * 1.25;
+-          // Canonicalise flat facet normals to suppress interpolation precision seams.
+-          vec3 normal = normalize(floor(localNormal * 100000.0 + 0.5) / 100000.0);
+-          vec3 offset = (dFdx(localPosition) + dFdy(localPosition)) * 0.22;
+-          vec3 result;
+-          if (detailSamples > 1.5) {
+-            result = (shadeGem(localPosition - offset, normal, localCamera)
+-              + shadeGem(localPosition + offset, normal, localCamera)) * 0.5;
+-          } else {
+-            result = shadeGem(localPosition, normal, localCamera);
+-          }
+-          gl_FragColor = vec4(result, 1.0);
+-          #include <tonemapping_fragment>
+-          #include <colorspace_fragment>
+-        }`,
+-      toneMapped: true,
+-    })
+-    value.name = 'AMES convex facet volume'
+-    value.onBeforeRender = (_renderer, _scene, _camera, _geometry, object) => {
+-      value.uniforms.localToWorld.value.copy(object.matrixWorld)
+-      value.uniforms.worldToLocal.value.copy(object.matrixWorld).invert()
+-      value.uniformsNeedUpdate = true
+-    }
+-    return value
+-  }, [envMap, color, ior, volume, bounces, traceBudget, colorDepth, bodyFill])
+-  useEffect(() => () => material.dispose(), [material])
+-  useEffect(() => {
+-    material.uniforms.detailSamples.value = 1
+-    material.uniforms.traceBounces.value = Math.min(traceBudget,bounces)
+-    invalidate()
+-    if (!refining) return
+-    const timer = setTimeout(() => { material.uniforms.detailSamples.value = 2; material.uniforms.traceBounces.value = traceBudget; invalidate() }, 500)
+-    return () => clearTimeout(timer)
+-  }, [material, refining, bounces, traceBudget, invalidate])
+-  return <primitive object={material} attach="material" />
+-}
++import { useEffect, useMemo } from 'react'
++import { useThree } from '@react-three/fiber'
++import { Matrix4, ShaderMaterial } from 'three'
++import type { Color, Texture } from 'three'
++import type { ConvexGemVolume } from './convexGemVolume'
++
++/** Trace a bounded convex faceted volume without BVH textures, recursion or traversal stacks. */
++export function GemstoneFacetMaterial({ envMap, color, ior, volume, bounces = 5, refining = true, colorDepth = 0.9, bodyFill = 0.012 }: {
++  envMap: Texture; color: Color; ior: number; volume: ConvexGemVolume; bounces?: number; refining?: boolean; colorDepth?: number; bodyFill?: number
++}) {
++  const invalidate = useThree(state => state.invalidate)
++  const traceBudget = volume.planes.length > 80 && bounces <= 4 ? 4 : 6
++  const material = useMemo(() => {
++    const value = new ShaderMaterial({
++      defines: { FACET_COUNT: volume.planes.length, BOUNCE_COUNT: traceBudget },
++      uniforms: {
++        envMap: { value: envMap }, radianceRange: { value: Number(envMap.userData.rgbmRange ?? 0) }, photographicHDR: { value: envMap.userData.photographicHDR ? 1 : 0 }, colorDepth: { value: colorDepth }, bodyFill: { value: bodyFill }, bodyColor: { value: color }, ior: { value: ior },
++        facetCount: { value: volume.planes.length }, facets: { value: volume.planes }, diameter: { value: volume.diameter }, detailSamples: { value: 1 }, traceBounces: { value: Math.min(traceBudget, bounces) },
++        worldToLocal: { value: new Matrix4() }, localToWorld: { value: new Matrix4() },
++      },
++      vertexShader: `
++        varying vec3 localPosition;
++        varying vec3 localNormal;
++        void main() {
++          localPosition = position;
++          localNormal = normal;
++          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
++        }`,
++      fragmentShader: `
++        uniform samplerCube envMap;
++        uniform float radianceRange;
++        uniform float photographicHDR;
++        uniform float colorDepth;
++        uniform float bodyFill;
++        uniform vec3 bodyColor;
++        uniform float ior;
++        uniform vec4 facets[FACET_COUNT];
++        uniform int facetCount;
++        uniform float diameter;
++        uniform float detailSamples;
++        uniform int traceBounces;
++        uniform mat4 worldToLocal;
++        uniform mat4 localToWorld;
++        varying vec3 localPosition;
++        varying vec3 localNormal;
++        vec3 environmentDx;
++        vec3 environmentDy;
++        vec3 environment(vec3 direction) {
++          vec4 packedLight = textureCubeGradEXT(envMap, normalize(mat3(localToWorld) * direction), environmentDx, environmentDy);
++          if (photographicHDR > 0.5) return packedLight.rgb;
++          if (radianceRange > 0.0) return packedLight.rgb * packedLight.a * radianceRange;
++          vec3 light = packedLight.rgb;
++          // Display-light reconstruction gives softboxes radiance above the room fill
++          // without requiring float render targets or HDR texture extensions on mobile.
++          float luminance = dot(light, vec3(0.2126, 0.7152, 0.0722));
++          return light * (1.0 + 8.0 * pow(luminance, 8.0));
++        }
++        vec3 shadeGem(vec3 point, vec3 normal, vec3 localCamera) {
++          vec3 incident = normalize(point - localCamera);
++          vec3 surface = environment(reflect(incident, normal));
++          vec3 ray = refract(incident, normal, 1.0 / ior);
++          float epsilon = diameter * 0.00003;
++          vec3 origin = point + ray * epsilon;
++          vec3 throughput = vec3(1.0);
++          vec3 interior = vec3(0.0);
++          for (int bounce = 0; bounce < BOUNCE_COUNT; bounce++) {
++            if (bounce >= traceBounces) break;
++            float nearest = diameter * 100.0;
++            vec3 exitNormal = normal;
++            bool hit = false;
++            for (int facet = 0; facet < facetCount; facet++) {
++              vec3 n = facets[facet].xyz;
++              float denominator = dot(n, ray);
++              if (denominator > 0.000001) {
++                float distanceToFacet = (facets[facet].w - dot(n, origin)) / denominator;
++                if (distanceToFacet > epsilon * 0.1 && distanceToFacet < nearest) {
++                  nearest = distanceToFacet; exitNormal = n; hit = true;
++                }
++              }
++            }
++            if (!hit) { interior += throughput * environment(ray); throughput = vec3(0.0); break; }
++            throughput *= pow(max(bodyColor, vec3(0.002)), vec3(nearest / diameter * colorDepth));
++            vec3 boundary = origin + ray * nearest;
++            vec3 transmitted = refract(ray, -exitNormal, ior);
++            if (dot(transmitted, transmitted) > 0.00001) {
++              float interfaceF0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
++              float interfaceFresnel = interfaceF0 + (1.0 - interfaceF0) * pow(1.0 - clamp(dot(ray, exitNormal), 0.0, 1.0), 5.0);
++              interior += throughput * (1.0 - interfaceFresnel) * environment(transmitted);
++              throughput *= interfaceFresnel;
++            }
++            ray = reflect(ray, exitNormal);
++            origin = boundary + ray * epsilon;
++
++          }
++          // Preserve bounded residual energy, including paths still under total
++          // internal reflection when the mobile bounce budget is exhausted.
++          interior += throughput * environment(ray) * 0.25 + bodyColor * bodyFill;
++          float f0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
++          float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(dot(-incident, normal), 0.0, 1.0), 5.0);
++          return mix(interior, surface, fresnel);
++        }
++        void main() {
++          vec3 localCamera = (worldToLocal * vec4(cameraPosition, 1.0)).xyz;
++          // Derivatives of traced exit directions jump at facet boundaries. Use
++          // the smooth camera ray for mip selection so triangulation cannot create
++          // dotted seams or wash out internal reflections.
++          vec3 cameraRay = normalize(mat3(localToWorld) * (localPosition - localCamera));
++          environmentDx = dFdx(cameraRay) * 1.25;
++          environmentDy = dFdy(cameraRay) * 1.25;
++          // Canonicalise flat facet normals to suppress interpolation precision seams.
++          vec3 normal = normalize(floor(localNormal * 100000.0 + 0.5) / 100000.0);
++          vec3 offset = (dFdx(localPosition) + dFdy(localPosition)) * 0.22;
++          vec3 result;
++          if (detailSamples > 1.5) {
++            result = (shadeGem(localPosition - offset, normal, localCamera)
++              + shadeGem(localPosition + offset, normal, localCamera)) * 0.5;
++          } else {
++            result = shadeGem(localPosition, normal, localCamera);
++          }
++          gl_FragColor = vec4(result, 1.0);
++          #include <tonemapping_fragment>
++          #include <colorspace_fragment>
++        }`,
++      toneMapped: true,
++    })
++    value.name = 'AMES convex facet volume'
++    value.onBeforeRender = (_renderer, _scene, _camera, _geometry, object) => {
++      value.uniforms.localToWorld.value.copy(object.matrixWorld)
++      value.uniforms.worldToLocal.value.copy(object.matrixWorld).invert()
++      value.uniformsNeedUpdate = true
++    }
++    return value
++  }, [envMap, color, ior, volume, bounces, traceBudget, colorDepth, bodyFill])
++  useEffect(() => () => material.dispose(), [material])
++  useEffect(() => {
++    material.uniforms.detailSamples.value = 1
++    material.uniforms.traceBounces.value = Math.min(traceBudget,bounces)
++    invalidate()
++    if (!refining) return
++    const timer = setTimeout(() => { material.uniforms.detailSamples.value = 2; material.uniforms.traceBounces.value = traceBudget; invalidate() }, 500)
++    return () => clearTimeout(timer)
++  }, [material, refining, bounces, traceBudget, invalidate])
++  return <primitive object={material} attach="material" />
++}
+--- a/src/engine/materials/GemstonePreviewMaterial.tsx
++++ b/src/engine/materials/GemstonePreviewMaterial.tsx
+@@ -1,45 +1,45 @@
+-import { useEffect, useMemo } from 'react'
+-import { ShaderMaterial } from 'three'
+-import type { Color, Texture } from 'three'
+-
+-/** Bounded mobile approximation: environment refraction and surface reflection,
+- * without BVH traversal, screen-space transmission or shader loops. */
+-export function GemstonePreviewMaterial({ envMap, color, ior }: { envMap: Texture; color: Color; ior: number }) {
+-  const material = useMemo(() => new ShaderMaterial({
+-    uniforms: { envMap: { value: envMap }, bodyColor: { value: color }, ior: { value: ior } },
+-    vertexShader: `
+-      varying vec3 worldPosition;
+-      varying vec3 worldNormal;
+-      void main() {
+-        vec4 positionWorld = modelMatrix * vec4(position, 1.0);
+-        worldPosition = positionWorld.xyz;
+-        worldNormal = normalize(mat3(modelMatrix) * normal);
+-        gl_Position = projectionMatrix * viewMatrix * positionWorld;
+-      }`,
+-    fragmentShader: `
+-      uniform samplerCube envMap;
+-      uniform vec3 bodyColor;
+-      uniform float ior;
+-      varying vec3 worldPosition;
+-      varying vec3 worldNormal;
+-      void main() {
+-        vec3 incident = normalize(worldPosition - cameraPosition);
+-        vec3 normalWorld = normalize(worldNormal);
+-        vec3 reflectedDirection = reflect(incident, normalWorld);
+-        vec3 transmittedDirection = refract(incident, normalWorld, 1.0 / ior);
+-        vec3 surface = textureCube(envMap, reflectedDirection).rgb;
+-        // The second environment sample approximates pavilion light return.
+-        // This is a display approximation, not geometry-traced internal optics.
+-        vec3 interior = mix(textureCube(envMap, transmittedDirection).rgb,
+-          textureCube(envMap, reflect(transmittedDirection, vec3(0.0, 1.0, 0.0))).rgb, 0.4);
+-        float f0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
+-        float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(dot(-incident, normalWorld), 0.0, 1.0), 5.0);
+-        gl_FragColor = vec4(mix(interior * bodyColor, surface, fresnel), 1.0);
+-        #include <tonemapping_fragment>
+-        #include <colorspace_fragment>
+-      }`,
+-    toneMapped: true,
+-  }), [envMap, color, ior])
+-  useEffect(() => () => material.dispose(), [material])
+-  return <primitive object={material} attach="material" />
+-}
++import { useEffect, useMemo } from 'react'
++import { ShaderMaterial } from 'three'
++import type { Color, Texture } from 'three'
++
++/** Bounded mobile approximation: environment refraction and surface reflection,
++ * without BVH traversal, screen-space transmission or shader loops. */
++export function GemstonePreviewMaterial({ envMap, color, ior }: { envMap: Texture; color: Color; ior: number }) {
++  const material = useMemo(() => new ShaderMaterial({
++    uniforms: { envMap: { value: envMap }, bodyColor: { value: color }, ior: { value: ior } },
++    vertexShader: `
++      varying vec3 worldPosition;
++      varying vec3 worldNormal;
++      void main() {
++        vec4 positionWorld = modelMatrix * vec4(position, 1.0);
++        worldPosition = positionWorld.xyz;
++        worldNormal = normalize(mat3(modelMatrix) * normal);
++        gl_Position = projectionMatrix * viewMatrix * positionWorld;
++      }`,
++    fragmentShader: `
++      uniform samplerCube envMap;
++      uniform vec3 bodyColor;
++      uniform float ior;
++      varying vec3 worldPosition;
++      varying vec3 worldNormal;
++      void main() {
++        vec3 incident = normalize(worldPosition - cameraPosition);
++        vec3 normalWorld = normalize(worldNormal);
++        vec3 reflectedDirection = reflect(incident, normalWorld);
++        vec3 transmittedDirection = refract(incident, normalWorld, 1.0 / ior);
++        vec3 surface = textureCube(envMap, reflectedDirection).rgb;
++        // The second environment sample approximates pavilion light return.
++        // This is a display approximation, not geometry-traced internal optics.
++        vec3 interior = mix(textureCube(envMap, transmittedDirection).rgb,
++          textureCube(envMap, reflect(transmittedDirection, vec3(0.0, 1.0, 0.0))).rgb, 0.4);
++        float f0 = pow((ior - 1.0) / (ior + 1.0), 2.0);
++        float fresnel = f0 + (1.0 - f0) * pow(1.0 - clamp(dot(-incident, normalWorld), 0.0, 1.0), 5.0);
++        gl_FragColor = vec4(mix(interior * bodyColor, surface, fresnel), 1.0);
++        #include <tonemapping_fragment>
++        #include <colorspace_fragment>
++      }`,
++    toneMapped: true,
++  }), [envMap, color, ior])
++  useEffect(() => () => material.dispose(), [material])
++  return <primitive object={material} attach="material" />
++}
+--- a/src/engine/materials/MoonstoneMaterial.tsx
++++ b/src/engine/materials/MoonstoneMaterial.tsx
+@@ -1,114 +1,114 @@
+-import {useEffect,useMemo} from 'react'
+-import {useThree} from '@react-three/fiber'
+-import {Matrix4,ShaderMaterial,Vector3} from 'three'
+-import type {BufferGeometry,Texture} from 'three'
+-
+-/** Bounded visual approximation of a translucent cabochon and moving blue layer sheen.
+- * Not a thin-layer diffraction solver or a claim about a physical gemstone.
+- */
+-export function MoonstoneMaterial({envMap,geometry,baseFraction=.2}:{envMap:Texture;geometry:BufferGeometry;baseFraction?:number}){
+-  const invalidate=useThree(state=>state.invalidate)
+-  const material=useMemo(()=>{
+-    geometry.computeBoundingBox()
+-    const bounds=geometry.boundingBox!,center=bounds.getCenter(new Vector3()),size=bounds.getSize(new Vector3())
+-    const value=new ShaderMaterial({
+-      uniforms:{envMap:{value:envMap},radianceRange:{value:Number(envMap.userData.rgbmRange??1)},baseLimit:{value:-baseFraction/(1-baseFraction)},
+-        localToWorld:{value:new Matrix4()},worldToLocal:{value:new Matrix4()},center:{value:new Vector3(center.x,bounds.min.y+size.y*baseFraction,center.z)},inverseSize:{value:new Vector3(2/size.x,1/(size.y*(1-baseFraction)),2/size.z)}},
+-      vertexShader:`
+-        varying vec3 worldPoint;varying vec3 worldNormal;varying vec3 localPoint;varying vec3 localNormal;
+-        void main(){
+-          localPoint=position;localNormal=normal;
+-          worldPoint=(modelMatrix*vec4(position,1.0)).xyz;
+-          worldNormal=normalize(vec3(vec4(normalize(normalMatrix*normal),0.0)*viewMatrix));
+-          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+-        }`,
+-      fragmentShader:`
+-        uniform samplerCube envMap;uniform float radianceRange;uniform float baseLimit;
+-        uniform mat4 localToWorld;uniform mat4 worldToLocal;uniform vec3 center;uniform vec3 inverseSize;
+-        varying vec3 worldPoint;varying vec3 worldNormal;varying vec3 localPoint;varying vec3 localNormal;
+-        vec3 light(vec3 d){return textureCube(envMap,normalize(d)).rgb*radianceRange;}
+-        float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+-        float cloud(vec3 p){
+-          vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+-          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+-            mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+-        }
+-        bool exitDome(vec3 origin,vec3 direction,out vec3 hitPoint,out vec3 hitNormal){
+-          vec3 q=(origin-center)*inverseSize,d=direction*inverseSize;
+-          float nearest=1.0e8;
+-          float a=dot(d,d),b=dot(q,d),c=dot(q,q)-1.0,disc=b*b-a*c;
+-          if(disc>0.0){
+-            float t=(-b+sqrt(disc))/a;vec3 h=q+d*t;
+-            if(t>0.00001&&h.y>=0.0){nearest=t;hitNormal=normalize(h*inverseSize);}
+-          }
+-          a=dot(d.xz,d.xz);b=dot(q.xz,d.xz);c=dot(q.xz,q.xz)-1.0;disc=b*b-a*c;
+-          if(a>.000001&&disc>0.0){
+-            float t=(-b+sqrt(disc))/a;vec3 h=q+d*t;
+-            if(t>0.00001&&t<nearest&&h.y<=0.0&&h.y>=baseLimit){nearest=t;hitNormal=normalize(vec3(h.x*inverseSize.x,0.0,h.z*inverseSize.z));}
+-          }
+-          if(d.y<-.000001){
+-            float t=(baseLimit-q.y)/d.y;vec3 h=q+d*t;
+-            if(t>0.00001&&t<nearest&&dot(h.xz,h.xz)<=1.0001){nearest=t;hitNormal=vec3(0,-1,0);}
+-          }
+-          hitPoint=origin+direction*nearest;
+-          return nearest<1.0e7;
+-        }
+-        vec3 localLight(vec3 d){
+-          vec3 w=normalize(mat3(localToWorld)*d);
+-          vec3 result=vec3(.32,.34,.35)*(.8+.2*max(w.y,0.0));
+-          result+=vec3(9.0)*pow(max(dot(w,normalize(vec3(.25,1.5,1.0))),0.0),65.0);
+-          result+=vec3(.9,1.1,1.35)*pow(max(dot(w,normalize(vec3(-1,.3,-.8))),0.0),24.0);
+-          result+=vec3(3.0)*pow(max(dot(w,normalize(vec3(1,.15,.1))),0.0),35.0);
+-          return result;
+-        }
+-        void main(){
+-          vec3 V=normalize((worldToLocal*vec4(cameraPosition,1.0)).xyz-localPoint);
+-          vec3 N=normalize(localNormal);
+-          float facing=clamp(dot(N,V),0.0,1.0);
+-          float fresnel=.044+.956*pow(1.0-facing,5.0);
+-          vec3 p=(localPoint-center)*inverseSize;
+-          vec3 ray=refract(-V,N,1.0/1.52);
+-          float epsilon=.00008/inverseSize.y;
+-          vec3 origin=localPoint+ray*epsilon;
+-          vec3 throughput=vec3(1),interior=vec3(0);
+-          for(int bounce=0;bounce<4;bounce++){
+-            vec3 point,normal;
+-            if(!exitDome(origin,ray,point,normal)){interior+=throughput*localLight(ray);break;}
+-            float distance=length((point-origin)*inverseSize);
+-            float mist=cloud((point+origin)*inverseSize*2.0)*.65+cloud((point+origin)*inverseSize*4.0)*.35;
+-            throughput*=exp(-vec3(.18,.12,.08)*distance*(.75+.5*mist));
+-            interior+=throughput*vec3(.16,.17,.18)*(1.0-exp(-distance*.6));
+-            vec3 transmitted=refract(ray,-normal,1.52);
+-            if(dot(transmitted,transmitted)>.00001){
+-              float reflection=.044+.956*pow(1.0-clamp(dot(ray,normal),0.0,1.0),5.0);
+-              interior+=throughput*(1.0-reflection)*localLight(transmitted);
+-              throughput*=reflection;
+-            }
+-            ray=reflect(ray,normal);origin=point+ray*epsilon;
+-          }
+-          vec2 sheenCenter=clamp(V.xz*.6,vec2(-.45),vec2(.45));
+-          vec2 offset=p.xz-sheenCenter;
+-          float billow=exp(-dot(offset*vec2(1.3,.9),offset*vec2(1.3,.9))*2.8);
+-          vec3 layer=normalize(vec3(.18,1,.22));
+-          vec3 key=normalize((worldToLocal*vec4(normalize(vec3(-.8,1.1,1.4)),0.0)).xyz);
+-          float alignment=pow(max(dot(reflect(-V,layer),key),0.0),3.0);
+-          float sheen=billow*(.55+.45*alignment)*pow(facing,.5);
+-          interior+=vec3(.015,.10,.32)*sheen;
+-          vec3 result=mix(interior,localLight(reflect(-V,N)),fresnel);
+-          result+=vec3(.075,.08,.085)*pow(max(dot(N,key),0.0),1.5);
+-          gl_FragColor=vec4(result,1.0);
+-          #include <tonemapping_fragment>
+-          #include <colorspace_fragment>
+-        }`,toneMapped:true,
+-    })
+-    value.name='AMES moonstone translucent layer study'
+-    value.onBeforeRender=(_renderer,_scene,_camera,_geometry,object)=>{
+-      value.uniforms.localToWorld.value.copy(object.matrixWorld)
+-      value.uniforms.worldToLocal.value.copy(object.matrixWorld).invert()
+-      value.uniformsNeedUpdate=true
+-    }
+-    return value
+-  },[envMap,geometry,baseFraction])
+-  useEffect(()=>{invalidate();return()=>material.dispose()},[material,invalidate])
+-  return <primitive object={material} attach="material" />
+-}
++import {useEffect,useMemo} from 'react'
++import {useThree} from '@react-three/fiber'
++import {Matrix4,ShaderMaterial,Vector3} from 'three'
++import type {BufferGeometry,Texture} from 'three'
++
++/** Bounded visual approximation of a translucent cabochon and moving blue layer sheen.
++ * Not a thin-layer diffraction solver or a claim about a physical gemstone.
++ */
++export function MoonstoneMaterial({envMap,geometry,baseFraction=.2}:{envMap:Texture;geometry:BufferGeometry;baseFraction?:number}){
++  const invalidate=useThree(state=>state.invalidate)
++  const material=useMemo(()=>{
++    geometry.computeBoundingBox()
++    const bounds=geometry.boundingBox!,center=bounds.getCenter(new Vector3()),size=bounds.getSize(new Vector3())
++    const value=new ShaderMaterial({
++      uniforms:{envMap:{value:envMap},radianceRange:{value:Number(envMap.userData.rgbmRange??1)},baseLimit:{value:-baseFraction/(1-baseFraction)},
++        localToWorld:{value:new Matrix4()},worldToLocal:{value:new Matrix4()},center:{value:new Vector3(center.x,bounds.min.y+size.y*baseFraction,center.z)},inverseSize:{value:new Vector3(2/size.x,1/(size.y*(1-baseFraction)),2/size.z)}},
++      vertexShader:`
++        varying vec3 worldPoint;varying vec3 worldNormal;varying vec3 localPoint;varying vec3 localNormal;
++        void main(){
++          localPoint=position;localNormal=normal;
++          worldPoint=(modelMatrix*vec4(position,1.0)).xyz;
++          worldNormal=normalize(vec3(vec4(normalize(normalMatrix*normal),0.0)*viewMatrix));
++          gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
++        }`,
++      fragmentShader:`
++        uniform samplerCube envMap;uniform float radianceRange;uniform float baseLimit;
++        uniform mat4 localToWorld;uniform mat4 worldToLocal;uniform vec3 center;uniform vec3 inverseSize;
++        varying vec3 worldPoint;varying vec3 worldNormal;varying vec3 localPoint;varying vec3 localNormal;
++        vec3 light(vec3 d){return textureCube(envMap,normalize(d)).rgb*radianceRange;}
++        float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
++        float cloud(vec3 p){
++          vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
++          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
++            mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
++        }
++        bool exitDome(vec3 origin,vec3 direction,out vec3 hitPoint,out vec3 hitNormal){
++          vec3 q=(origin-center)*inverseSize,d=direction*inverseSize;
++          float nearest=1.0e8;
++          float a=dot(d,d),b=dot(q,d),c=dot(q,q)-1.0,disc=b*b-a*c;
++          if(disc>0.0){
++            float t=(-b+sqrt(disc))/a;vec3 h=q+d*t;
++            if(t>0.00001&&h.y>=0.0){nearest=t;hitNormal=normalize(h*inverseSize);}
++          }
++          a=dot(d.xz,d.xz);b=dot(q.xz,d.xz);c=dot(q.xz,q.xz)-1.0;disc=b*b-a*c;
++          if(a>.000001&&disc>0.0){
++            float t=(-b+sqrt(disc))/a;vec3 h=q+d*t;
++            if(t>0.00001&&t<nearest&&h.y<=0.0&&h.y>=baseLimit){nearest=t;hitNormal=normalize(vec3(h.x*inverseSize.x,0.0,h.z*inverseSize.z));}
++          }
++          if(d.y<-.000001){
++            float t=(baseLimit-q.y)/d.y;vec3 h=q+d*t;
++            if(t>0.00001&&t<nearest&&dot(h.xz,h.xz)<=1.0001){nearest=t;hitNormal=vec3(0,-1,0);}
++          }
++          hitPoint=origin+direction*nearest;
++          return nearest<1.0e7;
++        }
++        vec3 localLight(vec3 d){
++          vec3 w=normalize(mat3(localToWorld)*d);
++          vec3 result=vec3(.32,.34,.35)*(.8+.2*max(w.y,0.0));
++          result+=vec3(9.0)*pow(max(dot(w,normalize(vec3(.25,1.5,1.0))),0.0),65.0);
++          result+=vec3(.9,1.1,1.35)*pow(max(dot(w,normalize(vec3(-1,.3,-.8))),0.0),24.0);
++          result+=vec3(3.0)*pow(max(dot(w,normalize(vec3(1,.15,.1))),0.0),35.0);
++          return result;
++        }
++        void main(){
++          vec3 V=normalize((worldToLocal*vec4(cameraPosition,1.0)).xyz-localPoint);
++          vec3 N=normalize(localNormal);
++          float facing=clamp(dot(N,V),0.0,1.0);
++          float fresnel=.044+.956*pow(1.0-facing,5.0);
++          vec3 p=(localPoint-center)*inverseSize;
++          vec3 ray=refract(-V,N,1.0/1.52);
++          float epsilon=.00008/inverseSize.y;
++          vec3 origin=localPoint+ray*epsilon;
++          vec3 throughput=vec3(1),interior=vec3(0);
++          for(int bounce=0;bounce<4;bounce++){
++            vec3 point,normal;
++            if(!exitDome(origin,ray,point,normal)){interior+=throughput*localLight(ray);break;}
++            float distance=length((point-origin)*inverseSize);
++            float mist=cloud((point+origin)*inverseSize*2.0)*.65+cloud((point+origin)*inverseSize*4.0)*.35;
++            throughput*=exp(-vec3(.18,.12,.08)*distance*(.75+.5*mist));
++            interior+=throughput*vec3(.16,.17,.18)*(1.0-exp(-distance*.6));
++            vec3 transmitted=refract(ray,-normal,1.52);
++            if(dot(transmitted,transmitted)>.00001){
++              float reflection=.044+.956*pow(1.0-clamp(dot(ray,normal),0.0,1.0),5.0);
++              interior+=throughput*(1.0-reflection)*localLight(transmitted);
++              throughput*=reflection;
++            }
++            ray=reflect(ray,normal);origin=point+ray*epsilon;
++          }
++          vec2 sheenCenter=clamp(V.xz*.6,vec2(-.45),vec2(.45));
++          vec2 offset=p.xz-sheenCenter;
++          float billow=exp(-dot(offset*vec2(1.3,.9),offset*vec2(1.3,.9))*2.8);
++          vec3 layer=normalize(vec3(.18,1,.22));
++          vec3 key=normalize((worldToLocal*vec4(normalize(vec3(-.8,1.1,1.4)),0.0)).xyz);
++          float alignment=pow(max(dot(reflect(-V,layer),key),0.0),3.0);
++          float sheen=billow*(.55+.45*alignment)*pow(facing,.5);
++          interior+=vec3(.015,.10,.32)*sheen;
++          vec3 result=mix(interior,localLight(reflect(-V,N)),fresnel);
++          result+=vec3(.075,.08,.085)*pow(max(dot(N,key),0.0),1.5);
++          gl_FragColor=vec4(result,1.0);
++          #include <tonemapping_fragment>
++          #include <colorspace_fragment>
++        }`,toneMapped:true,
++    })
++    value.name='AMES moonstone translucent layer study'
++    value.onBeforeRender=(_renderer,_scene,_camera,_geometry,object)=>{
++      value.uniforms.localToWorld.value.copy(object.matrixWorld)
++      value.uniforms.worldToLocal.value.copy(object.matrixWorld).invert()
++      value.uniformsNeedUpdate=true
++    }
++    return value
++  },[envMap,geometry,baseFraction])
++  useEffect(()=>{invalidate();return()=>material.dispose()},[material,invalidate])
++  return <primitive object={material} attach="material" />
++}
+--- a/src/engine/materials/MountedCenterDiamondMaterial.tsx
++++ b/src/engine/materials/MountedCenterDiamondMaterial.tsx
+@@ -153,4 +153,4 @@
+       else renderer.getDrawingBufferSize(material.uniforms.resolution.value)
+     }}
+   />
+-}
++}
+--- a/src/engine/materials/PhysicalStudioGem.ts
++++ b/src/engine/materials/PhysicalStudioGem.ts
+@@ -0,0 +1,111 @@
++import { Color, Matrix4, MeshPhysicalMaterial, Vector3 } from 'three'
++import type { BufferGeometry, Texture } from 'three'
++import { MeshBVH, MeshBVHUniformStruct, shaderStructs, shaderIntersectFunction } from 'three-mesh-bvh'
++
++export const STONE_OPTICS: Record<string, { ior: number; color: string; distance: number; dispersion: number }> = {
++  'stone-diamond': { ior: 2.417, color: '#ffffff', distance: 12, dispersion: .7 },
++  'stone-fancy-color-diamond': { ior: 2.417, color: '#ffe18c', distance: 2.8, dispersion: .7 },
++  'stone-ruby': { ior: 1.76, color: '#e53051', distance: 1.8, dispersion: .18 },
++  'stone-sapphire': { ior: 1.76, color: '#456fdb', distance: 1.9, dispersion: .18 },
++  'stone-emerald': { ior: 1.57, color: '#29ad6b', distance: 1.8, dispersion: .12 },
++  'stone-morganite': { ior: 1.58, color: '#efb2bd', distance: 2.5, dispersion: .12 },
++  'stone-kunzite': { ior: 1.66, color: '#dda4d1', distance: 2.2, dispersion: .15 },
++}
++
++/** MeshPhysicalMaterial with a BVH volume transmission extension. Stock physical
++ * reflection/clearcoat remain intact; rays actually exit the faceted stone,
++ * including total internal reflection and wavelength-dependent IOR. */
++export function createPhysicalStudioGem(geometry: BufferGeometry, id: string, source: MeshPhysicalMaterial,
++  environment: Texture, radiance: Texture, worldScale: number, small = false) {
++  geometry.computeBoundingBox()
++  const size = geometry.boundingBox!.getSize(new Vector3())
++  const depth = size.y
++  const optical = STONE_OPTICS[id]
++  const ior = optical?.ior ?? source.ior ?? 1.6
++  const body = optical ? new Color(optical.color) : source.attenuationColor?.clone() ?? source.color.clone()
++  if (!optical && body.equals(new Color('white'))) body.copy(source.color)
++  const material = new MeshPhysicalMaterial({
++    name: 'AMES studio volume · ' + id, color: 'white', metalness: 0, roughness: 0,
++    transmission: 1, ior, thickness: depth, attenuationColor: body,
++    attenuationDistance: depth * worldScale * (optical?.distance ?? 2),
++    dispersion: optical?.dispersion ?? .18, clearcoat: .18, clearcoatRoughness: 0,
++    envMap: environment, envMapIntensity: 1, flatShading: true, toneMapped: true,
++  })
++  const bvhGeometry = geometry.clone()
++  const bvh = new MeshBVHUniformStruct()
++  bvh.updateFrom(new MeshBVH(bvhGeometry, { targetLeafSize: 2 }))
++  const localToWorld = new Matrix4(), worldToLocal = new Matrix4()
++  const uniforms = {
++    amesBvh: { value: bvh }, amesRadiance: { value: radiance },
++    amesLocalToWorld: { value: localToWorld }, amesWorldToLocal: { value: worldToLocal },
++    amesEpsilon: { value: size.length() * .00002 },
++  }
++  material.userData = { studioPhysical: true, gemstoneId: id, bounces: small ? 4 : 7 }
++  material.customProgramCacheKey = () => 'ames-physical-bvh-v2-' + (small ? 'small' : 'hero')
++  material.onBeforeCompile = shader => {
++    Object.assign(shader.uniforms, uniforms)
++    shader.vertexShader = 'varying vec3 amesLocalPosition; varying vec3 amesLocalNormal;\n' + shader.vertexShader
++    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\namesLocalPosition = position; amesLocalNormal = normal;')
++    shader.fragmentShader = `
++      precision highp isampler2D;
++      precision highp usampler2D;
++      varying vec3 amesLocalPosition;
++      varying vec3 amesLocalNormal;
++      uniform sampler2D amesRadiance;
++      uniform mat4 amesLocalToWorld;
++      uniform mat4 amesWorldToLocal;
++      uniform float amesEpsilon;
++      ${shaderStructs}
++      ${shaderIntersectFunction}
++      uniform BVH amesBvh;
++      vec3 amesEnvironment(vec3 ray) {
++        vec3 d = normalize(mat3(amesLocalToWorld) * ray);
++        vec2 uv = vec2(atan(d.z,d.x) * 0.159154943 + .5, asin(clamp(d.y,-1.,1.)) * 0.318309886 + .5);
++        return texture2D(amesRadiance, uv).rgb;
++      }
++      vec3 amesTrace(float eta, vec3 absorption, float distanceScale) {
++        vec3 camera = (amesWorldToLocal * vec4(cameraPosition,1.)).xyz;
++        vec3 incoming = normalize(amesLocalPosition-camera);
++        vec3 n = normalize(amesLocalNormal);
++        vec3 ray = refract(incoming, n, 1. / eta);
++        vec3 origin = amesLocalPosition + ray * amesEpsilon;
++        vec3 throughput = vec3(1.); vec3 light = vec3(0.);
++        for (int bounce=0; bounce<${small ? 4 : 7}; bounce++) {
++          uvec4 indices=uvec4(0u); vec3 normal=vec3(0.); vec3 bary=vec3(0.);
++          float side=1.; float distanceToFace=0.;
++          bool hit=bvhIntersectFirstHit(amesBvh, origin, ray, indices, normal, bary, side, distanceToFace);
++          if (!hit) { light += throughput * amesEnvironment(ray); break; }
++          float travel=length(mat3(amesLocalToWorld)*(ray*distanceToFace));
++          throughput *= pow(max(absorption,vec3(.0001)),vec3(travel/max(distanceScale,.000001)));
++          vec3 boundary=origin+ray*distanceToFace;
++          vec3 exitRay=refract(ray, normal, eta);
++          if(dot(exitRay,exitRay)>.00001) {
++            float f0=pow((eta-1.)/(eta+1.),2.);
++            float fresnel=f0+(1.-f0)*pow(1.-clamp(dot(-ray,normal),0.,1.),5.);
++            light += throughput*(1.-fresnel)*amesEnvironment(exitRay);
++            throughput *= fresnel;
++          }
++          if(max(throughput.r,max(throughput.g,throughput.b))<.003) break;
++          ray=reflect(ray,normal);origin=boundary+ray*amesEpsilon;
++        }
++        return light;
++      }
++    ` + shader.fragmentShader
++    shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_fragment>', `
++      material.transmission=transmission; material.transmissionAlpha=1.;
++      float spread=dispersion*.025;
++      vec3 transmitted=vec3(
++        amesTrace(ior-spread,attenuationColor,attenuationDistance).r,
++        amesTrace(ior,attenuationColor,attenuationDistance).g,
++        amesTrace(ior+spread,attenuationColor,attenuationDistance).b);
++      float faceF0=pow((ior-1.)/(ior+1.),2.);
++      float faceF=faceF0+(1.-faceF0)*pow(1.-clamp(dot(geometryNormal,geometryViewDir),0.,1.),5.);
++      totalDiffuse = transmitted * (1.-faceF);
++    `)
++  }
++  material.onBeforeRender = (_renderer, _scene, _camera, _geometry, object) => {
++    localToWorld.copy(object.matrixWorld); worldToLocal.copy(object.matrixWorld).invert()
++  }
++  material.addEventListener('dispose', () => { bvh.dispose(); bvhGeometry.dispose() })
++  return material
++}
+--- a/src/engine/renderer/cameraFraming.ts
++++ b/src/engine/renderer/cameraFraming.ts
+@@ -1,15 +1,15 @@
+-import { DIAMOND_CALIBRATION } from '../calibration'
+-export type CameraPreset = 'front' | 'three_quarter' | 'side' | 'setting' | 'gemstone'
+-export const GEMSTONE_CAMERA_FOV = 24
+-export const GEMSTONE_LENS_RATIO = Math.tan(DIAMOND_CALIBRATION.camera.fov * Math.PI / 360) / Math.tan(GEMSTONE_CAMERA_FOV * Math.PI / 360)
+-export const CAMERA_MIN_DISTANCE = 2.5
+-export const CAMERA_MAX_DISTANCE = 8
+-export const CAMERA_BASE_DISTANCE = Math.hypot(...DIAMOND_CALIBRATION.camera.position)
+-export function cameraFraming(preset: CameraPreset, zoom = 1) {
+-  const angles = { front: [0, 75], three_quarter: [35, 40], side: [90, 75], setting: [35, 35], gemstone: [30, 35] }
+-  const [theta, phi] = angles[preset] ?? angles.three_quarter
+-  const factor = Number.isFinite(zoom) && zoom > 0 ? zoom : 1
+-  const lens = preset === 'gemstone' ? GEMSTONE_LENS_RATIO : 1
+-  const minPolar = preset === 'gemstone' ? Math.PI * 0.035 : Math.PI * 0.15
+-  return { theta: theta * Math.PI / 180, phi: Math.max(minPolar, Math.min(Math.PI * 0.85, phi * Math.PI / 180)), radius: Math.max(CAMERA_MIN_DISTANCE, Math.min(CAMERA_MAX_DISTANCE * lens, CAMERA_BASE_DISTANCE * lens / factor)) }
+-}
++import { DIAMOND_CALIBRATION } from '../calibration'
++export type CameraPreset = 'front' | 'three_quarter' | 'side' | 'setting' | 'gemstone'
++export const GEMSTONE_CAMERA_FOV = 24
++export const GEMSTONE_LENS_RATIO = Math.tan(DIAMOND_CALIBRATION.camera.fov * Math.PI / 360) / Math.tan(GEMSTONE_CAMERA_FOV * Math.PI / 360)
++export const CAMERA_MIN_DISTANCE = 2.5
++export const CAMERA_MAX_DISTANCE = 8
++export const CAMERA_BASE_DISTANCE = Math.hypot(...DIAMOND_CALIBRATION.camera.position)
++export function cameraFraming(preset: CameraPreset, zoom = 1) {
++  const angles = { front: [0, 75], three_quarter: [35, 40], side: [90, 75], setting: [35, 35], gemstone: [30, 35] }
++  const [theta, phi] = angles[preset] ?? angles.three_quarter
++  const factor = Number.isFinite(zoom) && zoom > 0 ? zoom : 1
++  const lens = preset === 'gemstone' ? GEMSTONE_LENS_RATIO : 1
++  const minPolar = preset === 'gemstone' ? Math.PI * 0.035 : Math.PI * 0.15
++  return { theta: theta * Math.PI / 180, phi: Math.max(minPolar, Math.min(Math.PI * 0.85, phi * Math.PI / 180)), radius: Math.max(CAMERA_MIN_DISTANCE, Math.min(CAMERA_MAX_DISTANCE * lens, CAMERA_BASE_DISTANCE * lens / factor)) }
++}
+--- a/src/engine/renderer/ControlledJewelryModel.tsx
++++ b/src/engine/renderer/ControlledJewelryModel.tsx
+@@ -1,19 +1,19 @@
+-import { useCallback, useRef, useState } from 'react'
+-import { useThree } from '@react-three/fiber'
+-import { Group } from 'three'
+-import type { Texture } from 'three'
+-import { JewelryGlbModel } from '../jewelry/JewelryGlbModel'
+-import { useControlledTurntable } from './useControlledTurntable'
+-import type { ViewerQualityProfile } from './viewerQuality'
+-import type { JewelryOpticsProfile } from './opticsProfiles'
+-export function ControlledJewelryModel({ url, envMap, gemEnvMap, enabled, interacting, resetToken, quality, onReady, opticsProfile = 'reference' }: {
+-  url: string; envMap: Texture; gemEnvMap?: Texture; enabled: boolean; interacting: boolean; resetToken?: number;
+-  quality: ViewerQualityProfile; onReady?: () => void; opticsProfile?: JewelryOpticsProfile;
+-}) {
+-  const pivot = useRef<Group>(null)
+-  const [ready, setReady] = useState(false)
+-  const invalidate = useThree(state => state.invalidate)
+-  const handleReady = useCallback(() => { setReady(true); onReady?.() }, [onReady])
+-  useControlledTurntable(pivot, enabled, ready, interacting, resetToken, invalidate)
+-  return <group ref={pivot} name="ames-controlled-turntable"><JewelryGlbModel url={url} envMap={envMap} gemEnvMap={gemEnvMap} turntable={false} refining={!enabled && !interacting} quality={quality} onReady={handleReady} opticsProfile={opticsProfile} /></group>
+-}
++import { useCallback, useRef, useState } from 'react'
++import { useThree } from '@react-three/fiber'
++import { Group } from 'three'
++import type { Texture } from 'three'
++import { JewelryGlbModel } from '../jewelry/JewelryGlbModel'
++import { useControlledTurntable } from './useControlledTurntable'
++import type { ViewerQualityProfile } from './viewerQuality'
++import type { JewelryOpticsProfile } from './opticsProfiles'
++export function ControlledJewelryModel({ url, envMap, gemEnvMap, enabled, interacting, resetToken, quality, onReady, opticsProfile = 'reference' }: {
++  url: string; envMap: Texture; gemEnvMap?: Texture; enabled: boolean; interacting: boolean; resetToken?: number;
++  quality: ViewerQualityProfile; onReady?: () => void; opticsProfile?: JewelryOpticsProfile;
++}) {
++  const pivot = useRef<Group>(null)
++  const [ready, setReady] = useState(false)
++  const invalidate = useThree(state => state.invalidate)
++  const handleReady = useCallback(() => { setReady(true); onReady?.() }, [onReady])
++  useControlledTurntable(pivot, enabled, ready, interacting, resetToken, invalidate)
++  return <group ref={pivot} name="ames-controlled-turntable"><JewelryGlbModel url={url} envMap={envMap} gemEnvMap={gemEnvMap} turntable={false} refining={!enabled && !interacting} quality={quality} onReady={handleReady} opticsProfile={opticsProfile} /></group>
++}
+--- a/src/engine/renderer/createDiamondDisplayEnvironment.ts
++++ b/src/engine/renderer/createDiamondDisplayEnvironment.ts
+@@ -1,93 +1,93 @@
+-import { CubeTexture, SRGBColorSpace } from 'three'
+-import { JEWELRY_OPTICS_PROFILES } from './opticsProfiles'
+-import type { JewelryOpticsProfile } from './opticsProfiles'
+-
+-/**
+- * Studio environment for real jewelry gems and metal.
+- *
+- * A diamond's body is the environment it reflects and refracts. Phase 2.5 used
+- * hard-edged pure-white cards on near-black, which read as graphic black/white
+- * facets and a busy pave. This version keeps the dark luxury surround but uses
+- * large *soft-edged* off-white softboxes for smooth optical transitions, a few
+- * tight crisp highlights for controlled sparkle, and soft dark flags for
+- * contrast that does not clip to black.
+- */
+-export const DIAMOND_DISPLAY_ENVIRONMENT = Object.freeze({
+-  size: 512,
+-  base: Object.freeze({ top: '#20262e', mid: '#0d1015', bottom: '#06070a' }),
+-  cards: Object.freeze([
+-    // Broad soft softboxes: clean white brilliance with gradual falloff.
+-    Object.freeze({ face: 0, x: 60, y: 20, width: 360, height: 470, color: '#eef1f5', blur: 34 }),
+-    Object.freeze({ face: 1, x: 100, y: 40, width: 300, height: 420, color: '#f6f8fb', blur: 34 }),
+-    Object.freeze({ face: 2, x: 50, y: 110, width: 400, height: 260, color: '#e9edf3', blur: 34 }),
+-    Object.freeze({ face: 3, x: 80, y: 240, width: 340, height: 220, color: '#fff0dc', blur: 30 }),
+-    Object.freeze({ face: 4, x: 110, y: 30, width: 290, height: 450, color: '#f2f5f9', blur: 34 }),
+-    Object.freeze({ face: 5, x: 80, y: 70, width: 320, height: 370, color: '#e6eeff', blur: 30 }),
+-    // Tight specular strips: controlled, photogenic sparkle without noise.
+-    Object.freeze({ face: 0, x: 250, y: 120, width: 44, height: 240, color: '#ffffff', blur: 6 }),
+-    Object.freeze({ face: 2, x: 210, y: 60, width: 120, height: 40, color: '#ffffff', blur: 6 }),
+-    Object.freeze({ face: 4, x: 150, y: 150, width: 40, height: 260, color: '#ffffff', blur: 6 }),
+-    Object.freeze({ face: 5, x: 180, y: 200, width: 150, height: 34, color: '#ffffff', blur: 6 }),
+-    // Soft dark flags: facet contrast without hard black posterization.
+-    Object.freeze({ face: 1, x: 16, y: 70, width: 90, height: 360, color: '#0b0d11', blur: 26 }),
+-    Object.freeze({ face: 3, x: 24, y: 40, width: 110, height: 160, color: '#0b0d11', blur: 26 }),
+-  ]),
+-})
+-
+-interface EnvironmentCard {
+-  face: number
+-  x: number
+-  y: number
+-  width: number
+-  height: number
+-  color: string
+-  blur?: number
+-}
+-
+-function paintFace(context: CanvasRenderingContext2D, index: number, opticsProfile: JewelryOpticsProfile) {
+-  const { size, cards } = DIAMOND_DISPLAY_ENVIRONMENT
+-  const { base, darkFlag } = JEWELRY_OPTICS_PROFILES[opticsProfile].environment
+-  const gradient = context.createLinearGradient(0, 0, 0, size)
+-  gradient.addColorStop(0, base.top)
+-  gradient.addColorStop(0.55, base.mid)
+-  gradient.addColorStop(1, base.bottom)
+-  context.fillStyle = gradient
+-  context.fillRect(0, 0, size, size)
+-
+-  const gemstoneCards: readonly EnvironmentCard[] = [
+-    { face: 0, x: 34, y: 30, width: 156, height: 410, color: '#f8fbff', blur: 14 },
+-    { face: 0, x: 214, y: 90, width: 28, height: 290, color: '#ffffff', blur: 3 },
+-    { face: 1, x: 300, y: 56, width: 100, height: 330, color: '#dfe9f2', blur: 18 },
+-    { face: 2, x: 100, y: 44, width: 300, height: 105, color: '#ffffff', blur: 12 },
+-    { face: 2, x: 220, y: 196, width: 112, height: 28, color: '#ffffff', blur: 2 },
+-    { face: 3, x: 74, y: 270, width: 190, height: 130, color: '#ffe9cf', blur: 18 },
+-    { face: 4, x: 260, y: 28, width: 160, height: 410, color: '#f5f8ff', blur: 14 },
+-    { face: 4, x: 188, y: 148, width: 26, height: 240, color: '#ffffff', blur: 3 },
+-    { face: 5, x: 62, y: 90, width: 115, height: 300, color: '#dceaff', blur: 16 },
+-  ]
+-  const activeCards = opticsProfile === 'gemstone-studio' ? gemstoneCards : cards as readonly EnvironmentCard[]
+-  for (const card of activeCards) {
+-    if (card.face !== index) continue
+-    context.save()
+-    context.filter = card.blur ? `blur(${card.blur}px)` : 'none'
+-    context.fillStyle = card.color === '#0b0d11' ? darkFlag : card.color
+-    context.fillRect(card.x, card.y, card.width, card.height)
+-    context.restore()
+-  }
+-}
+-
+-export function createDiamondDisplayEnvironment(opticsProfile: JewelryOpticsProfile = 'reference') {
+-  const { size } = DIAMOND_DISPLAY_ENVIRONMENT
+-  const texture = new CubeTexture(
+-    Array.from({ length: 6 }, (_, index) => {
+-      const canvas = document.createElement('canvas')
+-      canvas.width = size
+-      canvas.height = size
+-      paintFace(canvas.getContext('2d')!, index, opticsProfile)
+-      return canvas
+-    }),
+-  )
+-  texture.colorSpace = SRGBColorSpace
+-  texture.needsUpdate = true
+-  return texture
+-}
++import { CubeTexture, SRGBColorSpace } from 'three'
++import { JEWELRY_OPTICS_PROFILES } from './opticsProfiles'
++import type { JewelryOpticsProfile } from './opticsProfiles'
++
++/**
++ * Studio environment for real jewelry gems and metal.
++ *
++ * A diamond's body is the environment it reflects and refracts. Phase 2.5 used
++ * hard-edged pure-white cards on near-black, which read as graphic black/white
++ * facets and a busy pave. This version keeps the dark luxury surround but uses
++ * large *soft-edged* off-white softboxes for smooth optical transitions, a few
++ * tight crisp highlights for controlled sparkle, and soft dark flags for
++ * contrast that does not clip to black.
++ */
++export const DIAMOND_DISPLAY_ENVIRONMENT = Object.freeze({
++  size: 512,
++  base: Object.freeze({ top: '#20262e', mid: '#0d1015', bottom: '#06070a' }),
++  cards: Object.freeze([
++    // Broad soft softboxes: clean white brilliance with gradual falloff.
++    Object.freeze({ face: 0, x: 60, y: 20, width: 360, height: 470, color: '#eef1f5', blur: 34 }),
++    Object.freeze({ face: 1, x: 100, y: 40, width: 300, height: 420, color: '#f6f8fb', blur: 34 }),
++    Object.freeze({ face: 2, x: 50, y: 110, width: 400, height: 260, color: '#e9edf3', blur: 34 }),
++    Object.freeze({ face: 3, x: 80, y: 240, width: 340, height: 220, color: '#fff0dc', blur: 30 }),
++    Object.freeze({ face: 4, x: 110, y: 30, width: 290, height: 450, color: '#f2f5f9', blur: 34 }),
++    Object.freeze({ face: 5, x: 80, y: 70, width: 320, height: 370, color: '#e6eeff', blur: 30 }),
++    // Tight specular strips: controlled, photogenic sparkle without noise.
++    Object.freeze({ face: 0, x: 250, y: 120, width: 44, height: 240, color: '#ffffff', blur: 6 }),
++    Object.freeze({ face: 2, x: 210, y: 60, width: 120, height: 40, color: '#ffffff', blur: 6 }),
++    Object.freeze({ face: 4, x: 150, y: 150, width: 40, height: 260, color: '#ffffff', blur: 6 }),
++    Object.freeze({ face: 5, x: 180, y: 200, width: 150, height: 34, color: '#ffffff', blur: 6 }),
++    // Soft dark flags: facet contrast without hard black posterization.
++    Object.freeze({ face: 1, x: 16, y: 70, width: 90, height: 360, color: '#0b0d11', blur: 26 }),
++    Object.freeze({ face: 3, x: 24, y: 40, width: 110, height: 160, color: '#0b0d11', blur: 26 }),
++  ]),
++})
++
++interface EnvironmentCard {
++  face: number
++  x: number
++  y: number
++  width: number
++  height: number
++  color: string
++  blur?: number
++}
++
++function paintFace(context: CanvasRenderingContext2D, index: number, opticsProfile: JewelryOpticsProfile) {
++  const { size, cards } = DIAMOND_DISPLAY_ENVIRONMENT
++  const { base, darkFlag } = JEWELRY_OPTICS_PROFILES[opticsProfile].environment
++  const gradient = context.createLinearGradient(0, 0, 0, size)
++  gradient.addColorStop(0, base.top)
++  gradient.addColorStop(0.55, base.mid)
++  gradient.addColorStop(1, base.bottom)
++  context.fillStyle = gradient
++  context.fillRect(0, 0, size, size)
++
++  const gemstoneCards: readonly EnvironmentCard[] = [
++    { face: 0, x: 34, y: 30, width: 156, height: 410, color: '#f8fbff', blur: 14 },
++    { face: 0, x: 214, y: 90, width: 28, height: 290, color: '#ffffff', blur: 3 },
++    { face: 1, x: 300, y: 56, width: 100, height: 330, color: '#dfe9f2', blur: 18 },
++    { face: 2, x: 100, y: 44, width: 300, height: 105, color: '#ffffff', blur: 12 },
++    { face: 2, x: 220, y: 196, width: 112, height: 28, color: '#ffffff', blur: 2 },
++    { face: 3, x: 74, y: 270, width: 190, height: 130, color: '#ffe9cf', blur: 18 },
++    { face: 4, x: 260, y: 28, width: 160, height: 410, color: '#f5f8ff', blur: 14 },
++    { face: 4, x: 188, y: 148, width: 26, height: 240, color: '#ffffff', blur: 3 },
++    { face: 5, x: 62, y: 90, width: 115, height: 300, color: '#dceaff', blur: 16 },
++  ]
++  const activeCards = opticsProfile === 'gemstone-studio' ? gemstoneCards : cards as readonly EnvironmentCard[]
++  for (const card of activeCards) {
++    if (card.face !== index) continue
++    context.save()
++    context.filter = card.blur ? `blur(${card.blur}px)` : 'none'
++    context.fillStyle = card.color === '#0b0d11' ? darkFlag : card.color
++    context.fillRect(card.x, card.y, card.width, card.height)
++    context.restore()
++  }
++}
++
++export function createDiamondDisplayEnvironment(opticsProfile: JewelryOpticsProfile = 'reference') {
++  const { size } = DIAMOND_DISPLAY_ENVIRONMENT
++  const texture = new CubeTexture(
++    Array.from({ length: 6 }, (_, index) => {
++      const canvas = document.createElement('canvas')
++      canvas.width = size
++      canvas.height = size
++      paintFace(canvas.getContext('2d')!, index, opticsProfile)
++      return canvas
++    }),
++  )
++  texture.colorSpace = SRGBColorSpace
++  texture.needsUpdate = true
++  return texture
++}
+--- a/src/engine/renderer/JewelryViewer.tsx
++++ b/src/engine/renderer/JewelryViewer.tsx
+@@ -1,131 +1,136 @@
+-import type { CameraPreset } from './cameraFraming'
+-import { Canvas } from '@react-three/fiber'
+-import { ACESFilmicToneMapping, SRGBColorSpace } from 'three'
+-import type { BufferGeometry, CubeTexture } from 'three'
+-import { useEffect, useState } from 'react'
+-import type { CSSProperties } from 'react'
+-import { DIAMOND_CALIBRATION } from '../calibration'
+-import { getRoundBrilliantDiagnostics } from '../jewelry/canonicalRoundBrilliantGeometry'
+-import { ViewerScene } from './ViewerScene'
+-import { chooseGemstoneQuality, chooseViewerQuality, nextLowerViewerQuality, qualityProfile, readViewerRuntime } from './viewerQuality'
+-import type { JewelryOpticsProfile } from './opticsProfiles'
+-
+-export const DIAMOND_VIEWER_CAMERA = {
+-  position: [...DIAMOND_CALIBRATION.camera.position] as [number, number, number],
+-  fov: DIAMOND_CALIBRATION.camera.fov,
+-  near: DIAMOND_CALIBRATION.camera.near,
+-  far: DIAMOND_CALIBRATION.camera.far,
+-}
+-
+-export const DIAMOND_TONE_MAPPING_EXPOSURE = DIAMOND_CALIBRATION.camera.exposure
+-
+-export interface JewelryViewerProps {
+-  className?: string
+-  diamondRotationY?: number
+-  geometry?: BufferGeometry
+-  environment?: CubeTexture
+-  /** Absolute camera angles around the normalized catalog model. */
+-  cameraPreset?: CameraPreset
+-  /** Magnification relative to calibrated fit; distance clamps to [2.5, 8]. */
+-  zoom?: number
+-  /** Explicit host rotation; undefined retains the default quality-tier behavior. */
+-  turntableEnabled?: boolean
+-  /** Pause frames while preserving the mounted scene and customer camera state. */
+-  paused?: boolean
+-  /** Optional review-lab optics; reference preserves the existing presentation. */
+-  opticsProfile?: JewelryOpticsProfile
+-  /** Change to restore preset framing and zero controlled model rotation. */
+-  resetToken?: number
+-  controlsEnabled?: boolean
+-  /** Real catalog GLB to render as the primary live object. */
+-  modelUrl?: string
+-  /** Explicit opt-in to the procedural round-brilliant path. */
+-  procedural?: boolean
+-  /** Called once the requested GLB has loaded into the live viewer. */
+-  onModelReady?: () => void
+-  /** Let the host application provide the visible page environment behind the canvas. */
+-  transparentBackground?: boolean
+-  style?: CSSProperties
+-}
+-
+-export function JewelryViewer({
+-  className = '',
+-  diamondRotationY,
+-  geometry,
+-  environment,
+-  cameraPreset, zoom, turntableEnabled, resetToken,
+-  paused = false,
+-  opticsProfile = 'reference',
+-  controlsEnabled = true,
+-  modelUrl,
+-  procedural = false,
+-  onModelReady,
+-  transparentBackground = false,
+-  style,
+-}: JewelryViewerProps) {
+-  const [initialRuntime] = useState(() => readViewerRuntime())
+-  const [tier, setTier] = useState(() => (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(initialRuntime) : chooseViewerQuality(initialRuntime))
+-  useEffect(() => {
+-    const update = () => setTier((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(readViewerRuntime()) : chooseViewerQuality(readViewerRuntime()))
+-    window.addEventListener('resize', update)
+-    return () => window.removeEventListener('resize', update)
+-  }, [opticsProfile])
+-  const baseQuality = qualityProfile(tier)
+-  const quality = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
+-    ? { ...baseQuality, dpr: (tier === 'LOW' && turntableEnabled === true ? [1, 1.5] : [1, 2]) as [number, number], contactShadows: false }
+-    : opticsProfile === 'soft-studio' && (tier === 'SAFE' || tier === 'LOW')
+-      ? { ...baseQuality, dpr: [1, 1.5] as [number, number] }
+-      : baseQuality
+-  const classes = ['jewelry-viewer', className].filter(Boolean).join(' ')
+-  const diagnostics = geometry ? getRoundBrilliantDiagnostics(geometry) : undefined
+-
+-  return (
+-    <section
+-      className={classes}
+-      role="region"
+-      aria-label="AMES Engine 3D jewelry viewer"
+-      data-geometry-uuid={diagnostics?.uuid}
+-      data-geometry-fingerprint={diagnostics?.fingerprint}
+-        data-environment-uuid={environment?.uuid}
+-        data-render-mode={procedural ? 'procedural' : modelUrl ? 'glb' : 'procedural'}
+-      data-model-url={modelUrl ?? undefined}
+-      data-quality-tier={quality.tier}
+-      data-optics-profile={opticsProfile}
+-      style={style}
+-      >
+-      <Canvas
+-        camera={DIAMOND_VIEWER_CAMERA}
+-        dpr={quality.dpr}
+-        frameloop={paused ? 'never' : ((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio') && turntableEnabled === false ? 'demand' : quality.tier === 'SAFE' ? 'demand' : 'always'}
+-        gl={{
+-          antialias: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio' || quality.tier === 'HIGH' || quality.tier === 'MEDIUM',
+-          alpha: true,
+-          preserveDrawingBuffer: initialRuntime.webKitMobile === true,
+-          toneMapping: ACESFilmicToneMapping,
+-          outputColorSpace: SRGBColorSpace,
+-        }}
+-        onCreated={({ camera, gl }) => {
+-          camera.lookAt(...DIAMOND_CALIBRATION.camera.target)
+-          camera.updateMatrixWorld()
+-          gl.toneMappingExposure = DIAMOND_TONE_MAPPING_EXPOSURE
+-        }}
+-        shadows={quality.contactShadows}
+-      >
+-        <ViewerScene
+-          diamondRotationY={diamondRotationY}
+-          geometry={geometry}
+-          environment={environment}
+-          cameraPreset={cameraPreset} zoom={zoom} turntableEnabled={turntableEnabled} resetToken={resetToken}
+-          controlsEnabled={controlsEnabled}
+-          modelUrl={modelUrl}
+-          procedural={procedural}
+-          quality={quality}
+-          opticsProfile={opticsProfile}
+-          transparentBackground={transparentBackground}
+-          onQualityDowngrade={() => setTier(current => nextLowerViewerQuality(current))}
+-          onModelReady={onModelReady}
+-        />
+-      </Canvas>
+-    </section>
+-  )
+-}
++import { PhysicalStudioScene } from './PhysicalStudioScene'
++import type { CameraPreset } from './cameraFraming'
++import { Canvas } from '@react-three/fiber'
++import { ACESFilmicToneMapping, SRGBColorSpace } from 'three'
++import type { BufferGeometry, CubeTexture } from 'three'
++import { useEffect, useState } from 'react'
++import type { CSSProperties } from 'react'
++import { DIAMOND_CALIBRATION } from '../calibration'
++import { getRoundBrilliantDiagnostics } from '../jewelry/canonicalRoundBrilliantGeometry'
++import { ViewerScene } from './ViewerScene'
++import { chooseGemstoneQuality, chooseViewerQuality, nextLowerViewerQuality, qualityProfile, readViewerRuntime } from './viewerQuality'
++import type { JewelryOpticsProfile } from './opticsProfiles'
++
++export const DIAMOND_VIEWER_CAMERA = {
++  position: [...DIAMOND_CALIBRATION.camera.position] as [number, number, number],
++  fov: DIAMOND_CALIBRATION.camera.fov,
++  near: DIAMOND_CALIBRATION.camera.near,
++  far: DIAMOND_CALIBRATION.camera.far,
++}
++
++export const DIAMOND_TONE_MAPPING_EXPOSURE = DIAMOND_CALIBRATION.camera.exposure
++
++export interface JewelryViewerProps {
++  className?: string
++  diamondRotationY?: number
++  geometry?: BufferGeometry
++  environment?: CubeTexture
++  /** Absolute camera angles around the normalized catalog model. */
++  cameraPreset?: CameraPreset
++  /** Magnification relative to calibrated fit; distance clamps to [2.5, 8]. */
++  zoom?: number
++  /** Explicit host rotation; undefined retains the default quality-tier behavior. */
++  turntableEnabled?: boolean
++  /** Pause frames while preserving the mounted scene and customer camera state. */
++  paused?: boolean
++  /** Optional review-lab optics; reference preserves the existing presentation. */
++  opticsProfile?: JewelryOpticsProfile
++  /** Change to restore preset framing and zero controlled model rotation. */
++  resetToken?: number
++  controlsEnabled?: boolean
++  /** Real catalog GLB to render as the primary live object. */
++  modelUrl?: string
++  /** Explicit opt-in to the procedural round-brilliant path. */
++  procedural?: boolean
++  /** Called once the requested GLB has loaded into the live viewer. */
++  onModelReady?: () => void
++  /** Let the host application provide the visible page environment behind the canvas. */
++  transparentBackground?: boolean
++  style?: CSSProperties
++}
++
++export function JewelryViewer({
++  className = '',
++  diamondRotationY,
++  geometry,
++  environment,
++  cameraPreset, zoom, turntableEnabled, resetToken,
++  paused = false,
++  opticsProfile = 'reference',
++  controlsEnabled = true,
++  modelUrl,
++  procedural = false,
++  onModelReady,
++  transparentBackground = false,
++  style,
++}: JewelryViewerProps) {
++  const [initialRuntime] = useState(() => readViewerRuntime())
++  const [tier, setTier] = useState(() => (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(initialRuntime) : chooseViewerQuality(initialRuntime))
++  useEffect(() => {
++    const update = () => setTier((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(readViewerRuntime()) : chooseViewerQuality(readViewerRuntime()))
++    window.addEventListener('resize', update)
++    return () => window.removeEventListener('resize', update)
++  }, [opticsProfile])
++  const baseQuality = qualityProfile(tier)
++  const quality = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
++    ? { ...baseQuality, dpr: (tier === 'LOW' && turntableEnabled === true ? [1, 1.5] : [1, 2]) as [number, number], contactShadows: false }
++    : opticsProfile === 'soft-studio' && (tier === 'SAFE' || tier === 'LOW')
++      ? { ...baseQuality, dpr: [1, 1.5] as [number, number] }
++      : baseQuality
++  const classes = ['jewelry-viewer', className].filter(Boolean).join(' ')
++  const diagnostics = geometry ? getRoundBrilliantDiagnostics(geometry) : undefined
++
++  return (
++    <section
++      className={classes}
++      role="region"
++      aria-label="AMES Engine 3D jewelry viewer"
++      data-geometry-uuid={diagnostics?.uuid}
++      data-geometry-fingerprint={diagnostics?.fingerprint}
++        data-environment-uuid={environment?.uuid}
++        data-render-mode={procedural ? 'procedural' : modelUrl ? 'glb' : 'procedural'}
++      data-model-url={modelUrl ?? undefined}
++      data-quality-tier={quality.tier}
++      data-optics-profile={opticsProfile}
++      style={style}
++      >
++      <Canvas
++        camera={DIAMOND_VIEWER_CAMERA}
++        dpr={quality.dpr}
++        frameloop={paused ? 'never' : ((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio') && turntableEnabled === false ? 'demand' : quality.tier === 'SAFE' ? 'demand' : 'always'}
++        gl={{
++          antialias: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio' || quality.tier === 'HIGH' || quality.tier === 'MEDIUM',
++          alpha: true,
++          preserveDrawingBuffer: initialRuntime.webKitMobile === true,
++          toneMapping: ACESFilmicToneMapping,
++          outputColorSpace: SRGBColorSpace,
++        }}
++        onCreated={({ camera, gl }) => {
++          gl.debug.onShaderError = (context, program) => {
++            console.error('AMES studio shader failed:', context.getProgramInfoLog(program))
++            gl.domElement.dispatchEvent(new CustomEvent('ames-viewer-error', { bubbles: true, detail: 'The 3D renderer could not initialise. Showing the still preview.' }))
++          }
++          camera.lookAt(...DIAMOND_CALIBRATION.camera.target)
++          camera.updateMatrixWorld()
++          gl.toneMappingExposure = DIAMOND_TONE_MAPPING_EXPOSURE
++        }}
++        shadows={quality.contactShadows}
++      >
++        {modelUrl && !procedural && (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio' || opticsProfile === 'soft-studio') ? <PhysicalStudioScene modelUrl={modelUrl} cameraPreset={cameraPreset} zoom={zoom} turntableEnabled={turntableEnabled} resetToken={resetToken} controlsEnabled={controlsEnabled} onModelReady={onModelReady}/> : <ViewerScene
++          diamondRotationY={diamondRotationY}
++          geometry={geometry}
++          environment={environment}
++          cameraPreset={cameraPreset} zoom={zoom} turntableEnabled={turntableEnabled} resetToken={resetToken}
++          controlsEnabled={controlsEnabled}
++          modelUrl={modelUrl}
++          procedural={procedural}
++          quality={quality}
++          opticsProfile={opticsProfile}
++          transparentBackground={transparentBackground}
++          onQualityDowngrade={() => setTier(current => nextLowerViewerQuality(current))}
++          onModelReady={onModelReady}
++        />}
++      </Canvas>
++    </section>
++  )
++}
+--- a/src/engine/renderer/opticsProfiles.ts
++++ b/src/engine/renderer/opticsProfiles.ts
+@@ -1,84 +1,84 @@
+-export type JewelryOpticsProfile = 'reference' | 'soft-studio' | 'clear-crystal' | 'gemstone-studio' | 'mounted-gem-studio'
+-
+-export interface JewelryOpticsSettings {
+-  environment: {
+-    base: { top: string; mid: string; bottom: string }
+-    darkFlag: string
+-  }
+-  lighting: {
+-    ambient: number
+-    key: number
+-    fill: number
+-    rim: number
+-    spot: number
+-  }
+-  metal: {
+-    roughness: number
+-    envMapIntensity: number
+-  }
+-  safeCenter: {
+-    roughness: number
+-    transmission: number
+-    thickness: number
+-    envMapIntensity: number
+-  }
+-  center: {
+-    fresnel: number
+-    color: [number, number, number]
+-  }
+-}
+-
+-/**
+- * Experimental optical looks for the representative-ring review lab.
+- * `reference` is the existing customer presentation and must remain the default.
+- * These are rendering profiles, not gemstone, alloy, or stock specifications.
+- */
+-export const JEWELRY_OPTICS_PROFILES: Record<JewelryOpticsProfile, JewelryOpticsSettings> = {
+-  reference: {
+-    environment: {
+-      base: { top: '#20262e', mid: '#0d1015', bottom: '#06070a' },
+-      darkFlag: '#0b0d11',
+-    },
+-    lighting: { ambient: 0.12, key: 1.9, fill: 0.85, rim: 1.5, spot: 1.1 },
+-    metal: { roughness: 0.14, envMapIntensity: 1.6 },
+-    safeCenter: { roughness: 0.025, transmission: 0.2, thickness: 0, envMapIntensity: 2 },
+-    center: { fresnel: 0.04, color: [1.8, 1.8, 1.8] },
+-  },
+-  'soft-studio': {
+-    environment: {
+-      base: { top: '#2b3036', mid: '#171c22', bottom: '#0e1115' },
+-      darkFlag: '#1a2026',
+-    },
+-    lighting: { ambient: 0.075, key: 1.7, fill: 0.48, rim: 1.85, spot: 1.1 },
+-    metal: { roughness: 0.13, envMapIntensity: 0.95 },
+-    safeCenter: { roughness: 0.018, transmission: 0.44, thickness: 0.3, envMapIntensity: 1.75 },
+-    center: { fresnel: 0.06, color: [1.65, 1.65, 1.65] },
+-  },
+-  'gemstone-studio': {
+-    environment: {
+-      base: { top: '#a4adb4', mid: '#75818a', bottom: '#485661' },
+-      darkFlag: '#39454f',
+-    },
+-    lighting: { ambient: 0.08, key: 1.8, fill: 0.42, rim: 2.1, spot: 1.25 },
+-    metal: { roughness: 0.13, envMapIntensity: 1.55 },
+-    safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
+-    center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
+-  },
+-  'mounted-gem-studio': {
+-    environment: { base: { top: '#2b3036', mid: '#171c22', bottom: '#0e1115' }, darkFlag: '#101419' },
+-    lighting: { ambient: 0.025, key: 1.1, fill: 0.3, rim: 1.35, spot: 0.65 },
+-    metal: { roughness: 0.085, envMapIntensity: 1.15 },
+-    safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
+-    center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
+-  },
+-  'clear-crystal': {
+-    environment: {
+-      base: { top: '#2b323b', mid: '#141920', bottom: '#0b0e13' },
+-      darkFlag: '#14181e',
+-    },
+-    lighting: { ambient: 0.12, key: 2, fill: 0.95, rim: 1.7, spot: 1.1 },
+-    metal: { roughness: 0.12, envMapIntensity: 1.7 },
+-    safeCenter: { roughness: 0.018, transmission: 0.65, thickness: 0.6, envMapIntensity: 1.7 },
+-    center: { fresnel: 0.09, color: [1.6, 1.6, 1.6] },
+-  },
+-}
++export type JewelryOpticsProfile = 'reference' | 'soft-studio' | 'clear-crystal' | 'gemstone-studio' | 'mounted-gem-studio'
++
++export interface JewelryOpticsSettings {
++  environment: {
++    base: { top: string; mid: string; bottom: string }
++    darkFlag: string
++  }
++  lighting: {
++    ambient: number
++    key: number
++    fill: number
++    rim: number
++    spot: number
++  }
++  metal: {
++    roughness: number
++    envMapIntensity: number
++  }
++  safeCenter: {
++    roughness: number
++    transmission: number
++    thickness: number
++    envMapIntensity: number
++  }
++  center: {
++    fresnel: number
++    color: [number, number, number]
++  }
++}
++
++/**
++ * Experimental optical looks for the representative-ring review lab.
++ * `reference` is the existing customer presentation and must remain the default.
++ * These are rendering profiles, not gemstone, alloy, or stock specifications.
++ */
++export const JEWELRY_OPTICS_PROFILES: Record<JewelryOpticsProfile, JewelryOpticsSettings> = {
++  reference: {
++    environment: {
++      base: { top: '#20262e', mid: '#0d1015', bottom: '#06070a' },
++      darkFlag: '#0b0d11',
++    },
++    lighting: { ambient: 0.12, key: 1.9, fill: 0.85, rim: 1.5, spot: 1.1 },
++    metal: { roughness: 0.14, envMapIntensity: 1.6 },
++    safeCenter: { roughness: 0.025, transmission: 0.2, thickness: 0, envMapIntensity: 2 },
++    center: { fresnel: 0.04, color: [1.8, 1.8, 1.8] },
++  },
++  'soft-studio': {
++    environment: {
++      base: { top: '#2b3036', mid: '#171c22', bottom: '#0e1115' },
++      darkFlag: '#1a2026',
++    },
++    lighting: { ambient: 0.075, key: 1.7, fill: 0.48, rim: 1.85, spot: 1.1 },
++    metal: { roughness: 0.13, envMapIntensity: 0.95 },
++    safeCenter: { roughness: 0.018, transmission: 0.44, thickness: 0.3, envMapIntensity: 1.75 },
++    center: { fresnel: 0.06, color: [1.65, 1.65, 1.65] },
++  },
++  'gemstone-studio': {
++    environment: {
++      base: { top: '#a4adb4', mid: '#75818a', bottom: '#485661' },
++      darkFlag: '#39454f',
++    },
++    lighting: { ambient: 0.08, key: 1.8, fill: 0.42, rim: 2.1, spot: 1.25 },
++    metal: { roughness: 0.13, envMapIntensity: 1.55 },
++    safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
++    center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
++  },
++  'mounted-gem-studio': {
++    environment: { base: { top: '#2b3036', mid: '#171c22', bottom: '#0e1115' }, darkFlag: '#101419' },
++    lighting: { ambient: 0.025, key: 1.1, fill: 0.3, rim: 1.35, spot: 0.65 },
++    metal: { roughness: 0.085, envMapIntensity: 1.15 },
++    safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
++    center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
++  },
++  'clear-crystal': {
++    environment: {
++      base: { top: '#2b323b', mid: '#141920', bottom: '#0b0e13' },
++      darkFlag: '#14181e',
++    },
++    lighting: { ambient: 0.12, key: 2, fill: 0.95, rim: 1.7, spot: 1.1 },
++    metal: { roughness: 0.12, envMapIntensity: 1.7 },
++    safeCenter: { roughness: 0.018, transmission: 0.65, thickness: 0.6, envMapIntensity: 1.7 },
++    center: { fresnel: 0.09, color: [1.6, 1.6, 1.6] },
++  },
++}
+--- a/src/engine/renderer/PhysicalStudioScene.tsx
++++ b/src/engine/renderer/PhysicalStudioScene.tsx
+@@ -0,0 +1,23 @@
++import { Suspense, useState } from 'react'
++import { ContactShadows } from '@react-three/drei'
++import { usePhysicalStudio } from './usePhysicalStudio'
++import { PhysicalStudioModel } from '../jewelry/PhysicalStudioModel'
++import { ViewerControls } from './ViewerControls'
++import { StudioBloom } from './StudioBloom'
++import type { CameraPreset } from './cameraFraming'
++
++export function PhysicalStudioScene({modelUrl,cameraPreset,zoom,turntableEnabled,resetToken,controlsEnabled,onModelReady}: {
++  modelUrl: string;cameraPreset?:CameraPreset;zoom?:number;turntableEnabled?:boolean;resetToken?:number;controlsEnabled?:boolean;onModelReady?:()=>void
++}) {
++  const studio=usePhysicalStudio()
++  const [interacting,setInteracting]=useState(false)
++  if(!studio)return null
++  return <>
++    <directionalLight position={[3,4,5]} intensity={1.2} color="#ffffff"/>
++    <directionalLight position={[-3,2,-4]} intensity={.6} color="#f1f6ff"/>
++    <Suspense fallback={null}><PhysicalStudioModel url={modelUrl} studio={studio} enabled={turntableEnabled??false} interacting={interacting} resetToken={resetToken} onReady={onModelReady}/></Suspense>
++    {controlsEnabled&&<ViewerControls cameraPreset={cameraPreset} zoom={zoom} resetToken={resetToken} onInteractionChange={setInteracting}/>}
++    <ContactShadows position={[0,-1.35,0]} opacity={.32} scale={5} blur={2.5} far={3} resolution={256}/>
++    <StudioBloom/>
++  </>
++}
+--- a/src/engine/renderer/StudioBloom.tsx
++++ b/src/engine/renderer/StudioBloom.tsx
+@@ -0,0 +1,50 @@
++import { useEffect, useMemo } from 'react'
++import { useFrame, useThree } from '@react-three/fiber'
++import { Color, HalfFloatType, NoToneMapping, ShaderMaterial, Vector2, WebGLRenderTarget } from 'three'
++import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
++
++/** HDR-only highlight bloom, preserving transparent alpha and tone-mapping once. */
++export function StudioBloom() {
++  const {gl,size}=useThree()
++  const state=useMemo(()=>{
++    const target=()=>new WebGLRenderTarget(1,1,{type:HalfFloatType,depthBuffer:true})
++    const base=target(), blurA=target(),blurB=target()
++    base.samples=4
++    const vertexShader='varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}'
++    const blur=new ShaderMaterial({vertexShader,depthTest:false,depthWrite:false,toneMapped:false,
++      uniforms:{inputMap:{value:base.texture},stepUv:{value:new Vector2()},threshold:{value:1.4}},
++      fragmentShader:`varying vec2 vUv;uniform sampler2D inputMap;uniform vec2 stepUv;uniform float threshold;
++      void main(){vec3 sum=vec3(0.);float weightSum=0.;for(int i=-4;i<=4;i++){
++        float w=exp(-float(i*i)/7.);vec3 c=texture2D(inputMap,vUv+float(i)*stepUv).rgb;
++        float peak=max(c.r,max(c.g,c.b));c*=max(peak-threshold,0.)/max(peak,.0001);sum+=c*w;weightSum+=w;
++      }gl_FragColor=vec4(sum/weightSum,1.);}`})
++    const output=new ShaderMaterial({vertexShader,depthTest:false,depthWrite:false,toneMapped:true,
++      uniforms:{baseMap:{value:base.texture},glowMap:{value:blurB.texture}},
++      fragmentShader:`varying vec2 vUv;uniform sampler2D baseMap;uniform sampler2D glowMap;
++      void main(){vec4 base=texture2D(baseMap,vUv);vec3 glow=texture2D(glowMap,vUv).rgb*.09;
++        float halo=clamp(max(glow.r,max(glow.g,glow.b)),0.,.3);float a=max(base.a,halo);
++        gl_FragColor=vec4((base.rgb+glow)/max(a,.0001),a);
++        #include <tonemapping_fragment>
++        #include <colorspace_fragment>
++        gl_FragColor.rgb *= gl_FragColor.a;
++      }`})
++    return {base,blurA,blurB,blur,output,quad:new FullScreenQuad(blur),clear:new Color()}
++  },[])
++  useEffect(()=>{
++    const dpr=gl.getPixelRatio(),w=Math.max(1,Math.round(size.width*dpr)),h=Math.max(1,Math.round(size.height*dpr))
++    state.base.setSize(w,h);state.blurA.setSize(Math.ceil(w/2),Math.ceil(h/2));state.blurB.setSize(Math.ceil(w/2),Math.ceil(h/2))
++    gl.domElement.dataset.studioBloom='hdr-threshold';return()=>{delete gl.domElement.dataset.studioBloom}
++  },[gl,size,state])
++  useEffect(()=>()=>{state.base.dispose();state.blurA.dispose();state.blurB.dispose();state.blur.dispose();state.output.dispose();state.quad.dispose()},[state])
++  useFrame(({scene,camera})=>{
++    const target=gl.getRenderTarget(),tone=gl.toneMapping,alpha=gl.getClearAlpha();gl.getClearColor(state.clear)
++    gl.setClearColor(0,0);gl.toneMapping=NoToneMapping;gl.setRenderTarget(state.base);gl.clear();gl.render(scene,camera)
++    state.quad.material=state.blur;state.blur.uniforms.inputMap.value=state.base.texture
++    state.blur.uniforms.threshold.value=1.4;state.blur.uniforms.stepUv.value.set(1/state.blurA.width,0)
++    gl.setRenderTarget(state.blurA);state.quad.render(gl)
++    state.blur.uniforms.inputMap.value=state.blurA.texture;state.blur.uniforms.threshold.value=0;state.blur.uniforms.stepUv.value.set(0,1/state.blurB.height)
++    gl.setRenderTarget(state.blurB);state.quad.render(gl)
++    gl.toneMapping=tone;gl.setRenderTarget(target);state.quad.material=state.output;state.quad.render(gl);gl.setClearColor(state.clear,alpha)
++  },1)
++  return null
++}
+--- a/src/engine/renderer/useControlledTurntable.ts
++++ b/src/engine/renderer/useControlledTurntable.ts
+@@ -35,4 +35,4 @@
+     else start()
+     return () => { cancelAnimationFrame(frame); if (timer !== undefined) clearTimeout(timer) }
+   }, [pivot, enabled, ready, interacting, resetToken, invalidate])
+-}
++}
+--- a/src/engine/renderer/useGemstonePhotoEnvironment.ts
++++ b/src/engine/renderer/useGemstonePhotoEnvironment.ts
+@@ -1,50 +1,50 @@
+-import { useEffect, useState } from 'react'
+-import { useThree } from '@react-three/fiber'
+-import { CubeTextureLoader, HalfFloatType, LinearFilter, LinearSRGBColorSpace, SRGBColorSpace } from 'three'
+-import { RGBMLoader } from 'three-stdlib'
+-import type { CubeTexture } from 'three'
+-interface StudioMaps { surface: CubeTexture; refraction: CubeTexture }
+-let shared: Promise<StudioMaps> | undefined
+-function loadStudio(): Promise<StudioMaps> {
+-  if (!shared) {
+-    const base = '/ames-engine/environments/studio-small-09-v1/'
+-    const faces = ['px', 'nx', 'py', 'ny', 'pz', 'nz']
+-    shared = Promise.all([
+-      new CubeTextureLoader().loadAsync(faces.map(face => base + face + '-display.webp')),
+-      new Promise<CubeTexture>((resolve, reject) => {
+-        new RGBMLoader().setDataType(HalfFloatType).setMaxRange(64).loadCubemap(
+-          faces.map(face => base + face + '-rgbm.png'), resolve, undefined, reject,
+-        )
+-      }),
+-    ]).then(([surface, refraction]) => {
+-      surface.colorSpace = SRGBColorSpace
+-      refraction.colorSpace = LinearSRGBColorSpace
+-      refraction.generateMipmaps = false // Decode before GPU filtering; no float render targets.
+-      refraction.minFilter = LinearFilter
+-      refraction.magFilter = LinearFilter
+-      refraction.userData.photographicHDR = true
+-      surface.needsUpdate = true; refraction.needsUpdate = true
+-      return { surface, refraction }
+-    }).catch(error => { shared = undefined; throw error })
+-  }
+-  return shared
+-}
+-/** Shared offline-processed studio asset; no external service or API calls at runtime. */
+-export function useGemstonePhotoEnvironment(enabled: boolean, diagnosticKey = 'studioEnvironment'): StudioMaps | null {
+-  const canvas = useThree(state => state.gl.domElement)
+-  const [maps, setMaps] = useState<StudioMaps | null>(null)
+-  useEffect(() => {
+-    if (!enabled) return
+-    let active = true
+-    loadStudio().then(value => { if (active) setMaps(value) }).catch(() => {
+-      // Keep the generated studio available during an offline/asset outage.
+-    })
+-    return () => { active = false }
+-  }, [enabled])
+-  useEffect(() => {
+-    if (!enabled) return
+-    canvas.dataset[diagnosticKey] = maps ? 'photographic' : 'generated-fallback'
+-    return () => { delete canvas.dataset[diagnosticKey] }
+-  }, [canvas, enabled, maps, diagnosticKey])
+-  return enabled ? maps : null
+-}
++import { useEffect, useState } from 'react'
++import { useThree } from '@react-three/fiber'
++import { CubeTextureLoader, HalfFloatType, LinearFilter, LinearSRGBColorSpace, SRGBColorSpace } from 'three'
++import { RGBMLoader } from 'three-stdlib'
++import type { CubeTexture } from 'three'
++interface StudioMaps { surface: CubeTexture; refraction: CubeTexture }
++let shared: Promise<StudioMaps> | undefined
++function loadStudio(): Promise<StudioMaps> {
++  if (!shared) {
++    const base = '/ames-engine/environments/studio-small-09-v1/'
++    const faces = ['px', 'nx', 'py', 'ny', 'pz', 'nz']
++    shared = Promise.all([
++      new CubeTextureLoader().loadAsync(faces.map(face => base + face + '-display.webp')),
++      new Promise<CubeTexture>((resolve, reject) => {
++        new RGBMLoader().setDataType(HalfFloatType).setMaxRange(64).loadCubemap(
++          faces.map(face => base + face + '-rgbm.png'), resolve, undefined, reject,
++        )
++      }),
++    ]).then(([surface, refraction]) => {
++      surface.colorSpace = SRGBColorSpace
++      refraction.colorSpace = LinearSRGBColorSpace
++      refraction.generateMipmaps = false // Decode before GPU filtering; no float render targets.
++      refraction.minFilter = LinearFilter
++      refraction.magFilter = LinearFilter
++      refraction.userData.photographicHDR = true
++      surface.needsUpdate = true; refraction.needsUpdate = true
++      return { surface, refraction }
++    }).catch(error => { shared = undefined; throw error })
++  }
++  return shared
++}
++/** Shared offline-processed studio asset; no external service or API calls at runtime. */
++export function useGemstonePhotoEnvironment(enabled: boolean, diagnosticKey = 'studioEnvironment'): StudioMaps | null {
++  const canvas = useThree(state => state.gl.domElement)
++  const [maps, setMaps] = useState<StudioMaps | null>(null)
++  useEffect(() => {
++    if (!enabled) return
++    let active = true
++    loadStudio().then(value => { if (active) setMaps(value) }).catch(() => {
++      // Keep the generated studio available during an offline/asset outage.
++    })
++    return () => { active = false }
++  }, [enabled])
++  useEffect(() => {
++    if (!enabled) return
++    canvas.dataset[diagnosticKey] = maps ? 'photographic' : 'generated-fallback'
++    return () => { delete canvas.dataset[diagnosticKey] }
++  }, [canvas, enabled, maps, diagnosticKey])
++  return enabled ? maps : null
++}
+--- a/src/engine/renderer/usePhysicalStudio.ts
++++ b/src/engine/renderer/usePhysicalStudio.ts
+@@ -0,0 +1,58 @@
++import { useEffect, useState } from 'react'
++import { useThree } from '@react-three/fiber'
++import { DataTexture, EquirectangularReflectionMapping, HalfFloatType, LinearFilter, PMREMGenerator, LinearSRGBColorSpace, RGBAFormat } from 'three'
++import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
++import type { Texture, WebGLRenderTarget } from 'three'
++
++export const STUDIO_HDR_URL = '/ames-engine/environments/jewellery-studio-v3.hdr'
++export interface PhysicalStudio { radiance: DataTexture; environment: Texture }
++
++/** Each renderer owns its PMREM. Failure is fatal to 3D, never a substitute map. */
++export function usePhysicalStudio(): PhysicalStudio | null {
++  const { gl, scene, invalidate } = useThree()
++  const [maps, setMaps] = useState<PhysicalStudio | null>(null)
++  const [error, setError] = useState<Error | null>(null)
++  useEffect(() => {
++    let alive = true
++    let radiance: DataTexture | undefined, target: WebGLRenderTarget | undefined
++    const previous = scene.environment
++    const generator = new PMREMGenerator(gl)
++    const controller = new AbortController()
++    const timeout = setTimeout(()=>controller.abort(),20000)
++    gl.domElement.dataset.studioEnvironment = 'loading-hdr'
++    fetch(STUDIO_HDR_URL,{signal:controller.signal}).then(async response=>{
++      if(!response.ok)throw Error('Studio HDR request failed.')
++      const decoded=new HDRLoader().setDataType(HalfFloatType).parse(await response.arrayBuffer())
++      if(!decoded?.data||!decoded.width||!decoded.height)throw Error('Invalid studio HDR image.')
++      return decoded
++    }).then(decoded => {
++      if (!alive) return
++      const hdr=new DataTexture(decoded.data,decoded.width,decoded.height,RGBAFormat,HalfFloatType)
++      hdr.flipY=true;hdr.minFilter=LinearFilter;hdr.magFilter=LinearFilter;hdr.generateMipmaps=false;hdr.needsUpdate=true
++      radiance = hdr
++      hdr.mapping = EquirectangularReflectionMapping
++      hdr.colorSpace = LinearSRGBColorSpace
++      if (!hdr.image.width || !hdr.image.height) throw Error('Studio HDR image is empty.')
++      target = generator.fromEquirectangular(hdr)
++      if (!target.texture || gl.getContext().isContextLost()) throw Error('Studio HDR processing failed.')
++      const priorTarget=gl.getRenderTarget(),context=gl.getContext()
++      gl.setRenderTarget(target)
++      const complete=context.checkFramebufferStatus(context.FRAMEBUFFER)===context.FRAMEBUFFER_COMPLETE
++      gl.setRenderTarget(priorTarget)
++      if(!complete)throw Error('Studio HDR render target is unavailable.')
++      scene.environment = target.texture
++      scene.environmentIntensity = 1
++      gl.domElement.dataset.studioEnvironment = 'hdr-pmrem'
++      setMaps({ radiance: hdr, environment: target.texture }); invalidate()
++    }).catch(() => {
++      if (alive) setError(Error('Studio lighting could not load. Showing the still preview.'))
++    }).finally(() => { clearTimeout(timeout); generator.dispose() })
++    return () => {
++      alive = false; controller.abort(); clearTimeout(timeout); scene.environment = previous
++      radiance?.dispose(); target?.dispose()
++      delete gl.domElement.dataset.studioEnvironment
++    }
++  }, [gl, scene, invalidate])
++  if (error) throw error
++  return maps
++}
+--- a/src/engine/renderer/ViewerControls.tsx
++++ b/src/engine/renderer/ViewerControls.tsx
+@@ -1,54 +1,54 @@
+-import { GEMSTONE_CAMERA_FOV, GEMSTONE_LENS_RATIO } from './cameraFraming'
+-import { DIAMOND_CALIBRATION } from '../calibration'
+-import type { PerspectiveCamera } from 'three'
+-import { OrbitControls } from '@react-three/drei'
+-import { useThree } from '@react-three/fiber'
+-import { useEffect, useRef } from 'react'
+-import { Spherical } from 'three'
+-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+-import { cameraFraming, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE } from './cameraFraming'
+-import type { CameraPreset } from './cameraFraming'
+-export function ViewerControls({ onInteractionChange, cameraPreset, zoom, resetToken }: {
+-  onInteractionChange?: (active: boolean) => void
+-  cameraPreset?: CameraPreset
+-  zoom?: number
+-  resetToken?: number
+-}) {
+-  const controls = useRef<OrbitControlsImpl>(null)
+-  const camera = useThree(state => state.camera)
+-  const invalidate = useThree(state => state.invalidate)
+-  useEffect(() => {
+-    if (!cameraPreset || !controls.current) return
+-    // Clear prior damping deltas so a reset/preset cannot drift toward the old orbit.
+-    const damping = controls.current.enableDamping
+-    controls.current.enableDamping = false
+-    controls.current.update()
+-    controls.current.reset()
+-    const perspective = camera as PerspectiveCamera
+-    if (perspective.isPerspectiveCamera) {
+-      perspective.fov = cameraPreset === 'gemstone' ? GEMSTONE_CAMERA_FOV : DIAMOND_CALIBRATION.camera.fov
+-      perspective.updateProjectionMatrix()
+-    }
+-    const framing = cameraFraming(cameraPreset, zoom)
+-    controls.current.target.set(0, 0, 0)
+-    camera.position.setFromSpherical(new Spherical(framing.radius, framing.phi, framing.theta))
+-    controls.current.update()
+-    controls.current.enableDamping = damping
+-    // Request the committed camera frame after React/R3F finishes this update.
+-    const frame = requestAnimationFrame(invalidate)
+-    // Zoom is applied separately so zoom commands retain a manually chosen angle.
+-    return () => cancelAnimationFrame(frame)
+-  }, [cameraPreset, resetToken, camera, invalidate])
+-  useEffect(() => {
+-    if (zoom === undefined || !controls.current) return
+-    const target = controls.current.target
+-    camera.position.sub(target).setLength(cameraFraming(cameraPreset ?? 'three_quarter', zoom).radius).add(target)
+-    controls.current.update()
+-    const frame = requestAnimationFrame(invalidate)
+-    return () => cancelAnimationFrame(frame)
+-  }, [zoom, resetToken, camera, invalidate])
+-  return <OrbitControls ref={controls} enablePan={false} enableDamping dampingFactor={0.07}
+-    minDistance={CAMERA_MIN_DISTANCE} maxDistance={CAMERA_MAX_DISTANCE * (cameraPreset === 'gemstone' ? GEMSTONE_LENS_RATIO : 1)}
+-    minPolarAngle={Math.PI * (cameraPreset === 'gemstone' ? 0.035 : 0.15)} maxPolarAngle={Math.PI * 0.85}
+-    onStart={() => onInteractionChange?.(true)} onEnd={() => onInteractionChange?.(false)} />
+-}
++import { GEMSTONE_CAMERA_FOV, GEMSTONE_LENS_RATIO } from './cameraFraming'
++import { DIAMOND_CALIBRATION } from '../calibration'
++import type { PerspectiveCamera } from 'three'
++import { OrbitControls } from '@react-three/drei'
++import { useThree } from '@react-three/fiber'
++import { useEffect, useRef } from 'react'
++import { Spherical } from 'three'
++import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
++import { cameraFraming, CAMERA_MIN_DISTANCE, CAMERA_MAX_DISTANCE } from './cameraFraming'
++import type { CameraPreset } from './cameraFraming'
++export function ViewerControls({ onInteractionChange, cameraPreset, zoom, resetToken }: {
++  onInteractionChange?: (active: boolean) => void
++  cameraPreset?: CameraPreset
++  zoom?: number
++  resetToken?: number
++}) {
++  const controls = useRef<OrbitControlsImpl>(null)
++  const camera = useThree(state => state.camera)
++  const invalidate = useThree(state => state.invalidate)
++  useEffect(() => {
++    if (!cameraPreset || !controls.current) return
++    // Clear prior damping deltas so a reset/preset cannot drift toward the old orbit.
++    const damping = controls.current.enableDamping
++    controls.current.enableDamping = false
++    controls.current.update()
++    controls.current.reset()
++    const perspective = camera as PerspectiveCamera
++    if (perspective.isPerspectiveCamera) {
++      perspective.fov = cameraPreset === 'gemstone' ? GEMSTONE_CAMERA_FOV : DIAMOND_CALIBRATION.camera.fov
++      perspective.updateProjectionMatrix()
++    }
++    const framing = cameraFraming(cameraPreset, zoom)
++    controls.current.target.set(0, 0, 0)
++    camera.position.setFromSpherical(new Spherical(framing.radius, framing.phi, framing.theta))
++    controls.current.update()
++    controls.current.enableDamping = damping
++    // Request the committed camera frame after React/R3F finishes this update.
++    const frame = requestAnimationFrame(invalidate)
++    // Zoom is applied separately so zoom commands retain a manually chosen angle.
++    return () => cancelAnimationFrame(frame)
++  }, [cameraPreset, resetToken, camera, invalidate])
++  useEffect(() => {
++    if (zoom === undefined || !controls.current) return
++    const target = controls.current.target
++    camera.position.sub(target).setLength(cameraFraming(cameraPreset ?? 'three_quarter', zoom).radius).add(target)
++    controls.current.update()
++    const frame = requestAnimationFrame(invalidate)
++    return () => cancelAnimationFrame(frame)
++  }, [zoom, resetToken, camera, invalidate])
++  return <OrbitControls ref={controls} enablePan={false} enableDamping dampingFactor={0.07}
++    minDistance={CAMERA_MIN_DISTANCE} maxDistance={CAMERA_MAX_DISTANCE * (cameraPreset === 'gemstone' ? GEMSTONE_LENS_RATIO : 1)}
++    minPolarAngle={Math.PI * (cameraPreset === 'gemstone' ? 0.035 : 0.15)} maxPolarAngle={Math.PI * 0.85}
++    onStart={() => onInteractionChange?.(true)} onEnd={() => onInteractionChange?.(false)} />
++}
+--- a/src/engine/renderer/viewerQuality.ts
++++ b/src/engine/renderer/viewerQuality.ts
+@@ -1,80 +1,80 @@
+-export type ViewerQualityTier = 'HIGH' | 'MEDIUM' | 'LOW' | 'IOS_LOW' | 'SAFE'
+-
+-export interface ViewerRuntimeProfile {
+-  coarsePointer: boolean
+-  width: number
+-  devicePixelRatio: number
+-  deviceMemory?: number
+-  hardwareConcurrency?: number
+-  maxTextureSize?: number
+-  webKitMobile?: boolean
+-  forcedTier?: ViewerQualityTier
+-}
+-
+-export interface ViewerQualityProfile {
+-  tier: ViewerQualityTier
+-  dpr: [number, number]
+-  gemBounces: number
+-  centerEnvironmentSize: number
+-  contactShadows: boolean
+-  refraction: boolean
+-  autoRotate: boolean
+-}
+-
+-export function chooseViewerQuality(runtime: ViewerRuntimeProfile): ViewerQualityTier {
+-  if (runtime.forcedTier) return runtime.forcedTier
+-  const constrainedMemory = runtime.deviceMemory !== undefined && runtime.deviceMemory <= 2
+-  const constrainedCpu = runtime.hardwareConcurrency !== undefined && runtime.hardwareConcurrency <= 4
+-  const constrainedGpu = runtime.maxTextureSize !== undefined && runtime.maxTextureSize < 4096
+-  // WebKit measurements show the refraction path is unsafe even at IOS_LOW;
+-  // start in the non-refractive SAFE profile and let the user keep orbiting.
+-  if (runtime.webKitMobile) return 'SAFE'
+-  if (constrainedMemory || constrainedGpu || (constrainedCpu && runtime.coarsePointer)) return 'LOW'
+-  if (runtime.coarsePointer || runtime.width <= 900 || runtime.devicePixelRatio > 1.5 || constrainedCpu) return 'MEDIUM'
+-  return 'HIGH'
+-}
+-
+-/** Memory-conservative optical budget for low-cost touch devices such as Spark-family phones. */
+-export function chooseGemstoneQuality(runtime: ViewerRuntimeProfile): ViewerQualityTier {
+-  const tier = chooseViewerQuality(runtime)
+-  if (runtime.forcedTier || tier === 'SAFE') return tier
+-  if (runtime.coarsePointer && (runtime.deviceMemory ?? 4) <= 4) return 'LOW'
+-  return tier
+-}
+-
+-export function qualityProfile(tier: ViewerQualityTier): ViewerQualityProfile {
+-  if (tier === 'SAFE') return { tier, dpr: [0.75, 1], gemBounces: 1, centerEnvironmentSize: 32, contactShadows: false, refraction: false, autoRotate: false }
+-  if (tier === 'IOS_LOW') return { tier, dpr: [1, 1.25], gemBounces: 1, centerEnvironmentSize: 64, contactShadows: false, refraction: true, autoRotate: true }
+-  if (tier === 'LOW') return { tier, dpr: [1, 1], gemBounces: 2, centerEnvironmentSize: 128, contactShadows: false, refraction: true, autoRotate: true }
+-  if (tier === 'MEDIUM') return { tier, dpr: [1, 1.5], gemBounces: 4, centerEnvironmentSize: 192, contactShadows: true, refraction: true, autoRotate: true }
+-  return { tier, dpr: [1, 2], gemBounces: 6, centerEnvironmentSize: 256, contactShadows: true, refraction: true, autoRotate: true }
+-}
+-
+-export function nextLowerViewerQuality(tier: ViewerQualityTier): ViewerQualityTier {
+-  if (tier === 'HIGH') return 'MEDIUM'
+-  if (tier === 'MEDIUM') return 'LOW'
+-  if (tier === 'IOS_LOW' || tier === 'LOW') return 'SAFE'
+-  return 'SAFE'
+-}
+-
+-export function readViewerRuntime(): ViewerRuntimeProfile {
+-  if (typeof window === 'undefined') return { coarsePointer: false, width: 1200, devicePixelRatio: 1 }
+-  let maxTextureSize: number | undefined
+-  try {
+-    const canvas = document.createElement('canvas')
+-    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+-    maxTextureSize = gl?.getParameter(gl.MAX_TEXTURE_SIZE)
+-    // Capability probing must not accumulate one detached WebGL context per asset switch.
+-    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+-  } catch { /* Capability probing is best effort. */ }
+-  return {
+-    forcedTier: (() => { const value = new URLSearchParams(window.location.search).get('quality')?.toUpperCase(); return value === 'HIGH' || value === 'MEDIUM' || value === 'LOW' || value === 'IOS_LOW' || value === 'SAFE' ? value : undefined })(),
+-    coarsePointer: typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches,
+-    width: window.innerWidth,
+-    devicePixelRatio: window.devicePixelRatio || 1,
+-    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+-    hardwareConcurrency: navigator.hardwareConcurrency,
+-    maxTextureSize,
+-    webKitMobile: /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1) || /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|CriOS|Edg/i.test(navigator.userAgent) && (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches),
+-  }
+-}
++export type ViewerQualityTier = 'HIGH' | 'MEDIUM' | 'LOW' | 'IOS_LOW' | 'SAFE'
++
++export interface ViewerRuntimeProfile {
++  coarsePointer: boolean
++  width: number
++  devicePixelRatio: number
++  deviceMemory?: number
++  hardwareConcurrency?: number
++  maxTextureSize?: number
++  webKitMobile?: boolean
++  forcedTier?: ViewerQualityTier
++}
++
++export interface ViewerQualityProfile {
++  tier: ViewerQualityTier
++  dpr: [number, number]
++  gemBounces: number
++  centerEnvironmentSize: number
++  contactShadows: boolean
++  refraction: boolean
++  autoRotate: boolean
++}
++
++export function chooseViewerQuality(runtime: ViewerRuntimeProfile): ViewerQualityTier {
++  if (runtime.forcedTier) return runtime.forcedTier
++  const constrainedMemory = runtime.deviceMemory !== undefined && runtime.deviceMemory <= 2
++  const constrainedCpu = runtime.hardwareConcurrency !== undefined && runtime.hardwareConcurrency <= 4
++  const constrainedGpu = runtime.maxTextureSize !== undefined && runtime.maxTextureSize < 4096
++  // WebKit measurements show the refraction path is unsafe even at IOS_LOW;
++  // start in the non-refractive SAFE profile and let the user keep orbiting.
++  if (runtime.webKitMobile) return 'SAFE'
++  if (constrainedMemory || constrainedGpu || (constrainedCpu && runtime.coarsePointer)) return 'LOW'
++  if (runtime.coarsePointer || runtime.width <= 900 || runtime.devicePixelRatio > 1.5 || constrainedCpu) return 'MEDIUM'
++  return 'HIGH'
++}
++
++/** Memory-conservative optical budget for low-cost touch devices such as Spark-family phones. */
++export function chooseGemstoneQuality(runtime: ViewerRuntimeProfile): ViewerQualityTier {
++  const tier = chooseViewerQuality(runtime)
++  if (runtime.forcedTier || tier === 'SAFE') return tier
++  if (runtime.coarsePointer && (runtime.deviceMemory ?? 4) <= 4) return 'LOW'
++  return tier
++}
++
++export function qualityProfile(tier: ViewerQualityTier): ViewerQualityProfile {
++  if (tier === 'SAFE') return { tier, dpr: [0.75, 1], gemBounces: 1, centerEnvironmentSize: 32, contactShadows: false, refraction: false, autoRotate: false }
++  if (tier === 'IOS_LOW') return { tier, dpr: [1, 1.25], gemBounces: 1, centerEnvironmentSize: 64, contactShadows: false, refraction: true, autoRotate: true }
++  if (tier === 'LOW') return { tier, dpr: [1, 1], gemBounces: 2, centerEnvironmentSize: 128, contactShadows: false, refraction: true, autoRotate: true }
++  if (tier === 'MEDIUM') return { tier, dpr: [1, 1.5], gemBounces: 4, centerEnvironmentSize: 192, contactShadows: true, refraction: true, autoRotate: true }
++  return { tier, dpr: [1, 2], gemBounces: 6, centerEnvironmentSize: 256, contactShadows: true, refraction: true, autoRotate: true }
++}
++
++export function nextLowerViewerQuality(tier: ViewerQualityTier): ViewerQualityTier {
++  if (tier === 'HIGH') return 'MEDIUM'
++  if (tier === 'MEDIUM') return 'LOW'
++  if (tier === 'IOS_LOW' || tier === 'LOW') return 'SAFE'
++  return 'SAFE'
++}
++
++export function readViewerRuntime(): ViewerRuntimeProfile {
++  if (typeof window === 'undefined') return { coarsePointer: false, width: 1200, devicePixelRatio: 1 }
++  let maxTextureSize: number | undefined
++  try {
++    const canvas = document.createElement('canvas')
++    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
++    maxTextureSize = gl?.getParameter(gl.MAX_TEXTURE_SIZE)
++    // Capability probing must not accumulate one detached WebGL context per asset switch.
++    gl?.getExtension('WEBGL_lose_context')?.loseContext()
++  } catch { /* Capability probing is best effort. */ }
++  return {
++    forcedTier: (() => { const value = new URLSearchParams(window.location.search).get('quality')?.toUpperCase(); return value === 'HIGH' || value === 'MEDIUM' || value === 'LOW' || value === 'IOS_LOW' || value === 'SAFE' ? value : undefined })(),
++    coarsePointer: typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches,
++    width: window.innerWidth,
++    devicePixelRatio: window.devicePixelRatio || 1,
++    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
++    hardwareConcurrency: navigator.hardwareConcurrency,
++    maxTextureSize,
++    webKitMobile: /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1) || /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|CriOS|Edg/i.test(navigator.userAgent) && (typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches),
++  }
++}
+--- a/src/engine/renderer/ViewerScene.tsx
++++ b/src/engine/renderer/ViewerScene.tsx
+@@ -1,115 +1,115 @@
+-import { useGemstoneSoftboxEnvironment } from './useGemstoneSoftboxEnvironment'
+-import { useGemstonePhotoEnvironment } from './useGemstonePhotoEnvironment'
+-import { ControlledJewelryModel } from './ControlledJewelryModel'
+-import type { CameraPreset } from './cameraFraming'
+-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+-import { useFrame } from '@react-three/fiber'
+-import { ContactShadows } from '@react-three/drei'
+-import type { BufferGeometry, CubeTexture } from 'three'
+-import { DIAMOND_CALIBRATION } from '../calibration'
+-import { JewelryGlbModel } from '../jewelry/JewelryGlbModel'
+-import { RoundBrilliantDiamond } from '../jewelry/RoundBrilliantDiamond'
+-import { DiamondEnvironment } from './DiamondEnvironment'
+-import { createDiamondDisplayEnvironment } from './createDiamondDisplayEnvironment'
+-import { createDiamondStudioEnvironment } from './createDiamondStudioEnvironment'
+-import { JewelryStudioLighting } from './JewelryStudioLighting'
+-import { StudioLighting } from './StudioLighting'
+-import { ViewerControls } from './ViewerControls'
+-import type { ViewerQualityProfile, ViewerQualityTier } from './viewerQuality'
+-import type { JewelryOpticsProfile } from './opticsProfiles'
+-
+-function QualityGovernor({ tier, onDowngrade }: { tier: ViewerQualityTier; onDowngrade: () => void }) {
+-  const samples = useRef<number[]>([])
+-  const lastChange = useRef(0)
+-  const badWindows = useRef(0)
+-  useFrame((_, delta) => {
+-    if (delta > 0.25) return // Idle demand-rendering gaps are not GPU frame times.
+-    samples.current.push(delta * 1000)
+-    if (samples.current.length < 45) return
+-    const average = samples.current.reduce((sum, value) => sum + value, 0) / samples.current.length
+-    samples.current = []
+-    const now = performance.now()
+-    if (now - lastChange.current < 6000) return
+-    const threshold = tier === 'HIGH' ? 24 : tier === 'MEDIUM' || tier === 'IOS_LOW' ? 20 : 18
+-    if (1000 / average < threshold) badWindows.current += 1
+-    else badWindows.current = 0
+-    if (badWindows.current >= 3 && tier !== 'SAFE') {
+-      lastChange.current = now
+-      badWindows.current = 0
+-      onDowngrade()
+-    }
+-  })
+-  return null
+-}
+-
+-export function ViewerScene({
+-  diamondRotationY,
+-  geometry,
+-  environment: providedEnvironment,
+-  cameraPreset, zoom, turntableEnabled, resetToken,
+-  controlsEnabled = true,
+-  modelUrl,
+-  procedural = false,
+-  quality,
+-  transparentBackground = false,
+-  onQualityDowngrade,
+-  onModelReady,
+-  opticsProfile = 'reference',
+-}: {
+-  diamondRotationY?: number
+-  geometry?: BufferGeometry
+-  environment?: CubeTexture
+-  cameraPreset?: CameraPreset
+-  zoom?: number
+-  turntableEnabled?: boolean
+-  resetToken?: number
+-  controlsEnabled?: boolean
+-  /** Real catalog GLB to render as the primary live object. */
+-  modelUrl?: string
+-  /** Explicit opt-in to the procedural round-brilliant path. */
+-  procedural?: boolean
+-  quality: ViewerQualityProfile
+-  transparentBackground?: boolean
+-  onQualityDowngrade: () => void
+-  onModelReady?: () => void
+-  opticsProfile?: JewelryOpticsProfile
+-}) {
+-  const photographicJewelry = useGemstonePhotoEnvironment(opticsProfile === 'soft-studio' || opticsProfile === 'mounted-gem-studio', opticsProfile === 'mounted-gem-studio' ? 'metalEnvironment' : 'studioEnvironment')
+-  const gemstoneStudio = useGemstoneSoftboxEnvironment(opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
+-  const photographicStudio = opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio' ? gemstoneStudio : photographicJewelry
+-  const generatedEnvironment = useMemo(() => createDiamondStudioEnvironment(), [])
+-  const displayEnvironment = useMemo(() => createDiamondDisplayEnvironment(opticsProfile), [opticsProfile])
+-  const envMap = providedEnvironment ?? generatedEnvironment
+-  useEffect(() => () => {
+-    generatedEnvironment.dispose()
+-    displayEnvironment.dispose()
+-  }, [generatedEnvironment, displayEnvironment])
+-
+-  const interacting = useRef(false)
+-  const [isInteracting, setIsInteracting] = useState(false)
+-  const liveGlb = !procedural && Boolean(modelUrl)
+-  // Gems need a high-contrast environment; the calibration room reads grey.
+-  const activeEnvMap = opticsProfile === 'mounted-gem-studio' ? photographicJewelry?.surface ?? displayEnvironment : liveGlb ? (opticsProfile === 'soft-studio' ? photographicStudio?.refraction : photographicStudio?.surface) ?? displayEnvironment : envMap
+-
+-  return (
+-    <>
+-      {!transparentBackground && <color attach="background" args={[DIAMOND_CALIBRATION.background]} />}
+-      <QualityGovernor tier={quality.tier} onDowngrade={onQualityDowngrade} />
+-      {liveGlb ? <JewelryStudioLighting opticsProfile={opticsProfile} /> : <StudioLighting />}
+-      <DiamondEnvironment envMap={activeEnvMap} />
+-      {procedural
+-        ? <RoundBrilliantDiamond envMap={envMap} geometry={geometry} rotationY={diamondRotationY} />
+-        : modelUrl
+-          ? (
+-              <Suspense fallback={null}>
+-                {turntableEnabled !== undefined ? <ControlledJewelryModel key={modelUrl} url={modelUrl} envMap={activeEnvMap} gemEnvMap={photographicStudio?.refraction} enabled={turntableEnabled} interacting={isInteracting} resetToken={resetToken} quality={quality} onReady={onModelReady} opticsProfile={opticsProfile} /> : <JewelryGlbModel url={modelUrl} envMap={activeEnvMap} gemEnvMap={photographicStudio?.refraction} interactionRef={interacting} turntable={quality.autoRotate} quality={quality} onReady={onModelReady} opticsProfile={opticsProfile} />}
+-              </Suspense>
+-            )
+-          : <RoundBrilliantDiamond envMap={envMap} geometry={geometry} rotationY={diamondRotationY} />}
+-      {liveGlb
+-        ? quality.contactShadows && !isInteracting ? <ContactShadows position={[0, -1.35, 0]} opacity={0.55} scale={6} blur={quality.tier === 'HIGH' ? 2.6 : 3.2} far={3.2} color="#000000" /> : null
+-        : null}
+-      {controlsEnabled ? <ViewerControls cameraPreset={cameraPreset} zoom={zoom} resetToken={resetToken} onInteractionChange={(active) => { interacting.current = active; setIsInteracting(active) }} /> : null}
+-    </>
+-  )
+-}
++import { useGemstoneSoftboxEnvironment } from './useGemstoneSoftboxEnvironment'
++import { useGemstonePhotoEnvironment } from './useGemstonePhotoEnvironment'
++import { ControlledJewelryModel } from './ControlledJewelryModel'
++import type { CameraPreset } from './cameraFraming'
++import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
++import { useFrame } from '@react-three/fiber'
++import { ContactShadows } from '@react-three/drei'
++import type { BufferGeometry, CubeTexture } from 'three'
++import { DIAMOND_CALIBRATION } from '../calibration'
++import { JewelryGlbModel } from '../jewelry/JewelryGlbModel'
++import { RoundBrilliantDiamond } from '../jewelry/RoundBrilliantDiamond'
++import { DiamondEnvironment } from './DiamondEnvironment'
++import { createDiamondDisplayEnvironment } from './createDiamondDisplayEnvironment'
++import { createDiamondStudioEnvironment } from './createDiamondStudioEnvironment'
++import { JewelryStudioLighting } from './JewelryStudioLighting'
++import { StudioLighting } from './StudioLighting'
++import { ViewerControls } from './ViewerControls'
++import type { ViewerQualityProfile, ViewerQualityTier } from './viewerQuality'
++import type { JewelryOpticsProfile } from './opticsProfiles'
++
++function QualityGovernor({ tier, onDowngrade }: { tier: ViewerQualityTier; onDowngrade: () => void }) {
++  const samples = useRef<number[]>([])
++  const lastChange = useRef(0)
++  const badWindows = useRef(0)
++  useFrame((_, delta) => {
++    if (delta > 0.25) return // Idle demand-rendering gaps are not GPU frame times.
++    samples.current.push(delta * 1000)
++    if (samples.current.length < 45) return
++    const average = samples.current.reduce((sum, value) => sum + value, 0) / samples.current.length
++    samples.current = []
++    const now = performance.now()
++    if (now - lastChange.current < 6000) return
++    const threshold = tier === 'HIGH' ? 24 : tier === 'MEDIUM' || tier === 'IOS_LOW' ? 20 : 18
++    if (1000 / average < threshold) badWindows.current += 1
++    else badWindows.current = 0
++    if (badWindows.current >= 3 && tier !== 'SAFE') {
++      lastChange.current = now
++      badWindows.current = 0
++      onDowngrade()
++    }
++  })
++  return null
++}
++
++export function ViewerScene({
++  diamondRotationY,
++  geometry,
++  environment: providedEnvironment,
++  cameraPreset, zoom, turntableEnabled, resetToken,
++  controlsEnabled = true,
++  modelUrl,
++  procedural = false,
++  quality,
++  transparentBackground = false,
++  onQualityDowngrade,
++  onModelReady,
++  opticsProfile = 'reference',
++}: {
++  diamondRotationY?: number
++  geometry?: BufferGeometry
++  environment?: CubeTexture
++  cameraPreset?: CameraPreset
++  zoom?: number
++  turntableEnabled?: boolean
++  resetToken?: number
++  controlsEnabled?: boolean
++  /** Real catalog GLB to render as the primary live object. */
++  modelUrl?: string
++  /** Explicit opt-in to the procedural round-brilliant path. */
++  procedural?: boolean
++  quality: ViewerQualityProfile
++  transparentBackground?: boolean
++  onQualityDowngrade: () => void
++  onModelReady?: () => void
++  opticsProfile?: JewelryOpticsProfile
++}) {
++  const photographicJewelry = useGemstonePhotoEnvironment(opticsProfile === 'soft-studio' || opticsProfile === 'mounted-gem-studio', opticsProfile === 'mounted-gem-studio' ? 'metalEnvironment' : 'studioEnvironment')
++  const gemstoneStudio = useGemstoneSoftboxEnvironment(opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
++  const photographicStudio = opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio' ? gemstoneStudio : photographicJewelry
++  const generatedEnvironment = useMemo(() => createDiamondStudioEnvironment(), [])
++  const displayEnvironment = useMemo(() => createDiamondDisplayEnvironment(opticsProfile), [opticsProfile])
++  const envMap = providedEnvironment ?? generatedEnvironment
++  useEffect(() => () => {
++    generatedEnvironment.dispose()
++    displayEnvironment.dispose()
++  }, [generatedEnvironment, displayEnvironment])
++
++  const interacting = useRef(false)
++  const [isInteracting, setIsInteracting] = useState(false)
++  const liveGlb = !procedural && Boolean(modelUrl)
++  // Gems need a high-contrast environment; the calibration room reads grey.
++  const activeEnvMap = opticsProfile === 'mounted-gem-studio' ? photographicJewelry?.surface ?? displayEnvironment : liveGlb ? (opticsProfile === 'soft-studio' ? photographicStudio?.refraction : photographicStudio?.surface) ?? displayEnvironment : envMap
++
++  return (
++    <>
++      {!transparentBackground && <color attach="background" args={[DIAMOND_CALIBRATION.background]} />}
++      <QualityGovernor tier={quality.tier} onDowngrade={onQualityDowngrade} />
++      {liveGlb ? <JewelryStudioLighting opticsProfile={opticsProfile} /> : <StudioLighting />}
++      <DiamondEnvironment envMap={activeEnvMap} />
++      {procedural
++        ? <RoundBrilliantDiamond envMap={envMap} geometry={geometry} rotationY={diamondRotationY} />
++        : modelUrl
++          ? (
++              <Suspense fallback={null}>
++                {turntableEnabled !== undefined ? <ControlledJewelryModel key={modelUrl} url={modelUrl} envMap={activeEnvMap} gemEnvMap={photographicStudio?.refraction} enabled={turntableEnabled} interacting={isInteracting} resetToken={resetToken} quality={quality} onReady={onModelReady} opticsProfile={opticsProfile} /> : <JewelryGlbModel url={modelUrl} envMap={activeEnvMap} gemEnvMap={photographicStudio?.refraction} interactionRef={interacting} turntable={quality.autoRotate} quality={quality} onReady={onModelReady} opticsProfile={opticsProfile} />}
++              </Suspense>
++            )
++          : <RoundBrilliantDiamond envMap={envMap} geometry={geometry} rotationY={diamondRotationY} />}
++      {liveGlb
++        ? quality.contactShadows && !isInteracting ? <ContactShadows position={[0, -1.35, 0]} opacity={0.55} scale={6} blur={quality.tier === 'HIGH' ? 2.6 : 3.2} far={3.2} color="#000000" /> : null
++        : null}
++      {controlsEnabled ? <ViewerControls cameraPreset={cameraPreset} zoom={zoom} resetToken={resetToken} onInteractionChange={(active) => { interacting.current = active; setIsInteracting(active) }} /> : null}
++    </>
++  )
++}

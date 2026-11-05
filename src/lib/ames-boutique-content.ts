@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const BOUTIQUE_CATEGORIES = [
   { label: 'Rings', key: 'ring' }, { label: 'Earrings', key: 'earrings' },
   { label: 'Necklaces', key: 'necklace' }, { label: 'Bracelets', key: 'bracelet' },
-  { label: 'Diamonds', key: 'diamond' },
+  { label: 'Accessories', key: 'accessory' },
 ] as const;
 export type BoutiqueCategory = string;
 
@@ -21,6 +21,7 @@ const contractSchema = z.object({
 const indexSchema = z.object({ schemaVersion: z.literal('ames.boutique-index/1'), contracts: z.array(packPath) });
 
 export type BoutiquePiece = {
+  listing?: import('./catalogue-content').CatalogueListing;
   assetId: string;
   revisionId: string;
   category: string;
@@ -67,13 +68,14 @@ export async function loadBoutiqueContent(fetcher: typeof fetch = fetch): Promis
 }
 
 export function boutiqueByCategory(pieces: BoutiquePiece[], category: BoutiqueCategory): BoutiquePiece[] {
-  return pieces.filter(piece => piece.category.toLowerCase() === category);
+  const normalize = (value: string) => value.toLowerCase() === 'accessories' ? 'accessory' : value.toLowerCase();
+  return pieces.filter(piece => normalize(piece.category) === normalize(category));
 }
 
 export function boutiqueCategories(pieces: BoutiquePiece[]): { key: string; label: string }[] {
   const known = new Set<string>(BOUTIQUE_CATEGORIES.map(item => item.key));
-  const additional = [...new Set(pieces.map(piece => piece.category.toLowerCase()))]
-    .filter(category => !known.has(category))
+  const additional = [...new Set(pieces.map(piece => piece.category.toLowerCase() === 'accessories' ? 'accessory' : piece.category.toLowerCase()))]
+    .filter(category => !known.has(category) && !['diamond', 'diamonds'].includes(category))
     .map(category => ({ key: category, label: category.charAt(0).toUpperCase() + category.slice(1) }));
   return [...BOUTIQUE_CATEGORIES, ...additional];
 }

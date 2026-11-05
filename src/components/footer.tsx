@@ -19,16 +19,15 @@ export default function Footer() {
       <div className="max-w-5xl mx-auto space-y-2">
         <div>
           <strong style={{ color: strong, fontWeight: 500 }}>AMES DE BRILLIANTE</strong>{" "}
-          <span style={{ color: text }}>(Pty) Ltd — Licensed Diamond Dealer, Republic of Botswana</span>
+          <span style={{ color: text }}>(Pty) Ltd — Botswana</span>
         </div>
-        <div>Kimberley Process Certification Scheme participant · Licence No. [pending]</div>
-        <div>Plot [___], Gaborone, Botswana · WhatsApp: +267 72 839 152</div>
+        <div>Gaborone, Botswana · WhatsApp: +267 72 839 152</div>
         <div className="flex gap-3 pt-1">
           <a href="/terms" className="underline" style={{ color: text }}>Terms of Use</a>
           <a href="/privacy" className="underline" style={{ color: text }}>Privacy</a>
           <a href="/compliance" className="underline" style={{ color: text }}>Compliance</a>
         </div>
-        <div>All rough diamond exports conducted under the Kimberley Process Certification Scheme.</div>
+        <div>Contact the AMES desk for transaction documentation and compliance enquiries.</div>
         <div>© 2026 AMES DE BRILLIANTE (Pty) Ltd</div>
       </div>
     </footer>

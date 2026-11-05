@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "demo-modern-diamond",
+  "revisionId": "demo-modern-diamond:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "stageAsset": "web/diamond-v1.glb",
+  "poster": "web/poster-v1.webp",
+  "rotationEnabled": true,
+  "defaultView": "three_quarter",
+  "supportedViewerActions": [
+    "rotate",
+    "stop_rotation",
+    "zoom",
+    "reset",
+    "side_view",
+    "macro_view"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept proportions in metres; not a measured physical stone.",
+    "manufacturingReady": false
+  },
+  "heroImage": "web/poster-v1.webp",
+  "macroImage": "web/poster-v1.webp",
+  "visualModes": [
+    "interactive",
+    "side"
+  ]
+}

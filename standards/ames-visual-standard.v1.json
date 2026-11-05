@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "ames.visual-standard/1",
+  "name": "AMES DE BRILLIANTE · Editorial jewellery standard",
+  "palette": {"warm-ivory":"#F3EEE5","soft-champagne":"#D9C7A7","deep-charcoal":"#20211F","rich-black":"#080A09"},
+  "presentation": {"inspectionDepthOfField":false,"editorialDepthOfField":"optional, never inspection evidence","automaticRotation":false,"turntableDegreesPerSecond":6,"background":"transparent over the existing AMES interface; palette backgrounds for exported studio renders","highlightRule":"retain facet and metal detail; no emissive stones, bloom or glitter overlays"},
+  "budgets": {
+    "mobile-safe":{"maxBytes":5242880,"maxTriangles":80000,"maxPrimitives":50,"maxTextureEdge":1024,"maxPixelRatio":1.5},
+    "desktop-inspection":{"maxBytes":12582912,"maxTriangles":200000,"maxPrimitives":100,"maxTextureEdge":2048,"maxPixelRatio":2}
+  },
+  "materials": {
+    "diamond":{"family":"faceted-dielectric","ior":2.417,"roughness":0.018,"metallic":0,"transmission":1,"defaultColor":"#F6F8FA","source":"https://www.gia.edu/diamond"},
+    "ruby":{"family":"faceted-dielectric","ior":1.765,"roughness":0.025,"metallic":0,"transmission":1,"defaultColor":"#B52C4A","absorptionDensityPerMetre":150,"source":"https://www.gia.edu/ruby"},
+    "sapphire":{"family":"faceted-dielectric","ior":1.765,"roughness":0.025,"metallic":0,"transmission":1,"defaultColor":"#355DB5","absorptionDensityPerMetre":110,"source":"https://www.gia.edu/sapphire"},
+    "emerald":{"family":"faceted-dielectric","ior":1.58,"roughness":0.03,"metallic":0,"transmission":1,"defaultColor":"#27936A","absorptionDensityPerMetre":90,"source":"https://www.gia.edu/emerald"},
+    "quartz":{"family":"faceted-dielectric","ior":1.545,"roughness":0.025,"metallic":0,"transmission":1,"defaultColor":"#E6DCE9","absorptionDensityPerMetre":35,"source":"https://www.gia.edu/amethyst"},
+    "pearl":{"family":"layered-lustre","ior":1.53,"roughness":0.26,"metallic":0,"transmission":0,"defaultColor":"#EEE6D6","source":"https://www.gia.edu/pearl"},
+    "opal":{"family":"cabochon-diffraction","ior":1.45,"roughness":0.11,"metallic":0,"transmission":0,"defaultColor":"#D8DED6","source":"https://www.gia.edu/opal"},
+    "yellow-gold":{"family":"metal","ior":1.5,"roughness":0.14,"metallic":1,"transmission":0,"defaultColor":"#D5B76E"},
+    "rose-gold":{"family":"metal","ior":1.5,"roughness":0.14,"metallic":1,"transmission":0,"defaultColor":"#C69883"},
+    "white-gold":{"family":"metal","ior":1.5,"roughness":0.13,"metallic":1,"transmission":0,"defaultColor":"#D3D1C8"},
+    "platinum":{"family":"metal","ior":1.5,"roughness":0.19,"metallic":1,"transmission":0,"defaultColor":"#C3C7C9"},
+    "silver":{"family":"metal","ior":1.5,"roughness":0.12,"metallic":1,"transmission":0,"defaultColor":"#E5E7E8"}
+  },
+  "finishes": {
+    "polished":{"roughness":0.13,"anisotropy":0,"surface":"subtle polish; no wear added"},
+    "brushed":{"roughness":0.32,"anisotropy":0.65,"surface":"directional surface required; roughness alone is insufficient"},
+    "satin":{"roughness":0.4,"anisotropy":0.1,"surface":"fine, nondirectional surface variation"},
+    "hammered":{"roughness":0.28,"anisotropy":0,"surface":"modelled or supplied normal-map relief required"},
+    "engraved":{"roughness":0.2,"anisotropy":0,"surface":"source geometry or supplied depth/normal detail required"}
+  },
+  "capabilities": {
+    "ames-mobile":{"refraction":"bounded closed-convex-facet approximation when geometry qualifies; otherwise environment approximation","dispersion":false,"birefringence":false,"pleochroism":false,"opalDiffraction":false,"pearlLayering":"surface approximation","spectralRendering":false},
+    "ames-desktop":{"refraction":"qualified geometry path; renderer-dependent approximation","dispersion":false,"birefringence":false,"pleochroism":false,"opalDiffraction":false,"pearlLayering":"surface approximation","spectralRendering":false},
+    "blender-cycles":{"refraction":"path-traced RGB dielectric with separate interfaces and bounded bounces","dispersion":false,"birefringence":false,"pleochroism":false,"opalDiffraction":false,"pearlLayering":"coat/subsurface approximation","spectralRendering":false}
+  },
+  "requiredViews":["front","three-quarter","side","back","underside","macro"],
+  "reviewChecks":["reference-and-silhouette","facets-and-depth","stone-seating-and-prongs","connections-and-clearances","metal-and-finish","scale-and-proportions","all-views-readable","mobile-and-tablet","rights-and-product-facts"],
+  "limitations":["Material constants and colours are artist starting points, not measurements or grading claims.","RGB renderers do not establish spectral dispersion, gem identification, origin, treatments, clarity or carat weight.","Automatic mesh checks cannot certify stone security, assembly clearances, manufacturability or photorealism.","No existing ring or gemstone becomes approved merely by adopting this standard."]
+}

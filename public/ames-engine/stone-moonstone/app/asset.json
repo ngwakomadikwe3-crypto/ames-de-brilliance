@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-moonstone",
+  "revisionId": "stone-moonstone:3",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "feldspar",
+  "name": "Moonstone",
+  "aliases": [
+    "moon stone",
+    "rainbow moonstone"
+  ],
+  "form": "cabochon",
+  "representativeCut": "high-dome oval cabochon",
+  "defaultColors": [
+    "white",
+    "milky white",
+    "colorless",
+    "colourless"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry-v3.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative high-dome translucent cabochon with illustrative internal refraction and moving blue sheen.",
+    "The sheen is an angular visual approximation, not a microscopic feldspar diffraction simulation.",
+    "Exact dimensions, weight, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-moonstone-v3.blend",
+    "refinementGenerator": "scripts/blender/refine_moonstone_v3.py"
+  }
+}

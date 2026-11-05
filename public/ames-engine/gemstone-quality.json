@@ -1,0 +1,188 @@
+{
+  "schemaVersion": "ames.gemstone-quality/1",
+  "license": "AMES original geometry",
+  "rendererRevision": "mobile-realism-v2",
+  "environmentSource": "environments/gemstone-softbox-v2/source.json",
+  "physicalDeviceApproval": "pending",
+  "assets": [
+    {
+      "assetId": "stone-alexandrite",
+      "revisionId": "stone-alexandrite:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-alexandrite.glb"
+    },
+    {
+      "assetId": "stone-amber",
+      "revisionId": "stone-amber:2"
+    },
+    {
+      "assetId": "stone-amethyst",
+      "revisionId": "stone-amethyst:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-amethyst.glb"
+    },
+    {
+      "assetId": "stone-ametrine",
+      "revisionId": "stone-ametrine:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-ametrine.glb"
+    },
+    {
+      "assetId": "stone-aquamarine",
+      "revisionId": "stone-aquamarine:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-aquamarine.glb"
+    },
+    {
+      "assetId": "stone-citrine",
+      "revisionId": "stone-citrine:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-citrine.glb"
+    },
+    {
+      "assetId": "stone-diamond",
+      "revisionId": "stone-diamond:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-diamond.glb"
+    },
+    {
+      "assetId": "stone-emerald",
+      "revisionId": "stone-emerald:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-emerald.glb"
+    },
+    {
+      "assetId": "stone-fancy-color-diamond",
+      "revisionId": "stone-fancy-color-diamond:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-fancy-color-diamond.glb"
+    },
+    {
+      "assetId": "stone-garnet",
+      "revisionId": "stone-garnet:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-garnet.glb"
+    },
+    {
+      "assetId": "stone-iolite",
+      "revisionId": "stone-iolite:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-iolite.glb"
+    },
+    {
+      "assetId": "stone-jade",
+      "revisionId": "stone-jade:2"
+    },
+    {
+      "assetId": "stone-kunzite",
+      "revisionId": "stone-kunzite:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-kunzite.glb"
+    },
+    {
+      "assetId": "stone-lapis-lazuli",
+      "revisionId": "stone-lapis-lazuli:2"
+    },
+    {
+      "assetId": "stone-moonstone",
+      "revisionId": "stone-moonstone:3",
+      "generator": "scripts/blender/refine_moonstone_v3.py",
+      "previousRevision": "public/ames-engine/stone-moonstone/web/jewelry.glb",
+      "visualApproval": "pending"
+    },
+    {
+      "assetId": "stone-morganite",
+      "revisionId": "stone-morganite:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-morganite.glb"
+    },
+    {
+      "assetId": "stone-opal",
+      "revisionId": "stone-opal:2"
+    },
+    {
+      "assetId": "stone-pearl",
+      "revisionId": "stone-pearl:2"
+    },
+    {
+      "assetId": "stone-peridot",
+      "revisionId": "stone-peridot:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-peridot.glb"
+    },
+    {
+      "assetId": "stone-rose-quartz",
+      "revisionId": "stone-rose-quartz:2"
+    },
+    {
+      "assetId": "stone-ruby",
+      "revisionId": "stone-ruby:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-ruby.glb"
+    },
+    {
+      "assetId": "stone-sapphire",
+      "revisionId": "stone-sapphire:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-sapphire.glb"
+    },
+    {
+      "assetId": "stone-spinel",
+      "revisionId": "stone-spinel:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-spinel.glb"
+    },
+    {
+      "assetId": "stone-sunstone",
+      "revisionId": "stone-sunstone:2"
+    },
+    {
+      "assetId": "stone-tanzanite",
+      "revisionId": "stone-tanzanite:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-tanzanite.glb"
+    },
+    {
+      "assetId": "stone-topaz",
+      "revisionId": "stone-topaz:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-topaz.glb"
+    },
+    {
+      "assetId": "stone-tourmaline",
+      "revisionId": "stone-tourmaline:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-tourmaline.glb"
+    },
+    {
+      "assetId": "stone-turquoise",
+      "revisionId": "stone-turquoise:2"
+    },
+    {
+      "assetId": "stone-zircon",
+      "revisionId": "stone-zircon:4",
+      "origin": "Original convex cuts with IOR-aware pavilion depth and a small step-cut culet",
+      "generator": "scripts/blender/refine_mobile_gemstones.py",
+      "previousRevision": "source-assets/gemstones/revision-3/stone-zircon.glb"
+    }
+  ]
+}

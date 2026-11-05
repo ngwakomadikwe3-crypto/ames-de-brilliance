@@ -1,0 +1,27 @@
+[Unit]
+Description=AMES isolated CAD queue worker
+After=docker.service ames-cad-broker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=ames-cad
+Group=ames-cad
+SupplementaryGroups=docker
+WorkingDirectory=/opt/ames
+# Worker needs no Appwrite or broker credentials.
+Environment=NODE_ENV=production
+Environment=AMES_CAD_SANDBOX=1
+Environment=AMES_CAD_ROOT=/var/lib/ames-cad
+EnvironmentFile=/etc/ames-cad-worker.env
+ExecStart=/usr/bin/node scripts/cad/worker.mjs
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ames-cad
+
+[Install]
+WantedBy=multi-user.target

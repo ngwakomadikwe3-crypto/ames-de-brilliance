@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "ames.environment/2",
+  "origin": "Original analytic studio softbox radiance",
+  "generator": "scripts/build-gemstone-softbox-environment.mjs",
+  "license": "AMES original",
+  "cubeSize": 256,
+  "range": 8,
+  "encoding": "sRGB encoded fixed-range linear radiance; opaque RGBA8; hardware decode before filtering",
+  "floatingPointTextures": false,
+  "panels": [
+    {
+      "direction": [
+        -0.8,
+        1.1,
+        1.4
+      ],
+      "width": 0.42,
+      "height": 0.72,
+      "power": 2,
+      "color": [
+        1,
+        0.97,
+        0.93
+      ],
+      "normal": [
+        -0.40985241566284797,
+        0.5635470715364159,
+        0.7172417274099838
+      ],
+      "right": [
+        0.8682431421244592,
+        0,
+        0.4961389383568339
+      ],
+      "up": [
+        0.2795976457861801,
+        0.8260839534591684,
+        -0.48929588012581515
+      ]
+    },
+    {
+      "direction": [
+        1.2,
+        0.35,
+        0.65
+      ],
+      "width": 0.58,
+      "height": 0.72,
+      "power": 1.2,
+      "color": [
+        0.92,
+        0.97,
+        1
+      ],
+      "normal": [
+        0.8517281291852112,
+        0.24842070434568658,
+        0.46135273664198945
+      ],
+      "right": [
+        0.47628314854075265,
+        0,
+        -0.8792919665367741
+      ],
+      "up": [
+        -0.2184343296525693,
+        0.9686522356616913,
+        -0.11831859522847504
+      ]
+    },
+    {
+      "direction": [
+        -0.2,
+        0.1,
+        -1
+      ],
+      "width": 0.16,
+      "height": 0.85,
+      "power": 2.5,
+      "color": [
+        1,
+        1,
+        1
+      ],
+      "normal": [
+        -0.19518001458970663,
+        0.09759000729485331,
+        -0.9759000729485331
+      ],
+      "right": [
+        -0.9805806756909201,
+        0,
+        0.19611613513818404
+      ],
+      "up": [
+        0.019138975058773818,
+        0.9952267030562385,
+        0.09569487529386908
+      ]
+    },
+    {
+      "direction": [
+        0,
+        1,
+        0
+      ],
+      "width": 0.72,
+      "height": 0.62,
+      "power": 0.75,
+      "color": [
+        0.98,
+        1,
+        1
+      ],
+      "normal": [
+        0,
+        1,
+        0
+      ],
+      "right": [
+        -1,
+        0,
+        0
+      ],
+      "up": [
+        0,
+        0,
+        1
+      ]
+    }
+  ],
+  "peakRadiance": 2.9903490307167826,
+  "clippedChannels": 0,
+  "faces": [
+    "px",
+    "nx",
+    "py",
+    "ny",
+    "pz",
+    "nz"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-emerald",
+  "revisionId": "stone-emerald:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "beryl",
+  "name": "Emerald",
+  "aliases": [
+    "green beryl"
+  ],
+  "form": "faceted",
+  "representativeCut": "emerald",
+  "defaultColors": [
+    "green"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative educational visualization, not a stock item or an identification report.",
+    "Natural fissures, inclusions, and clarity treatments are not reproduced or graded.",
+    "Exact dimensions, carat, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-emerald.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

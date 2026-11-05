@@ -1,8 +1,10 @@
 "use client";
+import VideoCategoryEditor from "../../components/VideoCategoryEditor";
 
 import React from "react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { BrandMark } from "@/components/BrandMark";
+import StoneVerificationTab from "@/components/StoneVerificationTab";
 import JewelryOnboardingTab from "@/components/JewelryOnboardingTab";
 
 interface Request {
@@ -29,7 +31,7 @@ interface Trader {
   stone_count?: number; sales_count?: number;
 }
 
-type Tab = "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "videos" | "models" | "intelligence" | "billing";
+type Tab = "verification" | "requests" | "stones" | "orders" | "addstone" | "pastein" | "traders" | "jewelry" | "videos" | "models" | "intelligence" | "billing";
 
 function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
   const esc = (v: string|number) => '"' + String(v).replace(/"/g, '""') + '"';
@@ -65,13 +67,20 @@ export default function Dashboard() {
   return (
     <div className="min-h-full flex flex-col back-office" style={{ background: '#101214', color: '#EAE8E4' }}>
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-3">
           <BrandMark variant="full" height={28} />
+          {role === "owner" && <a href="/dashboard/cad" className="text-xs underline">CAD Assets</a>}
+          {role === "owner" && <a href="/dashboard/enquiries" className="text-xs underline">Enquiries</a>}
+          {role === "owner" && <a href="/dashboard/purchases" className="text-xs underline">Purchase desk</a>}
+          {role === "owner" && <a href="/dashboard/community" className="text-xs underline">Comment reports</a>}{role === "owner" && <a href="/dashboard/asset-standard" className="text-xs underline">3D asset standard</a>}
+          {role === "owner" && <a href="/dashboard/listings" className="text-xs underline">Listing review</a>}
+          {role === "owner" && <a href="/dashboard/jewellers" className="text-xs underline">Jeweller profiles</a>}
+          {role === "owner" && <a href="/dashboard/auctioneers" className="text-xs underline">Auctioneer profiles</a>}
           <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#171717] whitespace-nowrap pb-2 cursor-default shrink-0">Logout</button>
         </div>
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-4 text-[12px] font-medium border-b border-border overflow-x-auto">
-            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
+            {((role === "cousin" ? [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount]] : [["requests","Requests"],["stones","Stones"],["orders","Orders", orderCount],["addstone","Add Stone"],["pastein","Paste-in"],["traders","Traders"],...(role === "owner" ? [["jewelry","Jewelry"],["verification","Stone verification"]] : []),["videos","Videos"],["models","Models"],["intelligence","Intelligence"],["billing","Billing"]]) as [Tab,string,number?][]).map(([t,label,badge]) => (
               <button key={t} onClick={() => switchTab(t)} className={`pb-2 whitespace-nowrap cursor-default inline-flex items-center gap-1.5 ${tab===t?"border-b border-[#1A1A1A] text-[#171717]":"text-muted"}`}>{label}{typeof badge === "number" && badge > 0 && <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold bg-[#A6A6AB] text-[#EAE8E4] rounded-full leading-none">{badge}</span>}</button>
             ))}
           </div>
@@ -86,6 +95,7 @@ export default function Dashboard() {
         {tab==="pastein" && <PasteInTab />}
         {tab==="traders" && <TradersTab />}
         {tab==="jewelry" && role === "owner" && <JewelryOnboardingTab />}
+        {tab==="verification" && role === "owner" && <StoneVerificationTab />}
         {tab==="videos" && <VideosTab />}
         {tab==="models" && <ModelsTab />}
         {tab==="intelligence" && <IntelligenceTab />}
@@ -618,7 +628,7 @@ function ApproveModal({ stone, onApprove, onCancel }: { stone: Stone; onApprove:
         </div>
         <div className="flex gap-2 justify-end mt-4">
           <button onClick={onCancel} className="px-3 py-1.5 border border-border cursor-default min-h-[36px]">Cancel</button>
-          <button onClick={()=>onApprove({shape, carat:parseFloat(carat)||0, color, clarity, certification:cert, price:price?Number(price):null, listing_category:lc})} className="px-3 py-1.5 badge-success font-medium cursor-default min-h-[36px]">Approve &amp; Publish</button>
+          <button onClick={()=>onApprove({shape, carat:parseFloat(carat)||0, color, clarity, certification:cert, price:price?Number(price):null, listing_category:lc})} className="px-3 py-1.5 badge-success font-medium cursor-default min-h-[36px]">Approve inventory</button>
         </div>
       </div>
     </div>
@@ -1555,16 +1565,19 @@ function VideosTab() {
   const [linkedStone, setLinkedStone] = useState<string>("");
   const [houseNote, setHouseNote] = useState("");
   const [featuredPiece, setFeaturedPiece] = useState("");
+  const [products, setProducts] = useState<{ assetId: string; name: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
-      const [vRes, sRes] = await Promise.all([
+      const [vRes, sRes, pRes] = await Promise.all([
         fetch("/api/videos"),
         fetch("/api/stones"),
+        fetch("/api/catalogue"),
       ]);
       if (vRes.ok) setVideos(await vRes.json());
+      if (pRes.ok) setProducts((await pRes.json()).listings);
       if (sRes.ok) {
         const all: Stone[] = await sRes.json();
         setStones(all.filter(s => s.status === "Available"));
@@ -1659,13 +1672,8 @@ function VideosTab() {
             <input value={houseNote} onChange={e => setHouseNote(e.target.value)} placeholder="Curator's note under the video" className="field-input min-h-[36px] text-[11px]" />
           </div>
           <div>
-            <span className="block text-[10px] text-muted mb-1">Featured piece (optional)</span>
-            <select value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="field-input min-h-[36px] text-[11px]">
-              <option value="">None</option>
-              {stones.map(s => (
-                <option key={s.id} value={s.id}>{s.ref} — {s.shape} {s.carat}ct {s.color}</option>
-              ))}
-            </select>
+            <span className="block text-[10px] text-muted mb-1">Shop this video · reviewed listing (optional)</span>
+            <select aria-label="Featured reviewed listing" value={featuredPiece} onChange={e => setFeaturedPiece(e.target.value)} className="field-input min-h-[36px] text-[11px]"><option value="">None</option>{products.map(p => <option key={p.assetId} value={p.assetId}>{p.name}</option>)}</select>
           </div>
         </div>
         <button onClick={handleCreate} disabled={!url.trim()} className="px-4 py-2 bg-[#A6A6AB] text-[#EAE8E4] text-[11px] font-medium cursor-default disabled:opacity-40 min-h-[36px]">Add video</button>
@@ -1707,7 +1715,9 @@ function VideosTab() {
                   {v.model_instagram && <span className="text-[10px] text-muted font-mono">@{v.model_instagram}</span>}
                 </div>
                 <div className="text-[11px] truncate">{v.caption || "No caption"}</div>
+                <VideoCategoryEditor key={v.id+":"+v.caption} id={v.id} caption={v.caption} onSaved={caption=>setVideos(rows=>rows.map(row=>row.id===v.id?{...row,caption}:row))} />
                 <div className="text-[10px] text-muted font-mono mt-0.5">{v.created_at.split("T")[0]}</div>
+                <label className="mt-2 block text-[10px]">Shop this video<select aria-label={`Linked product for ${v.caption || v.id}`} value={v.featured_piece || ''} onChange={async e => { const featured_piece=e.target.value; try { const r=await fetch('/api/videos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:v.id,featured_piece})}); if(!r.ok)throw Error('Unable to link this product'); setVideos(rows=>rows.map(row=>row.id===v.id?{...row,featured_piece}:row)); } catch(e) { setError(e instanceof Error?e.message:'Request failed'); } }} className="field-input mt-1 w-full text-[11px]"><option value="">No shop link</option>{products.map(p=><option key={p.assetId} value={p.assetId}>{p.name}</option>)}</select></label>
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => togglePublish(v)} className={`text-[10px] px-2 py-1 cursor-default min-h-[32px] ${v.published ? "border border-border text-muted hover:bg-surface" : "bg-[#A6A6AB] text-[#EAE8E4]"}`}>{v.published ? "Unpublish" : "Publish"}</button>
                   <button onClick={() => handleDelete(v)} className="text-[10px] px-2 py-1 border border-red-300 text-red-600 cursor-default hover:bg-red-50 min-h-[32px]">Delete</button>
@@ -2295,3 +2305,4 @@ function BillingTab() {
     </div>
   );
 }
+

@@ -1,9 +1,10 @@
 "use client";
-
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { isMediaReview, loadMediaContent, searchMedia, type MediaRecord } from '../lib/ames-media-content';
-import { localMediaInteractionStore, type MediaComment, type MediaInteraction } from '../lib/ames-media-interactions';
-
+import {useEffect,useMemo,useRef,useState} from 'react';
+import {isMediaReview,searchMedia,type MediaRecord} from '@/lib/ames-media-content';
+import type {CustomerMedia} from '@/lib/customer-media';
+import MediaCommunityActions from './MediaCommunityActions';
+import {VIDEO_INTERESTS,filterVideoFeed,type VideoFeedFilter} from '@/lib/video-interests';
+import {readApiJson} from '@/lib/client-api';
 function MediaVisual({ record, active }: { record: MediaRecord; active: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [failed, setFailed] = useState(false);
@@ -14,102 +15,20 @@ function MediaVisual({ record, active }: { record: MediaRecord; active: boolean 
     else { video.pause(); if (!active) video.currentTime = 0; }
   }, [active, failed]);
   // The engine serves exact pack images; Next image transforms would change that delivery path.
+  if (failed && !record.poster) return <p role="status" className="text-sm text-[#b9cec6]">This video is unavailable.</p>;
   // eslint-disable-next-line @next/next/no-img-element
   if (record.mediaType === 'image' || failed) return <img src={failed ? record.poster : record.mediaUrl} alt={record.name} className="h-full w-full object-contain" data-media-poster={record.key} />;
-  return <video ref={videoRef} src={record.mediaUrl} poster={record.poster} className="h-full w-full object-contain" muted loop playsInline preload={active ? 'auto' : 'metadata'} onError={() => setFailed(true)} data-media-video={record.key} aria-label={record.name} />;
+  return <video ref={videoRef} src={record.mediaUrl} poster={record.poster || undefined} className="h-full w-full object-contain" muted loop playsInline preload={active ? 'auto' : 'metadata'} onError={() => setFailed(true)} data-media-video={record.key} aria-label={record.name} />;
 }
 
-function ActionIcon({ name, selected }: { name: 'like' | 'comment' | 'save' | 'buy'; selected?: boolean }) {
-  const paths = {
-    like: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8Z" />,
-    comment: <path d="M20 16a2 2 0 0 1-2 2H8l-4 3V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10Z" />,
-    save: <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-5-7 5V4a1 1 0 0 1 1-1Z" />,
-    buy: <><path d="M4 8h16l-1 13H5L4 8Z" /><path d="M9 9V6a3 3 0 0 1 6 0v3" /></>,
-  };
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill={selected ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
-}
 
-function CommentSheet({ record, value, onAdd, onClose }: { record: MediaRecord; value: MediaInteraction; onAdd: (text: string) => void; onClose: () => void }) {
-  const [text, setText] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-  function submit() { const trimmed = text.trim(); if (trimmed) { onAdd(trimmed); setText(''); } }
-  return <div className="fixed inset-0 z-[80] flex items-end justify-center" onClick={onClose} data-media-comment-backdrop>
-    <div className="absolute inset-0 bg-black/55" />
-    <section role="dialog" aria-modal="true" aria-label={`Comments on ${record.name}`} onClick={event => event.stopPropagation()}
-      className="relative flex w-full max-w-2xl flex-col rounded-t-2xl px-5 pt-4 pb-6" style={{ background: '#FCFCFB', maxHeight: '70dvh' }} data-media-comments={record.key}>
-      <div className="flex items-center justify-between pb-3"><div><h2 className="text-sm text-[#171717]">Comments</h2><p className="text-[11px] text-[#8A8075]">Saved on this device</p></div><button type="button" onClick={onClose} className="text-xs text-[#6E6C69]" aria-label="Close comments">Close</button></div>
-      <div className="min-h-24 flex-1 overflow-y-auto border-t border-[#EAE8E4] py-4">
-        {value.comments.length === 0 ? <p className="text-center text-xs text-[#8A8075]">No comments on this device yet.</p> : value.comments.map((comment: MediaComment) => <p key={comment.id} className="mb-3 text-sm text-[#171717]">{comment.text}</p>)}
-      </div>
-      <div className="flex gap-2 border-t border-[#EAE8E4] pt-3"><input ref={inputRef} value={text} onChange={event => setText(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') submit(); }} placeholder="Add a comment" maxLength={500} className="min-w-0 flex-1 rounded-full bg-[#F5F4F2] px-4 py-2 text-sm text-[#171717] outline-none" /><button type="button" disabled={!text.trim()} onClick={submit} className="px-3 text-xs text-[#171717] disabled:opacity-40">Post</button></div>
-    </section>
-  </div>;
-}
-
-export default function EngineMediaPanel({ active, onBuy, onAskSame }: { active: boolean; onBuy: (assetId: string) => void; onAskSame: (record: MediaRecord) => void }) {
-  const [records, setRecords] = useState<MediaRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [commentKey, setCommentKey] = useState<string | null>(null);
-  const [interactions, setInteractions] = useState<Record<string, MediaInteraction>>({});
-  const feedRef = useRef<HTMLDivElement>(null);
-  const filtered = useMemo(() => searchMedia(records, query), [records, query]);
-
-  useEffect(() => {
-    let mounted = true;
-    loadMediaContent().then(items => { if (mounted) { setRecords(items); setActiveKey(items[0]?.key || null); setInteractions(Object.fromEntries(items.map(item => [item.key, localMediaInteractionStore.read(item.key)]))); setLoading(false); } })
-      .catch(() => { if (mounted) { setError(true); setLoading(false); } });
-    return () => { mounted = false; };
-  }, []);
-  useEffect(() => {
-    const root = feedRef.current;
-    if (!root || !filtered.length) return;
-    const observer = new IntersectionObserver(entries => {
-      const mostVisible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (mostVisible && mostVisible.intersectionRatio >= 0.5) setActiveKey(mostVisible.target.getAttribute('data-media-item'));
-    }, { root, threshold: [0.5, 0.75, 0.99] });
-    root.querySelectorAll('[data-media-item]').forEach(element => observer.observe(element));
-    return () => observer.disconnect();
-  }, [filtered]);
-
-  function changeQuery(value: string) {
-    setQuery(value);
-    setActiveKey(searchMedia(records, value)[0]?.key || null);
-    feedRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-  }
-
-  function update(key: string, fn: (previous: MediaInteraction) => MediaInteraction) {
-    setInteractions(previous => {
-      const next = fn(previous[key] || localMediaInteractionStore.read(key));
-      localMediaInteractionStore.write(key, next);
-      return { ...previous, [key]: next };
-    });
-  }
-  const commentRecord = records.find(record => record.key === commentKey);
-
-  return <div className="relative h-full w-full text-[#FCFCFB]" data-media-panel>
-    <div className="absolute top-16 left-0 right-0 z-20 mx-auto w-full max-w-2xl px-5"><label className="sr-only" htmlFor="ames-media-search">Search media</label><input id="ames-media-search" type="search" value={query} onChange={event => changeQuery(event.target.value)} placeholder="Search pieces" className="w-full rounded-full border border-white/15 bg-black/25 px-4 py-2 text-sm text-white placeholder:text-white/60 outline-none backdrop-blur-md focus:border-white/50" /></div>
-    {loading && <div className="flex h-full items-center justify-center text-xs text-white/60">Loading media…</div>}
-    {!loading && (error || !filtered.length) && <div className="flex h-full items-center justify-center px-8 text-center text-sm text-white/60">{error ? 'AMES media is unavailable.' : 'No media matches this search.'}</div>}
-    {!loading && !error && <div ref={feedRef} className="h-full overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-media-feed>
-      {filtered.map((record, index) => {
-        const value = interactions[record.key] || { liked: false, saved: false, comments: [] };
-        return <section key={record.key} data-media-item={record.key} className="relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden" style={{ scrollSnapAlign: 'start' }}>
-          <div className="absolute inset-0 flex items-center justify-center"><MediaVisual record={record} active={active && activeKey === record.key && !commentKey} /></div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/65 to-transparent" />
-          <div className="absolute bottom-7 left-5 right-20 z-10"><p className="text-sm" style={{ fontSize: 22 }}>{record.name}</p><p className="mt-1 text-[11px] text-white/70">{index + 1} / {filtered.length}{isMediaReview(record) ? ' · Preview · approval pending' : ''}</p><button type="button" onClick={() => onAskSame(record)} className="mt-3 border-b border-white/60 pb-0.5 text-xs text-white/90">Ask SAME</button></div>
-          <div className="absolute bottom-12 right-4 z-10 flex flex-col items-center gap-5" aria-label="Media actions">
-            <button type="button" aria-label="Like" aria-pressed={value.liked} onClick={() => update(record.key, current => ({ ...current, liked: !current.liked }))} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="like" selected={value.liked} /><span className="text-[10px]">Like</span></button>
-            <button type="button" aria-label="Comment" onClick={() => setCommentKey(record.key)} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="comment" /><span className="text-[10px]">Comment</span></button>
-            <button type="button" aria-label="Save" aria-pressed={value.saved} onClick={() => update(record.key, current => ({ ...current, saved: !current.saved }))} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="save" selected={value.saved} /><span className="text-[10px]">Save</span></button>
-            <button type="button" aria-label={`Buy ${record.name}`} onClick={() => onBuy(record.product.assetId)} className="flex flex-col items-center gap-1 text-white/85"><ActionIcon name="buy" /><span className="text-[10px]">Buy</span></button>
-          </div>
-        </section>;
-      })}
-    </div>}
-    {commentRecord && <CommentSheet record={commentRecord} value={interactions[commentRecord.key] || { liked: false, saved: false, comments: [] }} onClose={() => setCommentKey(null)} onAdd={text => update(commentRecord.key, current => ({ ...current, comments: [...current.comments, { id: crypto.randomUUID(), text, createdAt: new Date().toISOString() }] }))} />}
-  </div>;
+export default function EngineMediaPanel({active,onBuy,onAskSame}:{active:boolean;onBuy:(assetId:string)=>void;onAskSame:(record:MediaRecord)=>void}){
+ const[category,setCategory]=useState<VideoFeedFilter>('for-you');
+ const[records,setRecords]=useState<CustomerMedia[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(false),[warning,setWarning]=useState(''),[query,setQuery]=useState(''),[activeKey,setActiveKey]=useState<string|null>(null),[commentKey,setCommentKey]=useState<string|null>(null);const feedRef=useRef<HTMLDivElement>(null),opened=useRef(false);const filtered=useMemo(()=>searchMedia(filterVideoFeed(records,category),query) as CustomerMedia[],[records,query,category]);
+ useEffect(()=>{const abort=new AbortController();fetch('/api/media/feed',{cache:'no-store',signal:abort.signal}).then(async r=>{const b=await readApiJson<{records:CustomerMedia[];warning?:string}>(r,'Videos are temporarily unavailable.');if(!Array.isArray(b.records))throw Error('Videos are temporarily unavailable.');if(!abort.signal.aborted){setRecords(b.records);setWarning(b.warning||'');setActiveKey(filterVideoFeed(b.records,'for-you')[0]?.key||null);}}).catch(()=>{if(!abort.signal.aborted)setError(true);}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});return()=>abort.abort();},[]);
+ useEffect(()=>{const root=feedRef.current;if(!root||!filtered.length)return;const observer=new IntersectionObserver(entries=>{const best=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(best&&best.intersectionRatio>=.5)setActiveKey(best.target.getAttribute('data-media-item'));},{root,threshold:[.5,.75,.99]});root.querySelectorAll('[data-media-item]').forEach(e=>observer.observe(e));return()=>observer.disconnect();},[filtered]);
+ useEffect(()=>{if(!active||loading||opened.current)return;opened.current=true;const key=new URLSearchParams(location.search).get('media');if(!key||!records.some(r=>r.key===key))return;const frame=requestAnimationFrame(()=>{setActiveKey(key);const root=feedRef.current,element=root?.querySelector(`[data-media-item="${CSS.escape(key)}"]`);if(root&&element)root.scrollTo({top:root.scrollTop+element.getBoundingClientRect().top-root.getBoundingClientRect().top,behavior:'instant'});});return()=>cancelAnimationFrame(frame);},[active,loading,records]);
+ function changeQuery(value:string){setQuery(value);setActiveKey(searchMedia(filterVideoFeed(records,category),value)[0]?.key||null);feedRef.current?.scrollTo({top:0,behavior:'instant'});}
+ function changeCategory(value:VideoFeedFilter){setCategory(value);setCommentKey(null);setActiveKey(searchMedia(filterVideoFeed(records,value),query)[0]?.key||null);feedRef.current?.scrollTo({top:0,behavior:'instant'});}
+ return <div className="relative h-full w-full text-[#FCFCFB]" data-media-panel><div className="absolute top-24 left-0 right-0 z-20 mx-auto w-full max-w-2xl px-5"><div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-6" role="group" aria-label="Video interests">{([{id:'for-you',label:'For You'},...VIDEO_INTERESTS] as const).map(item=><button key={item.id} type="button" aria-pressed={category===item.id} onClick={()=>changeCategory(item.id)} className="min-h-11 flex-1 whitespace-nowrap rounded-full border px-2 text-xs backdrop-blur-md" style={{borderColor:category===item.id?'#dceee8':'rgba(255,255,255,.2)',background:category===item.id?'#dceee8':'rgba(3,24,21,.7)',color:category===item.id?'#06251d':'#eef5f2'}}>{item.label}</button>)}</div><label className="sr-only" htmlFor="ames-media-search">Search videos</label><input id="ames-media-search" type="search" value={query} onChange={e=>changeQuery(e.target.value)} placeholder="Search videos" className="w-full rounded-full border border-white/15 bg-black/25 px-4 py-2 text-base text-white placeholder:text-white/60 outline-none backdrop-blur-md focus:border-white/50"/>{warning&&<p role="status" className="mt-2 text-xs text-[#b9cec6]">{warning}</p>}</div>{loading&&<div className="flex h-full items-center justify-center text-xs text-white/60">Loading videos…</div>}{!loading&&(error||!filtered.length)&&<div className="flex h-full items-center justify-center px-8 text-center text-sm text-white/60">{error?'Videos are temporarily unavailable.':query?'No videos match this search.':category==='for-you'?'No videos are available yet.':`No ${VIDEO_INTERESTS.find(item=>item.id===category)?.label} videos are available yet.`}</div>}{!loading&&!error&&<div ref={feedRef} className="h-full overflow-y-auto overscroll-contain" style={{scrollSnapType:'y mandatory',scrollbarWidth:'none'}} data-media-feed>{filtered.map((record,index)=><section key={record.key} data-media-item={record.key} className="relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden" style={{scrollSnapAlign:'start'}}><div className="ames-object-display absolute inset-0 flex items-center justify-center"><MediaVisual record={record} active={active&&activeKey===record.key&&!commentKey}/></div><div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/65 to-transparent"/><div className="absolute bottom-7 left-5 right-20 z-10"><p className="text-sm" style={{fontSize:22}}>{record.name}</p><p className="mt-1 text-[11px] text-white/70">{index+1} / {filtered.length}{isMediaReview(record)?' · Preview · approval pending':''}</p>{record.priceLabel&&<p className="mt-1 text-xs">{record.priceLabel}</p>}{record.product.assetId&&<button onClick={()=>onAskSame(record)} className="mt-3 border-b border-white/60 pb-0.5 text-xs text-white/90">Ask SAME</button>}</div><MediaCommunityActions record={record} active={active&&activeKey===record.key} onView={()=>onBuy(record.product.assetId)} onDialog={value=>setCommentKey(value?record.key:null)}/></section>)}</div>}</div>;
 }

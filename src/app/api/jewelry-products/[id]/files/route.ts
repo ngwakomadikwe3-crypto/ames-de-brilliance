@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jewelryOwnerGuard } from "@/lib/jewelry-auth";
 import { addJewelryFile, getJewelryProduct } from "@/lib/jewelry-products";
+import { consumeQuota, chatFailure, ChatError } from '@/lib/chat-security';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = jewelryOwnerGuard(request);
@@ -8,6 +9,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let product = await getJewelryProduct((await params).id);
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
   try {
+    await consumeQuota(`upload:${request.cookies.get('adb_session')?.value || 'staff'}`, 10);
+    if (Number(request.headers.get('content-length')) > 251 * 1024 * 1024) throw new ChatError(413, 'Combined upload exceeds 250 MB');
     const body = await request.formData();
     const files = body.getAll("files").filter((item): item is File => item instanceof File);
     if (!files.length || files.length > 10) throw new Error("Choose between 1 and 10 files");
@@ -17,6 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     for (const file of files) product = await addJewelryFile(product, file);
     return NextResponse.json(product);
   } catch (error) {
+    if (error instanceof ChatError) return chatFailure(error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 400 });
   }
 }

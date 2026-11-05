@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "demo-pave-solitaire",
+  "revisionId": "demo-pave-solitaire:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "demo-pave-solitaire",
+      "id": "solitaire_concept",
+      "mediaType": "image",
+      "path": "web/poster-v1.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

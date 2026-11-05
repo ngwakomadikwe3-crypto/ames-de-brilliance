@@ -52,7 +52,7 @@ export function BrandMark({ variant = "full", height, dark = false }: Props) {
         <span style={{ fontSize: Math.round(h * 0.5), fontWeight: 500, fontFamily: 'var(--font-geist), Arial, sans-serif', letterSpacing: "0.08em", color: text, lineHeight: 1.1 }}>
           AMES
         </span>
-        <span style={{ fontSize: Math.round(h * 0.25), fontWeight: 400, fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif", letterSpacing: "0.3em", color: sub, textTransform: "uppercase", lineHeight: 1.2 }}>
+        <span style={{ fontSize: Math.round(h * 0.25), fontWeight: 400, fontFamily: "var(--font-satoshi), Arial, sans-serif", letterSpacing: "0.3em", color: sub, textTransform: "uppercase", lineHeight: 1.2 }}>
           DE BRILLIANTE
         </span>
       </span>

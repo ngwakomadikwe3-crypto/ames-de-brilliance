@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "demo-reference-ring",
+  "revisionId": "demo-reference-ring:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "ring",
+  "name": "Pavé solitaire ring — photo reference",
+  "verifiedClaims": {
+    "referenceImageOnly": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Image preview based on the supplied ring photograph; this is not an interactive 3D model.",
+    "Background removal uses AI image editing; no product measurements, materials, licensing or stock availability are verified.",
+    "A jeweller-supplied 3D model is required for accurate rotation and side views."
+  ]
+}

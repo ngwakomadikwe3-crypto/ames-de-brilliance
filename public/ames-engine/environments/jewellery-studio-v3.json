@@ -1,0 +1,11 @@
+{
+  "source": "https://polyhaven.com/a/studio_small_09",
+  "author": "Sergej Majboroda",
+  "license": "CC0-1.0",
+  "sourceSha256": "e7cfda5f4e98e623db12b8bfd0184e048488e4855d9c83e2751fb44a32e80c45",
+  "processing": "Linear photographic fill at 0.28 plus three emitting studio softboxes; no display-space tone mapping",
+  "generator": "scripts/build-physical-studio-hdri.mjs",
+  "sha256": "e8a0969931e74c4498c8e87e8ae4ed8f782e2eee245dfaf3e6389a0f353b6c8b",
+  "width": 1024,
+  "height": 512
+}

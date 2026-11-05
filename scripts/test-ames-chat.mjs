@@ -16,13 +16,14 @@ const mockFetch = async url => {
 test('Chat adapter loads the current contract and resolves stage assets', async () => {
   const content = await loadChatStageContent(undefined, mockFetch);
   assert.equal(content.contract.type, 'jewelry');
-  assert.equal(content.stageUrl, '/ames-engine/dev-test-candidate-ring/web/jewelry.glb');
-  assert.equal(content.posterUrl, '/ames-engine/dev-test-candidate-ring/web/poster-chat.png');
-  assert.equal(content.contract.rotationEnabled, true);
+  assert.equal(content.contract.presentation, 'interactive');
+  assert.equal(content.stageUrl, '/ames-engine/demo-pave-solitaire/web/solitaire-v1.glb');
+  assert.equal(content.posterUrl, '/ames-engine/demo-pave-solitaire/web/poster-v1.webp');
+  assert.equal(content.contract.rotationEnabled, false);
   assert.equal(content.contract.defaultView, 'three_quarter');
   assert.equal(content.contract.essentialSpecs.physicalScaleConfirmed, false);
   assert.equal(content.commerciallyApproved, false);
-  assert.ok(content.limitations.some(item => item.includes('Physical scale')));
+  assert.ok(content.limitations.some(item => item.includes('hidden geometry is inferred')));
   assert.equal(supportedViewerAction('rotate', content.contract), 'rotate');
   assert.equal(supportedViewerAction('invented_action', content.contract), null);
 });
@@ -32,8 +33,8 @@ test('Chat selects each asset by exact ID with its own revision, name, and stage
     const content = await loadChatStageContent(id, mockFetch);
     assert.equal(content.contract.assetId, id);
     assert.equal(content.stageUrl, `/ames-engine/${id}/web/jewelry.glb`);
-    assert.equal(content.posterUrl, `/ames-engine/${id}/web/${id === 'dev-test-candidate-ring' ? 'poster-chat.png' : 'poster.png'}`);
-    assert.equal(content.contract.revisionId, `${id}:${id === 'dev-test-candidate-ring' ? '2' : '1'}`);
+    assert.equal(content.posterUrl, `/ames-engine/${id}/web/${id === 'dev-test-candidate-ring' ? 'presentation-ring-studio.webp' : 'poster.png'}`);
+    assert.equal(content.contract.revisionId, `${id}:${id === 'dev-test-candidate-ring' ? '3' : '1'}`);
     assert.equal(content.commerciallyApproved, false);
     assert.ok(content.name);
   }
@@ -51,12 +52,12 @@ test('Chat adapter rejects stale revisions and false publication approval', asyn
   const asset = await fixtures('dev-test-candidate-ring/app/asset.json');
   const index = await fixtures('chat/index.json');
   const responses = (changedChat, changedAsset) => async url => new Response(JSON.stringify(String(url).endsWith('index.json') ? index : String(url).endsWith('chat.json') ? changedChat : changedAsset));
-  await assert.rejects(loadChatStageContent(undefined, responses({ ...chat, revisionId: 'stale' }, asset)));
-  await assert.rejects(loadChatStageContent(undefined, responses({ ...chat, publicationStatus: 'published' }, { ...asset, publicationStatus: 'published' })));
+  await assert.rejects(loadChatStageContent('dev-test-candidate-ring', responses({ ...chat, revisionId: 'stale' }, asset)));
+  await assert.rejects(loadChatStageContent('dev-test-candidate-ring', responses({ ...chat, publicationStatus: 'published' }, { ...asset, publicationStatus: 'published' })));
 });
 
 test('SAME viewer intents stay typed and contract bounded', async () => {
-  const { contract } = await loadChatStageContent(undefined, mockFetch);
+  const { contract } = await loadChatStageContent('dev-test-candidate-ring', mockFetch);
   const examples = [
     ['Show me the side', 'side_view'],
     ['Let me see the setting', 'inspect_setting'],
@@ -108,7 +109,7 @@ async function amesRoute({ remote = {}, editContract } = {}) {
   const content = await import('../src/lib/ames-chat-content.ts');
   const actions = await import('../src/lib/chat-viewer-actions.ts');
   const paths = await import('node:path');
-  const calls = { files: [], remote: 0 };
+  const calls = { files: [], remote: 0, remoteInputs: [] };
   const dependencies = {
     'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
     'node:fs/promises': { readFile: async (path, encoding) => {
@@ -120,15 +121,20 @@ async function amesRoute({ remote = {}, editContract } = {}) {
     'node:path': paths,
     '@/lib/ames-chat-content': content,
     '@/lib/chat-viewer-actions': actions,
+    '@/lib/chat-asset-selection': await import('../src/lib/chat-asset-selection.ts'),
+    '@/lib/same-answer': await import('../src/lib/same-answer.ts'),
+    '@/lib/chat-security': { checkChatOrigin() {}, requireVisitor() { return 'test-owner'; }, readChatJson: req => req.json(), ownedChat: async () => ({ owner: 'test-owner', chat: { provider_id: '' } }), consumeQuota: async () => {}, privateHeaders: {}, chatFailure: error => { throw error; }, ChatError: class extends Error {} },
+    '@/lib/appwrite': { DB_ID: 'test', nowISO: () => new Date().toISOString(), doc: value => value, getDb: () => ({ createDocument: async ({ data }) => data, updateDocument: async () => ({}) }) },
+    'node-appwrite': { ID: { unique: () => 'test-message' } },
   };
   const source = await readFile(new URL('../src/app/api/ames/route.ts', import.meta.url), 'utf8');
   const exports = {};
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
-    exports, require: name => { assert.ok(name in dependencies, name); return dependencies[name]; }, Response,
+    exports, require: name => { assert.ok(name in dependencies, name); return dependencies[name]; }, Response, AbortSignal,
     process: { cwd: () => process.cwd(), env: { DIFY_API_KEY: 'test-only' } },
-    fetch: async () => { calls.remote++; return Response.json(remote); },
+    fetch: async (_url, init) => { calls.remote++; calls.remoteInputs.push(JSON.parse(init.body)); return Response.json(remote); },
   });
-  return { post: body => exports.POST({ json: async () => body }), calls };
+  return { post: body => exports.POST({ json: async () => ({ chatId: "test-chat", ...body }) }), calls };
 }
 
 test('API resolves the selected indexed Chat contract and permits Spin it', async () => {
@@ -140,6 +146,32 @@ test('API resolves the selected indexed Chat contract and permits Spin it', asyn
     assert.ok(calls.files.some(path => path === resolve(publicRoot, 'ames-engine', assetId, 'app/chat.json')));
     assert.equal(calls.files.filter(path => path.endsWith('chat.json')).length, 1);
   }
+});
+
+test('API sends the requested gemstone context to SAME and rejects a conflicting model selection', async () => {
+  const { post, calls } = await amesRoute({ remote: { answer: 'Ruby preview', asset_selection: { assetId: 'stone-emerald' } } });
+  const response = await post({ query: 'Show me a ruby', assetId: 'dev-test-candidate-ring' });
+  assert.equal(response.status, 200);
+  assert.equal(calls.remoteInputs[0].inputs.ames_asset_id, 'stone-ruby');
+  assert.equal((await response.json()).asset_selection.assetId, 'stone-ruby');
+});
+
+test('API preserves gemstone context for follow-ups and ignores unregistered model selections', async () => {
+  const { post, calls } = await amesRoute({ remote: { answer: 'More information', asset_selection: { assetId: '../private' } } });
+  const response = await post({ query: 'tell me more', assetId: 'stone-sapphire' });
+  assert.equal(response.status, 200);
+  assert.equal(calls.remoteInputs[0].inputs.ames_asset_id, 'stone-sapphire');
+  assert.equal((await response.json()).asset_selection, undefined);
+});
+
+test('API returns customer text without provider reasoning or raw metadata', async () => {
+  const { post } = await amesRoute({ remote: { answer: '<think>private</think>Hello', conversation_id: 'conversation', metadata: { reasoning: 'private' } } });
+  const response = await post({ query: 'Hello' });
+  const payload = await response.json();
+  assert.equal(payload.answer, 'Hello');
+  assert.equal(payload.message.text, 'Hello');
+  assert.equal(payload.conversation_id, undefined);
+  assert.equal(payload.metadata, undefined);
 });
 
 test('API rejects unindexed and traversal IDs before any contract or remote request', async () => {
@@ -158,14 +190,23 @@ test('API uses selected contract permissions, and preserves default selection', 
   assert.equal((await (await fallback.post({ query: 'Spin it', assetId: null })).json()).viewer_action, 'rotate');
 });
 
-test('candidate Chat and Boutique resolve the same revision 2 GLB with camera-specific posters', async () => {
+test('solitaire Chat and Boutique resolve the same GLB and poster', async () => {
   const { loadBoutiqueContent } = await import('../src/lib/ames-boutique-content.ts');
-  const chat = await loadChatStageContent('dev-test-candidate-ring', mockFetch);
+  const chat = await loadChatStageContent('demo-pave-solitaire', mockFetch);
   const piece = (await loadBoutiqueContent(mockFetch)).find(piece => piece.assetId === chat.contract.assetId);
-  assert.equal(chat.contract.revisionId, 'dev-test-candidate-ring:2');
+  assert.equal(chat.contract.revisionId, 'demo-pave-solitaire:1');
   assert.equal(piece.revisionId, chat.contract.revisionId);
   assert.equal(piece.interactiveGlb, chat.stageUrl);
-  assert.ok(piece.poster.endsWith('/web/poster-reference.png'));
-  assert.notEqual(piece.poster, chat.posterUrl);
-  assert.ok(chat.posterUrl.endsWith('/web/poster-chat.png'));
+  assert.ok(piece.poster.endsWith('/web/poster-v1.webp'));
+  assert.equal(piece.poster, chat.posterUrl);
+  assert.ok(chat.posterUrl.endsWith('/web/poster-v1.webp'));
+});
+
+test('API default context matches the interactive solitaire and can explicitly restore the concept diamond', async () => {
+  const {post,calls}=await amesRoute();
+  assert.equal((await post({query:'Tell me about this object'})).status,200);
+  assert.equal(calls.remoteInputs[0].inputs.ames_asset_id,'demo-pave-solitaire');
+  const response=await post({query:'Show the default diamond',assetId:'stone-ruby'});
+  assert.equal((await response.json()).asset_selection.assetId,'demo-modern-diamond');
+  assert.equal(calls.remoteInputs[1].inputs.ames_asset_id,'demo-modern-diamond');
 });

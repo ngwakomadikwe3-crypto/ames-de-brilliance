@@ -1,0 +1,27 @@
+{
+  "assetId": "demo-modern-diamond",
+  "revisionId": "demo-modern-diamond:1",
+  "demonstrationOnly": true,
+  "generator": "scripts/blender/create_chat_statement_diamond.py",
+  "geometrySource": "Original parametric convex octagonal step-cut design",
+  "modelSha256": "271535626672ed26a3815cd34457f679fb65b518f802c003d7a2e8f868483a7a",
+  "sourceDesignEnvelopeMmXYZ": [
+    12,
+    18,
+    8.94
+  ],
+  "gltfDesignEnvelopeMmXYZ": [
+    12,
+    8.94,
+    18
+  ],
+  "physicalStoneMeasured": false,
+  "manufacturingCertified": false,
+  "posterSource": "Cycles render of the same original geometry",
+  "lightingSource": "Existing AMES studio_small_09_1k.hdr; see source-assets/environments",
+  "limitations": [
+    "Illustrative RGB refraction; no spectral dispersion or cut grading.",
+    "Design dimensions are authored inputs, not measured inventory or carat evidence.",
+    "Not for sale; no origin, certification, clarity, colour grade or stock claim."
+  ]
+}

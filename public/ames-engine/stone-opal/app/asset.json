@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-opal",
+  "revisionId": "stone-opal:2",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "opal",
+  "name": "Opal",
+  "aliases": [
+    "white opal",
+    "precious opal"
+  ],
+  "form": "cabochon with play of color",
+  "representativeCut": "oval cabochon",
+  "defaultColors": [
+    "white",
+    "milky white",
+    "multicolor",
+    "multicolour"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative white opal with procedural play-of-colour patches.",
+    "The patches do not reproduce a particular stone or guarantee play-of-colour quality.",
+    "Exact dimensions, weight, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-opal.blend"
+  }
+}

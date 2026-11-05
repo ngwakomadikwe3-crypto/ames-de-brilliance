@@ -13,11 +13,11 @@ test('loads the engine Boutique record without inventing price or approval', asy
   const pieces = await loadBoutiqueContent(mockFetch);
   assert.equal(pieces.length, 4);
   const piece = pieces[0];
-  assert.equal(piece.assetId, 'dev-test-candidate-ring');
+  assert.equal(piece.assetId, 'demo-pave-solitaire');
   assert.equal(piece.category, 'ring');
-  assert.equal(piece.interactiveGlb, '/ames-engine/dev-test-candidate-ring/web/jewelry.glb');
-  assert.equal(piece.revisionId, 'dev-test-candidate-ring:2');
-  assert.equal(piece.poster, '/ames-engine/dev-test-candidate-ring/web/poster-reference.png');
+  assert.equal(piece.interactiveGlb, '/ames-engine/demo-pave-solitaire/web/solitaire-v1.glb');
+  assert.equal(piece.revisionId, 'demo-pave-solitaire:1');
+  assert.equal(piece.poster, '/ames-engine/demo-pave-solitaire/web/poster-v1.webp');
   assert.equal(piece.price, undefined);
   assert.equal(boutiquePrice(piece.price), null);
   assert.equal(piece.essentialSpecs.physicalScaleConfirmed, false);
@@ -28,13 +28,13 @@ test('loads the engine Boutique record without inventing price or approval', asy
 test('categories filter exactly and groups contain no more than four actual pieces', async () => {
   const pieces = await loadBoutiqueContent(mockFetch);
   const [ring] = pieces;
-  assert.deepEqual(BOUTIQUE_CATEGORIES.map(item => item.label), ['Rings', 'Earrings', 'Necklaces', 'Bracelets', 'Diamonds']);
+  assert.deepEqual(BOUTIQUE_CATEGORIES.map(item => item.label), ['Rings', 'Earrings', 'Necklaces', 'Bracelets', 'Accessories']);
   assert.deepEqual(boutiqueByCategory([ring], 'ring'), [ring]);
-  assert.deepEqual(boutiqueByCategory(pieces, 'ring').map(piece => piece.assetId), ['dev-test-candidate-ring', 'dev-test-solitaire-mount']);
+  assert.deepEqual(boutiqueByCategory(pieces, 'ring').map(piece => piece.assetId), ['demo-pave-solitaire', 'dev-test-solitaire-mount']);
   assert.deepEqual(boutiqueByCategory(pieces, 'earrings').map(piece => piece.assetId), ['dev-test-earring-001']);
   assert.deepEqual(boutiqueByCategory(pieces, 'pendant').map(piece => piece.assetId), ['dev-test-pendant-001']);
   assert.deepEqual(boutiqueByCategory([ring], 'earrings'), []);
-  assert.deepEqual(boutiqueCategories(pieces).map(item => item.label), ['Rings', 'Earrings', 'Necklaces', 'Bracelets', 'Diamonds', 'Pendant']);
+  assert.deepEqual(boutiqueCategories(pieces).map(item => item.label), ['Rings', 'Earrings', 'Necklaces', 'Bracelets', 'Accessories', 'Pendant']);
   assert.equal(pieces.find(piece => piece.category === 'earrings').price, undefined);
   assert.equal(pieces.find(piece => piece.category === 'pendant').price, undefined);
   assert.deepEqual(boutiqueGroups([ring]).map(group => group.length), [1]);

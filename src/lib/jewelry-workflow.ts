@@ -33,7 +33,7 @@ export type PackEvidence = {
 
 export function allowedJewelryFile(filename: string, bytes: number): JewelrySource["kind"] | null {
   const ext = filename.toLowerCase().split(".").pop();
-  const kind = (["obj", "glb", "fbx", "zip"].includes(ext || "") ? "source"
+  const kind = (["3dm", "obj", "stl", "glb", "fbx", "zip"].includes(ext || "") ? "source"
     : ["jpg", "jpeg", "png", "webp"].includes(ext || "") ? "photo"
     : ext === "pdf" ? "document" : null);
   return kind && bytes > 0 && bytes <= 250 * 1024 * 1024 ? kind : null;
@@ -45,7 +45,7 @@ export function validSourceHash(value: string): boolean {
 
 export function operatorSourceEntry(input: { filename: string; bytes: number; sha256: string }): JewelrySource {
   const kind = allowedJewelryFile(input.filename, input.bytes);
-  if (kind !== "source") throw new Error("Operator handoff requires an OBJ, GLB, FBX, or ZIP source");
+  if (kind !== "source") throw new Error("Operator handoff requires a 3DM, OBJ, STL, GLB, FBX, or ZIP source");
   const sha256 = input.sha256.trim().toLowerCase();
   if (!validSourceHash(sha256)) throw new Error("A valid SHA-256 hash is required");
   return { filename: input.filename, bytes: input.bytes, sha256, kind, sourceMode: "operator_handoff" };

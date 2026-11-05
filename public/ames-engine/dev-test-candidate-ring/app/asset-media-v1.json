@@ -15,13 +15,13 @@
   },
   "interactive": {
     "glb": "web/jewelry.glb",
-    "poster": "web/poster.png",
+    "poster": "web/poster.webp",
     "viewerConfig": "web/viewer-config.json"
   },
   "media": {
-    "hero": "luxury/editorial-hero.png",
-    "gemstoneMacro": "luxury/gemstone-macro.png",
-    "settingMacro": "luxury/setting-detail-macro.png",
+    "hero": "luxury/editorial-hero.webp",
+    "gemstoneMacro": "luxury/gemstone-macro.webp",
+    "settingMacro": "luxury/setting-detail-macro.webp",
     "turntable": "motion/turntable-360.mp4",
     "productVideo": "motion/luxury-product.mp4"
   },

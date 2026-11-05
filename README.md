@@ -1,69 +1,63 @@
 # AMES DE BRILLIANTE
 
-A B2B wholesale diamond sourcing platform for a licensed dealer in Botswana. Built with Next.js, Tailwind CSS, SQLite, and DeepSeek AI.
+Existing Next.js application for a jewellery showroom, SAME chat, staff-assisted jewellery onboarding, and diamond/precious-stone catalogue workflows. Commercial availability, licensing and product approval must be verified separately; demonstration assets are not proof of available stock.
 
-## Quick Start
+## Actual architecture
 
-```bash
+- Next.js App Router and React, styled with Tailwind and the existing emerald silk environment.
+- Appwrite database `ames` and storage via `node-appwrite` (`src/lib/appwrite.ts`, `src/lib/db.ts`). `schema.sql` is an Appwrite reference, **not executable SQL**. Supabase is not this application's backend; the retained `better-sqlite3` dependency is not evidence of an active SQLite data path.
+- Staff login uses AMES signed session cookies and Appwrite staff records; private customer Chat uses a separate signed visitor cookie. See `docs/chat-privacy.md`.
+- SAME uses Dify through `/api/ames`; separate dashboard AI helpers use the configured OpenAI-compatible endpoint in `src/lib/ai.ts`.
+- The vendored `ames-engine` renders the representative ring. `@google/model-viewer` remains necessary for other active and legacy viewers.
+- Public content packs are under `public/ames-engine`. Their review flags are meaningful; loading a pack does not constitute commercial approval.
+- Original jewellery uploads are private Appwrite files. CAD jobs and previews use a private local worker or the optional authenticated hosted adapter. The web server does not run Blender.
+
+The npm package's historical name is `freebuff-app`; it is not a separate running product. No dependency migration is needed merely to rename it.
+
+## Local development
+
+```sh
 npm install
-cp .env.example .env.local   # edit with your values
-npm run dev                   # http://localhost:3000
+npm run dev -- --port 3010
 ```
 
-## Environment Variables
+Configure private environment variables locally. Do not copy credentials into documentation, screenshots or shared archives. Expired Appwrite credentials must be replaced through the account's normal secret-management process.
 
-| Variable | Default | Description |
-|---|---|---|
-| `SESSION_SECRET` | — | Required HMAC signing secret (at least 32 random characters) |
-| `OWNER_CODE` | — | Optional emergency owner access code |
-| `COUSIN_CODE` | — | Optional emergency staff access code |
-| `DEEPSEEK_API_KEY` | — | API key for DeepSeek or any OpenAI-compatible provider |
-| `AI_BASE_URL` | `https://api.deepseek.com` | LLM API base URL |
-| `AI_MODEL` | `deepseek-chat` | Model name |
-| `SMTP_HOST` | — | SMTP server host (required for email notifications) |
-| `SMTP_PORT` | `587` | SMTP port (587 for TLS, 465 for SSL) |
-| `SMTP_USER` | — | SMTP username / login |
-| `SMTP_PASS` | — | SMTP password |
-| `SMTP_FROM` | `SMTP_USER` | Sender address |
-| `NOTIFY_EMAIL` | `SMTP_USER` | Notification recipient address |
+| Variables | Purpose |
+| --- | --- |
+| `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_API_KEY` | Server-side Appwrite connection |
+| `SESSION_SECRET` | Private cookie signing; minimum 32 characters |
+| `OWNER_CODE`, `COUSIN_CODE` | Optional existing emergency staff access configuration |
+| `DIFY_API_KEY` | SAME chat provider |
+| `DEEPSEEK_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Separate dashboard AI helpers |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `NOTIFY_EMAIL` | Notification mail configuration |
+| `AMES_ENGINE_PACK_DIR`, `AMES_ENGINE_PACK_DIRS` | Explicit source pack location(s) for staff review and sync |
+| `AMES_CAD_SERVICE_URL`, `AMES_CAD_SERVICE_TOKEN` | Optional private HTTPS CAD broker |
 
-## Pages
+Do not run content-sync commands blindly: they copy from configured source packs (otherwise a sibling engine checkout) and may overwrite reviewed public presentation contracts. Read and reconcile the ring presentation changes documented below first.
 
-| Route | Access | Description |
-|---|---|---|
-| `/` | Public | Available diamond stock (rough + polished) |
-| `/request` | Public | Sourcing request form |
-| `/success` | Public | Post-submission confirmation |
-| `/login` | Public | Dealer login |
-| `/dashboard` | Auth | Requests, Stones, Add Stone, Paste-in, Traders |
-| `/terms` | Public | Terms of Use |
-| `/privacy` | Public | Privacy Policy |
-| `/compliance` | Public | KP compliance & licensing |
+## Current surfaces and limits
 
-## Supabase Setup (Production)
+- `/` temporarily redirects to `/app`.
+- `/app`: Boutique, Chat, Media and diamonds/precious-stones Auction. Existing silk, page turns and mobile SAFE rendering remain.
+- `/login` and `/dashboard`: staff access and operational workflows, including `jewelry_products` with technical and visual approval gates.
+- Legacy trader/model/stone portals and APIs remain active compatibility paths.
+- Media likes, saves and comments are device-local. Billing directs customers to the AMES desk; online invoice history is not connected. Auction bidding and payments are not available.
+- Native Rhino/Matrix `.3dm` files are retained as private originals and require a companion mesh export. Do not advertise native 3DM/STEP conversion or jeweller self-service as complete.
 
-1. Create a new Supabase project
-2. Run `schema.sql` in the SQL Editor to create tables + photo bucket
-3. Set environment variables in the Supabase dashboard
-4. Deploy with `npx vercel --prod` or your preferred platform
+## Validation and CAD hosting
 
-## Features
+```sh
+npm run build
+npx tsc --noEmit
+npm run test:ames-chat
+npm run test:ames-boutique
+npm run test:ames-media
+npm run test:jewelry-onboarding
+npm run test:cad
+```
 
-- **Rough & polished diamond listings** with KP compliance badges
-- **Sourcing request form** with validation, consent, and KP fields for rough
-- **Dealer dashboard** with 5 tabs: Requests, Stones, Add Stone, Paste-in, Traders
-- **AI-powered tools**: parse requests, draft replies, generate offers, bulk-import stock
-- **Offer generator**: AI matches inventory to buyer specs, produces plain-text offer sheets
-- **Paste-in tab**: bulk paste stock text, AI parses into editable cards, one-click publish
-- **Session-based auth** with HMAC-signed cookies
-- **Responsive design** — mobile hamburger menu, stacked cards, tappable buttons
-- **Legal pages** — Terms, Privacy, Compliance with Kimberley Process disclosures
-
-## Tech Stack
-
-- Next.js 16 (App Router, Turbopack)
-- Tailwind CSS v4
-- SQLite via better-sqlite3
-- DeepSeek API (OpenAI-compatible)
-- Zod validation
-- Inter font
+- `docs/representative-ring-audit.md`: current audit, screenshots, measurements, changed files and remaining approval requirements.
+- `docs/jewelry-asset-quality.md`: ring/earring/pendant acceptance checklist.
+- `docs/cad-processing.md`: private CAD workflow and local test limitations.
+- `deploy/cad/README.md`: hosting review package. Linux Docker deployment and full hosted acceptance remain unverified; this documentation does not provision or deploy a service.

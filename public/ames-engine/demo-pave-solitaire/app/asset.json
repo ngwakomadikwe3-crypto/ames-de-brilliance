@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "demo-pave-solitaire",
+  "revisionId": "demo-pave-solitaire:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "ring",
+  "name": "Pavé solitaire",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original 3D interpretation of the supplied photograph; hidden geometry is inferred.",
+    "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/solitaire-v1.glb",
+    "poster": "web/poster-v1.webp"
+  }
+}

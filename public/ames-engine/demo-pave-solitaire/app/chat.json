@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "demo-pave-solitaire",
+  "revisionId": "demo-pave-solitaire:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "presentation": "interactive",
+  "stageAsset": "web/solitaire-v1.glb",
+  "poster": "web/poster-v1.webp",
+  "rotationEnabled": false,
+  "defaultView": "three_quarter",
+  "supportedViewerActions": [
+    "rotate",
+    "stop_rotation",
+    "zoom",
+    "reset",
+    "side_view",
+    "inspect_setting"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept; not measured inventory.",
+    "manufacturingReady": false
+  },
+  "heroImage": "web/poster-v1.webp",
+  "macroImage": "web/poster-v1.webp",
+  "visualModes": [
+    "interactive",
+    "side"
+  ]
+}

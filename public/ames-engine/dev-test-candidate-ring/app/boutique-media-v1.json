@@ -6,10 +6,10 @@
   "visualApproval": "pending",
   "category": "ring",
   "name": "Solitaire ring",
-  "thumbnail": "web/poster.png",
-  "heroImage": "luxury/editorial-hero.png",
+  "thumbnail": "web/poster.webp",
+  "heroImage": "luxury/editorial-hero.webp",
   "interactiveGlb": "web/jewelry.glb",
-  "poster": "web/poster.png",
+  "poster": "web/poster.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,
     "unitMeaning": "unresolved",

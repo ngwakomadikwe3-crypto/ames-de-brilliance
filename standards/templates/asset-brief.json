@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "ames.asset-brief/1",
+  "assetId": "template-piece",
+  "revision": 1,
+  "reviewedModelSha256": null,
+  "product": {
+    "name": "Untitled AMES piece",
+    "category": "ring",
+    "description": "",
+    "references": [],
+    "dimensionsMm": null,
+    "scaleEvidence": "",
+    "metalAndFinish": "",
+    "mainGemstone": "",
+    "additionalStones": "",
+    "construction": ""
+  },
+  "deliverable": "interactive-3d",
+  "target": "ames-mobile",
+  "budget": "mobile-safe",
+  "background": "transparent",
+  "components": [],
+  "requestedEffects": [],
+  "views": [
+    "front",
+    "three-quarter",
+    "side",
+    "back",
+    "underside",
+    "macro"
+  ],
+  "assumptions": [],
+  "reviews": [
+    {
+      "check": "reference-and-silhouette",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "facets-and-depth",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "stone-seating-and-prongs",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "connections-and-clearances",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "metal-and-finish",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "scale-and-proportions",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "all-views-readable",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "mobile-and-tablet",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    },
+    {
+      "check": "rights-and-product-facts",
+      "status": "pending",
+      "reviewer": "",
+      "evidence": ""
+    }
+  ]
+}

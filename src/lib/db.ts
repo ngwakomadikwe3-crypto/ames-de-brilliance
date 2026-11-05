@@ -415,9 +415,10 @@ export async function addVideo(videoUrl: string, caption: string, stoneId: strin
   return doc<DbVideo>(res);
 }
 
-export async function updateVideo(id: string, updates: { video_url?: string; caption?: string; stone_id?: string | null; published?: number | boolean }): Promise<DbVideo | null> {
+export async function updateVideo(id: string, updates: { video_url?: string; caption?: string; stone_id?: string | null; published?: number | boolean; featured_piece?: string }): Promise<DbVideo | null> {
   await ensureReady(); const db = getDbSvc(); const data: any = {};
   if (updates.video_url !== undefined) data.video_url = updates.video_url;
+  if (updates.featured_piece !== undefined) { if (updates.featured_piece && !/^listing-[a-f0-9-]{36}$/.test(updates.featured_piece)) throw new Error('Use a published listing asset ID'); data.featured_piece = updates.featured_piece; }
   if (updates.caption !== undefined) data.caption = updates.caption;
   if (updates.stone_id !== undefined) data.stone_id = updates.stone_id || "";
   if (updates.published !== undefined) data.published = !!updates.published;

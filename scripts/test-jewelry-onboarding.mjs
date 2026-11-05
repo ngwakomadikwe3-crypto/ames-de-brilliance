@@ -25,9 +25,12 @@ const pendingPack = {
 };
 
 test('source types and private review paths reject unsupported inputs', () => {
+  assert.equal(allowedJewelryFile('piece.3DM', 100), 'source');
+  assert.equal(operatorSourceEntry({ filename: 'original.3dm', bytes: 100, sha256: 'a'.repeat(64) }).sourceMode, 'operator_handoff');
   assert.equal(allowedJewelryFile('piece.obj', 100), 'source');
   assert.equal(allowedJewelryFile('piece.GLB', 100), 'source');
   assert.equal(allowedJewelryFile('piece.fbx', 100), 'source');
+  assert.equal(allowedJewelryFile('piece.STL', 100), 'source');
   assert.equal(allowedJewelryFile('piece.zip', 100), 'source');
   assert.equal(allowedJewelryFile('front.png', 100), 'photo');
   assert.equal(allowedJewelryFile('certificate.pdf', 100), 'document');
@@ -46,7 +49,7 @@ test('operator handoff records a real source identity without a fake file refere
   assert.equal(source.fileId, undefined);
   assert.equal(source.sha256, 'a'.repeat(64));
   assert.throws(() => operatorSourceEntry({ filename: 'piece.glb', bytes: 100, sha256: 'bad' }), /SHA-256/);
-  assert.throws(() => operatorSourceEntry({ filename: 'piece.exe', bytes: 100, sha256: 'a'.repeat(64) }), /OBJ, GLB, FBX, or ZIP/);
+  assert.throws(() => operatorSourceEntry({ filename: 'piece.exe', bytes: 100, sha256: 'a'.repeat(64) }), /3DM, OBJ, STL, GLB, FBX, or ZIP/);
   assert.equal('download' in handoffSourceDescriptor('p-1', source, 'operator_handoff'), false);
   assert.equal(handoffSourceDescriptor('p-1', { ...source, fileId: 'cloud-file', sourceMode: 'cloud_source_upload' }, 'cloud_source_upload').download,
     '/api/jewelry-products/p-1/source/cloud-file');

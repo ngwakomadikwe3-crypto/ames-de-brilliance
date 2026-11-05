@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addStone, updateStone, getAllStones, getOrCreateTrader, savePhoto } from "@/lib/db";
+import { stoneWriteGuard } from '@/lib/stone-auth';
 
 export async function GET() {
   return NextResponse.json(await getAllStones());
 }
 
 export async function POST(request: NextRequest) {
+  const denied = stoneWriteGuard(request, true);
+  if (denied) return denied;
   try {
     const contentType = request.headers.get("content-type") || "";
     let data: Record<string, string>;
@@ -59,6 +62,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = stoneWriteGuard(request);
+  if (denied) return denied;
   try {
     const { id, status, salePrice } = await request.json();
     if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

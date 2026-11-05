@@ -1,0 +1,292 @@
+[
+  {
+    "id": "stone-alexandrite",
+    "name": "Alexandrite",
+    "aliases": ["chrysoberyl alexandrite"],
+    "category": "chrysoberyl",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": ["green", "bluish green", "blue green"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "A static preview cannot demonstrate alexandrite's colour change under different lighting.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-amber",
+    "name": "Amber",
+    "aliases": ["baltic amber"],
+    "category": "organic gem",
+    "form": "organic cabochon",
+    "cut": "freeform cabochon",
+    "defaultColors": ["orange", "amber", "honey", "yellow"],
+    "limitations": ["Representative polished amber form; natural shape, inclusions, and transparency vary.", "No geographic origin, age, treatment, or biological inclusion is claimed.", "Exact dimensions, weight, and certification are not claimed."]
+  },
+  {
+    "id": "stone-amethyst",
+    "name": "Amethyst",
+    "aliases": ["purple quartz"],
+    "category": "quartz",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": ["purple", "violet"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Colour zoning and natural inclusions are simplified.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-ametrine",
+    "name": "Ametrine",
+    "aliases": ["amethyst citrine", "bi color ametrine", "bicolor ametrine", "bi colour ametrine", "bicolour ametrine"],
+    "category": "quartz",
+    "form": "faceted bicolor",
+    "cut": "rectangular emerald",
+    "defaultColors": ["purple and yellow", "violet and yellow", "bicolor", "bicolour"],
+    "limitations": ["Representative two-zone colour treatment; natural zoning boundaries vary.", "The preview is not a stock item or an identification report.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-aquamarine",
+    "name": "Aquamarine",
+    "aliases": ["aqua marine"],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": ["blue", "light blue", "pale blue", "blue green", "bluish green"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Natural colour, transparency, and inclusions vary.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-citrine",
+    "name": "Citrine",
+    "aliases": ["yellow quartz"],
+    "category": "quartz",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": ["yellow", "golden", "orange", "honey"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Natural versus heated material is not identified by this preview.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-diamond",
+    "name": "Diamond",
+    "aliases": ["loose diamond", "white diamond", "colorless diamond", "colourless diamond", "round diamond", "round brilliant diamond"],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": ["white", "colorless", "colourless", "clear"],
+    "limitations": ["Representative loose round-brilliant visualization, distinct from mounted jewellery.", "Optical performance is illustrative and is not a cut-grade or light-performance assessment.", "Exact dimensions, carat, colour, clarity, origin, and certification are not claimed."]
+  },
+  {
+    "id": "stone-emerald",
+    "name": "Emerald",
+    "aliases": ["green beryl"],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": ["green"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Natural fissures, inclusions, and clarity treatments are not reproduced or graded.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-fancy-color-diamond",
+    "name": "Fancy Color Diamond",
+    "aliases": ["fancy colour diamond", "fancy diamond", "yellow diamond", "fancy yellow diamond", "fancy yellow", "canary diamond"],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "radiant",
+    "defaultColors": ["yellow", "fancy yellow", "canary yellow"],
+    "limitations": ["The representative default is yellow; other fancy colours are not substituted.", "Colour appearance is illustrative and is not a fancy-colour grade or origin determination.", "Exact dimensions, carat, clarity, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-garnet",
+    "name": "Garnet",
+    "aliases": ["red garnet"],
+    "category": "garnet",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": ["red", "dark red", "burgundy"],
+    "limitations": ["Representative red garnet preview; garnet species and colours vary widely.", "The preview is not a stock item or a species identification report.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-iolite",
+    "name": "Iolite",
+    "aliases": ["cordierite", "water sapphire"],
+    "category": "cordierite",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": ["violet", "blue", "violet blue", "bluish violet"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Pleochroic colour changes with viewing direction are simplified.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-jade",
+    "name": "Jade",
+    "aliases": ["green jade"],
+    "category": "jade",
+    "form": "cabochon",
+    "cut": "oval cabochon",
+    "defaultColors": ["green"],
+    "limitations": ["Representative polished jade appearance; jadeite and nephrite are not distinguished.", "Mottling is procedural and does not reproduce a particular natural stone.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-kunzite",
+    "name": "Kunzite",
+    "aliases": ["pink spodumene"],
+    "category": "spodumene",
+    "form": "faceted",
+    "cut": "elongated emerald",
+    "defaultColors": ["pink", "pale pink", "lilac", "violet"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Pleochroism and colour response to light are simplified.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-lapis-lazuli",
+    "name": "Lapis Lazuli",
+    "aliases": ["lapis"],
+    "category": "rock",
+    "form": "cabochon with inclusions",
+    "cut": "cushion cabochon",
+    "defaultColors": ["blue", "deep blue", "ultramarine"],
+    "limitations": ["Representative polished lapis with procedural pale and gold-toned flecks.", "Flecks are visual texture, not a chemical or mineralogical identification.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-moonstone",
+    "name": "Moonstone",
+    "aliases": ["moon stone", "rainbow moonstone"],
+    "category": "feldspar",
+    "form": "cabochon",
+    "cut": "oval cabochon",
+    "defaultColors": ["white", "milky white", "colorless", "colourless"],
+    "limitations": ["Representative milky cabochon with a simplified blue-sheen treatment.", "A static preview cannot reproduce adularescence accurately from every direction.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-morganite",
+    "name": "Morganite",
+    "aliases": ["pink beryl"],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": ["pink", "peach", "peach pink"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Natural colour and treatment are not identified by this preview.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-opal",
+    "name": "Opal",
+    "aliases": ["white opal", "precious opal"],
+    "category": "opal",
+    "form": "cabochon with play of color",
+    "cut": "oval cabochon",
+    "defaultColors": ["white", "milky white", "multicolor", "multicolour"],
+    "limitations": ["Representative white opal with procedural play-of-colour patches.", "The patches do not reproduce a particular stone or guarantee play-of-colour quality.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-pearl",
+    "name": "Pearl",
+    "aliases": ["white pearl", "cultured pearl"],
+    "category": "organic gem",
+    "form": "pearl",
+    "cut": "near-round pearl",
+    "defaultColors": ["white", "cream", "ivory"],
+    "limitations": ["Representative near-round pearl with procedural nacre-like reflections.", "Natural versus cultured origin, mollusc type, and nacre thickness are not identified.", "Exact dimensions, weight, lustre grade, surface grade, and certification are not claimed."]
+  },
+  {
+    "id": "stone-peridot",
+    "name": "Peridot",
+    "aliases": ["olivine", "green peridot"],
+    "category": "olivine",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": ["green", "yellow green", "olive green"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Natural inclusions and colour variations are simplified.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-rose-quartz",
+    "name": "Rose Quartz",
+    "aliases": ["pink quartz", "rose coloured quartz", "rose colored quartz"],
+    "category": "quartz",
+    "form": "cabochon",
+    "cut": "high dome cabochon",
+    "defaultColors": ["pink", "rose", "pale pink"],
+    "limitations": ["Representative polished rose quartz cabochon, not a stock item.", "Cloudiness and microscopic inclusions are simplified.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-ruby",
+    "name": "Ruby",
+    "aliases": ["red corundum", "red ruby"],
+    "category": "corundum",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": ["red", "pigeon blood red", "crimson"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Colour is illustrative and does not assert a trade colour grade, origin, or treatment.", "Exact dimensions, carat, clarity, and certification are not claimed."]
+  },
+  {
+    "id": "stone-sapphire",
+    "name": "Sapphire",
+    "aliases": ["blue sapphire", "blue corundum"],
+    "category": "corundum",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": ["blue", "royal blue", "cornflower blue"],
+    "limitations": ["The representative default is blue; unsupported requested colours are not substituted.", "Colour is illustrative and does not assert a trade colour grade, origin, or treatment.", "Exact dimensions, carat, clarity, and certification are not claimed."]
+  },
+  {
+    "id": "stone-spinel",
+    "name": "Spinel",
+    "aliases": ["violet spinel"],
+    "category": "spinel",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": ["violet", "purple", "lavender"],
+    "limitations": ["Representative violet spinel preview; spinel occurs in many other colours.", "The preview is not a stock item or a species identification report.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-sunstone",
+    "name": "Sunstone",
+    "aliases": ["sun stone", "aventurine feldspar"],
+    "category": "feldspar",
+    "form": "cabochon with inclusions",
+    "cut": "freeform cabochon",
+    "defaultColors": ["orange", "copper", "peach"],
+    "limitations": ["Representative sunstone with procedural reflective flecks.", "Aventurescence and natural inclusion patterns vary and are simplified.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-tanzanite",
+    "name": "Tanzanite",
+    "aliases": ["blue zoisite", "violet zoisite"],
+    "category": "zoisite",
+    "form": "faceted",
+    "cut": "trillion",
+    "defaultColors": ["violet blue", "blue", "violet", "bluish violet"],
+    "limitations": ["Representative educational visualization, not a stock item or an identification report.", "Pleochroic colour changes are simplified.", "Exact dimensions, carat, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-topaz",
+    "name": "Topaz",
+    "aliases": ["blue topaz", "sky blue topaz"],
+    "category": "topaz",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": ["blue", "sky blue", "light blue"],
+    "limitations": ["The representative default is blue; topaz occurs in many other colours.", "The preview does not identify natural colour or treatment.", "Exact dimensions, carat, origin, and certification are not claimed."]
+  },
+  {
+    "id": "stone-tourmaline",
+    "name": "Tourmaline",
+    "aliases": ["green tourmaline", "verdelite"],
+    "category": "tourmaline",
+    "form": "faceted",
+    "cut": "elongated emerald",
+    "defaultColors": ["green"],
+    "limitations": ["Representative green tourmaline preview; tourmaline species and colours vary widely.", "Pleochroism, zoning, and natural inclusions are simplified.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  },
+  {
+    "id": "stone-turquoise",
+    "name": "Turquoise",
+    "aliases": ["blue turquoise", "green turquoise"],
+    "category": "turquoise",
+    "form": "cabochon with matrix",
+    "cut": "freeform cabochon",
+    "defaultColors": ["turquoise", "blue", "blue green", "green"],
+    "limitations": ["Representative polished turquoise with procedural dark matrix veins.", "The pattern does not reproduce a particular stone or identify origin and treatment.", "Exact dimensions, weight, stabilization, and certification are not claimed."]
+  },
+  {
+    "id": "stone-zircon",
+    "name": "Zircon",
+    "aliases": ["champagne zircon", "natural zircon"],
+    "category": "zircon",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": ["champagne", "brown", "golden", "yellow"],
+    "limitations": ["Representative natural zircon visualization; zircon is not cubic zirconia.", "Double refraction and dispersion are simplified for interactive display.", "Exact dimensions, carat, origin, treatment, and certification are not claimed."]
+  }
+]

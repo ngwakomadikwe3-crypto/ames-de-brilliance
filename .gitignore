@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private local CAD processing jobs and source files
+/.ames-cad/
+
+# Isolated development and verification caches
+/.next-*/

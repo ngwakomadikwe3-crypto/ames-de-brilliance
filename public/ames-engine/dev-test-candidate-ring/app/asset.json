@@ -1,29 +1,24 @@
 {
   "schemaVersion": "ames.app-asset/1",
   "assetId": "dev-test-candidate-ring",
-  "revisionId": "dev-test-candidate-ring:2",
+  "revisionId": "dev-test-candidate-ring:3",
   "publicationStatus": "review",
   "visualApproval": "pending",
   "type": "jewelry",
   "category": "ring",
-  "name": "Solitaire ring",
+  "name": "Openwork pavé ring",
   "status": {
-    "technical": "validated",
-    "viewer": "validated",
+    "technical": "pending",
+    "viewer": "pending",
     "luxury": "pending",
     "campaign": "pending"
   },
   "interactive": {
     "glb": "web/jewelry.glb",
-    "poster": "web/poster-reference.png",
-    "viewerConfig": "web/viewer-config.json"
+    "poster": "web/presentation-ring-studio.webp"
   },
   "media": {
-    "hero": "luxury/editorial-hero.png",
-    "gemstoneMacro": "luxury/gemstone-macro.png",
-    "settingMacro": "luxury/setting-detail-macro.png",
-    "turntable": "motion/turntable-360.mp4",
-    "productVideo": "motion/luxury-product.mp4"
+    "hero": "web/presentation-ring-studio.webp"
   },
   "specs": {
     "physicalScaleConfirmed": false,
@@ -32,12 +27,10 @@
   },
   "verifiedClaims": {},
   "limitations": [
-    "Physical scale is unresolved; no manufacturing dimensions or carat weight are claimed.",
-    "Open melee surfaces use a conservative visual material and are not production-optics approved.",
-    "The center-stone macro retains two strong white lower facets and needs jeweler review.",
-    "Accent stones retain a warm, textured visual approximation.",
-    "The revised 360 and luxury videos need jeweler approval for pacing and placement.",
-    "Commercial imagery and motion require jeweler visual approval before publication.",
-    "Revision 2 changes only center geometry and Engine treatment. Ecommerce, luxury and motion media are inherited from revision 1 and do not certify the revised center appearance."
+    "This original visualization interprets one user-supplied photograph; unseen geometry is approximate and exact dimensions are not claimed.",
+    "Silver-toned metal and diamond optics are visual treatments, not verified alloy, gemstone, carat, or certification claims.",
+    "Physical scale and manufacturability are unresolved and require jeweller review.",
+    "Revision 2 geometry and earlier motion assets are retained for review; old motion remains withheld because it shows the previous ring.",
+    "Commercial imagery and motion require jeweller visual approval before publication."
   ]
 }

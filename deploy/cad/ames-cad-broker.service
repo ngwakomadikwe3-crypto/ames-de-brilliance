@@ -1,0 +1,22 @@
+[Unit]
+Description=AMES private CAD broker
+After=network-online.target
+
+[Service]
+Type=simple
+User=ames-cad
+Group=ames-cad
+WorkingDirectory=/opt/ames
+EnvironmentFile=/etc/ames-cad.env
+ExecStart=/usr/bin/node scripts/cad/service.mjs
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ames-cad
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

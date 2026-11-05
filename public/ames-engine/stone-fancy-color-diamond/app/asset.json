@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-fancy-color-diamond",
+  "revisionId": "stone-fancy-color-diamond:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "diamond",
+  "name": "Fancy Color Diamond",
+  "aliases": [
+    "fancy colour diamond",
+    "fancy diamond",
+    "yellow diamond",
+    "fancy yellow diamond",
+    "fancy yellow",
+    "canary diamond"
+  ],
+  "form": "faceted",
+  "representativeCut": "radiant",
+  "defaultColors": [
+    "yellow",
+    "fancy yellow",
+    "canary yellow"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "The representative default is yellow; other fancy colours are not substituted.",
+    "Colour appearance is illustrative and is not a fancy-colour grade or origin determination.",
+    "Exact dimensions, carat, clarity, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-fancy-color-diamond.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-diamond",
+  "revisionId": "stone-diamond:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "diamond",
+  "name": "Diamond",
+  "aliases": [
+    "loose diamond",
+    "white diamond",
+    "colorless diamond",
+    "colourless diamond",
+    "round diamond",
+    "round brilliant diamond"
+  ],
+  "form": "faceted",
+  "representativeCut": "round brilliant",
+  "defaultColors": [
+    "white",
+    "colorless",
+    "colourless",
+    "clear"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative loose round-brilliant visualization, distinct from mounted jewellery.",
+    "Optical performance is illustrative and is not a cut-grade or light-performance assessment.",
+    "Exact dimensions, carat, colour, clarity, origin, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-diamond.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

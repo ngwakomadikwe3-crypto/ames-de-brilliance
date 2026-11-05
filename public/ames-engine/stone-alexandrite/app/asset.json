@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-alexandrite",
+  "revisionId": "stone-alexandrite:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "chrysoberyl",
+  "name": "Alexandrite",
+  "aliases": [
+    "chrysoberyl alexandrite"
+  ],
+  "form": "faceted",
+  "representativeCut": "oval",
+  "defaultColors": [
+    "green",
+    "bluish green",
+    "blue green"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative educational visualization, not a stock item or an identification report.",
+    "A static preview cannot demonstrate alexandrite's colour change under different lighting.",
+    "Exact dimensions, carat, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-alexandrite.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

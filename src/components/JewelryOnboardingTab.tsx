@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import ModelViewer from "./ModelViewer";
+import JewelryCadReview from "./JewelryCadReview";
 import type { JewelryAction, JewelryProduct, PackEvidence } from "@/lib/jewelry-workflow";
 
 type Trader = { id: string; name: string; company?: string; status: string };
@@ -165,12 +166,12 @@ export default function JewelryOnboardingTab() {
             {product.source_files.map(file => <div key={file.fileId || file.filename} className="text-[11px] break-all">{file.filename} · {file.kind} · {file.bytes.toLocaleString()} bytes · {file.fileId ? <a className="underline" href={`${api}/${product.id}/source/${file.fileId}`}>Download privately</a> : "Operator handoff"}<br/><span className="font-mono text-[#A6A6AB]">SHA-256 {file.sha256}</span></div>)}
             <a className="inline-block text-[11px] underline" href={`${api}/${product.id}/handoff`} target="_blank" rel="noreferrer">View engine handoff manifest</a>
             {["submitted", "revision_requested"].includes(product.workflow_status) && <>
-              <input type="file" multiple accept=".obj,.glb,.fbx,.zip,.jpg,.jpeg,.png,.webp,.pdf"
+              <input type="file" multiple accept=".3dm,.glb,.obj,.stl,.fbx,.zip,.jpg,.jpeg,.png,.webp,.pdf"
                 onChange={e => setFiles(e.target.files)} className="block text-[11px] w-full" />
               <button type="button" onClick={upload} disabled={busy || !files?.length}
                 className="px-3 py-2 text-[11px] border border-white/20 rounded-md disabled:opacity-40">Upload source / optional evidence</button>
             </>}
-            <p className="text-[10px] text-[#A6A6AB]">Source files stay in private Appwrite storage. Engine processing is an operator handoff; this dashboard does not run the engine.</p>
+            <p className="text-[10px] text-[#A6A6AB]">Preferred original design: Rhino / Matrix .3dm. Upload a companion GLB for previewing, or an OBJ/STL export if GLB is unavailable. Originals stay private; direct 3DM conversion is not available yet.</p>
             {product.source_mode === "operator_handoff" && ["submitted", "revision_requested"].includes(product.workflow_status) && <div className="border border-white/10 rounded-md p-3 space-y-2">
               <p className="text-[10px] text-[#A6A6AB]">Register the local source identity; the raw file stays with the operator.</p>
               <input value={operatorFilename} onChange={e => setOperatorFilename(e.target.value)} placeholder="Filename, e.g. piece.obj" className="field-input w-full text-[11px]" />
@@ -179,6 +180,8 @@ export default function JewelryOnboardingTab() {
               <button type="button" onClick={registerOperatorSource} disabled={busy || !operatorFilename || !operatorBytes || !operatorSha256} className="px-3 py-2 text-[11px] border border-white/20 rounded-md disabled:opacity-40">Register operator source</button>
             </div>}
           </section>
+
+          <JewelryCadReview key={product.id + ":" + product.source_files.length} product={product} />
 
           <section className="mt-5 border-t border-white/10 pt-4">
             <h3 className="text-xs uppercase tracking-wider text-[#A6A6AB]">Engine handoff and review</h3>

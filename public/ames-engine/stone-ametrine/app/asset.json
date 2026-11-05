@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-ametrine",
+  "revisionId": "stone-ametrine:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "quartz",
+  "name": "Ametrine",
+  "aliases": [
+    "amethyst citrine",
+    "bi color ametrine",
+    "bicolor ametrine",
+    "bi colour ametrine",
+    "bicolour ametrine"
+  ],
+  "form": "faceted bicolor",
+  "representativeCut": "rectangular emerald",
+  "defaultColors": [
+    "purple and yellow",
+    "violet and yellow",
+    "bicolor",
+    "bicolour"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative two-zone colour treatment; natural zoning boundaries vary.",
+    "The preview is not a stock item or an identification report.",
+    "Exact dimensions, carat, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-ametrine.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

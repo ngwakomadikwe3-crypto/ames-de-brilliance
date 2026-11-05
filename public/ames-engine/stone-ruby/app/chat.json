@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "stone-ruby",
+  "revisionId": "stone-ruby:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "stageAsset": "web/jewelry.glb",
+  "poster": "web/poster.webp",
+  "rotationEnabled": false,
+  "defaultView": "three_quarter",
+  "supportedViewerActions": [
+    "rotate",
+    "stop_rotation",
+    "zoom",
+    "reset",
+    "side_view"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "heroImage": "web/poster.webp",
+  "macroImage": "web/poster.webp",
+  "visualModes": [
+    "interactive",
+    "side"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-zircon",
+  "revisionId": "stone-zircon:4",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "zircon",
+  "name": "Zircon",
+  "aliases": [
+    "champagne zircon",
+    "natural zircon"
+  ],
+  "form": "faceted",
+  "representativeCut": "round brilliant",
+  "defaultColors": [
+    "champagne",
+    "brown",
+    "golden",
+    "yellow"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative natural zircon visualization; zircon is not cubic zirconia.",
+    "Double refraction and dispersion are simplified for interactive display.",
+    "Exact dimensions, carat, origin, treatment, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-zircon.blend",
+    "refinementGenerator": "scripts/blender/refine_mobile_gemstones.py"
+  }
+}

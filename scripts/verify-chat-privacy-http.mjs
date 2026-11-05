@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+const origin = process.env.AMES_TEST_URL || 'http://localhost:3010';
+async function call(path, cookie, method = 'GET', body, requestOrigin = origin) {
+  const response = await fetch(origin + path, { method, headers: { Origin: requestOrigin, ...(cookie ? { Cookie: cookie } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  return { response, body: await response.json() };
+}
+const first = await call('/api/chats');
+assert.equal(first.response.status, 200, JSON.stringify(first.body));
+const a = first.response.headers.get('set-cookie')?.split(';')[0]; assert.ok(a);
+const second = await call('/api/chats');
+assert.equal(second.response.status, 200, JSON.stringify(second.body));
+const b = second.response.headers.get('set-cookie')?.split(';')[0]; assert.ok(b); assert.notEqual(a, b);
+const created = await call('/api/chats', a, 'POST'); assert.equal(created.response.status, 201, JSON.stringify(created.body));
+const id = created.body.id;
+await mkdir('.ames-cad/qa', { recursive: true });
+await writeFile('.ames-cad/qa/chat-privacy-fixture.json', JSON.stringify({ chatId: id, createdFor: 'isolated privacy verification', at: new Date().toISOString() }));
+assert.equal((await call('/api/chats', b)).body.some(chat => chat.id === id), false);
+assert.equal((await call(`/api/chats/${id}/messages`, b)).response.status, 404);
+assert.equal((await call(`/api/chats/${id}/messages`, b, 'POST', { role: 'user', text: 'blocked test' })).response.status, 404);
+assert.equal((await call(`/api/chats/${id}`, b, 'PATCH', { title: 'blocked test' })).response.status, 404);
+assert.equal((await call(`/api/chats/${id}`, a, 'PATCH', { owner_id: 'changed' })).response.status, 400);
+assert.equal((await call(`/api/chats/${id}/messages`, a, 'POST', { role: 'assistant', text: 'forged' })).response.status, 400);
+assert.equal((await call(`/api/chats/${id}/messages`, a, 'POST', { role: 'user', text: 'blocked' }, 'https://other.example')).response.status, 403);
+assert.equal((await call(`/api/chats/${id}/messages`)).response.status, 401);
+const own = await call(`/api/chats/${id}/messages`, a, 'POST', { role: 'user', text: 'AMES private-session verification' });
+assert.equal(own.response.status, 201, JSON.stringify(own.body));
+assert.equal((await call(`/api/chats/${id}/messages`, a)).body.length, 1);
+assert.equal((await call('/api/ames', b, 'POST', { chatId: id, query: 'must not reach provider' })).response.status, 404);
+console.log('PASS: real HTTP visitor isolation, private cookie bootstrap, own message write/read, cross-session and cross-origin rejection, no assistant forgery.');

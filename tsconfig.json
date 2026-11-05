@@ -34,9 +34,17 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    ".next-local-workspace/types/**/*.ts",
+    ".next-local-workspace/dev/types/**/*.ts",
+    ".next-gem-refresh/types/**/*.ts",
+    ".next-gem-refresh/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".ames-cad",
+    "source-assets",
+    "docs/qa",
+    "share"
   ]
 }

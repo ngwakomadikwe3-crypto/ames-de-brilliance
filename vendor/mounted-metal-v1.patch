@@ -1,0 +1,668 @@
+--- before/package/src/engine/jewelry/jewelryGlbMaterials.ts
++++ after/package/src/engine/jewelry/jewelryGlbMaterials.ts
+@@ -1,260 +1,260 @@
+-import { Color, MeshPhysicalMaterial } from 'three'
+-import type { BufferGeometry, Material, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
+-import { JEWELRY_OPTICS_PROFILES } from '../renderer/opticsProfiles'
+-import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
+-
+-export type JewelrySurfaceKind = 'gem' | 'metal' | 'other'
+-
+-/**
+- * Names observed on the prepared validation asset
+- * (/models/diamond_ring_candidate_blender.glb):
+- *   Ring/Circle002   -> material "Gold"    (band)
+- *   Ring/Circle002_1 -> material "Dimond"  (pave on band)
+- *   Ring/Diamond     -> material "Material"(centre stone)
+- *   Ring/GEMS        -> material "Dimond"  (melee)
+- * The exporter spells diamond as "Dimond", so both spellings are matched.
+- */
+-const GEM_NAME = /diamond|dimond|gem|stone|crystal|brilliant|ruby|emerald|sapphire|topaz|opal/i
+-const METAL_NAME = /gold|platinum|silver|rhodium|palladium|titanium|metal|ring|band|setting|shank/i
+-
+-export function classifyJewelrySurface(nodeName?: string | null, materialName?: string | null): JewelrySurfaceKind {
+-  const material = materialName ?? ''
+-  if (GEM_NAME.test(material)) return 'gem'
+-  if (METAL_NAME.test(material)) return 'metal'
+-  const node = nodeName ?? ''
+-  if (GEM_NAME.test(node)) return 'gem'
+-  if (METAL_NAME.test(node)) return 'metal'
+-  return 'other'
+-}
+-
+-export const JEWELRY_METAL_PROFILE = Object.freeze({
+-  metalness: 1,
+-  roughness: 0.14,
+-  clearcoat: 0.5,
+-  clearcoatRoughness: 0.18,
+-  envMapIntensity: 1.6,
+-})
+-
+-/**
+- * Diamond optics for the ray-marched refraction material. `bounces` (internal
+- * reflections) and `fresnel` give facet contrast and white brilliance;
+- * `aberrationStrength` is kept very small so dispersion reads as subtle fire
+- * rather than obvious rainbow fringing.
+- */
+-export const JEWELRY_DIAMOND_OPTICS = Object.freeze({
+-  ior: 2.417,
+-  fresnel: 0.12,
+-  aberrationStrength: 0.004,
+-  fastChroma: true,
+-  maxBounces: 5,
+-})
+-
+-export interface GemQualityProfile {
+-  bounces: number
+-  fresnel: number
+-  aberrationStrength: number
+-}
+-
+-/**
+- * Per-surface gem quality. The hero centre stone gets the most internal light
+- * return; the dense melee and pave get progressively calmer optics (and fewer
+- * bounces) so small stones read clean instead of noisy.
+- */
+-export function gemQualityForGeometry(geometry?: BufferGeometry): GemQualityProfile {
+-  const count = geometry?.getAttribute('position')?.count ?? 0
+-  if (count > 20000) return { bounces: 2, fresnel: 0.09, aberrationStrength: 0 }
+-  if (count > 3000) return { bounces: 3, fresnel: 0.1, aberrationStrength: 0.002 }
+-  return {
+-    bounces: JEWELRY_DIAMOND_OPTICS.maxBounces,
+-    fresnel: JEWELRY_DIAMOND_OPTICS.fresnel,
+-    aberrationStrength: JEWELRY_DIAMOND_OPTICS.aberrationStrength,
+-  }
+-}
+-
+-/** Lower-cost, calmer profile for touch/small screens. */
+-export function mobileGemProfile(profile: GemQualityProfile): GemQualityProfile {
+-  return {
+-    bounces: Math.max(1, profile.bounces - 2),
+-    fresnel: profile.fresnel * 0.85,
+-    aberrationStrength: profile.aberrationStrength * 0.5,
+-  }
+-}
+-
+-export const JEWELRY_DIAMOND_PROFILE = Object.freeze({
+-  roughness: 0.02,
+-  thickness: 0.6,
+-  ior: 2.417,
+-  envMapIntensity: 2.2,
+-  dispersion: 0.12,
+-})
+-
+-function sourceColor(source?: Material): Color {
+-  const color = (source as MeshStandardMaterial | undefined)?.color
+-  return color ? color.clone() : new Color(0xd4d4d4)
+-}
+-
+-/** Physically based polished metal that keeps the asset's source colour. */
+-export function createMetalMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
+-  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
+-  const material = new MeshPhysicalMaterial({
+-    color: sourceColor(source),
+-    metalness: JEWELRY_METAL_PROFILE.metalness,
+-    roughness: optics.roughness,
+-    clearcoat: JEWELRY_METAL_PROFILE.clearcoat,
+-    clearcoatRoughness: JEWELRY_METAL_PROFILE.clearcoatRoughness,
+-    envMapIntensity: optics.envMapIntensity,
+-    envMap: envMap ?? null,
+-  })
+-  material.name = `${source?.name ?? 'metal'}::enhanced`
+-  return material
+-}
+-
+-/**
+- * Physical gem material. Used only as a fallback when a mesh cannot be rendered
+- * with the refraction path; the live viewer routes gems to the ray-marched
+- * refraction material instead.
+- */
+-export function createGemMaterial(source?: Material, envMap?: Texture | null): MeshPhysicalMaterial {
+-  const sourcePhysical = source as MeshPhysicalMaterial | undefined
+-  const material = new MeshPhysicalMaterial({
+-    color: sourceColor(source),
+-    metalness: 0,
+-    roughness: Math.min(sourcePhysical?.roughness ?? JEWELRY_DIAMOND_PROFILE.roughness, 0.035),
+-    transmission: Math.max(sourcePhysical?.transmission ?? 1, 0.9),
+-    thickness: JEWELRY_DIAMOND_PROFILE.thickness,
+-    ior: sourcePhysical?.ior || JEWELRY_DIAMOND_PROFILE.ior,
+-    envMapIntensity: JEWELRY_DIAMOND_PROFILE.envMapIntensity,
+-    attenuationColor: sourceColor(source),
+-    attenuationDistance: 3,
+-    flatShading: true,
+-    envMap: envMap ?? null,
+-  })
+-  const refractive = material as MeshPhysicalMaterial & { dispersion?: number }
+-  if ('dispersion' in refractive) refractive.dispersion = JEWELRY_DIAMOND_PROFILE.dispersion
+-  material.name = `${source?.name ?? 'gem'}::refractive-gem`
+-  return material
+-}
+-
+-/**
+- * Neutral visual treatment for supplied geometry whose exported material identity
+- * is explicitly unqualified. This creates readable studio reflections only; it
+- * is not an alloy, gemstone, physical-scale, or manufacturing claim.
+- */
+-export function createUnqualifiedVisualMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
+-  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
+-  const material = new MeshPhysicalMaterial({
+-    color: new Color(0xc9cdd4),
+-    metalness: 0.92,
+-    roughness: Math.max(0.2, optics.roughness + 0.04),
+-    clearcoat: 0.16,
+-    clearcoatRoughness: 0.26,
+-    envMapIntensity: optics.envMapIntensity * 0.95,
+-    envMap: envMap ?? null,
+-  })
+-  material.name = `${source?.name ?? 'surface'}::unqualified-studio-visual`
+-  return material
+-}
+-
+-export function isQualifiedDielectricMesh(mesh: Mesh): boolean {
+-  return mesh.userData?.ames_optical_mode === 'closed-dielectric-visual'
+-}
+-
+-/** Backwards-compatible bounce lookup derived from the shared quality profile. */
+-export function bouncesForGeometry(geometry?: BufferGeometry): number {
+-  return gemQualityForGeometry(geometry).bounces
+-}
+-
+-/** True only when every surface on the mesh is a gem, so extraction is safe. */
+-export function isPureGemMesh(mesh: Mesh): boolean {
+-  if (!mesh.isMesh) return false
+-  const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+-  return sources.length > 0 && sources.every((source) => classifyJewelrySurface(mesh.name, source?.name) === 'gem')
+-}
+-
+-export interface JewelryMaterialResult {
+-  gemSurfaces: number
+-  metalSurfaces: number
+-  otherSurfaces: number
+-  materials: Material[]
+-}
+-
+-/**
+- * Replace an imported GLB clone's materials with premium ones while leaving
+- * geometry, transforms and node structure untouched. Metal keeps the source
+- * colour; any gem surface still present gets the physical fallback (the viewer
+- * extracts pure gem meshes for the refraction path before calling this).
+- * Every material the viewer creates is returned so its owner can dispose of it.
+- */
+-export function applyJewelryMaterials(
+-  root: Object3D,
+-  envMap?: Texture | null,
+-  options?: { preserveMesh?: (mesh: Mesh) => boolean; opticsProfile?: JewelryOpticsProfile },
+-): JewelryMaterialResult {
+-  const result: JewelryMaterialResult = { gemSurfaces: 0, metalSurfaces: 0, otherSurfaces: 0, materials: [] }
+-
+-  root.traverse((object) => {
+-    const mesh = object as Mesh
+-    if (!mesh.isMesh) return
+-    if (options?.preserveMesh?.(mesh)) return
+-    const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+-
+-    const enhanced = sources.map((source) => {
+-      const kind = classifyJewelrySurface(object.name, source?.name)
+-      const opticalMode = mesh.userData?.ames_optical_mode
+-      const sourceUnqualified = mesh.userData?.ames_material_key === 'source-unqualified'
+-      let material: Material
+-      if (isQualifiedDielectricMesh(mesh)) {
+-        result.gemSurfaces += 1
+-        material = createGemMaterial(source, envMap)
+-      } else if (sourceUnqualified) {
+-        result.metalSurfaces += 1
+-        material = createUnqualifiedVisualMaterial(source, envMap, options?.opticsProfile)
+-      } else if (opticalMode === 'conductor' || kind === 'metal') {
+-        result.metalSurfaces += 1
+-        material = createMetalMaterial(source, envMap, options?.opticsProfile)
+-      } else {
+-        result.otherSurfaces += 1
+-        const clone = (source?.clone() as MeshPhysicalMaterial) ?? new MeshPhysicalMaterial()
+-        // A suggestive node/material name is not evidence of closed gem geometry.
+-        clone.envMap = envMap ?? null
+-        const gemstoneId = String(mesh.userData?.ames_gemstone_id ?? '')
+-        if (opticalMode === 'polished-gemstone-visual' || opticalMode === 'polished-cabochon-visual') {
+-          clone.envMapIntensity = 1.65
+-          clone.clearcoat = Math.max(clone.clearcoat ?? 0, 0.65)
+-          clone.clearcoatRoughness = Math.min(clone.clearcoatRoughness ?? 0.12, 0.08)
+-          clone.roughness = Math.min(clone.roughness ?? 0.12, gemstoneId === 'stone-jade' ? 0.22 : 0.12)
+-        }
+-        if (opticalMode === 'nacre-visual') {
+-          clone.envMapIntensity = 1.45
+-          clone.roughness = 0.16
+-          clone.clearcoat = 0.72
+-          clone.clearcoatRoughness = 0.12
+-          clone.sheen = 0.65
+-          clone.sheenRoughness = 0.32
+-          clone.sheenColor = new Color(0xffe8f0)
+-          clone.iridescence = 0.28
+-          clone.iridescenceIOR = 1.3
+-          clone.iridescenceThicknessRange = [180, 420]
+-        }
+-        if (gemstoneId === 'stone-opal') {
+-          clone.iridescence = 0.22
+-          clone.iridescenceIOR = 1.3
+-          clone.iridescenceThicknessRange = [240, 520]
+-        }
+-        if (kind === 'gem' && opticalMode !== 'polished-gemstone-visual' && opticalMode !== 'polished-cabochon-visual' && opticalMode !== 'nacre-visual') {
+-          clone.transmission = 0
+-          clone.metalness = 0
+-          clone.roughness = Math.max(0.12, clone.roughness ?? 0.12)
+-        }
+-        material = clone
+-      }
+-      material.needsUpdate = true
+-      result.materials.push(material)
+-      return material
+-    })
+-
+-    mesh.material = Array.isArray(mesh.material) ? enhanced : enhanced[0]
+-  })
+-
+-  return result
+-}
++import { Color, MeshPhysicalMaterial } from 'three'
++import type { BufferGeometry, Material, Mesh, MeshStandardMaterial, Object3D, Texture } from 'three'
++import { JEWELRY_OPTICS_PROFILES } from '../renderer/opticsProfiles'
++import type { JewelryOpticsProfile } from '../renderer/opticsProfiles'
++
++export type JewelrySurfaceKind = 'gem' | 'metal' | 'other'
++
++/**
++ * Names observed on the prepared validation asset
++ * (/models/diamond_ring_candidate_blender.glb):
++ *   Ring/Circle002   -> material "Gold"    (band)
++ *   Ring/Circle002_1 -> material "Dimond"  (pave on band)
++ *   Ring/Diamond     -> material "Material"(centre stone)
++ *   Ring/GEMS        -> material "Dimond"  (melee)
++ * The exporter spells diamond as "Dimond", so both spellings are matched.
++ */
++const GEM_NAME = /diamond|dimond|gem|stone|crystal|brilliant|ruby|emerald|sapphire|topaz|opal/i
++const METAL_NAME = /gold|platinum|silver|rhodium|palladium|titanium|metal|ring|band|setting|shank/i
++
++export function classifyJewelrySurface(nodeName?: string | null, materialName?: string | null): JewelrySurfaceKind {
++  const material = materialName ?? ''
++  if (GEM_NAME.test(material)) return 'gem'
++  if (METAL_NAME.test(material)) return 'metal'
++  const node = nodeName ?? ''
++  if (GEM_NAME.test(node)) return 'gem'
++  if (METAL_NAME.test(node)) return 'metal'
++  return 'other'
++}
++
++export const JEWELRY_METAL_PROFILE = Object.freeze({
++  metalness: 1,
++  roughness: 0.14,
++  clearcoat: 0.5,
++  clearcoatRoughness: 0.18,
++  envMapIntensity: 1.6,
++})
++
++/**
++ * Diamond optics for the ray-marched refraction material. `bounces` (internal
++ * reflections) and `fresnel` give facet contrast and white brilliance;
++ * `aberrationStrength` is kept very small so dispersion reads as subtle fire
++ * rather than obvious rainbow fringing.
++ */
++export const JEWELRY_DIAMOND_OPTICS = Object.freeze({
++  ior: 2.417,
++  fresnel: 0.12,
++  aberrationStrength: 0.004,
++  fastChroma: true,
++  maxBounces: 5,
++})
++
++export interface GemQualityProfile {
++  bounces: number
++  fresnel: number
++  aberrationStrength: number
++}
++
++/**
++ * Per-surface gem quality. The hero centre stone gets the most internal light
++ * return; the dense melee and pave get progressively calmer optics (and fewer
++ * bounces) so small stones read clean instead of noisy.
++ */
++export function gemQualityForGeometry(geometry?: BufferGeometry): GemQualityProfile {
++  const count = geometry?.getAttribute('position')?.count ?? 0
++  if (count > 20000) return { bounces: 2, fresnel: 0.09, aberrationStrength: 0 }
++  if (count > 3000) return { bounces: 3, fresnel: 0.1, aberrationStrength: 0.002 }
++  return {
++    bounces: JEWELRY_DIAMOND_OPTICS.maxBounces,
++    fresnel: JEWELRY_DIAMOND_OPTICS.fresnel,
++    aberrationStrength: JEWELRY_DIAMOND_OPTICS.aberrationStrength,
++  }
++}
++
++/** Lower-cost, calmer profile for touch/small screens. */
++export function mobileGemProfile(profile: GemQualityProfile): GemQualityProfile {
++  return {
++    bounces: Math.max(1, profile.bounces - 2),
++    fresnel: profile.fresnel * 0.85,
++    aberrationStrength: profile.aberrationStrength * 0.5,
++  }
++}
++
++export const JEWELRY_DIAMOND_PROFILE = Object.freeze({
++  roughness: 0.02,
++  thickness: 0.6,
++  ior: 2.417,
++  envMapIntensity: 2.2,
++  dispersion: 0.12,
++})
++
++function sourceColor(source?: Material): Color {
++  const color = (source as MeshStandardMaterial | undefined)?.color
++  return color ? color.clone() : new Color(0xd4d4d4)
++}
++
++/** Physically based polished metal that keeps the asset's source colour. */
++export function createMetalMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
++  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
++  const material = new MeshPhysicalMaterial({
++    color: sourceColor(source),
++    metalness: JEWELRY_METAL_PROFILE.metalness,
++    roughness: optics.roughness,
++    clearcoat: opticsProfile === 'mounted-gem-studio' ? 0 : JEWELRY_METAL_PROFILE.clearcoat,
++    clearcoatRoughness: JEWELRY_METAL_PROFILE.clearcoatRoughness,
++    envMapIntensity: optics.envMapIntensity,
++    envMap: envMap ?? null,
++  })
++  material.name = `${source?.name ?? 'metal'}::enhanced`
++  return material
++}
++
++/**
++ * Physical gem material. Used only as a fallback when a mesh cannot be rendered
++ * with the refraction path; the live viewer routes gems to the ray-marched
++ * refraction material instead.
++ */
++export function createGemMaterial(source?: Material, envMap?: Texture | null): MeshPhysicalMaterial {
++  const sourcePhysical = source as MeshPhysicalMaterial | undefined
++  const material = new MeshPhysicalMaterial({
++    color: sourceColor(source),
++    metalness: 0,
++    roughness: Math.min(sourcePhysical?.roughness ?? JEWELRY_DIAMOND_PROFILE.roughness, 0.035),
++    transmission: Math.max(sourcePhysical?.transmission ?? 1, 0.9),
++    thickness: JEWELRY_DIAMOND_PROFILE.thickness,
++    ior: sourcePhysical?.ior || JEWELRY_DIAMOND_PROFILE.ior,
++    envMapIntensity: JEWELRY_DIAMOND_PROFILE.envMapIntensity,
++    attenuationColor: sourceColor(source),
++    attenuationDistance: 3,
++    flatShading: true,
++    envMap: envMap ?? null,
++  })
++  const refractive = material as MeshPhysicalMaterial & { dispersion?: number }
++  if ('dispersion' in refractive) refractive.dispersion = JEWELRY_DIAMOND_PROFILE.dispersion
++  material.name = `${source?.name ?? 'gem'}::refractive-gem`
++  return material
++}
++
++/**
++ * Neutral visual treatment for supplied geometry whose exported material identity
++ * is explicitly unqualified. This creates readable studio reflections only; it
++ * is not an alloy, gemstone, physical-scale, or manufacturing claim.
++ */
++export function createUnqualifiedVisualMaterial(source?: Material, envMap?: Texture | null, opticsProfile: JewelryOpticsProfile = 'reference'): MeshPhysicalMaterial {
++  const optics = JEWELRY_OPTICS_PROFILES[opticsProfile].metal
++  const material = new MeshPhysicalMaterial({
++    color: new Color(0xc9cdd4),
++    metalness: 0.92,
++    roughness: Math.max(0.2, optics.roughness + 0.04),
++    clearcoat: 0.16,
++    clearcoatRoughness: 0.26,
++    envMapIntensity: optics.envMapIntensity * 0.95,
++    envMap: envMap ?? null,
++  })
++  material.name = `${source?.name ?? 'surface'}::unqualified-studio-visual`
++  return material
++}
++
++export function isQualifiedDielectricMesh(mesh: Mesh): boolean {
++  return mesh.userData?.ames_optical_mode === 'closed-dielectric-visual'
++}
++
++/** Backwards-compatible bounce lookup derived from the shared quality profile. */
++export function bouncesForGeometry(geometry?: BufferGeometry): number {
++  return gemQualityForGeometry(geometry).bounces
++}
++
++/** True only when every surface on the mesh is a gem, so extraction is safe. */
++export function isPureGemMesh(mesh: Mesh): boolean {
++  if (!mesh.isMesh) return false
++  const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
++  return sources.length > 0 && sources.every((source) => classifyJewelrySurface(mesh.name, source?.name) === 'gem')
++}
++
++export interface JewelryMaterialResult {
++  gemSurfaces: number
++  metalSurfaces: number
++  otherSurfaces: number
++  materials: Material[]
++}
++
++/**
++ * Replace an imported GLB clone's materials with premium ones while leaving
++ * geometry, transforms and node structure untouched. Metal keeps the source
++ * colour; any gem surface still present gets the physical fallback (the viewer
++ * extracts pure gem meshes for the refraction path before calling this).
++ * Every material the viewer creates is returned so its owner can dispose of it.
++ */
++export function applyJewelryMaterials(
++  root: Object3D,
++  envMap?: Texture | null,
++  options?: { preserveMesh?: (mesh: Mesh) => boolean; opticsProfile?: JewelryOpticsProfile },
++): JewelryMaterialResult {
++  const result: JewelryMaterialResult = { gemSurfaces: 0, metalSurfaces: 0, otherSurfaces: 0, materials: [] }
++
++  root.traverse((object) => {
++    const mesh = object as Mesh
++    if (!mesh.isMesh) return
++    if (options?.preserveMesh?.(mesh)) return
++    const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
++
++    const enhanced = sources.map((source) => {
++      const kind = classifyJewelrySurface(object.name, source?.name)
++      const opticalMode = mesh.userData?.ames_optical_mode
++      const sourceUnqualified = mesh.userData?.ames_material_key === 'source-unqualified'
++      let material: Material
++      if (isQualifiedDielectricMesh(mesh)) {
++        result.gemSurfaces += 1
++        material = createGemMaterial(source, envMap)
++      } else if (sourceUnqualified) {
++        result.metalSurfaces += 1
++        material = createUnqualifiedVisualMaterial(source, envMap, options?.opticsProfile)
++      } else if (opticalMode === 'conductor' || kind === 'metal') {
++        result.metalSurfaces += 1
++        material = createMetalMaterial(source, envMap, options?.opticsProfile)
++      } else {
++        result.otherSurfaces += 1
++        const clone = (source?.clone() as MeshPhysicalMaterial) ?? new MeshPhysicalMaterial()
++        // A suggestive node/material name is not evidence of closed gem geometry.
++        clone.envMap = envMap ?? null
++        const gemstoneId = String(mesh.userData?.ames_gemstone_id ?? '')
++        if (opticalMode === 'polished-gemstone-visual' || opticalMode === 'polished-cabochon-visual') {
++          clone.envMapIntensity = 1.65
++          clone.clearcoat = Math.max(clone.clearcoat ?? 0, 0.65)
++          clone.clearcoatRoughness = Math.min(clone.clearcoatRoughness ?? 0.12, 0.08)
++          clone.roughness = Math.min(clone.roughness ?? 0.12, gemstoneId === 'stone-jade' ? 0.22 : 0.12)
++        }
++        if (opticalMode === 'nacre-visual') {
++          clone.envMapIntensity = 1.45
++          clone.roughness = 0.16
++          clone.clearcoat = 0.72
++          clone.clearcoatRoughness = 0.12
++          clone.sheen = 0.65
++          clone.sheenRoughness = 0.32
++          clone.sheenColor = new Color(0xffe8f0)
++          clone.iridescence = 0.28
++          clone.iridescenceIOR = 1.3
++          clone.iridescenceThicknessRange = [180, 420]
++        }
++        if (gemstoneId === 'stone-opal') {
++          clone.iridescence = 0.22
++          clone.iridescenceIOR = 1.3
++          clone.iridescenceThicknessRange = [240, 520]
++        }
++        if (kind === 'gem' && opticalMode !== 'polished-gemstone-visual' && opticalMode !== 'polished-cabochon-visual' && opticalMode !== 'nacre-visual') {
++          clone.transmission = 0
++          clone.metalness = 0
++          clone.roughness = Math.max(0.12, clone.roughness ?? 0.12)
++        }
++        material = clone
++      }
++      material.needsUpdate = true
++      result.materials.push(material)
++      return material
++    })
++
++    mesh.material = Array.isArray(mesh.material) ? enhanced : enhanced[0]
++  })
++
++  return result
++}
+--- before/package/src/engine/renderer/opticsProfiles.ts
++++ after/package/src/engine/renderer/opticsProfiles.ts
+@@ -1,4 +1,4 @@
+-export type JewelryOpticsProfile = 'reference' | 'soft-studio' | 'clear-crystal' | 'gemstone-studio'
++export type JewelryOpticsProfile = 'reference' | 'soft-studio' | 'clear-crystal' | 'gemstone-studio' | 'mounted-gem-studio'
+ 
+ export interface JewelryOpticsSettings {
+   environment: {
+@@ -64,6 +64,13 @@
+     safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
+     center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
+   },
++  'mounted-gem-studio': {
++    environment: { base: { top: '#2b3036', mid: '#171c22', bottom: '#0e1115' }, darkFlag: '#101419' },
++    lighting: { ambient: 0.025, key: 1.1, fill: 0.3, rim: 1.35, spot: 0.65 },
++    metal: { roughness: 0.085, envMapIntensity: 1.15 },
++    safeCenter: { roughness: 0.018, transmission: 0.82, thickness: 0.8, envMapIntensity: 1.8 },
++    center: { fresnel: 0.1, color: [1.7, 1.7, 1.7] },
++  },
+   'clear-crystal': {
+     environment: {
+       base: { top: '#2b323b', mid: '#141920', bottom: '#0b0e13' },
+--- before/package/src/engine/renderer/useGemstonePhotoEnvironment.ts
++++ after/package/src/engine/renderer/useGemstonePhotoEnvironment.ts
+@@ -30,7 +30,7 @@
+   return shared
+ }
+ /** Shared offline-processed studio asset; no external service or API calls at runtime. */
+-export function useGemstonePhotoEnvironment(enabled: boolean): StudioMaps | null {
++export function useGemstonePhotoEnvironment(enabled: boolean, diagnosticKey = 'studioEnvironment'): StudioMaps | null {
+   const canvas = useThree(state => state.gl.domElement)
+   const [maps, setMaps] = useState<StudioMaps | null>(null)
+   useEffect(() => {
+@@ -43,8 +43,8 @@
+   }, [enabled])
+   useEffect(() => {
+     if (!enabled) return
+-    canvas.dataset.studioEnvironment = maps ? 'photographic' : 'generated-fallback'
+-    return () => { delete canvas.dataset.studioEnvironment }
+-  }, [canvas, enabled, maps])
++    canvas.dataset[diagnosticKey] = maps ? 'photographic' : 'generated-fallback'
++    return () => { delete canvas.dataset[diagnosticKey] }
++  }, [canvas, enabled, maps, diagnosticKey])
+   return enabled ? maps : null
+ }
+--- before/package/src/engine/jewelry/JewelryGlbModel.tsx
++++ after/package/src/engine/jewelry/JewelryGlbModel.tsx
+@@ -170,7 +170,7 @@
+     // Capture gem transforms in pivot space, then lift them out of the metal hierarchy.
+     // Without an environment the ray-marched path is unavailable, so gems stay in
+     // the hierarchy and receive the physical fallback material instead.
+-    const gemMeshes = envMap ? collectGemMeshes(root, opticsProfile === 'gemstone-studio') : []
++    const gemMeshes = envMap ? collectGemMeshes(root, (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')) : []
+     const bicolorMeshes = gemMeshes.filter(mesh => mesh.parent?.userData.ames_gemstone_id === 'stone-ametrine')
+     const sameFrame = bicolorMeshes.every(mesh => mesh.matrixWorld.elements.every((value, i) => Math.abs(value - bicolorMeshes[0].matrixWorld.elements[i]) < 1e-7))
+     const bicolorVolume = sameFrame && bicolorMeshes.length > 1 ? convexGemAssemblyVolume(bicolorMeshes.map(mesh => mesh.geometry)) : null
+@@ -190,12 +190,12 @@
+           geometry: mesh.geometry,
+           matrix: mesh.matrixWorld.clone(),
+           profile: gemQualityForGeometry(mesh.geometry),
+-          color: opticsProfile === 'gemstone-studio' && STUDIO_BODY_COLORS[gemId]
++          color: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') && STUDIO_BODY_COLORS[gemId]
+             ? new Color(STUDIO_BODY_COLORS[gemId]) : source?.color?.clone() ?? new Color(0xffffff),
+           bodyFill: gemId === 'stone-diamond' ? 0.004 : 0.012,
+           colorDepth: ({ 'stone-ruby': 1.1, 'stone-sapphire': .9, 'stone-emerald': 1.1, 'stone-garnet': 1.6 } as Record<string, number>)[gemId] ?? .65,
+           volume: (() => {
+-            const volume = opticsProfile === 'gemstone-studio' ? (gemId === 'stone-ametrine' ? bicolorVolume : convexGemVolume(mesh.geometry)) : null
++            const volume = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? (gemId === 'stone-ametrine' ? bicolorVolume : convexGemVolume(mesh.geometry)) : null
+             return volume && volume.planes.length + 24 <= maxUniforms ? volume : null
+           })(),
+           ior: source?.ior || JEWELRY_DIAMOND_OPTICS.ior,
+@@ -210,7 +210,7 @@
+ 
+     const moonstones: {key:string;geometry:BufferGeometry;matrix:Matrix4;baseFraction:number}[] = []
+     const moonstoneMeshes: Mesh[] = []
+-    if(opticsProfile === 'gemstone-studio')root.traverse(object=>{
++    if((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio'))root.traverse(object=>{
+       if(object instanceof Mesh && object.userData?.ames_gemstone_id === 'stone-moonstone')moonstoneMeshes.push(object)
+     })
+     for(const mesh of moonstoneMeshes){
+@@ -271,7 +271,7 @@
+                 mesh.matrixWorldNeedsUpdate = true
+               }}
+             >
+-              {gem.volume ? <GemstoneFacetMaterial envMap={gemEnvMap ?? envMap} color={gem.color} ior={gem.ior} volume={gem.volume} colorDepth={gem.colorDepth} bodyFill={gem.bodyFill} refining={refining} bounces={quality.tier === 'SAFE' || quality.tier === 'LOW' ? 4 : 6} /> : opticsProfile === 'gemstone-studio' ? <GemstonePreviewMaterial envMap={envMap} color={gem.color} ior={gem.ior} /> : quality.refraction ? <MeshRefractionMaterial
++              {gem.volume ? <GemstoneFacetMaterial envMap={gemEnvMap ?? envMap} color={gem.color} ior={gem.ior} volume={gem.volume} colorDepth={gem.colorDepth} bodyFill={gem.bodyFill} refining={refining} bounces={quality.tier === 'SAFE' || quality.tier === 'LOW' ? 4 : 6} /> : (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? <GemstonePreviewMaterial envMap={envMap} color={gem.color} ior={gem.ior} /> : quality.refraction ? <MeshRefractionMaterial
+                 envMap={envMap}
+                 ior={gem.ior}
+                 fresnel={gemQuality.fresnel}
+--- before/package/src/engine/renderer/JewelryViewer.tsx
++++ after/package/src/engine/renderer/JewelryViewer.tsx
+@@ -64,14 +64,14 @@
+   style,
+ }: JewelryViewerProps) {
+   const [initialRuntime] = useState(() => readViewerRuntime())
+-  const [tier, setTier] = useState(() => opticsProfile === 'gemstone-studio' ? chooseGemstoneQuality(initialRuntime) : chooseViewerQuality(initialRuntime))
++  const [tier, setTier] = useState(() => (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(initialRuntime) : chooseViewerQuality(initialRuntime))
+   useEffect(() => {
+-    const update = () => setTier(opticsProfile === 'gemstone-studio' ? chooseGemstoneQuality(readViewerRuntime()) : chooseViewerQuality(readViewerRuntime()))
++    const update = () => setTier((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(readViewerRuntime()) : chooseViewerQuality(readViewerRuntime()))
+     window.addEventListener('resize', update)
+     return () => window.removeEventListener('resize', update)
+   }, [opticsProfile])
+   const baseQuality = qualityProfile(tier)
+-  const quality = opticsProfile === 'gemstone-studio'
++  const quality = (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
+     ? { ...baseQuality, dpr: (tier === 'LOW' && turntableEnabled === true ? [1, 1.5] : [1, 2]) as [number, number], contactShadows: false }
+     : opticsProfile === 'soft-studio' && (tier === 'SAFE' || tier === 'LOW')
+       ? { ...baseQuality, dpr: [1, 1.5] as [number, number] }
+@@ -96,9 +96,9 @@
+       <Canvas
+         camera={DIAMOND_VIEWER_CAMERA}
+         dpr={quality.dpr}
+-        frameloop={paused ? 'never' : (opticsProfile === 'gemstone-studio' || opticsProfile === 'soft-studio') && turntableEnabled === false ? 'demand' : quality.tier === 'SAFE' ? 'demand' : 'always'}
++        frameloop={paused ? 'never' : ((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio') && turntableEnabled === false ? 'demand' : quality.tier === 'SAFE' ? 'demand' : 'always'}
+         gl={{
+-          antialias: opticsProfile === 'gemstone-studio' || opticsProfile === 'soft-studio' || quality.tier === 'HIGH' || quality.tier === 'MEDIUM',
++          antialias: (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') || opticsProfile === 'soft-studio' || quality.tier === 'HIGH' || quality.tier === 'MEDIUM',
+           alpha: true,
+           preserveDrawingBuffer: initialRuntime.webKitMobile === true,
+           toneMapping: ACESFilmicToneMapping,
+--- before/package/src/engine/renderer/ViewerScene.tsx
++++ after/package/src/engine/renderer/ViewerScene.tsx
+@@ -74,9 +74,9 @@
+   onModelReady?: () => void
+   opticsProfile?: JewelryOpticsProfile
+ }) {
+-  const photographicJewelry = useGemstonePhotoEnvironment(opticsProfile === 'soft-studio')
+-  const gemstoneStudio = useGemstoneSoftboxEnvironment(opticsProfile === 'gemstone-studio')
+-  const photographicStudio = opticsProfile === 'gemstone-studio' ? gemstoneStudio : photographicJewelry
++  const photographicJewelry = useGemstonePhotoEnvironment(opticsProfile === 'soft-studio' || opticsProfile === 'mounted-gem-studio', opticsProfile === 'mounted-gem-studio' ? 'metalEnvironment' : 'studioEnvironment')
++  const gemstoneStudio = useGemstoneSoftboxEnvironment(opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio')
++  const photographicStudio = opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio' ? gemstoneStudio : photographicJewelry
+   const generatedEnvironment = useMemo(() => createDiamondStudioEnvironment(), [])
+   const displayEnvironment = useMemo(() => createDiamondDisplayEnvironment(opticsProfile), [opticsProfile])
+   const envMap = providedEnvironment ?? generatedEnvironment
+@@ -89,7 +89,7 @@
+   const [isInteracting, setIsInteracting] = useState(false)
+   const liveGlb = !procedural && Boolean(modelUrl)
+   // Gems need a high-contrast environment; the calibration room reads grey.
+-  const activeEnvMap = liveGlb ? (opticsProfile === 'soft-studio' ? photographicStudio?.refraction : photographicStudio?.surface) ?? displayEnvironment : envMap
++  const activeEnvMap = opticsProfile === 'mounted-gem-studio' ? photographicJewelry?.surface ?? displayEnvironment : liveGlb ? (opticsProfile === 'soft-studio' ? photographicStudio?.refraction : photographicStudio?.surface) ?? displayEnvironment : envMap
+ 
+   return (
+     <>

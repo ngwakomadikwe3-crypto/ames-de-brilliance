@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "demo-reference-ring",
+  "revisionId": "demo-reference-ring:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "presentation": "reference-image",
+  "stageAsset": "web/reference-ring-v1.webp",
+  "poster": "web/reference-ring-v1.webp",
+  "rotationEnabled": false,
+  "defaultView": "hero",
+  "supportedViewerActions": [
+    "zoom",
+    "reset"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Photo reference; no physical measurements supplied.",
+    "manufacturingReady": false
+  },
+  "heroImage": "web/reference-ring-v1.webp",
+  "macroImage": "web/reference-ring-v1.webp",
+  "visualModes": [
+    "reference-image"
+  ]
+}

@@ -1,9 +1,10 @@
+import AppAccountShell from "@/components/AppAccountShell";
+
 export default function TermsPage() {
   return (
-    <div className="px-4 md:px-6 py-8 max-w-2xl mx-auto w-full">
-      <h2 className="text-[13px] font-bold mb-6">Terms of Use</h2>
+    <AppAccountShell title="Terms of Use">
 
-      <div className="text-[11px] leading-relaxed space-y-4">
+      <div className="ames-editorial-copy">
         <div>
           <h3 className="font-bold mb-1">1. Invitation to Treat</h3>
           <p>All listings, descriptions, and advertisements on this website constitute invitations to treat and are not offers to sell. All listings are subject to prior sale and written confirmation by AMES DE BRILLIANTE (Pty) Ltd.</p>
@@ -39,6 +40,6 @@ export default function TermsPage() {
           <p>AMES DE BRILLIANTE (Pty) Ltd reserves the right to amend these terms at any time without prior notice. Continued use of this website following any amendment constitutes acceptance of the amended terms.</p>
         </div>
       </div>
-    </div>
+    </AppAccountShell>
   );
 }

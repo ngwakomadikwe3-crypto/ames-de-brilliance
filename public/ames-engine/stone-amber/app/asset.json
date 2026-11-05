@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "stone-amber",
+  "revisionId": "stone-amber:2",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "gemstone",
+  "category": "organic gem",
+  "name": "Amber",
+  "aliases": [
+    "baltic amber"
+  ],
+  "form": "organic cabochon",
+  "representativeCut": "freeform cabochon",
+  "defaultColors": [
+    "orange",
+    "amber",
+    "honey",
+    "yellow"
+  ],
+  "educationalPreview": true,
+  "status": {
+    "technical": "pending",
+    "viewer": "pending",
+    "luxury": "pending",
+    "campaign": "pending"
+  },
+  "interactive": {
+    "glb": "web/jewelry.glb",
+    "poster": "web/poster.webp"
+  },
+  "media": {
+    "hero": "web/poster.webp"
+  },
+  "specs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "unresolved",
+    "manufacturingReady": false
+  },
+  "verifiedClaims": {
+    "representativeDefaultOnly": true
+  },
+  "limitations": [
+    "Representative polished amber form; natural shape, inclusions, and transparency vary.",
+    "No geographic origin, age, treatment, or biological inclusion is claimed.",
+    "Exact dimensions, weight, and certification are not claimed.",
+    "Original parametric model and procedural surface work; physical scale is unverified and commercial approval is pending."
+  ],
+  "source": {
+    "license": "AMES original",
+    "generator": "scripts/blender/create_gemstone_library.py",
+    "editableScene": "source-assets/gemstones/stone-amber.blend"
+  }
+}
