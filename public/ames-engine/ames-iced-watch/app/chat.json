@@ -6,8 +6,8 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "presentation": "interactive",
-  "stageAsset": "web/watch.glb",
-  "poster": "web/poster-v1.webp",
+  "stageAsset": "web/watch-v2.glb",
+  "poster": "web/poster-v2.webp",
   "rotationEnabled": false,
   "defaultView": "three_quarter",
   "supportedViewerActions": [
@@ -23,8 +23,8 @@
     "unitMeaning": "Authored concept; not measured inventory.",
     "manufacturingReady": false
   },
-  "heroImage": "web/poster-v1.webp",
-  "macroImage": "web/poster-v1.webp",
+  "heroImage": "web/poster-v2.webp",
+  "macroImage": "web/poster-v2.webp",
   "visualModes": [
     "interactive",
     "side"

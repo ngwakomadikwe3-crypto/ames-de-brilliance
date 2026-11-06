@@ -47,9 +47,9 @@ export class Part {
   constructor() { this.list = []; }
   add(g, m) { if (m) g.applyMatrix4(m); this.list.push(clean(g)); return this; }
   /** Tapered rod between two points. */
-  rod(a, b, r0, r1 = r0, m, seg = 12) { const len = a.distanceTo(b), g = new THREE.CylinderGeometry(r1, r0, len, seg, 1, false);
+  rod(a, b, r0, r1 = r0, m, seg = 12) { const len = a.distanceTo(b), g = new THREE.CylinderGeometry(r1, r0, len, Math.min(seg, 8), 1, true); // ends sit inside joints
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize())); g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); return this.add(g, m); }
-  ball(p, r, m, seg = 12, squash = 1) { const g = new THREE.SphereGeometry(r, seg, Math.max(6, seg * .7 | 0)); g.scale(1, squash, 1); g.translate(p.x, p.y, p.z); return this.add(g, m); }
+  ball(p, r, m, seg = 12, squash = 1) { seg = Math.min(seg, 8); const g = new THREE.SphereGeometry(r, seg, Math.max(4, seg * .6 | 0)); g.scale(1, squash, 1); g.translate(p.x, p.y, p.z); return this.add(g, m); }
   tube(points, r, closed = true, m, seg = 8) { const curve = new THREE.CatmullRomCurve3(points, closed, 'centripetal');
     return this.add(new THREE.TubeGeometry(curve, Math.max(48, points.length * 2), r, seg, closed), m); }
   merged() { const g = mergeGeometries(this.list, false); g.computeVertexNormals(); return g; }
@@ -94,19 +94,32 @@ export class Builder {
     if (matrix) { const p = V(), q = new THREE.Quaternion(), s = V(); matrix.decompose(p, q, s); n.setTranslation(p.toArray()).setRotation(q.toArray()).setScale(s.toArray()); }
     if (extras) n.setExtras(extras); this.root.addChild(n); return n; }
   /** A hero stone: its own node and real brilliant facets; ames_cut lets the engine refit it. */
-  stone(name, outline, W, L, matrix) { this.gemCount++;
+  stone(name, outline, W, L, matrix) { this.gemCount++; (this.heroes ??= []).push({ name, outline, W, L });
     return this.node(name, this.mesh(name, heroCut(outline, W, L), this.gem), matrix, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_cut: outline }); }
   /** Melee for pavé: collected per group and written as one ray-traced mesh. */
-  melee(group, D, matrix) { this.meleeCount++; if (!this.pave.has(group)) this.pave.set(group, []); this.pave.get(group).push(meleeCut(D).applyMatrix4(matrix)); }
-  flushPave() { for (const [group, list] of this.pave) { this.gemCount++;
-      this.node(`Pavé · ${group}`, this.mesh(`Pavé ${group}`, mergeGeometries(list, false), this.gem), null, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_pave: true }); } }
+  melee(group, D, matrix) { this.meleeCount++; if (!this.pave.has(group)) this.pave.set(group, []);
+    const p = V(), q = new THREE.Quaternion(), s = V(); matrix.decompose(p, q, s); this.pave.get(group).push({ D, p, q }); }
+  /** Full merged pavé (for offline stills) or, for the web, one placeholder stone plus the
+   * layout: [x, y, z, qx, qy, qz, qw, diameter] per melee as base64 Float32 in node extras
+   * (ames_pave_layout). The AMES viewer rebuilds the melee from it, so the GLB carries no melee mesh. */
+  flushPave(web) { for (const [group, list] of this.pave) { this.gemCount++;
+      const extras = { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_pave: true }, geo = list.map(({ D, p, q }) => meleeCut(D).applyMatrix4(qmat(p, q)));
+      if (web) { const a = new Float32Array(list.length * 8); list.forEach(({ D, p, q }, i) => a.set([p.x, p.y, p.z, q.x, q.y, q.z, q.w, D], i * 8));
+        extras.ames_pave_layout = Buffer.from(a.buffer).toString('base64'); }
+      this.node(`Pavé · ${group}`, this.mesh(`Pavé ${group}`, web ? geo[0] : mergeGeometries(geo, false), this.gem), null, extras); } }
   async write(path, { raw } = {}) {
-    this.flushPave();
+    if (raw) { const pave = this.pave; this.flushPave(false); await new NodeIO().write(raw, this.doc);
+      for (const n of this.root.listChildren()) if (n.getExtras().ames_pave) { n.getMesh().dispose(); n.dispose(); } this.gemCount -= pave.size; }
+    // The viewer rebuilds every ames_cut stone to its bounds, so the web file only needs a light
+    // placeholder of the same size (offline stills keep the full facets).
+    for (const n of this.root.listChildren()) { const cut = n.getExtras().ames_cut; if (!cut) continue;
+      const h = this.heroes.find(x => x.name === n.getName()), old = n.getMesh();
+      n.setMesh(this.mesh(`${h.name} placeholder`, fit(meleeUnit, h.W, h.L), this.gem)); if (!old.listParents().some(p => p !== this.root && p.propertyType === 'Node')) old.dispose(); }
+    this.flushPave(true);
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
     await MeshoptEncoder.ready; await MeshoptDecoder.ready;
     await this.doc.transform(dedup(), prune());
-    if (raw) await io.write(raw, this.doc);
-    await this.doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizePosition: 16, quantizeNormal: 10 }));
+    await this.doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizePosition: 14, quantizeNormal: 8 }));
     await io.write(path, this.doc);
   }
 }

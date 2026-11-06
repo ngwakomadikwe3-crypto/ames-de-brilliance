@@ -11,7 +11,7 @@ function ring(size, r, pitch) { const s = rrect(size, size, r), len = s.getLengt
   for (let i = 0; i < n; i++) { const u = i / n, p = s.getPointAt(u), t = s.getTangentAt(u); out.push({ p: V(p.x, p.y, 0), n: V(t.y, -t.x, 0).normalize() }); } return out; }
 const ext = (shape, depth, bevel = .22, curveSegments = 20) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments });
 const meleeAt = (group, pos, normal, up = V(0, 0, 1), D = MD) => b.melee(group, D, qmat(pos, facing(normal, Math.abs(normal.dot(up)) > .9 ? V(0, 1, 0) : up)));
-const bead = (pos, m) => metal.ball(pos, .24, m, 6);
+const bead = (pos, m) => metal.ball(pos, .24, m, 5);
 
 // Case: 38 mm square, 8.2 mm tall, 29 mm aperture; front face at z = FACE.
 const CASE = 38, APER = 29, H = 7.6, FACE = H + .22, R = 6.2;
@@ -29,7 +29,7 @@ for (const z of [2.3, 5.2]) for (const { p, n } of ring(CASE + .22 * 2, R + .22,
 const dial = new THREE.PlaneGeometry(APER - .2, APER - .2); dial.translate(0, 0, H - 1.7);
 { const uv = dial.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i)); }
 const dialMat = b.material('Dial enamel', [1, 1, 1, 1], 0, .32);
-dialMat.setBaseColorTexture(b.doc.createTexture('AMES dial').setImage(new Uint8Array(readFileSync('dial.png'))).setMimeType('image/png'));
+dialMat.setBaseColorTexture(b.doc.createTexture('AMES dial').setImage(new Uint8Array(readFileSync('dial.jpg'))).setMimeType('image/jpeg'));
 b.node('Dial', b.mesh('Dial', dial, dialMat));
 const blue = b.material('Blued hands | polished metal', [.16, .3, .72, 1], .55, .22);
 function hand(len, w, z) { const s = new THREE.Shape(); s.moveTo(0, -len * .18); s.lineTo(w / 2, 0); s.lineTo(w * .3, len * .8); s.lineTo(0, len); s.lineTo(-w * .3, len * .8); s.lineTo(-w / 2, 0); s.closePath();

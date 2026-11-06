@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: { "/*": [
     "./.ames-cad/**/*", "./source-assets/**/*", "./docs/qa/**/*", "./share/**/*",
   ] },
+  // Models, posters and studio light change by new file names (watch-v2.glb ...), so
+  // browsers may keep them a week and refresh in the background after that. The JSON
+  // indexes stay uncached so new pieces appear at once.
+  async headers() {
+    return [{ source: '/ames-engine/:path(.*\\.(?:glb|webp|hdr|jpg|png))', headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=2592000' }] }];
+  },
 };
 
 export default nextConfig;
