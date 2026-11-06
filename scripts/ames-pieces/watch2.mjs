@@ -9,8 +9,8 @@ function rrect(w, h, r) { const s = new THREE.Shape(), x = -w / 2, y = -h / 2;
 /** Evenly spaced points (and outward normals) round a rounded square. */
 function ring(size, r, pitch) { const s = rrect(size, size, r), len = s.getLength(), n = Math.round(len / pitch), out = [];
   for (let i = 0; i < n; i++) { const u = i / n, p = s.getPointAt(u), t = s.getTangentAt(u); out.push({ p: V(p.x, p.y, 0), n: V(t.y, -t.x, 0).normalize() }); } return out; }
-const ext = (shape, depth, bevel = .22) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 20 });
-const meleeAt = (group, pos, normal, up = V(0, 0, 1)) => b.melee(group, MD, qmat(pos, facing(normal, Math.abs(normal.dot(up)) > .9 ? V(0, 1, 0) : up)));
+const ext = (shape, depth, bevel = .22, curveSegments = 20) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments });
+const meleeAt = (group, pos, normal, up = V(0, 0, 1), D = MD) => b.melee(group, D, qmat(pos, facing(normal, Math.abs(normal.dot(up)) > .9 ? V(0, 1, 0) : up)));
 const bead = (pos, m) => metal.ball(pos, .24, m, 6);
 
 // Case: 38 mm square, 8.2 mm tall, 29 mm aperture; front face at z = FACE.
@@ -24,7 +24,7 @@ for (const [k, size] of [[0, 36.6], [1, 33.6], [2, 30.6]].map(([k, s]) => [k, s]
   if (k < 2) for (const { p, n } of ring(size - 1.5, R - 2.1 - k * 1.5, PITCH)) bead(V(p.x, p.y, FACE + .12));
 }
 // Sides: three rows facing outward round the case band.
-for (const z of [1.6, 3.75, 5.9]) for (const { p, n } of ring(CASE + .22 * 2, R + .22, PITCH)) meleeAt('case side', p.clone().add(n.clone().multiplyScalar(.04)).setZ(z), n);
+for (const z of [2.3, 5.2]) for (const { p, n } of ring(CASE + .22 * 2, R + .22, 2.1)) meleeAt('case side', p.clone().add(n.clone().multiplyScalar(.04)).setZ(z), n, V(0, 0, 1), 1.95);
 // Dial and hands (hands are live nodes turned to the viewer's local time by the AMES viewer).
 const dial = new THREE.PlaneGeometry(APER - .2, APER - .2); dial.translate(0, 0, H - 1.7);
 { const uv = dial.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, 1 - uv.getY(i)); }
@@ -57,10 +57,10 @@ for (let i = 0; i < links; i++) {
   const u = (i + .5) / links, p = path.getPointAt(u), t = path.getTangentAt(u), n = V(0, -t.z, t.y).normalize();
   if (n.dot(p.clone().sub(V(0, 0, -23))) < 0) n.negate();
   const m = qmat(p, facing(n, t));
-  const link = ext(rrect(20, LEN, 1.1), 2.6, .2); link.rotateX(-90 * deg); link.translate(0, -1.3 - .2, 0); metal.add(link, m); // local: width x, length z, face +y
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 12; c++) {
-    const x = -8.9 + c * PITCH + (r % 2) * PITCH / 2, z = -LEN / 2 + .95 + r * ((LEN - 1.9) / 3);
-    b.melee('bracelet', MD, m.clone().multiply(qmat(V(x, 1.36, z), new THREE.Quaternion())));
+  const link = ext(rrect(20, LEN, 1.1), 2.6, .2, 5); link.rotateX(-90 * deg); link.translate(0, -1.3 - .2, 0); metal.add(link, m); // local: width x, length z, face +y
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
+    const x = -8.75 + c * 2.1 + (r % 2) * 1.05, z = -LEN / 2 + 1.2 + r * ((LEN - 2.4) / 2);
+    b.melee('bracelet', 1.95, m.clone().multiply(qmat(V(x, 1.36, z), new THREE.Quaternion())));
   }
   // Edge rails left and right, polished.
   for (const sx of [-1, 1]) metal.rod(V(sx * 9.95, 1.2, -LEN / 2 + .5), V(sx * 9.95, 1.2, LEN / 2 - .5), .28, .28, m, 8);

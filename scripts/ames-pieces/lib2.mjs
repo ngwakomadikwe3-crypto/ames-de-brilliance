@@ -1,6 +1,7 @@
 // AMES piece builder v2: real brilliant geometry, tapered claws, merged pavé, meshopt output.
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js';
 import { Document, NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, EXTMeshoptCompression } from '@gltf-transform/extensions';
 import { meshopt, quantize, dedup, prune } from '@gltf-transform/functions';
@@ -33,7 +34,12 @@ function fit(g, W, L) {
 }
 const cutCache = {};
 export const heroCut = (outline, W, L) => fit(cutCache[outline] ??= createStudioBrilliantGeometry(outline), W, L);
-const meleeUnit = createRoundBrilliantGeometry();
+/** Melee: a light single-cut brilliant (octagonal table, 16-sided girdle, pointed culet).
+ * At 1-2 mm nobody can count facets, and it is a quarter of the full brilliant's weight. */
+const meleeUnit = (() => { const pts = [];
+  for (let i = 0; i < 8; i++) { const a = (i + .5) * Math.PI / 4; pts.push(V(.56 * Math.cos(a), .322, .56 * Math.sin(a))); }
+  for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; pts.push(V(Math.cos(a), 0, Math.sin(a))); }
+  pts.push(V(0, -.886, 0)); return new ConvexGeometry(pts); })();
 export const meleeCut = D => fit(meleeUnit, D, D);
 
 function clean(g) { g = g.index ? g : mergeVertices(g, 1e-6); for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k); return g; }
