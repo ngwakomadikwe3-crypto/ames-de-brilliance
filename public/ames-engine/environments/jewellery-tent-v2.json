@@ -1,0 +1,11 @@
+{
+  "source": "procedural",
+  "license": "Original AMES asset",
+  "processing": "Graded tent (grey walls, bright overhead), seven emitting softboxes including three strip lights, overhead ring, eight black flags, lens opening, neutral grey floor; linear radiance, no tone mapping",
+  "generator": "scripts/build-jewellery-tent-hdri.mjs",
+  "sha256": "6c3ff1f891644e4393459e266dd00199f990e2d0eb9c85f4fc455b3c93ac59f3",
+  "width": 1024,
+  "height": 512,
+  "meanRadiance": 2.07,
+  "darkFraction": 0.118
+}
