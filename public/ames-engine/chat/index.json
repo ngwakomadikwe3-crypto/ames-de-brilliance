@@ -2,6 +2,9 @@
   "schemaVersion": "ames.chat-index/1",
   "contracts": [
     "demo-pave-solitaire/app/chat.json",
+    "ames-pear-drop-earrings/app/chat.json",
+    "ames-iced-watch/app/chat.json",
+    "ames-tennis-bracelet/app/chat.json",
     "demo-reference-ring/app/chat.json",
     "demo-modern-diamond/app/chat.json",
     "dev-test-candidate-ring/app/chat.json",

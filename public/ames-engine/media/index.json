@@ -1,9 +1,11 @@
 {
   "schemaVersion": "ames.media-index/1",
   "contracts": [
+    "ames-pear-drop-earrings/app/media.json",
+    "ames-iced-watch/app/media.json",
+    "ames-tennis-bracelet/app/media.json",
     "demo-pave-solitaire/app/media.json",
     "dev-test-solitaire-mount/app/media.json",
-    "dev-test-earring-001/app/media.json",
     "dev-test-pendant-001/app/media.json"
   ]
 }

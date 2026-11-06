@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "ames-tennis-bracelet",
+  "revisionId": "ames-tennis-bracelet:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "bracelet",
+  "name": "Diamond tennis bracelet",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original AMES design: a continuous line of round brilliants in four-claw white-gold baskets.",
+    "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/tennis-bracelet.glb",
+    "poster": "web/poster-v1.webp"
+  }
+}

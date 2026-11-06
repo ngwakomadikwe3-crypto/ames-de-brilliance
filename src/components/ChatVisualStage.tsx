@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import ModelViewer from './ModelViewer';
 import { DEFAULT_CHAT_ASSET_ID, CONCEPT_DIAMOND_ASSET_ID } from '../lib/chat-asset-selection';
-import { showCustomerJewelry, hasUnfinishedJewelryImages } from '../lib/customer-jewelry-display';
+import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 import { loadChatStageContent, supportedViewerAction, type ChatStageContent, type ViewerAction } from '../lib/ames-chat-content';
 
 type Command = { id: number; value: unknown } | null;
@@ -68,16 +68,19 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
   const revision = content?.contract.type === 'gemstone' ? encodeURIComponent(content.contract.revisionId) : null;
   const stageSrc = content?.stageUrl && revision ? `${content.stageUrl}?revision=${revision}` : content?.stageUrl;
   const stagePoster = content?.posterUrl && revision ? `${content.posterUrl}?revision=${revision}` : content?.posterUrl;
-  const stageHeight = compact ? 'clamp(230px, 32dvh, 300px)' : 'clamp(240px, 44dvh, 440px)';
+  // A taller stage gives a zoomed or tilted piece room before it meets the edge;
+  // the camera distance is scaled to match so the piece keeps its size.
+  const stageHeight = compact ? 'clamp(230px, 32dvh, 300px)' : 'clamp(300px, 58dvh, 580px)';
+  const stageScale = compact ? 1 : 0.76;
   return (
     <div className="shrink-0 mx-auto w-full" style={{ maxWidth: compact ? 420 : 640, padding: compact ? '4px 16px 8px' : '0 16px 12px', textAlign: 'center' }}>
-      <div className="ames-jewelry-stage" data-chat-asset-id={content?.contract.assetId} data-chat-revision={content?.contract.revisionId} style={{ height: stageHeight, position: 'relative' }}>
+      <div className="ames-jewelry-stage ames-feathered-stage" data-chat-asset-id={content?.contract.assetId} data-chat-revision={content?.contract.revisionId} style={{ height: stageHeight, position: 'relative' }}>
         {content ? (content.contract.presentation === 'reference-image' ? <img data-reference-ring src={content.posterUrl} alt={content.name + ' — image reference'} style={{ width: '100%', height: '100%', objectFit: 'contain', background: 'transparent', border: 'none', borderRadius: 0, boxShadow: 'none', transform: zoomed ? 'scale(1.12)' : undefined }} /> : image ? <img src={image} alt={view === 'hero' ? 'Jewelry hero view' : 'Gemstone macro view'} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 14 }} /> :
-          content.contract.type === 'gemstone' || content.contract.assetId.startsWith('listing-') || content.contract.assetId === DEFAULT_CHAT_ASSET_ID || content.contract.assetId === 'dev-test-candidate-ring' ? <EngineJewelryViewer key={stageSrc} src={stageSrc!} poster={stagePoster} alt={content.name}
-            cameraPreset={view === 'side' ? 'side' : view === 'setting' ? 'setting' : view === 'three_quarter' ? (content.contract.type === 'gemstone' ? 'gemstone' : 'three_quarter') : 'front'}
-            zoom={(zoomed ? 1.1 : 1) * (content.contract.assetId === 'dev-test-candidate-ring' ? (compact ? 0.58 : 0.78) : (compact ? 1.12 : 1.04))} turntableEnabled={rotation} resetToken={resetToken} paused={!active}
+          content.contract.type === 'gemstone' || content.contract.assetId.startsWith('listing-') || content.contract.assetId === DEFAULT_CHAT_ASSET_ID || content.contract.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(content.contract.assetId) ? <EngineJewelryViewer key={stageSrc} src={stageSrc!} poster={stagePoster} alt={content.name}
+            cameraPreset={view === 'side' ? 'side' : view === 'setting' ? 'setting' : view === 'three_quarter' ? (content.contract.type === 'gemstone' ? 'gemstone' : AMES_STUDIO_PIECES.has(content.contract.assetId) ? studioCameraPreset(content.category) : 'three_quarter') : 'front'}
+            zoom={(zoomed ? 1.1 : 1) * stageScale * (content.contract.assetId === 'dev-test-candidate-ring' ? (compact ? 0.58 : 0.78) : (compact ? 1.12 : 1.04))} turntableEnabled={rotation} resetToken={resetToken} paused={!active}
             autoLoad
-            opticsProfile={content.contract.assetId === DEFAULT_CHAT_ASSET_ID ? 'mounted-gem-studio' : content.contract.type === 'gemstone' ? 'gemstone-studio' : 'soft-studio'}
+            opticsProfile={content.contract.assetId === DEFAULT_CHAT_ASSET_ID || AMES_STUDIO_PIECES.has(content.contract.assetId) ? 'mounted-gem-studio' : content.contract.type === 'gemstone' ? 'gemstone-studio' : 'soft-studio'}
             style={{ width: '100%', height: '100%', borderRadius: 14 }} /> :
           <ModelViewer key={stageSrc} src={stageSrc!} poster={hasUnfinishedJewelryImages(content.contract.assetId) ? undefined : content.posterUrl} alt={content.name} jewelryPresentation metalPreview={content.contract.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined}
             autoRotate={false} controlledTurntable turntableEnabled={rotation && active} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}

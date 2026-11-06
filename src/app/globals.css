@@ -720,3 +720,13 @@ body:has(.ames-account-shell) > footer { display: none; }
   .ames-app-shell .ames-page-index { gap: 2px; }
   .ames-app-shell .ames-page-index button { padding: 0 7px; }
 }
+
+/* Feathered 3D stage (6 Nov 2026): the canvas fades out at its edges, so a piece
+   that is zoomed or tilted toward the edge dissolves into the silk instead of
+   being cut by a hard line. */
+.ames-feathered-stage {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 88%, transparent 100%), linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 88%, transparent 100%), linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  mask-composite: intersect;
+}

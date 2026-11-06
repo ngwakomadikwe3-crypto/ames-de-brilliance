@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ames.boutique-content/1",
+  "assetId": "ames-pear-drop-earrings",
+  "revisionId": "ames-pear-drop-earrings:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "category": "earrings",
+  "name": "Pear drop earrings",
+  "thumbnail": "web/poster-v1.webp",
+  "heroImage": "web/poster-v1.webp",
+  "interactiveGlb": "web/earrings.glb",
+  "poster": "web/poster-v1.webp",
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept; not measured inventory.",
+    "manufacturingReady": false
+  },
+  "categoryTags": [
+    "earrings"
+  ]
+}

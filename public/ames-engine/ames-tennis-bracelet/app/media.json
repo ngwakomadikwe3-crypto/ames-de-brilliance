@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "ames-tennis-bracelet",
+  "revisionId": "ames-tennis-bracelet:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "ames-tennis-bracelet",
+      "id": "ames_tennis_bracelet_concept",
+      "mediaType": "image",
+      "path": "web/poster-v1.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

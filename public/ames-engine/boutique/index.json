@@ -1,9 +1,11 @@
 {
   "schemaVersion": "ames.boutique-index/1",
   "contracts": [
+    "ames-pear-drop-earrings/app/boutique.json",
+    "ames-iced-watch/app/boutique.json",
+    "ames-tennis-bracelet/app/boutique.json",
     "demo-pave-solitaire/app/boutique.json",
     "dev-test-solitaire-mount/app/boutique.json",
-    "dev-test-earring-001/app/boutique.json",
     "dev-test-pendant-001/app/boutique.json"
   ]
 }

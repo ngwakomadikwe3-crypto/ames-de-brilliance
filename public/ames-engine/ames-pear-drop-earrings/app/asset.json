@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "ames-pear-drop-earrings",
+  "revisionId": "ames-pear-drop-earrings:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "earrings",
+  "name": "Pear drop earrings",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original AMES design: pear stud, kite-set square diamond and a large pear drop in white gold.",
+    "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/earrings.glb",
+    "poster": "web/poster-v1.webp"
+  }
+}

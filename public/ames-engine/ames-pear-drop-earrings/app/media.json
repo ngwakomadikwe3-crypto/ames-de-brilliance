@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "ames-pear-drop-earrings",
+  "revisionId": "ames-pear-drop-earrings:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "ames-pear-drop-earrings",
+      "id": "ames_pear_drop_earrings_concept",
+      "mediaType": "image",
+      "path": "web/poster-v1.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

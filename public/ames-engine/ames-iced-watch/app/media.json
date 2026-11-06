@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "ames-iced-watch",
+  "revisionId": "ames-iced-watch:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "ames-iced-watch",
+      "id": "ames_iced_watch_concept",
+      "mediaType": "image",
+      "path": "web/poster-v1.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

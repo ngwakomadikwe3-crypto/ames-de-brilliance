@@ -1,0 +1,11 @@
+{
+  "source": "procedural",
+  "license": "Original AMES asset",
+  "processing": "Bright white tent, four emitting softboxes, overhead ring, five black flags, lens opening, emerald-tinted floor; linear radiance, no tone mapping",
+  "generator": "scripts/build-jewellery-tent-hdri.mjs",
+  "sha256": "fd915318cf0dbd951cc2a2d894bc6c412b732873efa213721c6b9fce19f951cc",
+  "width": 1024,
+  "height": 512,
+  "meanRadiance": 2.039,
+  "darkFraction": 0.071
+}

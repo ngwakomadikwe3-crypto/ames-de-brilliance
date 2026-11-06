@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const BOUTIQUE_CATEGORIES = [
   { label: 'Rings', key: 'ring' }, { label: 'Earrings', key: 'earrings' },
   { label: 'Necklaces', key: 'necklace' }, { label: 'Bracelets', key: 'bracelet' },
+  { label: 'Watches', key: 'watch' },
   { label: 'Accessories', key: 'accessory' },
 ] as const;
 export type BoutiqueCategory = string;

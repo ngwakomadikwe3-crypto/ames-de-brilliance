@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "ames-iced-watch",
+  "revisionId": "ames-iced-watch:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "watch",
+  "name": "AMES iced watch",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original AMES design: square case, pavé bezel and lugs, white Roman dial and a fully iced bracelet.",
+    "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/watch.glb",
+    "poster": "web/poster-v1.webp"
+  }
+}
