@@ -1,13 +1,15 @@
 // AMES CAD analysis: pure geometry shared by the browser converter and the server check.
 // Everything here works on world-space triangle soups in millimetres (no DOM, no three.js scene).
-import { ANY_GEM_WORD, deduceGem, isSurfaceGem, type GemGuess } from './gems';
+import { ANY_GEM_WORD, deduceGem, isSurfaceGem, stoneColour, type GemGuess } from './gems';
 
 export type Vec3 = [number, number, number];
 export type Cut = 'round' | 'oval' | 'pear' | 'cushion' | 'radiant';
 /** A source part: one mesh of the CAD file, flattened to world-space triangles (mm).
  * hint: every name around it (for sorting); own: only its own object, layer and material names
  * (for the stone type, so a "Ruby halo ring" group does not turn its diamonds into rubies). */
-export type SourcePart = { name: string; hint: string; own?: string; color: Vec3 | null; positions: Float32Array };
+export type SourcePart = { name: string; hint: string; own?: string; color: Vec3 | null; positions: Float32Array;
+  /** A texture image (three.js Texture) and its per-vertex coordinates, for enamel, dials and other textured surfaces. */
+  map?: unknown; uv?: Float32Array };
 export type Shell = { part: number; triangles: Uint32Array; vertexCount: number; min: Vec3; max: Vec3 };
 /** A stone found in the design, in its own frame: +y is the table, +z the length (pear: toward the point).
  * cut: an AMES studio cut that replaces the facets, or null to keep the jeweller's own facets (shape names it). */
@@ -130,11 +132,12 @@ export function analyseStone(part: SourcePart, shell: Shell, partIndex: number, 
   // Extents along the thin axis and flat area near each end.
   let lo = Infinity, hi = -Infinity; for (const q of pts) { const h = dot(sub(q, c), y); if (h < lo) lo = h; if (h > hi) hi = h; }
   const depth = hi - lo; if (depth <= 0) return null;
-  let flatHi = 0, flatLo = 0, area = 0, signedVolume = 0; const normals = new Set<string>();
+  let flatHi = 0, flatLo = 0, area = 0, signedVolume = 0, inward = 0; const normals = new Set<string>();
   for (const t of shell.triangles) {
     const [a, b, d] = triangle(part, t), n = cross(sub(b, a), sub(d, a)), ar = len(n) / 2; if (!ar) continue;
     area += ar; signedVolume += dot(a, cross(b, d)) / 6;
     const nn = scale(n, 1 / (2 * ar)); normals.add(nn.map(v => Math.round(v * 12)).join(','));
+    if (dot(nn, sub(a, c)) < 0) inward += ar;
     if (Math.abs(dot(nn, y)) > 0.995) {
       const h = (dot(sub(a, c), y) + dot(sub(b, c), y) + dot(sub(d, c), y)) / 3;
       if (h > hi - depth * 0.04) flatHi += ar; else if (h < lo + depth * 0.04) flatLo += ar;
@@ -151,15 +154,17 @@ export function analyseStone(part: SourcePart, shell: Shell, partIndex: number, 
   const outlineArea = Math.PI * width * length / 4, hull = hullArea(plane), fill = hull / (width * length);
   const ratio = depth / Math.max(width, 1e-6), table = flatHi / outlineArea;
   const looksCut = table > 0.12 && flatLo < 0.08 * outlineArea && normals.size >= 10 && ratio > 0.28 && ratio < 1.05 && Math.abs(signedVolume) > 0;
-  if (!(named === 'gem' || looksCut)) return null;
-  const own = part.own ?? part.hint, gem = deduceGem(own, part.color), shapeName = SHAPE_WORDS.find(([re]) => re.test(own))?.[1];
+  // An unnamed, unfaceted stone (cabochon, bead): a small rounded solid in a colour no metal has.
+  const polishedStone = !named && !part.map && inward < 0.03 * area && ratio > 0.2 && Math.max(width, length) <= 30 && stoneColour(part.color);
+  if (!(named === 'gem' || looksCut || polishedStone)) return null;
+  const own = part.own ?? part.hint, gem = deduceGem(own, part.color, looksCut), shapeName = SHAPE_WORDS.find(([re]) => re.test(own))?.[1];
   const base = { part: partIndex, shell: shellIndex, width, length, depth, x, y, z, melee: false, gem };
   const boxCenter = (): Vec3 => { const mx = (Math.max(...xs) + Math.min(...xs)) / 2, mz = (Math.max(...zs) + Math.min(...zs)) / 2;
     return [0, 1, 2].map(a => c[a] + x[a] * mx + y[a] * (lo + hi) / 2 + z[a] * mz) as Vec3; };
   // Cabochons, beads, pearls and opaque stones keep their own surfaces.
   if (!looksCut || isSurfaceGem(gem.id)) {
     const shape = shapeName && !STUDIO_CUTS.has(shapeName) ? shapeName : ratio > 0.8 && flatHi < 0.05 * outlineArea ? 'bead' : 'cabochon';
-    return { ...base, cut: null, shape, center: boxCenter(), reason: named === 'gem' ? `named “${part.name}”, kept as modelled` : 'polished stone, kept as modelled' };
+    return { ...base, cut: null, shape, center: boxCenter(), reason: named === 'gem' ? `named “${part.name}”, kept as modelled` : 'a rounded solid in a stone colour, kept as modelled' };
   }
   // Step cuts (emerald, asscher, baguette) have facets facing only the outline's sides.
   const azimuths = new Set<number>();

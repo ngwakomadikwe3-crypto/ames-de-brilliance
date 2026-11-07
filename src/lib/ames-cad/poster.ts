@@ -47,7 +47,7 @@ export async function renderPoster(glb: Uint8Array, category: Category, size = 9
       const id = String(data.ames_gemstone_id || 'stone-diamond');
       // Pearls, cabochons and opaque stones: a polished surface in the stone's own colour.
       if (data.ames_gemstone_id && data.ames_optical_mode !== 'closed-dielectric-visual') { const g = gem(id); mesh.material = new MeshPhysicalMaterial({ color: new Color(...g.color), roughness: g.roughness, clearcoat: 0.7, clearcoatRoughness: 0.08, sheen: g.mode === 'nacre-visual' ? 0.6 : 0, envMapIntensity: 1.4 }); return; }
-      if (data.ames_optical_mode !== 'closed-dielectric-visual') { const m = mesh.material as MeshPhysicalMaterial; mesh.material = new MeshPhysicalMaterial({ color: m.color, metalness: m.metalness, roughness: Math.max(0.04, m.roughness) }); return; }
+      if (data.ames_optical_mode !== 'closed-dielectric-visual') { const m = mesh.material as MeshPhysicalMaterial; mesh.material = new MeshPhysicalMaterial({ color: m.color, map: m.map, metalness: m.metalness, roughness: Math.max(0.04, m.roughness) }); return; }
       if (data.ames_pave_layout) { mesh.updateMatrix(); mesh.geometry = createPaveFromLayout(data.ames_pave_layout, mesh.matrix.clone().invert()); }
       else if (data.ames_cut) {
         mesh.geometry.computeBoundingBox(); const b = mesh.geometry.boundingBox!, s = b.getSize(new Vector3()), c = b.getCenter(new Vector3());

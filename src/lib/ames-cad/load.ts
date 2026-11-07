@@ -8,7 +8,8 @@ const FACTOR = { mm: 1, cm: 10, m: 1000, in: 25.4 } as const;
 export const CAD_EXTENSIONS = ['3dm', 'glb', 'gltf', 'obj', 'stl', 'fbx'] as const;
 /** Rhino UnitSystem enum values that matter for jewellery. */
 const RHINO_UNITS: Record<string, keyof typeof FACTOR> = { 2: 'mm', 3: 'cm', 4: 'm', 8: 'in', Millimeters: 'mm', Centimeters: 'cm', Meters: 'm', Inches: 'in' };
-const RHINO3DM = 'https://cdn.jsdelivr.net/npm/rhino3dm@8.4.0/';
+/** Rhino's file reader (rhino3dm 8.4.0), served by AMES itself so Rhino files open without outside sites. */
+const RHINO3DM = '/vendor/rhino3dm/';
 
 async function readObject(file: File): Promise<{ object: Object3D; declared?: keyof typeof FACTOR }> {
   const ext = file.name.split('.').pop()?.toLowerCase() || '', bytes = await file.arrayBuffer();
@@ -58,13 +59,17 @@ export async function loadCad(file: File, units: Units = 'auto') {
     // Read through the accessor: glTF data may be interleaved or quantised.
     const attr = g.getAttribute('position'), positions = new Float32Array(attr.count * 3);
     for (let i = 0; i < attr.count; i++) { positions[i * 3] = attr.getX(i); positions[i * 3 + 1] = attr.getY(i); positions[i * 3 + 2] = attr.getZ(i); }
+    // Textured surfaces (enamel, dials, leather): keep the image and where it sits on the surface.
+    const source = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as { map?: { image?: unknown } | null } | undefined;
+    const uvAttr = g.getAttribute('uv'); let uv: Float32Array | undefined, map: unknown;
+    if (source?.map?.image && uvAttr) { uv = new Float32Array(uvAttr.count * 2); for (let i = 0; i < uvAttr.count; i++) { uv[i * 2] = uvAttr.getX(i); uv[i * 2 + 1] = uvAttr.getY(i); } map = source.map; }
     g.dispose();
     const attrs = (mesh.userData as { attributes?: { layerIndex?: number; name?: string } }).attributes;
     const layer = attrs?.layerIndex != null ? layers[attrs.layerIndex] || '' : '';
     const materialName = (Array.isArray(mesh.material) ? mesh.material.map(m => m.name) : [mesh.material?.name]).join(' ');
     const names = [mesh.name, mesh.parent?.name, attrs?.name, layer, materialName].filter(Boolean);
     const own = [mesh.userData.ames_file_name ? '' : mesh.name, attrs?.name, layer, materialName].filter(Boolean).join(' ');
-    parts.push({ name: mesh.name || attrs?.name || layer || 'Part', hint: names.join(' '), own, color: colorOf(mesh.material), positions });
+    parts.push({ name: mesh.name || attrs?.name || layer || 'Part', hint: names.join(' '), own, color: colorOf(mesh.material), positions, uv, map });
   });
   if (!parts.length) throw new Error('This file has no meshes the converter can read. Export a mesh (GLB, OBJ or STL) from your CAD program.');
   return { parts, unit, unitSource: units !== 'auto' ? 'chosen' : declared ? 'declared in the file' : 'estimated from the size', names: [file.name, ...parts.map(p => p.hint)].join(' ') };

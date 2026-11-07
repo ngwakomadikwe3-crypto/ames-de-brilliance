@@ -1,6 +1,6 @@
 // Browser: write an analysed CAD piece as an AMES model (three.js GLB): tagged stones, pavé layout, metal.
 // The server checks and compresses it (see check.ts), so nothing here needs Node.
-import { BufferAttribute, BufferGeometry, Color, Group, LinearSRGBColorSpace, Matrix4, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Quaternion, Scene, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, CanvasTexture, Color, Group, LinearSRGBColorSpace, Matrix4, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, Quaternion, Scene, SRGBColorSpace, Vector3, type Texture } from 'three';
 import { mergeVertices, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js';
 import { MeshoptSimplifier } from 'meshoptimizer';
@@ -9,12 +9,27 @@ import { ENGINE_RECUT_IDS, gem, isSurfaceGem } from './gems';
 import { createStudioBrilliantGeometry } from '../../../node_modules/ames-engine/src/engine/jewelry/createStudioBrilliantGeometry';
 
 export type MetalChoice = 'auto' | 'white' | 'yellow' | 'rose';
+/** Metal parts never carry a texture over: AMES gives metal its own polish. */
+const METAL_WORDS_FOR_TEXTURE = /gold|platinum|silver|metal|alloy|rhodium|palladium|titanium|steel|prong|claw|shank|band|bezel|chain|clasp/i;
 const OTHER_WORDS = /enamel|pearl|dial|leather|strap|wood|ceramic|resin|lacquer|onyx|jade|coral|mother.?of.?pearl|rubber|fabric/i;
 const METALS = {
   white: { name: 'White gold | visual study', color: [0.87, 0.86, 0.84] },
   yellow: { name: 'Yellow gold | visual study', color: [0.94, 0.75, 0.42] },
   rose: { name: 'Rose gold | visual study', color: [0.92, 0.64, 0.55] },
 } as const;
+/** Metal finishes named in CAD names: the viewer shows them with this roughness (polished metal otherwise). */
+const FINISHES: [RegExp, string, number][] = [[/brushed|satin|florentine|hairline/i, 'Brushed', 0.32], [/\bmatt?e?\b|frosted|sand[\s_-]*blast|bead[\s_-]*blast/i, 'Matte', 0.5], [/hammered/i, 'Hammered', 0.18]];
+/** At most this many textured surfaces (the server check allows four images). */
+const MAX_TEXTURES = 4, TEXTURE_SIZE = 1024;
+/** A texture image redrawn at web size (never above 1024 px), keeping its orientation for the exporter. */
+function webTexture(map: Texture): Texture | null {
+  const image = map.image as (CanvasImageSource & { width: number; height: number }) | undefined;
+  if (!image?.width || !image.height) return null;
+  const k = Math.min(1, TEXTURE_SIZE / Math.max(image.width, image.height)), canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.width * k)); canvas.height = Math.max(1, Math.round(image.height * k));
+  canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const t = new CanvasTexture(canvas); t.flipY = map.flipY; t.colorSpace = SRGBColorSpace; t.wrapS = map.wrapS; t.wrapT = map.wrapT; t.userData.mimeType = 'image/jpeg'; return t;
+}
 /** Web budget for metal after simplification of very dense CAD exports. */
 export const METAL_BUDGET = 450000;
 
@@ -39,7 +54,7 @@ function meleeUnit(): BufferGeometry {
 const basis = (s: Stone) => new Matrix4().makeBasis(new Vector3(...s.x), new Vector3(...s.y), new Vector3(...s.z));
 const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2], LinearSRGBColorSpace);
 
-export type BuildReport = { metalTriangles: number; heroStones: number; melee: number; metal: string[]; others: number; ownFacets: number };
+export type BuildReport = { metalTriangles: number; heroStones: number; melee: number; metal: string[]; others: number; ownFacets: number; textures: number };
 /** The app's look for a gemstone, as a glTF material the viewer reads (colour, polish, IOR, transmission). */
 function gemMaterial(id: string, cache: Map<string, MeshStandardMaterial>) {
   let m = cache.get(id); if (m) return m;
@@ -71,28 +86,46 @@ export async function buildPieceGlb(parts: SourcePart[], analysis: Analysis & { 
     if (extras) mesh.userData = extras; root.add(mesh); return mesh;
   };
   // Metal and other surfaces, grouped by tone.
-  const groups = new Map<string, number[]>(), report: BuildReport = { metalTriangles: 0, heroStones: 0, melee: 0, metal: [], others: 0, ownFacets: 0 };
+  const groups = new Map<string, number[]>(), report: BuildReport = { metalTriangles: 0, heroStones: 0, melee: 0, metal: [], others: 0, ownFacets: 0, textures: 0 };
+  const textured = new Set<number>();
   for (const i of analysis.metalShells) {
-    const part = parts[analysis.shells[i].part];
-    const key = OTHER_WORDS.test(part.hint) ? `other:${(part.color || [0.9, 0.9, 0.9]).map(v => v.toFixed(3)).join(',')}` : `metal:${options.metal && options.metal !== 'auto' ? options.metal : metalTone(part.color)}`;
+    const shellPart = analysis.shells[i].part, part = parts[shellPart];
+    // Textured non-metal surfaces (enamel, dials) keep their image, one surface per source part.
+    if (part.map && part.uv && !METAL_WORDS_FOR_TEXTURE.test(part.hint) && (textured.has(shellPart) || textured.size < MAX_TEXTURES)) {
+      textured.add(shellPart); const key = `texture:${shellPart}`; let list = groups.get(key); if (!list) groups.set(key, list = []); list.push(i); continue;
+    }
+    const finish = FINISHES.find(([re]) => re.test(part.hint))?.[1] || 'Polished';
+    const key = OTHER_WORDS.test(part.hint) ? `other:${(part.color || [0.9, 0.9, 0.9]).map(v => v.toFixed(3)).join(',')}` : `metal:${options.metal && options.metal !== 'auto' ? options.metal : metalTone(part.color)}:${finish}`;
     let list = groups.get(key); if (!list) groups.set(key, list = []); list.push(i);
   }
   const totalMetal = analysis.metalShells.reduce((n, i) => n + analysis.shells[i].triangles.length, 0);
   for (const [key, shells] of groups) {
     const count = shells.reduce((n, i) => n + analysis.shells[i].triangles.length, 0), pos = new Float32Array(count * 9); let o = 0;
-    for (const i of shells) { const sh = analysis.shells[i], p = parts[sh.part].positions; for (const t of sh.triangles) { pos.set(p.subarray(t * 9, t * 9 + 9), o); o += 9; } }
-    let g = new BufferGeometry(); g.setAttribute('position', new BufferAttribute(pos, 3));
+    const withUv = key.startsWith('texture:'), uv = withUv ? new Float32Array(count * 6) : null; let u = 0;
+    for (const i of shells) { const sh = analysis.shells[i], p = parts[sh.part].positions, src = parts[sh.part].uv;
+      for (const t of sh.triangles) { pos.set(p.subarray(t * 9, t * 9 + 9), o); o += 9; if (uv && src) { uv.set(src.subarray(t * 6, t * 6 + 6), u); u += 6; } } }
+    let g = new BufferGeometry(); g.setAttribute('position', new BufferAttribute(pos, 3)); if (uv) g.setAttribute('uv', new BufferAttribute(uv, 2));
     g = mergeVertices(toCreasedNormals(g, Math.PI / 6), 1e-4);
     if (totalMetal > METAL_BUDGET && g.index) {
       const target = Math.max(9000, Math.floor(count * METAL_BUDGET / totalMetal) * 3);
       const [index] = MeshoptSimplifier.simplify(new Uint32Array(g.index.array), new Float32Array(g.getAttribute('position').array), 3, target, 0.0004);
       g.setIndex(new BufferAttribute(index, 1));
     }
-    const [kind, value] = key.split(':');
-    let material: MeshStandardMaterial;
-    if (kind === 'metal') { const m = METALS[value as keyof typeof METALS]; report.metal.push(value); material = new MeshStandardMaterial({ name: m.name, color: linear(m.color), metalness: 1, roughness: 0.05 }); }
+    const [kind, value, finish] = key.split(':');
+    let material: MeshStandardMaterial, nodeName = 'Other surface';
+    if (kind === 'metal' && finish === 'Polished') { const m = METALS[value as keyof typeof METALS]; report.metal.push(value); material = new MeshStandardMaterial({ name: m.name, color: linear(m.color), metalness: 1, roughness: 0.05 }); nodeName = 'Metal'; }
+    else if (kind === 'metal') {
+      // Finished metal: named without the viewer's metal words so it keeps this roughness (the polished studio metal ignores it).
+      const m = METALS[value as keyof typeof METALS], tone = value === 'white' ? 'White' : value === 'yellow' ? 'Yellow' : 'Rose', roughness = FINISHES.find(f => f[1] === finish)![2];
+      report.metal.push(`${value} (${finish.toLowerCase()})`); nodeName = `${finish} surface`;
+      material = new MeshPhysicalMaterial({ name: `${finish} ${tone} finish | visual study`, color: linear(m.color), metalness: 1, roughness, clearcoat: 0 });
+    }
+    else if (kind === 'texture') {
+      const part = parts[Number(value)], map = webTexture(part.map as Texture); report.others++; report.textures++;
+      material = new MeshStandardMaterial({ name: 'Textured surface | visual study', map, color: map ? new Color(1, 1, 1) : linear(part.color || [0.9, 0.9, 0.9]), metalness: 0, roughness: 0.35 });
+    }
     else { report.others++; material = new MeshStandardMaterial({ name: 'Enamel / other | visual study', color: linear(value.split(',').map(Number)), metalness: 0, roughness: 0.35 }); }
-    add(kind === 'metal' ? 'Metal' : 'Other surface', g, material);
+    add(nodeName, g, material);
     report.metalTriangles += (g.index ? g.index.count : g.getAttribute('position').count) / 3;
   }
   // Stones. A studio cut replaces the facets where AMES has one; the viewer re-cuts its own brilliant
