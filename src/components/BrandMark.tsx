@@ -1,4 +1,5 @@
 import React from "react";
+import HouseWordmark from "./HouseWordmark";
 
 type Props = {
   variant?: "full" | "compact";
@@ -26,9 +27,7 @@ export function BrandMark({ variant = "full", height, dark = false }: Props) {
           </defs>
           <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={silverGrad ? "url(#bm-pg-c)" : sub} strokeWidth="1.8" strokeLinejoin="round" fill="none" />
         </svg>
-        <span style={{ fontSize: Math.round(h * 0.6), fontWeight: 500, fontFamily: 'var(--font-geist), Arial, sans-serif', letterSpacing: "0.08em", color: text, lineHeight: 1 }}>
-          AMES
-        </span>
+        <HouseWordmark size={Math.round(h * 0.5)} tone={dark ? "silver" : "ink"} />
       </span>
     );
   }
@@ -48,14 +47,7 @@ export function BrandMark({ variant = "full", height, dark = false }: Props) {
         </defs>
         <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={silverGrad ? "url(#bm-pg-f)" : sub} strokeWidth="1.8" strokeLinejoin="round" fill="none" />
       </svg>
-      <span style={{ display: "flex", flexDirection: "column" }}>
-        <span style={{ fontSize: Math.round(h * 0.5), fontWeight: 500, fontFamily: 'var(--font-geist), Arial, sans-serif', letterSpacing: "0.08em", color: text, lineHeight: 1.1 }}>
-          AMES
-        </span>
-        <span style={{ fontSize: Math.round(h * 0.25), fontWeight: 400, fontFamily: "var(--font-satoshi), Arial, sans-serif", letterSpacing: "0.3em", color: sub, textTransform: "uppercase", lineHeight: 1.2 }}>
-          DE BRILLIANTE
-        </span>
-      </span>
+      <HouseWordmark size={Math.round(h * 0.4)} tone={dark ? "silver" : "ink"} />
     </span>
   );
 }

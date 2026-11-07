@@ -48,20 +48,21 @@ function transport() {
 export async function sendJewellerInvite(to: string, businessName: string, url: string, expires: string): Promise<boolean> {
   const mail = transport(); if (!mail) return false;
   try {
-    await mail.sendMail({ from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`, to, subject: 'Your AMES jeweller studio is ready',
-      text: `Hello ${businessName},\n\nAMES has verified your business. Open this link to set up your jeweller studio, where you can upload CAD designs and publish them as 3D pieces in the AMES Boutique:\n\n${url}\n\nSign in (or create your AMES account) with this email address, ${to}, then accept the invite. The link works once and expires on ${expires.slice(0, 10)}.\n\nAMES DE BRILLIANTE` });
+    await mail.sendMail({ from: `"HOUSEofAMES" <${NOTIFY_FROM}>`, to, subject: 'Your HOUSEofAMES jeweller studio is ready',
+      text: `Hello ${businessName},\n\nHOUSEofAMES has verified your business. Open this link to set up your jeweller studio, where you can upload CAD designs and have them converted to 3D. Each piece is reviewed and approved by HOUSEofAMES before it appears in the Boutique:\n\n${url}\n\nSign in (or create your HOUSEofAMES account) with this email address, ${to}, then accept the invite. The link works once and expires on ${expires.slice(0, 10)}.\n\nHOUSEofAMES` });
     return true;
   } catch (err: any) { console.error('[email] Invite failed:', err.message); return false; }
 }
 
 /** Tell staff a jeweller piece went live automatically, so it can be checked or withdrawn. */
-export async function sendAutoPublishNotice(listingId: string, name: string, category: string): Promise<boolean> {
+/** Tell the Owner a converted piece is waiting for approval (posted by staff or a jeweller). */
+export async function sendApprovalRequest(listingId: string, name: string, category: string): Promise<boolean> {
   const mail = transport(); if (!mail) return false;
   try {
-    await mail.sendMail({ from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`, to: NOTIFY_TO, subject: `[AMES] New jeweller piece published: ${name}`,
-      text: `A verified jeweller published "${name}" (${category}) through Automatic 3D.\n\nView: https://houseofames.com/jewellery/${listingId}\nManage or withdraw: https://houseofames.com/dashboard/listings` });
+    await mail.sendMail({ from: `"HOUSEofAMES" <${NOTIFY_FROM}>`, to: NOTIFY_TO, subject: `[HOUSEofAMES] Waiting for your approval: ${name}`,
+      text: `"${name}" (${category}) has been converted to 3D and is waiting for your approval before it appears in the Boutique.\n\nReview and approve: https://houseofames.com/dashboard/listings` });
     return true;
-  } catch (err: any) { console.error('[email] Publish notice failed:', err.message); return false; }
+  } catch (err: any) { console.error('[email] Approval request failed:', err.message); return false; }
 }
 
 export async function sendSourcingNotification(req: SourcingRequestEmail): Promise<boolean> {
@@ -79,7 +80,7 @@ export async function sendSourcingNotification(req: SourcingRequestEmail): Promi
     });
 
     await transporter.sendMail({
-      from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`,
+      from: `"HOUSEofAMES" <${NOTIFY_FROM}>`,
       to: NOTIFY_TO,
       subject: buildSubject(req),
       text: buildBody(req),

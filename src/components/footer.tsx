@@ -18,8 +18,8 @@ export default function Footer() {
     >
       <div className="max-w-5xl mx-auto space-y-2">
         <div>
-          <strong style={{ color: strong, fontWeight: 500 }}>AMES DE BRILLIANTE</strong>{" "}
-          <span style={{ color: text }}>(Pty) Ltd — Botswana</span>
+          <strong style={{ color: strong, fontWeight: 500 }}>HOUSEofAMES</strong>{" "}
+          <span style={{ color: text }}>· AMES DE BRILLIANTE (Pty) Ltd — Botswana</span>
         </div>
         <div>Gaborone, Botswana · WhatsApp: +267 72 839 152</div>
         <div className="flex gap-3 pt-1">
@@ -27,7 +27,7 @@ export default function Footer() {
           <a href="/privacy" className="underline" style={{ color: text }}>Privacy</a>
           <a href="/compliance" className="underline" style={{ color: text }}>Compliance</a>
         </div>
-        <div>Contact the AMES desk for transaction documentation and compliance enquiries.</div>
+        <div>Contact the HOUSEofAMES desk for transaction documentation and compliance enquiries.</div>
         <div>© 2026 AMES DE BRILLIANTE (Pty) Ltd</div>
       </div>
     </footer>

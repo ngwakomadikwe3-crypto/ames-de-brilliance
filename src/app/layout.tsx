@@ -4,7 +4,7 @@ import Header from "@/components/header";
 import Footer from "@/components/footer";
 
 export const metadata: Metadata = {
-  title: "AMES DE BRILLIANTE",
+  title: "HOUSEofAMES",
   description: "Jewelry, diamonds and precious stones — Botswana",
   icons: {
     icon: "/favicon.svg",

@@ -4,10 +4,7 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "
 import { subscribeCustomerPreferences, readCustomerDisplayName, hapticTap } from '../../lib/customer-preferences';
 import { customerAnswer } from '../../lib/same-answer';
 import dynamic from "next/dynamic";
-import { Pinyon_Script } from "next/font/google";
-
-/** Copperplate script for the “of” of the HOUSEofAMES wordmark. */
-const wordmarkScript = Pinyon_Script({ weight: '400', subsets: ['latin'], display: 'swap' });
+import HouseWordmark from "../../components/HouseWordmark";
 import EngineBoutiquePanel from "../../components/EngineBoutiquePanel";
 import EngineMediaPanel from "../../components/EngineMediaPanel";
 import PageCurl, { usePageCurl, curlPageStyle } from '../../components/PageCurl';
@@ -109,7 +106,7 @@ export default function AppPage() {
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
         </button>
-        <span className="absolute left-[3.25rem] select-none pointer-events-none" aria-label="House of Ames" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.34em', lineHeight: 1.9, background: 'linear-gradient(100deg, #f4f2ed 0%, #c8c6c1 55%, #a6a6ab 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>HOUSE<span className={wordmarkScript.className} style={{ fontSize: '1.7em', fontWeight: 400, letterSpacing: 0, margin: '0 0.2em 0 -0.12em', verticalAlign: '-0.08em' }}>of</span>AMES</span>
+        <HouseWordmark size={12.5} className="absolute left-[3.25rem] select-none pointer-events-none" />
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
           <defs>

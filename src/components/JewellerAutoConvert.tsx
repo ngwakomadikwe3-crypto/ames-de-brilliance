@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import { studioCameraPreset } from '@/lib/customer-jewelry-display';
 import type { JewellerListing, ListingFile } from '@/lib/jeweller-listing';
@@ -77,20 +76,19 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
       }
       row = await upload(row, 'preview', 'preview.glb', new Blob([result.glb.slice()], { type: 'model/gltf-binary' }));
       row = await upload(row, 'poster', 'poster.webp', result.poster);
-      setStep('Checking the model and publishing…');
-      row = await request(`${endpoint}/${row.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'auto_publish', version: row.version }) });
+      setStep('Checking the model and sending it for approval…');
+      row = await request(`${endpoint}/${row.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'submit_converted', version: row.version }) });
       onListing(row); setPublished(row); setStep('');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Publishing failed.'); setStep(''); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Sending for approval failed.'); setStep(''); }
     finally { setBusy(false); }
   }
 
   const c = result?.classification, r = result?.report;
   return <section className="space-y-4 rounded-2xl border border-white/20 p-4" data-auto-convert>
-    <h2>Automatic 3D — upload and publish</h2>
-    <p className="text-xs text-[#b9cec6]">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, reads each stone's type from its name or colour in your file, gives it its real cut, sorts the piece into its Boutique category and publishes it. Your original stays private.</p>
-    {published ? <div className="space-y-3"><p role="status" className="text-emerald-200">Published in the Boutique under <strong>{CATEGORY_LABEL[published.details.category] || published.details.category}</strong>.</p>
-      {published.review?.automatic?.reasons?.length ? <p className="text-xs text-[#b9cec6]">Sorted because: {published.review.automatic.reasons.join('; ')}.</p> : null}
-      <Link href={`/jewellery/${published.id}`} className={buttonClass}>View the public listing</Link></div> : <>
+    <h2>Automatic 3D — convert and send for approval</h2>
+    <p className="text-xs text-[#b9cec6]">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, reads each stone's type from its name or colour in your file, gives it its real cut, sorts the piece into its Boutique category and sends it to the Owner, who approves it before it appears in the Boutique. The original stays private.</p>
+    {published ? <div className="space-y-3"><p role="status" className="text-emerald-200">Sent to the Owner for approval. Once approved it appears in the Boutique under <strong>{CATEGORY_LABEL[published.details.category] || published.details.category}</strong>.</p>
+      {published.review?.automatic?.reasons?.length ? <p className="text-xs text-[#b9cec6]">Sorted because: {published.review.automatic.reasons.join('; ')}.</p> : null}</div> : <>
       <input aria-label="Choose CAD file" disabled={busy} type="file" accept=".3dm,.glb,.gltf,.obj,.stl,.fbx" onChange={e => { setFile(e.target.files?.[0] || null); setResult(null); }} className="block w-full text-sm" />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">File units<select disabled={busy} value={units} onChange={e => setUnits(e.target.value)} className={fieldClass}><option value="auto">Automatic</option><option value="mm">Millimetres</option><option value="cm">Centimetres</option><option value="in">Inches</option><option value="m">Metres</option></select></label>
@@ -125,8 +123,8 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
           <span>I have checked the stones marked in amber: the types shown are right.</span>
         </label>}
         {c.confidence === 'low' && <p className="text-xs text-amber-100">The category is uncertain. Including the type of piece in its name (for example “… ring” or “… pendant”) makes sorting certain.</p>}
-        {!listing.details.rightsConfirmed && <p className="text-xs text-amber-100">Tick the permission box above and save the draft before publishing.</p>}
-        <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed || (result.stones.some(g => g.source === 'assumed') && !stonesChecked)} onClick={publish}>Publish to the Boutique</button>
+        {!listing.details.rightsConfirmed && <p className="text-xs text-amber-100">Tick the permission box above and save the draft before sending it for approval.</p>}
+        <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed || (result.stones.some(g => g.source === 'assumed') && !stonesChecked)} onClick={publish}>Send for approval</button>
       </div>}
     </>}
     {step && <p role="status" className="text-sm">{step}</p>}

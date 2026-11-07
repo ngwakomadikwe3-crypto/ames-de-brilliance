@@ -85,13 +85,13 @@ export async function parseRequest(rawText: string): Promise<ParsedRequest> {
 }
 
 export async function parseStone(rawText: string): Promise<ParsedStone> {
-  const sys = "You are a diamond trade assistant for AMES DE BRILLIANTE (Botswana). Parse raw text into a stone entry. Determine if stone_type is 'rough' or 'polished'. For rough stones return: stone_type=\"rough\", carat, color, category (Sawable/Makeable/Near-gem/Industrial), crystal_form (Octahedron/Macle/Irregular), clarity_notes, kp_status (true/false). For polished return: stone_type=\"polished\", shape (Round Brilliant/Princess/Oval/Emerald/Cushion/Marquise/Pear/Heart), carat, color, clarity, cut, certification. Also: price (number|null), source (Own stock/Consigned), traderName, traderWhatsapp, traderLicence, commission. ONLY valid JSON.";
+  const sys = "You are a diamond trade assistant for HOUSEofAMES (Botswana). Parse raw text into a stone entry. Determine if stone_type is 'rough' or 'polished'. For rough stones return: stone_type=\"rough\", carat, color, category (Sawable/Makeable/Near-gem/Industrial), crystal_form (Octahedron/Macle/Irregular), clarity_notes, kp_status (true/false). For polished return: stone_type=\"polished\", shape (Round Brilliant/Princess/Oval/Emerald/Cushion/Marquise/Pear/Heart), carat, color, clarity, cut, certification. Also: price (number|null), source (Own stock/Consigned), traderName, traderWhatsapp, traderLicence, commission. ONLY valid JSON.";
   const result = await callDeepSeek(sys, rawText);
   return ParsedStoneSchema.parse(JSON.parse(result));
 }
 
 export async function parseStock(rawText: string): Promise<ParsedStockResult> {
-  const sys = `You are a diamond trade listing agent for AMES DE BRILLIANTE (Botswana). Parse the pasted stock text into a JSON array of stones.
+  const sys = `You are a diamond trade listing agent for HOUSEofAMES (Botswana). Parse the pasted stock text into a JSON array of stones.
 Return JSON with two keys: "stones" (array) and "skipped" (array of raw lines you could not parse).
 
 Each stone in "stones" must have:
@@ -115,7 +115,7 @@ RULES:
 }
 
 export async function draftReply(requestMandate: string, context?: string): Promise<DraftReply> {
-  const sys = `You are the voice of AMES DE BRILLIANTE, a discreet luxury diamond house based in Botswana.
+  const sys = `You are the voice of HOUSEofAMES, a discreet luxury diamond house based in Botswana.
 
 Your role: draft a short reply to a buyer's sourcing request. This is for the desk to review and copy — never send directly.
 
@@ -142,7 +142,7 @@ RULES:
 }
 
 export async function draftOffer(requestSpecs: string, availableStones: string): Promise<string> {
-  const sys = `You are the offer desk for AMES DE BRILLIANTE, a discreet luxury diamond house in Botswana.
+  const sys = `You are the offer desk for HOUSEofAMES, a discreet luxury diamond house in Botswana.
 
 Your role: produce a plain-text offer sheet for the desk to review before sending. This is never sent automatically.
 
@@ -168,7 +168,7 @@ RULES:
 }
 
 export async function draftSourcingAck(companyName: string): Promise<string> {
-  const sys = `You are the voice of AMES DE BRILLIANTE, a discreet luxury diamond house in Botswana.
+  const sys = `You are the voice of HOUSEofAMES, a discreet luxury diamond house in Botswana.
 
 Your role: draft a sourcing acknowledgement when no matching stones are currently in inventory. The desk will review and send this.
 

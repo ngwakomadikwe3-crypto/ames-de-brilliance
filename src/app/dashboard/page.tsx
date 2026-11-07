@@ -73,7 +73,7 @@ export default function Dashboard() {
           {role === "owner" && <a href="/dashboard/enquiries" className="text-xs underline">Enquiries</a>}
           {role === "owner" && <a href="/dashboard/purchases" className="text-xs underline">Purchase desk</a>}
           {role === "owner" && <a href="/dashboard/community" className="text-xs underline">Comment reports</a>}{role === "owner" && <a href="/dashboard/asset-standard" className="text-xs underline">3D asset standard</a>}
-          {role === "owner" && <a href="/dashboard/listings" className="text-xs underline">Listing review</a>}
+          {role && <a href="/dashboard/listings" className="text-xs underline">{role === "owner" ? "CAD designs & approvals" : "Post CAD designs"}</a>}
           {role === "owner" && <a href="/dashboard/jewellers" className="text-xs underline">Jeweller profiles</a>}
           {role === "owner" && <a href="/dashboard/auctioneers" className="text-xs underline">Auctioneer profiles</a>}
           <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#171717] whitespace-nowrap pb-2 cursor-default shrink-0">Logout</button>
@@ -392,7 +392,7 @@ function StonesTab() {
   function buildWhatsAppUpdate(s: Stone, newStatus: string) {
     const tName = s.trader_name || "Trader";
     const specs = s.shape + " " + s.carat + "ct " + s.color;
-    const msg = tName + ", your item " + s.ref + " " + specs + " is now " + newStatus + " on AMES DE BRILLIANTE.";
+    const msg = tName + ", your item " + s.ref + " " + specs + " is now " + newStatus + " on HOUSEofAMES.";
     navigator.clipboard.writeText(msg).catch(() => {});
     setWhatsAppMsg(s.ref + ": copied!"); setTimeout(() => setWhatsAppMsg(null), 2000);
   }
@@ -1032,7 +1032,7 @@ function TradersTab() {
       setShowCreateForm(false);
       // Copy portal link
       const url = `${window.location.origin}/trader/${trader.portal_code}`;
-      const msg = `Welcome to AMES DE BRILLIANTE, ${trader.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items.`;
+      const msg = `Welcome to HOUSEofAMES, ${trader.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items.`;
       navigator.clipboard.writeText(msg).catch(() => {});
       setCopiedAction(`link-${trader.id}`);
       setTimeout(() => setCopiedAction(null), 2000);
@@ -1056,7 +1056,7 @@ function TradersTab() {
 
   function copyPortalLink(t: Trader) {
     const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/trader/${t.portal_code}`;
-    const msg = `Welcome to AMES DE BRILLIANTE, ${t.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items. If you have any questions, reply here on WhatsApp.`;
+    const msg = `Welcome to HOUSEofAMES, ${t.name}!\n\nHere is your trader portal link:\n${url}\n\nUse this to list your items. If you have any questions, reply here on WhatsApp.`;
     navigator.clipboard.writeText(msg).catch(() => {});
     setCopiedAction(`link-${t.id}`); setTimeout(() => setCopiedAction(null), 1500);
   }
@@ -1812,7 +1812,7 @@ function ModelsTab() {
   function copyPaymentInstructions(m: ModelRow, totalDue: number) {
     const method = m.payment_method || "bank transfer";
     const details = m.payment_details || "Contact desk for details";
-    const msg = `Hi ${m.name},\n\nYour AMES DE BRILLIANTE model payment for this month is ready.\n\nAmount due: $${totalDue.toLocaleString()}\nPayment method: ${method}\nDetails: ${details}\n\nPlease confirm once sent. Thank you.`;
+    const msg = `Hi ${m.name},\n\nYour HOUSEofAMES model payment for this month is ready.\n\nAmount due: $${totalDue.toLocaleString()}\nPayment method: ${method}\nDetails: ${details}\n\nPlease confirm once sent. Thank you.`;
     navigator.clipboard.writeText(msg).catch(() => {});
   }
 

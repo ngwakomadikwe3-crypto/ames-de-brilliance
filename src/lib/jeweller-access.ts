@@ -9,6 +9,12 @@ import { effectiveProfileStatus } from './jeweller-profile';
 import type { JewellerListing } from './jeweller-listing';
 
 export const isStaffOwner = (req: NextRequest) => getSessionRole(req.headers.get('cookie') || undefined) === 'owner';
+/** Dashboard sign-in level: the Owner approves and publishes; other staff post CAD designs for approval. */
+export function staffLevel(req: NextRequest): 'owner' | 'staff' | null {
+  const role = getSessionRole(req.headers.get('cookie') || undefined);
+  return role === 'owner' ? 'owner' : role ? 'staff' : null;
+}
+export const isStaff = (req: NextRequest) => staffLevel(req) !== null;
 export async function signedInJeweller(req: NextRequest) {
   const { user } = await customerSession(req, true);
   const profiles = (await listProfiles()).filter(p => p.portalUserId === user.$id);
@@ -16,7 +22,7 @@ export async function signedInJeweller(req: NextRequest) {
   return profiles[0];
 }
 export async function listingAccess(req: NextRequest, listing: JewellerListing) {
-  if (isStaffOwner(req)) return 'owner';
+  const level = staffLevel(req); if (level) return level;
   const profile = await signedInJeweller(req);
   if (listing.jewellerId !== profile.id) throw new ChatError(404, 'Listing not found.');
   return profile.id;

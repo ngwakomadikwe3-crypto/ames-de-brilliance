@@ -287,7 +287,7 @@ export default function IntelligencePage() {
             Compiled from licensed dealer data. Not investment advice.
           </p>
           <p className="text-[10px] text-[#A6A6AB] font-light mt-1">
-            &copy; {new Date().getFullYear()} AMES DE BRILLIANTE &middot; Gaborone, Botswana
+            &copy; {new Date().getFullYear()} AMES DE BRILLIANTE (Pty) Ltd &middot; HOUSEofAMES &middot; Gaborone, Botswana
           </p>
         </div>
       </div>

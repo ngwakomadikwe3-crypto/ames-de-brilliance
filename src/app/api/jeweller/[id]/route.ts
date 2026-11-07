@@ -5,7 +5,7 @@ import { changeListing, editable, listingInput, approveListing, automaticReview 
 import { fileBytes, saveCompleteFile } from '@/lib/jeweller-listing-files';
 import { deletePart } from '@/lib/jeweller-listing-store';
 import { checkPieceGlb, compressPieceGlb } from '@/lib/ames-cad/check';
-import { sendAutoPublishNotice } from '@/lib/email';
+import { sendApprovalRequest } from '@/lib/email';
 import { checkChatOrigin, readChatJson, privateHeaders, ChatError } from '@/lib/chat-security';
 import { refreshLocalConversion, queueListingConversion } from '@/lib/jeweller-listing-conversion';
 export const runtime = 'nodejs';
@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
   try {
     checkChatOrigin(req); const { id } = await params, body = await readChatJson(req);
     const actor = await listingAccess(req, await getListing(id));
-    let published: { name: string; category: string } | null = null, replacedParts: string[] = [];
+    let awaiting: { name: string; category: string } | null = null, replacedParts: string[] = [];
     const changed = await mutateListing(id, async l => {
       await listingAccess(req, l);
       if (body.version !== l.version) throw new Error('Listing changed. Reload before saving.');
@@ -38,27 +38,33 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         if (!l.details.rightsConfirmed || !l.files.some(f => f.kind === 'source' && f.complete)) throw new Error('Confirm your listing rights and upload a complete original CAD file');
         return changeListing(l, { status: 'submitted', review: null, reason: '' }, 'submitted', actor);
       }
-      if (action === 'auto_publish') {
-        // Verified jeweller (or staff): publish a converter-made model after the server-side model check.
-        if (!editable(l)) throw new Error('This listing is already under review or published');
+      if (action === 'auto_publish' || action === 'submit_converted') {
+        // A converted model, from staff or a jeweller, is checked here and sent to the Owner. Nothing goes live until the Owner approves.
+        if (!editable(l)) throw new Error('This listing is already waiting for approval or published');
         await verifiedListingProfile(l);
-        if (!l.details.rightsConfirmed) throw new Error('Confirm your listing rights before publishing');
+        if (!l.details.rightsConfirmed) throw new Error('Confirm the listing rights before sending it for approval');
         const preview = l.files.find(f => f.kind === 'preview' && f.complete), poster = l.files.find(f => f.kind === 'poster' && f.complete);
         if (!preview || !poster || !l.files.some(f => f.kind === 'source' && f.complete)) throw new Error('Upload the original, the converted 3D model and the product image first');
         const raw = await fileBytes(preview), check = await checkPieceGlb(new Uint8Array(raw), `${l.details.name} ${l.details.description}`);
         const { category, confidence, reasons } = check.classification;
-        // Publish the compressed web model in place of the converter's upload.
+        // Keep the compressed web model in place of the converter's upload.
         const web = await saveCompleteFile('preview', 'model.glb', Buffer.from(await compressPieceGlb(new Uint8Array(raw))));
         replacedParts = preview.parts.map(p => p.id);
-        published = { name: l.details.name, category };
-        // Stones read from the model fill the gemstone list when the jeweller left it empty (origins stay unstated).
+        // Stones read from the model fill the gemstone list when it was left empty (origins stay unstated).
         const gemstones = l.details.gemstones.length ? l.details.gemstones
           : check.gems.slice(0, 12).map(g => ({ name: g.pave === g.count ? `${g.name} (pavé)` : g.pave ? `${g.name} (${g.count - g.pave} + pavé)` : g.count > 1 ? `${g.name} ×${g.count}` : g.name, origin: '' }));
         const details = { ...l.details, category, gemstones };
-        return changeListing(l, { details, status: 'published', reason: '', files: l.files.map(f => f.id === preview.id ? web : f),
-          review: automaticReview({ ...l, details }, { triangles: check.triangles, stones: check.stones, melee: check.melee, size: check.size, category, confidence, reasons }) }, 'auto_published', actor, `Sorted into ${category} (${confidence}): ${reasons.join('; ')}`.slice(0, 500));
+        awaiting = { name: l.details.name, category };
+        return changeListing(l, { details, status: 'submitted', reason: '', files: l.files.map(f => f.id === preview.id ? web : f),
+          review: automaticReview({ ...l, details }, { triangles: check.triangles, stones: check.stones, melee: check.melee, size: check.size, category, confidence, reasons }) }, 'submitted_converted', actor, `Sorted into ${category} (${confidence}): ${reasons.join('; ')}`.slice(0, 500));
       }
-      if (actor !== 'owner') throw new ChatError(403, 'Only staff can approve or publish listings.');
+      if (actor !== 'owner') throw new ChatError(403, 'Only the Owner can approve, publish or send back listings.');
+      if (action === 'approve_converted') {
+        // The Owner approves a converted piece: its 3D model passed the automatic check when it was sent.
+        if (l.status !== 'submitted' || !l.review?.automatic) throw new Error('Only converted pieces waiting for approval can be approved here');
+        await verifiedListingProfile(l);
+        return changeListing(l, { status: 'published', reason: '' }, 'published', actor, 'Approved by the Owner');
+      }
       const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 1500) : '';
       if (['request_revision', 'reject', 'unpublish'].includes(action)) {
         if (reason.length < 10) throw new Error('Record a reason of at least 10 characters');
@@ -75,8 +81,8 @@ export async function PATCH(req: NextRequest, { params }: Context) {
     });
     for (const part of replacedParts) await deletePart(part).catch(() => {});
     // Assigned inside the mutation callback, which TypeScript's flow analysis cannot see.
-    const notice = published as { name: string; category: string } | null;
-    if (notice) await sendAutoPublishNotice(changed.id, notice.name, notice.category).catch(() => false);
+    const notice = awaiting as { name: string; category: string } | null;
+    if (notice) await sendApprovalRequest(changed.id, notice.name, notice.category).catch(() => false);
     return NextResponse.json(changed, { headers: privateHeaders });
   } catch (e) { return listingFailure(e); }
 }

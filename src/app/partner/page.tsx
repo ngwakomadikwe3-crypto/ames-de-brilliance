@@ -1,5 +1,6 @@
 "use client";
 
+import HouseWordmark from "@/components/HouseWordmark";
 import { useState, useRef } from "react";
 
 export default function PartnerPage() {
@@ -54,7 +55,7 @@ export default function PartnerPage() {
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="text-[10px] tracking-[0.3em] uppercase text-muted">
-            AMES DE BRILLIANTE
+            <HouseWordmark size={11} />
           </div>
           <h1 className="text-2xl font-light tracking-tight">
             Application received
@@ -80,10 +81,10 @@ export default function PartnerPage() {
         {/* Header */}
         <div className="text-center space-y-3">
           <div className="text-[10px] tracking-[0.3em] uppercase text-muted">
-            AMES DE BRILLIANTE
+            <HouseWordmark size={11} />
           </div>
           <h1 className="text-2xl font-light tracking-tight">
-            Sell through AMES DE BRILLIANTE
+            Sell through HOUSEofAMES
           </h1>
           <p className="text-[12px] text-muted leading-relaxed max-w-sm mx-auto">
             Submit your details below to apply as a partner trader. Once
