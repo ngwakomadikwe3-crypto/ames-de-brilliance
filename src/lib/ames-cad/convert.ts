@@ -2,13 +2,13 @@
 import { analyse, samplePoints, type Stone } from './geometry';
 import { classify, type Classification } from './classify';
 import { buildPieceGlb, type GemAssignment, type MetalChoice, type BuildReport } from './build';
-import { gem } from './gems';
+import { gem, gemsInText } from './gems';
 import { loadCad, type Units } from './load';
 import { renderPoster } from './poster';
 
 /** Stones shown to the jeweller for confirmation: one row per centre stone, matching side stones or pavé. */
 export type StoneGroup = { key: string; label: string; shape: string; size: string; count: number; indices: number[];
-  gem: string; source: 'name' | 'colour' | 'assumed' | 'chosen'; reason: string; ownFacets: boolean };
+  gem: string; source: 'name' | 'colour' | 'listing' | 'assumed' | 'chosen'; reason: string; ownFacets: boolean };
 export type ConversionResult = {
   glb: Uint8Array; poster: Blob; classification: Classification; stones: StoneGroup[];
   report: BuildReport & { unit: string; unitSource: string; size: [number, number, number]; sourceTriangles: number; cuts: Record<string, number> };
@@ -33,7 +33,24 @@ function groupStones(stones: Stone[]): StoneGroup[] {
   return [...groups.values()].sort((a, b) => order(a) - order(b) || b.count - a.count).map(g => g.label === 'Side stones' && g.count === 1 ? { ...g, label: 'Stone' } : g);
 }
 
-export async function convertCad(file: File, options: { units?: Units; metal?: MetalChoice; listingName?: string; onStep?: (step: string) => void } = {}): Promise<ConversionResult> {
+/**
+ * Stones the file says nothing about take their type from the jeweller's own listing (name, description,
+ * gemstone list, file name): the first gem named goes to the centre stone, the next to the side stones.
+ * With no centre stone (a line of equal stones), the first gem goes to all of them. Pavé keeps its own reading.
+ */
+function applyListing(stones: Stone[], text: string) {
+  const named = gemsInText(text); if (!named.length) return;
+  const hero = stones.filter(s => !s.melee).sort((a, b) => b.width - a.width);
+  const centre = hero.length && (hero.length === 1 || hero[0].width > 1.3 * hero[1].width) ? hero[0] : null;
+  const give = (s: Stone, g: { id: string; word: string }) => { if (s.gem.source === 'assumed') s.gem = { id: g.id, source: 'listing', detail: `from your listing (“${g.word}”)` }; };
+  if (centre) { give(centre, named[0]); if (named[1]) for (const s of hero) if (s !== centre) give(s, named[1]); }
+  else for (const s of hero) give(s, named[0]);
+  // Unmarked pavé is shown as diamond; a listing that names diamonds confirms it.
+  const diamond = named.find(g => g.id === 'stone-diamond');
+  if (diamond) for (const s of stones) if (s.melee && s.gem.id === 'stone-diamond') give(s, diamond);
+}
+
+export async function convertCad(file: File, options: { units?: Units; metal?: MetalChoice; listingName?: string; listingGems?: string[]; onStep?: (step: string) => void } = {}): Promise<ConversionResult> {
   const step = (s: string) => { options.onStep?.(s); return new Promise(r => setTimeout(r, 0)); };
   if (file.size > 150 * 1024 * 1024) throw new Error('This file is over 150 MB. Export a lighter mesh (or a GLB) from your CAD program.');
   await step('Reading your file…');
@@ -44,6 +61,7 @@ export async function convertCad(file: File, options: { units?: Units; metal?: M
   const pts = samplePoints(parts, analysis.shells, analysis.shells.map((_, i) => i));
   const metalParts = analysis.metalShells.map(i => { const s = analysis.shells[i]; return [0, 1, 2].map(k => s.max[k] - s.min[k]).sort((x, y) => y - x); });
   const classification = classify({ points: pts, metalParts, stones: analysis.stones, names: `${options.listingName || ''} ${names}` });
+  applyListing(analysis.stones, [...(options.listingGems || []), options.listingName || '', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')].join(' · '));
   const detected = groupStones(analysis.stones);
   const cuts: Record<string, number> = {}; for (const s of analysis.stones) { const k = s.melee ? 'melee' : s.shape; cuts[k] = (cuts[k] || 0) + 1; }
 

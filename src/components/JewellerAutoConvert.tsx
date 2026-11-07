@@ -26,15 +26,15 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
   const [file, setFile] = useState<File | null>(null), [units, setUnits] = useState('auto'), [metal, setMetal] = useState('auto');
   const [step, setStep] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ConversionResult | null>(null), [modelUrl, setModelUrl] = useState(''), [posterUrl, setPosterUrl] = useState('');
-  const [published, setPublished] = useState<JewellerListing | null>(null);
+  const [published, setPublished] = useState<JewellerListing | null>(null), [stonesChecked, setStonesChecked] = useState(false);
   useEffect(() => () => { if (modelUrl) URL.revokeObjectURL(modelUrl); if (posterUrl) URL.revokeObjectURL(posterUrl); }, [modelUrl, posterUrl]);
 
   async function convert() {
     if (!file) return;
-    setBusy(true); setError(''); setResult(null); setPublished(null);
+    setBusy(true); setError(''); setResult(null); setPublished(null); setStonesChecked(false);
     try {
       const { convertCad } = await import('@/lib/ames-cad/convert');
-      const converted = await convertCad(file, { units: units as 'auto', metal: metal as 'auto', listingName: `${listing.details.name} ${listing.details.description}`, onStep: setStep });
+      const converted = await convertCad(file, { units: units as 'auto', metal: metal as 'auto', listingName: `${listing.details.name} ${listing.details.description}`, listingGems: listing.details.gemstones.map(g => g.name), onStep: setStep });
       show(converted);
     } catch (e) { setError(e instanceof Error ? e.message : 'The file could not be converted.'); setStep(''); }
     finally { setBusy(false); }
@@ -113,16 +113,20 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
           {result.stones.length ? <ul className="space-y-2">{result.stones.map(g => <li key={g.key} className="grid gap-2 rounded-xl border border-white/10 p-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-center">
             <div className="text-sm">
               <div>{g.label}{g.count > 1 ? ` · ${g.count} stones` : ''} · {g.shape} {g.size}</div>
-              <div className={`text-xs ${g.source === 'assumed' ? 'text-amber-100' : 'text-[#b9cec6]'}`}>{g.source === 'name' ? `Read from your file: ${g.reason}` : g.source === 'colour' ? `Read from the stone colour: ${g.reason}` : g.source === 'chosen' ? g.reason : 'No type in the file, so shown as diamond — change it if needed'}{g.ownFacets ? ' · kept with your own facets' : ''}</div>
+              <div className={`text-xs ${g.source === 'assumed' ? 'text-amber-100' : 'text-[#b9cec6]'}`}>{g.source === 'name' ? `Read from your file: ${g.reason}` : g.source === 'colour' ? `Read from the stone colour: ${g.reason}` : g.source === 'listing' ? `Taken ${g.reason}` : g.source === 'chosen' ? g.reason : `Nothing in your file or listing says what ${g.count > 1 ? 'these are' : 'this is'}, so shown as ${GEMSTONES.find(s => s.id === g.gem)?.name.toLowerCase() || 'diamond'} — confirm or change it`}{g.ownFacets ? ' · kept with your own facets' : ''}</div>
             </div>
             <select aria-label={`${g.label} gemstone`} disabled={busy} value={g.gem} onChange={e => regem(g.key, e.target.value)} className={fieldClass.replace('mt-2 ', '')}>
               {GEMSTONES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </li>)}</ul> : <p className="text-xs text-[#b9cec6]">No stones found: shown as plain metal.</p>}
         </div>
+        {result.stones.some(g => g.source === 'assumed') && <label className="flex items-start gap-2 rounded-xl border border-amber-200/30 p-3 text-sm text-amber-100">
+          <input type="checkbox" className="mt-1" checked={stonesChecked} onChange={e => setStonesChecked(e.target.checked)} />
+          <span>I have checked the stones marked in amber: the types shown are right.</span>
+        </label>}
         {c.confidence === 'low' && <p className="text-xs text-amber-100">The category is uncertain. Including the type of piece in its name (for example “… ring” or “… pendant”) makes sorting certain.</p>}
         {!listing.details.rightsConfirmed && <p className="text-xs text-amber-100">Tick the permission box above and save the draft before publishing.</p>}
-        <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed} onClick={publish}>Publish to the Boutique</button>
+        <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed || (result.stones.some(g => g.source === 'assumed') && !stonesChecked)} onClick={publish}>Publish to the Boutique</button>
       </div>}
     </>}
     {step && <p role="status" className="text-sm">{step}</p>}

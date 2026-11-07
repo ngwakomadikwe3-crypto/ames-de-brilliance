@@ -69,7 +69,7 @@ export const isSurfaceGem = (id: string) => gem(id).mode !== 'closed-dielectric-
 /** Every word that names a stone in a CAD file. */
 export const ANY_GEM_WORD = new RegExp(GEMSTONES.map(g => g.words.source).join('|') + '|\\bgems?\\b|stone|cabochon|pav[eé]|melee|brilliant', 'i');
 
-export type GemGuess = { id: string; source: 'name' | 'colour' | 'assumed'; detail: string };
+export type GemGuess = { id: string; source: 'name' | 'colour' | 'listing' | 'assumed'; detail: string };
 
 /** A gem named in the object, layer or material names: the most specific name wins ("pink sapphire" over "sapphire"). */
 export function gemFromName(text: string): GemGuess | null {
@@ -77,6 +77,16 @@ export function gemFromName(text: string): GemGuess | null {
   let best: { g: Gemstone; word: string } | null = null;
   for (const g of GEMSTONES) { const m = text.match(g.words); if (m && (!best || m[0].length > best.word.length)) best = { g, word: m[0] }; }
   return best ? { id: best.g.id, source: 'name', detail: `named “${best.word}”` } : null;
+}
+
+/** Every gem a text names, in the order it names them ("Ruby ring with a diamond halo" → ruby, diamond). */
+export function gemsInText(text: string): { id: string; word: string }[] {
+  const found: { id: string; word: string; at: number }[] = [];
+  for (const g of GEMSTONES) { const re = new RegExp(g.words.source, 'gi'); let m; while ((m = re.exec(text))) found.push({ id: g.id, word: m[0], at: m.index }); }
+  // A longer name covers the shorter one inside it ("pink sapphire" covers "sapphire").
+  const kept = found.filter(f => !found.some(o => o !== f && o.word.length > f.word.length && o.at <= f.at && o.at + o.word.length >= f.at + f.word.length));
+  kept.sort((a, b) => a.at - b.at);
+  return kept.filter((f, i) => kept.findIndex(o => o.id === f.id) === i).map(({ id, word }) => ({ id, word }));
 }
 
 const toSrgb = (c: number) => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
