@@ -74,6 +74,38 @@ export async function checkPieceGlb(bytes: Uint8Array, names: string): Promise<P
   return { ok: true, triangles: Math.round(triangles), stones: stones.length - melee, melee, size, classification, gems: [...gems.values()].sort((a, b) => b.largest - a.largest) };
 }
 
+/** Check a converted loose-stone model (one stone, no metal) before it is stored for approval. */
+export async function checkStoneGlb(bytes: Uint8Array): Promise<{ triangles: number; size: [number, number, number] }> {
+  const fail = (message: string): never => { throw new Error(`Stone model check: ${message}`); };
+  if (bytes.length > 25 * 1024 * 1024) fail('the model is over 25 MB.');
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.length < 20 || view.getUint32(0, true) !== 0x46546c67 || view.getUint32(4, true) !== 2) fail('not a GLB 2 file.');
+  const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + view.getUint32(12, true))));
+  for (const name of json.extensionsUsed || []) if (!ALLOWED_EXTENSIONS.has(name)) fail(`unsupported extension ${name}.`);
+  for (const item of [...(json.buffers || []), ...(json.images || [])]) if (item.uri) fail('external files are not allowed.');
+  if ((json.images || []).length) fail('stone models carry no images.');
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions([EXTMeshoptCompression, KHRMeshQuantization, KHRMaterialsTransmission, KHRMaterialsIOR, KHRMaterialsVolume, KHRMaterialsClearcoat, KHRMaterialsSpecular, KHRTextureTransform]).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const doc = await io.readBinary(bytes), nodes = doc.getRoot().listNodes();
+  if (nodes.length > 20) fail('too many parts for a single stone.');
+  let triangles = 0; const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity], v: number[] = [0, 0, 0];
+  for (const node of nodes) {
+    const mesh = node.getMesh(); if (!mesh) continue;
+    const extras = node.getExtras() as Record<string, unknown>, id = extras.ames_gemstone_id;
+    if (id != null && !GEM_IDS.has(String(id))) fail('unknown gemstone.');
+    const m = (node.getWorldMatrix() as unknown as number[]).map(x => x * 1000);
+    for (const prim of mesh.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION'); if (!pos) continue;
+      triangles += (prim.getIndices()?.getCount() ?? pos.getCount()) / 3;
+      for (let i = 0; i < pos.getCount(); i += 7) { pos.getElement(i, v); const w = worldPoint(m, v); for (let a = 0; a < 3; a++) { if (!Number.isFinite(w[a])) fail('invalid coordinates.'); min[a] = Math.min(min[a], w[a]); max[a] = Math.max(max[a], w[a]); } }
+    }
+  }
+  if (triangles > 600000) fail('more than 600,000 triangles.');
+  const size = [0, 1, 2].map(a => max[a] - min[a]) as [number, number, number];
+  if (!(Math.max(...size) >= 0.5 && Math.max(...size) <= 120)) fail(`a stone must measure 0.5–120 mm (found ${size.map(x => x.toFixed(1)).join(' × ')} mm).`);
+  return { triangles: Math.round(triangles), size };
+}
+
 /** Compress a checked model for the web (meshopt, lossless filters): what the Boutique downloads. */
 export async function compressPieceGlb(bytes: Uint8Array): Promise<Uint8Array> {
   await Promise.all([MeshoptDecoder.ready, MeshoptEncoder.ready]);

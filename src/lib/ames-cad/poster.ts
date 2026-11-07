@@ -30,7 +30,7 @@ function stillDiamond(env: Texture, axis: Vector3, id = 'stone-diamond'): Shader
       }` });
 }
 
-export async function renderPoster(glb: Uint8Array, category: Category, size = 900): Promise<Blob> {
+export async function renderPoster(glb: Uint8Array, category: Category, size = 900, view?: [number, number]): Promise<Blob> {
   const [{ GLTFLoader }, { MeshoptDecoder }, { HDRLoader }] = await Promise.all([
     import('three/examples/jsm/loaders/GLTFLoader.js'), import('three/examples/jsm/libs/meshopt_decoder.module.js'), import('three/examples/jsm/loaders/HDRLoader.js')]);
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = size;
@@ -43,7 +43,9 @@ export async function renderPoster(glb: Uint8Array, category: Category, size = 9
     const root = gltf.scene, pivot = new Group(); pivot.add(root); scene.add(pivot); root.updateMatrixWorld(true);
     const cuts = new Map<string, ReturnType<typeof createStudioBrilliantGeometry>>();
     root.traverse(o => {
-      const mesh = o as Mesh; if (!mesh.isMesh) return; const data = mesh.userData as { ames_cut?: string; ames_pave_layout?: string; ames_optical_mode?: string; ames_gemstone_id?: string };
+      const mesh = o as Mesh; if (!mesh.isMesh) return; const data = mesh.userData as { ames_cut?: string; ames_pave_layout?: string; ames_optical_mode?: string; ames_gemstone_id?: string; ames_rough?: boolean };
+      // Rough crystals: frosted, light passing through the skin.
+      if (data.ames_rough) { const m = mesh.material as MeshPhysicalMaterial; mesh.geometry.computeVertexNormals(); mesh.material = new MeshPhysicalMaterial({ color: m.color.clone().multiplyScalar(0.16), roughness: 0.2, metalness: 0, ior: m.ior || 2.4, specularIntensity: 1, clearcoat: 0.7, clearcoatRoughness: 0.28, envMapIntensity: 1.1 }); return; }
       const id = String(data.ames_gemstone_id || 'stone-diamond');
       // Pearls, cabochons and opaque stones: a polished surface in the stone's own colour.
       if (data.ames_gemstone_id && data.ames_optical_mode !== 'closed-dielectric-visual') { const g = gem(id); mesh.material = new MeshPhysicalMaterial({ color: new Color(...g.color), roughness: g.roughness, clearcoat: 0.7, clearcoatRoughness: 0.08, sheen: g.mode === 'nacre-visual' ? 0.6 : 0, envMapIntensity: 1.4 }); return; }
@@ -61,7 +63,7 @@ export async function renderPoster(glb: Uint8Array, category: Category, size = 9
     });
     const box = new Box3().setFromObject(root), center = box.getCenter(new Vector3()), fit = 2.6 / Math.max(...box.getSize(new Vector3()).toArray());
     root.position.sub(center); pivot.scale.setScalar(fit);
-    const [theta, phi] = VIEWS[category], camera = new PerspectiveCamera(30, 1, 0.01, 100);
+    const [theta, phi] = view || VIEWS[category], camera = new PerspectiveCamera(30, 1, 0.01, 100);
     camera.position.setFromSphericalCoords(5.4, phi * Math.PI / 180, theta * Math.PI / 180); camera.lookAt(0, 0, 0);
     // Frame tightly: refit the distance so the piece fills ~85% of the image.
     const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(i => new Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).sub(center).multiplyScalar(fit));

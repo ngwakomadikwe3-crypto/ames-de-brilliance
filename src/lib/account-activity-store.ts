@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import { Query, DatabasesIndexType } from 'node-appwrite';
 import { getDb, DB_ID } from './appwrite';
 import { z } from 'zod';
-export type Activity<T = Record<string, unknown>> = { id: string; kind: 'reaction' | 'comment' | 'report' | 'cart' | 'purchase' | 'reservation'; owner: string; subject: string; status: string; createdAt: string; data: T };
+export type Activity<T = Record<string, unknown>> = { id: string; kind: 'reaction' | 'comment' | 'report' | 'cart' | 'purchase' | 'reservation' | 'stone3d' | 'stone-request'; owner: string; subject: string; status: string; createdAt: string; data: T };
 const collectionId = 'account_activity';
 const local = () => !process.env.VERCEL && process.env.AMES_ACTIVITY_STORAGE !== 'appwrite';
 const root = () => resolve(/* turbopackIgnore: true */ process.env.AMES_ACTIVITY_ROOT || join(process.env.LOCALAPPDATA || homedir(), 'AMES', 'private-activity'));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTraderByPortalCode, getTraderStones, addStone, getStoneStatusLog, savePhoto } from "@/lib/db";
+import { readStone3d, stone3dSummary } from "@/lib/stone-3d";
 
 async function authenticate(code: string) {
   const trader = await getTraderByPortalCode(code);
@@ -17,6 +18,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const stonesWithLog = await Promise.all(stones.map(async (s: any) => ({
     ...s,
     status_log: await getStoneStatusLog(s.id),
+    threeD: stone3dSummary(await readStone3d(s.id).catch(() => null)),
   })));
   return NextResponse.json(stonesWithLog);
 }

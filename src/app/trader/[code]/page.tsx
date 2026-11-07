@@ -1,6 +1,7 @@
 "use client";
 
 import { BrandMark } from "@/components/BrandMark";
+import TraderScanUpload from "@/components/TraderScanUpload";
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 
@@ -18,6 +19,7 @@ interface StoneRow {
   photo: string; listing_category: string; created_at: string;
   status_log: { id: number; status: string; reason: string; changed_at: string }[];
   sales_count?: number;
+  threeD?: { status: string; scan: { name: string; bytes: number; complete: boolean } | null; approved: boolean };
 }
 
 const PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent(
@@ -835,6 +837,7 @@ function MyItemsTab({ trader }: { trader: Trader }) {
                 )}
               </div>
             </div>
+            {isOpen && <TraderScanUpload code={trader.portal_code} stoneId={s.id} threeD={s.threeD} />}
             {isOpen && s.status_log && s.status_log.length > 0 && (
               <div className="p-3 space-y-1.5" style={{ borderTop: "1px solid rgba(23,23,23,0.08)" }}>
                 <div className="text-[10px] uppercase tracking-wider font-light mb-1" style={{ color: "#A6A6AB" }}>Status History</div>

@@ -5,7 +5,7 @@ import { guessUnitScale } from './geometry';
 
 export type Units = 'auto' | 'mm' | 'cm' | 'm' | 'in';
 const FACTOR = { mm: 1, cm: 10, m: 1000, in: 25.4 } as const;
-export const CAD_EXTENSIONS = ['3dm', 'glb', 'gltf', 'obj', 'stl', 'fbx'] as const;
+export const CAD_EXTENSIONS = ['3dm', 'glb', 'gltf', 'obj', 'stl', 'ply', 'fbx'] as const;
 /** Rhino UnitSystem enum values that matter for jewellery. */
 const RHINO_UNITS: Record<string, keyof typeof FACTOR> = { 2: 'mm', 3: 'cm', 4: 'm', 8: 'in', Millimeters: 'mm', Centimeters: 'cm', Meters: 'm', Inches: 'in' };
 /** Rhino's file reader (rhino3dm 8.4.0), served by AMES itself so Rhino files open without outside sites. */
@@ -24,6 +24,12 @@ async function readObject(file: File): Promise<{ object: Object3D; declared?: ke
     const geometry = new STLLoader().parse(bytes), mesh = new Mesh(geometry); mesh.name = file.name.replace(/\.stl$/i, ''); mesh.userData.ames_file_name = true; // the file name describes the piece, not a stone
     return { object: mesh };
   }
+  if (ext === 'ply') {
+    // Stone scanners (Sarine, Helium and others) commonly export PLY meshes.
+    const { PLYLoader } = await import('three/examples/jsm/loaders/PLYLoader.js');
+    const mesh = new Mesh(new PLYLoader().parse(bytes)); mesh.name = file.name.replace(/\.ply$/i, ''); mesh.userData.ames_file_name = true;
+    return { object: mesh };
+  }
   if (ext === 'fbx') { const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js'); return { object: new FBXLoader().parse(bytes, '') }; }
   if (ext === '3dm') {
     const { Rhino3dmLoader } = await import('three/examples/jsm/loaders/3DMLoader.js');
@@ -34,7 +40,7 @@ async function readObject(file: File): Promise<{ object: Object3D; declared?: ke
     const unit = typeof settings?.modelUnitSystem === 'object' ? settings.modelUnitSystem.value ?? settings.modelUnitSystem.name : settings?.modelUnitSystem;
     return { object, declared: RHINO_UNITS[String(unit)] };
   }
-  throw new Error('Upload a .3dm, .glb, .gltf, .obj, .stl or .fbx file.');
+  throw new Error('Upload a .3dm, .glb, .gltf, .obj, .stl, .ply or .fbx file.');
 }
 
 function colorOf(material: Material | Material[] | undefined): Vec3 | null {

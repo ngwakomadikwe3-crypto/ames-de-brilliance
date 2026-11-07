@@ -55,6 +55,16 @@ export async function sendJewellerInvite(to: string, businessName: string, url: 
 }
 
 /** Tell staff a jeweller piece went live automatically, so it can be checked or withdrawn. */
+/** Tell the house a buyer asked to buy a Catalogue Room stone. */
+export async function sendStoneRequestNotice(ref: string, title: string, buyer: string, email: string): Promise<boolean> {
+  const mail = transport(); if (!mail) return false;
+  try {
+    await mail.sendMail({ from: `"HOUSEofAMES" <${NOTIFY_FROM}>`, to: NOTIFY_TO, subject: `[HOUSEofAMES] Request to buy ${ref}`,
+      text: `${buyer} (${email}) asked to buy ${ref} — ${title}.\n\nReply from the Purchase desk: https://houseofames.com/dashboard/purchases` });
+    return true;
+  } catch (err: any) { console.error('[email] Stone request notice failed:', err.message); return false; }
+}
+
 /** Tell the Owner a converted piece is waiting for approval (posted by staff or a jeweller). */
 export async function sendApprovalRequest(listingId: string, name: string, category: string): Promise<boolean> {
   const mail = transport(); if (!mail) return false;

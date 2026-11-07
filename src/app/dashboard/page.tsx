@@ -74,6 +74,7 @@ export default function Dashboard() {
           {role === "owner" && <a href="/dashboard/purchases" className="text-xs underline">Purchase desk</a>}
           {role === "owner" && <a href="/dashboard/community" className="text-xs underline">Comment reports</a>}{role === "owner" && <a href="/dashboard/asset-standard" className="text-xs underline">3D asset standard</a>}
           {role && <a href="/dashboard/listings" className="text-xs underline">{role === "owner" ? "CAD designs & approvals" : "Post CAD designs"}</a>}
+          {role && <a href="/dashboard/stone-3d" className="text-xs underline">{role === "owner" ? "Stone 3D approvals" : "Stone 3D"}</a>}
           {role === "owner" && <a href="/dashboard/jewellers" className="text-xs underline">Jeweller profiles</a>}
           {role === "owner" && <a href="/dashboard/auctioneers" className="text-xs underline">Auctioneer profiles</a>}
           <button onClick={handleLogout} className="text-[10px] text-muted hover:text-[#171717] whitespace-nowrap pb-2 cursor-default shrink-0">Logout</button>
