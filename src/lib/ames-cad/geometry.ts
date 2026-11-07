@@ -121,6 +121,8 @@ function hullArea(points: [number, number][]) {
 export function analyseStone(part: SourcePart, shell: Shell, partIndex: number, shellIndex: number): Stone | null {
   const named = GEM_WORDS.test(part.hint) ? 'gem' : METAL_WORDS.test(part.hint) ? 'metal' : '';
   if (named === 'metal' || shell.triangles.length > 30000 || shell.triangles.length < 8) return null;
+  // Nothing larger than the largest cut gems (about 45 mm) is a stone: leather, a box, a dial.
+  if (Math.max(shell.max[0] - shell.min[0], shell.max[1] - shell.min[1], shell.max[2] - shell.min[2]) > 45) return null;
   const pts = shellPoints(part, shell);
   if (pts.length < 6) return null;
   const c: Vec3 = [0, 0, 0]; for (const q of pts) { c[0] += q[0]; c[1] += q[1]; c[2] += q[2]; }

@@ -97,7 +97,7 @@ export class Builder {
   stone(name, outline, W, L, matrix, parent) { this.gemCount++; (this.heroes ??= []).push({ name, outline, W, L });
     return this.node(name, this.mesh(name, heroCut(outline, W, L), this.gem), matrix, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_cut: outline }, parent); }
   /** Melee for pavé: collected per group and written as one ray-traced mesh. */
-  melee(group, D, matrix) { this.meleeCount++; if (!this.pave.has(group)) this.pave.set(group, []);
+  melee(group, D, matrix, parent) { this.meleeCount++; if (!this.pave.has(group)) this.pave.set(group, []); if (parent) (this.paveParent ??= new Map()).set(group, parent);
     const p = V(), q = new THREE.Quaternion(), s = V(); matrix.decompose(p, q, s); this.pave.get(group).push({ D, p, q }); }
   /** Full merged pavé (for offline stills) or, for the web, one placeholder stone plus the
    * layout: [x, y, z, qx, qy, qz, qw, diameter] per melee as base64 Float32 in node extras
@@ -106,10 +106,10 @@ export class Builder {
       const extras = { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_pave: true }, geo = list.map(({ D, p, q }) => meleeCut(D).applyMatrix4(qmat(p, q)));
       if (web) { const a = new Float32Array(list.length * 8); list.forEach(({ D, p, q }, i) => a.set([p.x, p.y, p.z, q.x, q.y, q.z, q.w, D], i * 8));
         extras.ames_pave_layout = Buffer.from(a.buffer).toString('base64'); }
-      this.node(`Pavé · ${group}`, this.mesh(`Pavé ${group}`, web ? geo[0] : mergeGeometries(geo, false), this.gem), null, extras); } }
+      this.node(`Pavé · ${group}`, this.mesh(`Pavé ${group}`, web ? geo[0] : mergeGeometries(geo, false), this.gem), null, extras, this.paveParent?.get(group)); } }
   async write(path, { raw } = {}) {
     if (raw) { const pave = this.pave; this.flushPave(false); await new NodeIO().write(raw, this.doc);
-      for (const n of this.root.listChildren()) if (n.getExtras().ames_pave) { n.getMesh().dispose(); n.dispose(); } this.gemCount -= pave.size; }
+      for (const n of this.doc.getRoot().listNodes()) if (n.getExtras().ames_pave) { n.getMesh().dispose(); n.dispose(); } this.gemCount -= pave.size; }
     // The viewer rebuilds every ames_cut stone to its bounds, so the web file only needs a light
     // placeholder of the same size (offline stills keep the full facets).
     for (const n of this.doc.getRoot().listNodes()) { const cut = n.getExtras().ames_cut; if (!cut) continue;

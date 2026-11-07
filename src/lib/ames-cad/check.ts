@@ -17,7 +17,7 @@ const GEM_MODES = new Set(['closed-dielectric-visual', 'polished-gemstone-visual
 
 function worldPoint(m: number[], v: number[]) { return [m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12], m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13], m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14]]; }
 
-export async function checkPieceGlb(bytes: Uint8Array, names: string): Promise<PieceCheck> {
+export async function checkPieceGlb(bytes: Uint8Array, names: string, listing?: string): Promise<PieceCheck> {
   const fail = (message: string): never => { throw new Error(`3D model check: ${message}`); };
   if (bytes.length > LIMITS.bytes) fail('the converted model is over 60 MB.');
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -70,7 +70,7 @@ export async function checkPieceGlb(bytes: Uint8Array, names: string): Promise<P
   const shells = splitShells(parts);
   const metalParts = shells.map(s => [0, 1, 2].map(k => s.max[k] - s.min[k]).sort((x, y) => y - x));
   const points = samplePoints(parts, shells, shells.map((_, i) => i));
-  const classification = classify({ points, metalParts, stones, names: `${names} ${sourceNames} ${rootDoc.listNodes().map(n => n.getName()).join(' ')} ${rootDoc.listMaterials().map(m => m.getName()).join(' ')}` });
+  const classification = classify({ points, metalParts, stones, listing, names: `${names} ${sourceNames} ${rootDoc.listNodes().map(n => n.getName()).join(' ')} ${rootDoc.listMaterials().map(m => m.getName()).join(' ')}` });
   return { ok: true, triangles: Math.round(triangles), stones: stones.length - melee, melee, size, classification, gems: [...gems.values()].sort((a, b) => b.largest - a.largest) };
 }
 

@@ -12,7 +12,7 @@ import { createStudioBrilliantGeometry } from '../../../node_modules/ames-engine
 export type MetalChoice = 'auto' | 'white' | 'yellow' | 'rose';
 /** Metal parts never carry a texture over: AMES gives metal its own polish. */
 const METAL_WORDS_FOR_TEXTURE = /gold|platinum|silver|metal|alloy|rhodium|palladium|titanium|steel|prong|claw|shank|band|bezel|chain|clasp/i;
-const OTHER_WORDS = /enamel|pearl|dial|leather|strap|wood|ceramic|resin|lacquer|onyx|jade|coral|mother.?of.?pearl|rubber|fabric/i;
+const OTHER_WORDS = /enamel|pearl|dial|leather|strap|wood|ceramic|resin|lacquer|onyx|jade|coral|mother.?of.?pearl|rubber|fabric|suede|velvet|cloth|lining|thread|stitch|felt|cushion|pillow|silk|cotton|canvas|plastic|acrylic|glass|foam|paper|card/i;
 const METALS = {
   white: { name: 'White gold | visual study', color: [0.87, 0.86, 0.84] },
   yellow: { name: 'Yellow gold | visual study', color: [0.94, 0.75, 0.42] },
@@ -57,9 +57,11 @@ const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rg
 
 export type BuildReport = { metalTriangles: number; heroStones: number; melee: number; metal: string[]; others: number; ownFacets: number; textures: number;
   /** A bracelet split link by link: it can be unclasped and measured in 3D. */
-  bracelet?: { links: number; length_mm: number; width_mm: number; clasp: string };
+  bracelet?: { links: number; length_mm: number; width_mm: number; clasp: string; kind?: string };
   /** Hinged parts that dangle (earring drops). */
-  dangles?: number };
+  dangles?: number;
+  /** Lids that open (cases, boxes). */
+  opens?: number };
 /** The app's look for a gemstone, as a glTF material the viewer reads (colour, polish, IOR, transmission). */
 function gemMaterial(id: string, cache: Map<string, MeshStandardMaterial>) {
   let m = cache.get(id); if (m) return m;
@@ -111,7 +113,7 @@ export async function buildPieceGlb(parts: SourcePart[], analysis: Analysis & { 
   /** Where a piece goes: its link group (and the matrix taking piece coordinates into it), or the piece itself. */
   const place = (link: number) => link >= 0 && plan ? { parent: linkGroups[link], inverse: linkInverse[link] } : { parent: root, inverse: null };
   // Metal and other surfaces, grouped by tone.
-  const groups = new Map<string, { shell: number; tris: Uint32Array }[]>(), report: BuildReport = { metalTriangles: 0, heroStones: 0, melee: 0, metal: [], others: 0, ownFacets: 0, textures: 0, ...(plan?.extras.ames_bracelet ? { bracelet: plan.extras.ames_bracelet as BuildReport['bracelet'] } : {}), ...(plan && plan.nodes.some(n => n.extras.ames_dangle) ? { dangles: plan.nodes.filter(n => n.extras.ames_dangle).length } : {}) };
+  const groups = new Map<string, { shell: number; tris: Uint32Array }[]>(), report: BuildReport = { metalTriangles: 0, heroStones: 0, melee: 0, metal: [], others: 0, ownFacets: 0, textures: 0, ...(plan?.extras.ames_bracelet ? { bracelet: plan.extras.ames_bracelet as BuildReport['bracelet'] } : {}), ...(plan && plan.nodes.some(n => n.extras.ames_dangle) ? { dangles: plan.nodes.filter(n => n.extras.ames_dangle).length } : {}), ...(plan && plan.nodes.some(n => n.extras.ames_open) ? { opens: plan.nodes.filter(n => n.extras.ames_open).length } : {}) };
   // Each shell's triangles by link (all in one piece when the piece is not a split bracelet).
   const pieces = (i: number): [number, Uint32Array][] => {
     const sh = analysis.shells[i]; if (!plan) return [[-1, sh.triangles]];

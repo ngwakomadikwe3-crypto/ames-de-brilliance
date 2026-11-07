@@ -12,11 +12,11 @@
     "commercialStock": false
   },
   "limitations": [
-    "Original AMES design: square case, pavé bezel and lugs, white Roman dial and a fully iced bracelet.",
+    "Original AMES design: square case with a fully iced bezel, a row round the case band, pavé lugs and a paved centre stripe on each bracelet link (473 diamonds); white Roman dial; fold-over clasp.",
     "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
   ],
   "interactive": {
-    "glb": "web/watch-v2.glb",
-    "poster": "web/poster-v2.webp"
+    "glb": "web/watch-v3.glb",
+    "poster": "web/poster-v3.webp"
   }
 }

@@ -105,7 +105,8 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
           <li>Category: <strong>{CATEGORY_LABEL[c.category]}</strong> <span className="text-xs text-[#b9cec6]">({c.confidence} confidence — {c.reasons.join('; ')})</span></li>
           <li>Size: {r.size.map(v => v.toFixed(1)).join(' × ')} mm <span className="text-xs text-[#b9cec6]">(units {r.unit}, {r.unitSource})</span></li>
           <li>Metal: {r.metal.join(', ') || '—'} · {r.metalTriangles.toLocaleString()} triangles</li>
-          {r.bracelet && <li>Bracelet: <strong>{r.bracelet.links} links</strong>, {(r.bracelet.length_mm / 10).toFixed(1)} cm long, {r.bracelet.width_mm.toFixed(1)} mm wide{r.bracelet.clasp ? ` · ${r.bracelet.clasp}` : ''} <span className="text-xs text-[#b9cec6]">— buyers can unclasp it and measure it in 3D</span></li>}
+          {r.bracelet && <li>{r.bracelet.kind === 'necklace' ? 'Necklace' : r.bracelet.kind === 'watch' ? 'Watch bracelet' : 'Bracelet'}: <strong>{r.bracelet.links} links</strong>, {(r.bracelet.length_mm / 10).toFixed(1)} cm long, {r.bracelet.width_mm.toFixed(1)} mm wide{r.bracelet.clasp ? ` · ${r.bracelet.clasp}` : ''} <span className="text-xs text-[#b9cec6]">— buyers can unclasp it, measure it and fold it by hand in 3D</span></li>}
+          {r.opens ? <li>Opening: <strong>the lid opens on its hinge</strong> <span className="text-xs text-[#b9cec6]">— buyers can open it in 3D (name the lid “lid”, “cover” or “flap” in your CAD; a part named “hinge” sets the hinge)</span></li> : null}
           {r.dangles ? <li>Hinges: <strong>{r.dangles} hinged {r.dangles === 1 ? 'part' : 'parts'}</strong> <span className="text-xs text-[#b9cec6]">— the drops dangle when buyers turn the piece</span></li> : null}
         </ul>
         <div className="space-y-2" data-stones>

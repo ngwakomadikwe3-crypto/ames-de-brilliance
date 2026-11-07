@@ -10,7 +10,7 @@ const WORDS: [Category, RegExp][] = [
   ['bracelet', /\b(bracelets?|bangles?|tennis|cuffs?|wristband|anklets?)\b/i],
   ['necklace', /\b(necklaces?|pendants?|chains?|chokers?|lockets?|collars?|riviere|lavalier)\b/i],
   ['ring', /\b(rings?|band|solitaire|engagement|signet|eternity|wedding|halo ring)\b/i],
-  ['accessory', /\b(brooch|cufflinks?|tie ?(clip|pin|bar)|hair ?pin|tiara|crown jewel|charm|keyring|pin)\b/i],
+  ['accessory', /\b(brooch|cufflinks?|tie ?(clip|pin|bar)|hair ?pin|tiara|crown jewel|charm|keyring|pin|cases?|box(es)?|rolls?|pouch(es)?|holders?|organi[sz]ers?|winders?|trays?|stands?)\b/i],
 ];
 
 /** Loop test in one plane: points all round a centre with an empty middle. Returns the inner radius or 0. */
@@ -64,10 +64,17 @@ export type ShapeInput = {
   stones: { width: number }[];
   /** File name, object, layer and material names, and the listing name. */
   names: string;
+  /** The jeweller's own name for the piece: its last category word decides ("pear drop necklace" is a necklace). */
+  listing?: string;
 };
 
 export function classify(input: ShapeInput): Classification {
   const reasons: string[] = [];
+  if (input.listing) {
+    let best: { category: Category; word: string; at: number } | null = null;
+    for (const [category, re] of WORDS) { const g = new RegExp(re.source, 'gi'); for (let m = g.exec(input.listing); m; m = g.exec(input.listing)) if (!best || m.index > best.at) best = { category, word: m[0], at: m.index }; }
+    if (best) { reasons.push(`named “${best.word}”`); return { category: best.category, confidence: 'high', reasons }; }
+  }
   for (const [category, re] of WORDS) { const m = re.exec(input.names); if (m) { reasons.push(`named “${m[0]}”`); return { category, confidence: 'high', reasons }; } }
   const pts = input.points, n = pts.length / 3;
   if (n < 30) return { category: 'accessory', confidence: 'low', reasons: ['too little geometry to judge'] };

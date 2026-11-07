@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "ames-watch-roll",
+  "revisionId": "ames-watch-roll:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "ames-watch-roll",
+      "id": "ames_watch_roll_concept",
+      "mediaType": "image",
+      "path": "web/poster.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

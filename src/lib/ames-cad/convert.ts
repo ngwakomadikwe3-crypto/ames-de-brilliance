@@ -6,6 +6,7 @@ import { gem, gemsInText } from './gems';
 import { loadCad, type Units } from './load';
 import { planLinks } from './links';
 import { planDangles } from './dangles';
+import { planOpening } from './opening';
 import { renderPoster } from './poster';
 
 /** Stones shown to the jeweller for confirmation: one row per centre stone, matching side stones or pavé. */
@@ -62,14 +63,16 @@ export async function convertCad(file: File, options: { units?: Units; metal?: M
   if (analysis.triangles > 4_000_000) throw new Error('This model has more than 4 million triangles. Reduce the mesh density on export and try again.');
   const pts = samplePoints(parts, analysis.shells, analysis.shells.map((_, i) => i));
   const metalParts = analysis.metalShells.map(i => { const s = analysis.shells[i]; return [0, 1, 2].map(k => s.max[k] - s.min[k]).sort((x, y) => y - x); });
-  const classification = classify({ points: pts, metalParts, stones: analysis.stones, names: `${options.listingName || ''} ${names}` });
+  const classification = classify({ points: pts, metalParts, stones: analysis.stones, names: `${options.listingName || ''} ${names}`, listing: options.listingName });
   applyListing(analysis.stones, [...(options.listingGems || []), options.listingName || '', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')].join(' · '));
-  // Moving parts: a bracelet made of separate links is split link by link (the Boutique can unclasp and
-  // measure it); drop earrings hang from their hinges so they dangle.
+  // Moving parts: a bracelet or necklace made of separate links is split link by link (the Boutique can unclasp,
+  // measure and fold it by hand); drop earrings hang from their hinges so they dangle.
   const category = classification.category;
-  if (category === 'bracelet') await step('Finding the links of the bracelet…');
+  if (category === 'bracelet' || category === 'necklace' || category === 'watch') await step(`Finding the links of the ${category === 'watch' ? 'watch bracelet' : category}…`);
   if (category === 'earrings') await step('Finding the hinges of the earrings…');
-  const rig = category === 'bracelet' ? planLinks(parts, analysis) : category === 'earrings' ? planDangles(parts, analysis) : null;
+  // Anything with a named lid (a watch case, a box, a locket) opens, whatever its category.
+  const rig = (category === 'bracelet' || category === 'necklace' || category === 'watch' ? planLinks(parts, analysis, category)
+    : category === 'earrings' ? planDangles(parts, analysis) : null) ?? planOpening(parts, analysis);
   const detected = groupStones(analysis.stones);
   const cuts: Record<string, number> = {}; for (const s of analysis.stones) { const k = s.melee ? 'melee' : s.shape; cuts[k] = (cuts[k] || 0) + 1; }
 

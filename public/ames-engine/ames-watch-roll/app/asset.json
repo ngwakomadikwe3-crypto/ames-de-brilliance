@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "ames-watch-roll",
+  "revisionId": "ames-watch-roll:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "accessory",
+  "name": "Leather watch roll",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original AMES design: a cylindrical tan-leather travel roll for three diamond watches, cream saddle stitching, snap tab, beige suede lining and three watch pillows. The lid opens on its hinge.",
+    "Dimensions, materials and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/watch-roll.glb",
+    "poster": "web/poster.webp"
+  }
+}

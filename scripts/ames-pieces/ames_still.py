@@ -7,7 +7,7 @@ p.add_argument('--theta', type=float, default=0); p.add_argument('--phi', type=f
 p.add_argument('--res', type=int, default=900); p.add_argument('--spp', type=int, default=128)
 p.add_argument('--ground', action='store_true'); p.add_argument('--hdr', default='/home/claude/models/render/tent2.hdr')
 p.add_argument('--fill', type=float, default=.82); p.add_argument('--lens', type=float, default=85)
-p.add_argument('--strength', type=float, default=1.0); p.add_argument('--time', default=None); p.add_argument('--sparkle', type=float, default=1.0)
+p.add_argument('--strength', type=float, default=1.0); p.add_argument('--open', type=float, default=0); p.add_argument('--time', default=None); p.add_argument('--sparkle', type=float, default=1.0)
 a = p.parse_args(sys.argv[1:])
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -48,6 +48,13 @@ if a.time:
         if not k: continue
         t = hh / 12 if k == 'hour' else mm / 60 if k == 'minute' else S / 60
         ob.rotation_mode = 'QUATERNION'; ob.rotation_quaternion = mathutils.Quaternion((0, 1, 0), t * 2 * math.pi)
+# --open f: swing hinged parts (ames_open) open by that fraction of their angle (x axis is the same in Blender).
+if a.open:
+    for ob in sc.objects:
+        o = ob.get('ames_open')
+        if not o: continue
+        ax = [float(v) for v in o['axis']]; ang = float(o['angle']) * math.pi / 180 * a.open
+        ob.rotation_mode = 'QUATERNION'; ob.rotation_quaternion = ob.rotation_quaternion @ mathutils.Quaternion((ax[0], -ax[2], ax[1]), ang)
 # World: the AMES jewellery tent HDR.
 w = bpy.data.worlds.new('Tent'); sc.world = w; w.use_nodes = True; nt = w.node_tree
 env = nt.nodes.new('ShaderNodeTexEnvironment'); env.image = bpy.data.images.load(a.hdr)

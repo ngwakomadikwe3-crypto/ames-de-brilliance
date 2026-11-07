@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ames.boutique-content/1",
+  "assetId": "ames-watch-roll",
+  "revisionId": "ames-watch-roll:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "category": "accessory",
+  "name": "Leather watch roll",
+  "thumbnail": "web/poster.webp",
+  "heroImage": "web/poster.webp",
+  "interactiveGlb": "web/watch-roll.glb",
+  "poster": "web/poster.webp",
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept; not measured inventory.",
+    "manufacturingReady": false
+  },
+  "categoryTags": [
+    "accessory"
+  ]
+}

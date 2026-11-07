@@ -95,6 +95,25 @@ function SelectedViewer({
     }, 250);
     return () => clearInterval(timer);
   }, [state, src]);
+  // A piece that opens (a watch case) says so on the canvas; offer to open it. Tapping the lid also works.
+  const [openable, setOpenable] = useState(''), [opened, setOpened] = useState(false);
+  useEffect(() => {
+    setOpenable(''); setOpened(false);
+    if (state !== 'ready') return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const canvas = host.current?.querySelector('canvas'), label = canvas?.dataset.amesOpenable;
+      if (label && canvas) { setOpenable(label); clearInterval(timer); }
+      else if (++tries > 20) clearInterval(timer);
+    }, 250);
+    // Follow taps on the lid too.
+    const watch = setInterval(() => { const s = host.current?.querySelector('canvas')?.dataset.amesOpenState; if (s === 'open') setOpened(true); else if (s === 'closed') setOpened(false); }, 300);
+    return () => { clearInterval(timer); clearInterval(watch); };
+  }, [state, src]);
+  const toggleOpen = useCallback(() => {
+    const canvas = host.current?.querySelector('canvas'); if (!canvas) return;
+    canvas.dispatchEvent(new CustomEvent('ames:open', { detail: { open: !opened } })); setOpened(!opened);
+  }, [opened]);
   const toggleClasp = useCallback(() => {
     const canvas = host.current?.querySelector('canvas'); if (!canvas) return;
     const next = !flat; setFlat(next); setMeasured(false);
@@ -121,7 +140,11 @@ function SelectedViewer({
           <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.kind === 'necklace' && bracelet.drop_mm ? `drops up to ${bracelet.drop_mm.toFixed(0)} mm` : `${bracelet.width_mm.toFixed(1)} mm wide`}{stonesLabel(bracelet) && <> · {stonesLabel(bracelet)}</>}
           <span className="block text-[10px] text-[#b8d0c8]">{bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `Fits a wrist up to about ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}{bracelet.clasp && <> · {bracelet.clasp}</>}</span>
         </span>}
+        {!flat && <span className="rounded-full bg-[#031815]/70 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md">Press a link and drag to fold it</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
+      </div>}
+      {state === 'ready' && openable && !bracelet && <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
+        <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
       </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-[#eef5f2]">Loading interactive 3D…</span>}

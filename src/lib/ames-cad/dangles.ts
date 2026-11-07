@@ -5,7 +5,7 @@ import { cross, dot, eigen3, len, normalize, sub, type Analysis, type Shell, typ
 import { shellStats } from './links';
 import type { Rig, RigNode } from './rig';
 
-const FITTING_WORDS = /\b(hooks?|posts?|lever[\s_-]*backs?|leverbacks?|clips?|butterfl(y|ies)|huggies?|french[\s_-]*wires?|ear[\s_-]*(wires?|backs?|hooks?|posts?)|earwires?|screw[\s_-]*backs?|scrolls?)\b/i;
+const FITTING_WORDS = /(?<![a-z])(hooks?|posts?|lever[\s_-]*backs?|leverbacks?|clips?|butterfl(y|ies)|huggies?|french[\s_-]*wires?|ear[\s_-]*(wires?|backs?|hooks?|posts?)|earwires?|screw[\s_-]*backs?|scrolls?)(?![a-z])/i;
 const SLICE = 0.4, MIN_DROP = 10, MAX_SHELLS = 4000;
 
 export function planDangles(parts: SourcePart[], a: Analysis & { shells: Shell[] }): Rig | null {

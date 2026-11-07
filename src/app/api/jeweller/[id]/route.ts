@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         if (!l.details.rightsConfirmed) throw new Error('Confirm the listing rights before sending it for approval');
         const preview = l.files.find(f => f.kind === 'preview' && f.complete), poster = l.files.find(f => f.kind === 'poster' && f.complete);
         if (!preview || !poster || !l.files.some(f => f.kind === 'source' && f.complete)) throw new Error('Upload the original, the converted 3D model and the product image first');
-        const raw = await fileBytes(preview), check = await checkPieceGlb(new Uint8Array(raw), `${l.details.name} ${l.details.description}`);
+        const raw = await fileBytes(preview), check = await checkPieceGlb(new Uint8Array(raw), `${l.details.name} ${l.details.description}`, l.details.name);
         const { category, confidence, reasons } = check.classification;
         // Keep the compressed web model in place of the converter's upload.
         const web = await saveCompleteFile('preview', 'model.glb', Buffer.from(await compressPieceGlb(new Uint8Array(raw))));
