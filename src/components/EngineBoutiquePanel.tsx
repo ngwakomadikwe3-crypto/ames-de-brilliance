@@ -8,6 +8,8 @@ import { SavePiece } from './PieceAccountActions';
 import { loadPublishedBoutiqueContent, originLabel } from '@/lib/catalogue-content';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
+/** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
+const studioPiece = (piece: { assetId: string; listing?: { studio?: boolean } }) => AMES_STUDIO_PIECES.has(piece.assetId) || !!piece.listing?.studio;
 import { boutiqueCategories, boutiqueByCategory, boutiqueGroups, boutiquePrice, loadBoutiqueContent, type BoutiqueCategory, type BoutiquePiece } from '../lib/ames-boutique-content';
 
 function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: boolean; onOpen: () => void }) {
@@ -46,7 +48,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={AMES_STUDIO_PIECES.has(piece.assetId) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || AMES_STUDIO_PIECES.has(piece.assetId) ? 1 : 0.78} autoLoad={piece.assetId === 'demo-pave-solitaire' || AMES_STUDIO_PIECES.has(piece.assetId)} opticsProfile={piece.assetId === 'demo-pave-solitaire' || AMES_STUDIO_PIECES.has(piece.assetId) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
+        {piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece)} opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
             autoRotate={false} cameraControls ar={false} jewelryPresentation metalPreview={piece.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 105%' : '35deg 75deg 105%'}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}

@@ -19,6 +19,7 @@ export default function JewellerProfiles() {
   const [draft, setDraft] = useState<ProfileInput>(empty);
   const [query, setQuery] = useState('');
   const [portalAccountId, setPortalAccountId] = useState('');
+  const [inviteUrl, setInviteUrl] = useState('');
   const [storage, setStorage] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -45,7 +46,7 @@ export default function JewellerProfiles() {
   const dirty = !!selected && JSON.stringify(details(selected)) !== JSON.stringify(draft);
   const gaps = selected ? profileGaps(selected) : [];
   function select(profile?: JewellerProfile) {
-    setPortalAccountId(profile?.portalUserId || '');
+    setPortalAccountId(profile?.portalUserId || ''); setInviteUrl('');
     setSelectedId(profile?.id || ''); setDraft(profile ? details(profile) : empty());
     setChecks(profile?.checks || blankChecks()); setReason(''); setValidUntil(profile?.verifiedUntil || '');
     setError(''); setNotice(''); setFiles([]);
@@ -96,7 +97,7 @@ export default function JewellerProfiles() {
   const buttonStyle = 'rounded-full border border-white/25 px-4 py-2 text-sm disabled:opacity-40';
   return <div className="space-y-7" data-jeweller-profiles>
     <p className="text-sm text-[#b9cec6]">Private onboarding and verification records. No jeweller profile or supporting document is public.</p>
-    {selected && <section className="rounded-xl border border-white/15 p-4 space-y-3"><h2>Private jeweller portal access</h2><p className="text-xs text-[#b9cec6]">Link the account ID shown in the jeweller’s Profile &amp; settings. They must verify their email, and this business profile must remain verified.</p><label className="block text-sm">AMES account ID<input value={portalAccountId} onChange={e => setPortalAccountId(e.target.value)} maxLength={36} className="field-input mt-2 w-full" /></label><button disabled={busy || dirty} className={buttonStyle} onClick={() => run(async () => { apply(await fetch(`${endpoint}/${selected.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: selected.version, portalAccountId }) }).then(responseData)); setNotice('Portal access updated.'); })}>{portalAccountId ? 'Enable / update access' : 'Revoke access'}</button><Link href="/dashboard/listings" className="ml-4 text-sm underline">Review jewellery listings</Link></section>}
+    {selected && <section className="rounded-xl border border-white/15 p-4 space-y-3"><h2>Private jeweller portal access</h2><p className="text-xs text-[#b9cec6]">Link the account ID shown in the jeweller’s Profile &amp; settings. They must verify their email, and this business profile must remain verified.</p><label className="block text-sm">AMES account ID<input value={portalAccountId} onChange={e => setPortalAccountId(e.target.value)} maxLength={36} className="field-input mt-2 w-full" /></label><button disabled={busy || dirty} className={buttonStyle} onClick={() => run(async () => { apply(await fetch(`${endpoint}/${selected.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: selected.version, portalAccountId }) }).then(responseData)); setNotice('Portal access updated.'); })}>{portalAccountId ? 'Enable / update access' : 'Revoke access'}</button><Link href="/dashboard/listings" className="ml-4 text-sm underline">Review jewellery listings</Link><div className="space-y-2 border-t border-white/10 pt-3"><p className="text-xs text-[#b9cec6]">Or send the jeweller a one-time studio invite: they sign in with the profile email and their studio opens. Invites last 7 days; a new invite replaces the old one.</p><button disabled={busy || dirty || effectiveProfileStatus(selected) !== 'verified' || !selected.email} className={buttonStyle} onClick={() => run(async () => { const body = await fetch(`${endpoint}/${selected.id}/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: selected.version }) }).then(responseData); apply(body.profile); setInviteUrl(body.url); setNotice(body.emailed ? `Invite emailed to ${body.profile.email}.` : 'Email is not configured here: copy the link below and send it to the jeweller.'); })}>Send studio invite</button>{selected.invite && <p className="text-xs text-[#b9cec6]">Invite pending for {selected.invite.email} until {selected.invite.expires.slice(0, 10)}.</p>}{inviteUrl && <code className="block select-all break-all rounded-lg bg-black/30 p-2 text-xs">{inviteUrl}</code>}</div></section>}
     {storage && <p className="rounded-lg border border-white/15 p-3 text-xs text-[#b9cec6]">{storage === 'local' ? 'Saved privately on this computer, outside the project folder. These records are separate from the live Appwrite database.' : 'Saved in private Appwrite collections and storage.'}</p>}
     {error && <p role="alert" className="rounded-lg border border-red-300/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
     {notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}

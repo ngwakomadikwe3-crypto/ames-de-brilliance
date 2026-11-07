@@ -42,5 +42,6 @@ export function fileResponse(file: ListingFile, publicFile = false) {
       const bytes = await readPart(file.parts[index++]); total += bytes.length; hash.update(bytes); controller.enqueue(new Uint8Array(bytes));
     } catch (e) { controller.error(e); }
   } });
-  return new Response(stream, { headers: { 'Content-Type': mime, 'Content-Length': String(file.bytes), 'Content-Disposition': `${publicFile ? 'inline' : 'attachment'}; filename="${name}"`, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', Vary: 'Cookie' } });
+  return new Response(stream, { headers: { 'Content-Type': mime, 'Content-Length': String(file.bytes), 'Content-Disposition': `${publicFile ? 'inline' : 'attachment'}; filename="${name}"`, // Published display files never change under the same file ID; withdrawn pieces drop out within the hour.
+    'Cache-Control': publicFile ? 'public, max-age=3600, stale-while-revalidate=86400' : 'private, no-store', 'X-Content-Type-Options': 'nosniff', ...(publicFile ? {} : { Vary: 'Cookie' }) } });
 }

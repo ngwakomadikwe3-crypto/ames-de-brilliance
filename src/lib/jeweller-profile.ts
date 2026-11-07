@@ -24,6 +24,8 @@ export const fileKinds = ['portrait', 'portfolio', 'identity', 'business', 'lice
 export type ProfileFile = { id: string; kind: typeof fileKinds[number]; filename: string; mime: string; bytes: number; sha256: string; uploadedAt: string; expiresOn: string };
 export type JewellerProfile = ProfileInput & {
   portalUserId?: string;
+  /** Pending one-time studio invite (see jeweller-invite.ts). */
+  invite?: { nonceHash: string; email: string; expires: string; sentAt: string };
   storefront?: { slug: string; bio: string; showLocation: boolean; logoId: string; published: boolean; rightsConfirmed: boolean };
   id: string; version: number; status: 'draft' | 'submitted' | 'verified' | 'needs_revision' | 'suspended';
   files: ProfileFile[]; checks: ReviewChecks; verifiedUntil: string; createdAt: string; updatedAt: string;

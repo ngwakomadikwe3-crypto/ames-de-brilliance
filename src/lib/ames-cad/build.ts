@@ -1,0 +1,100 @@
+// Browser: write an analysed CAD piece as an AMES model (three.js GLB): tagged stones, pavé layout, metal.
+// The server checks and compresses it (see check.ts), so nothing here needs Node.
+import { BufferAttribute, BufferGeometry, Color, Group, LinearSRGBColorSpace, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Scene, Vector3 } from 'three';
+import { mergeVertices, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry.js';
+import { MeshoptSimplifier } from 'meshoptimizer';
+import type { Analysis, Shell, SourcePart, Stone, Vec3 } from './geometry';
+
+export type MetalChoice = 'auto' | 'white' | 'yellow' | 'rose';
+const OTHER_WORDS = /enamel|pearl|dial|leather|strap|wood|ceramic|resin|lacquer|onyx|jade|coral|mother.?of.?pearl|rubber|fabric/i;
+const METALS = {
+  white: { name: 'White gold | visual study', color: [0.87, 0.86, 0.84] },
+  yellow: { name: 'Yellow gold | visual study', color: [0.94, 0.75, 0.42] },
+  rose: { name: 'Rose gold | visual study', color: [0.92, 0.64, 0.55] },
+} as const;
+/** Web budget for metal after simplification of very dense CAD exports. */
+export const METAL_BUDGET = 450000;
+
+/** Read a metal colour from the source material (linear RGB). */
+export function metalTone(color: Vec3 | null): keyof typeof METALS {
+  if (!color) return 'white';
+  const [r, g, b] = color, max = Math.max(r, g, b), min = Math.min(r, g, b);
+  if (max - min < 0.12 * Math.max(max, 0.05)) return 'white';
+  if (r >= g && g > b && (r - b) / max > 0.3 && g / r > 0.62) return 'yellow';
+  if (r > g && (r - g) / r > 0.18) return 'rose';
+  return 'white';
+}
+
+/** The light melee/placeholder brilliant: unit girdle radius, table +y (same points as the viewer). */
+function meleeUnit(): BufferGeometry {
+  const pts: Vector3[] = [];
+  for (let i = 0; i < 8; i++) { const a = (i + 0.5) * Math.PI / 4; pts.push(new Vector3(0.56 * Math.cos(a), 0.322, 0.56 * Math.sin(a))); }
+  for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; pts.push(new Vector3(Math.cos(a), 0, Math.sin(a))); }
+  pts.push(new Vector3(0, -0.886, 0));
+  return new ConvexGeometry(pts);
+}
+const basis = (s: Stone) => new Matrix4().makeBasis(new Vector3(...s.x), new Vector3(...s.y), new Vector3(...s.z));
+const linear = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2], LinearSRGBColorSpace);
+
+export type BuildReport = { metalTriangles: number; heroStones: number; melee: number; metal: string[]; others: number };
+export async function buildPieceGlb(parts: SourcePart[], analysis: Analysis & { shells: Shell[] }, options: { metal?: MetalChoice; sourceNames?: string } = {}): Promise<{ glb: Uint8Array; report: BuildReport }> {
+  await MeshoptSimplifier.ready;
+  const scene = new Scene(), root = new Group(); root.name = 'AMES piece (authored in mm)'; root.scale.setScalar(0.001); scene.add(root);
+  // Original object, layer and material names, kept so the server can sort the piece into its category.
+  if (options.sourceNames) root.userData.ames_source_names = options.sourceNames.replace(/\s+/g, ' ').slice(0, 2000);
+  const gemMaterial = new MeshStandardMaterial({ name: 'Diamond | closed dielectric', color: linear([0.99, 1, 1]), metalness: 0, roughness: 0.012 });
+  const add = (name: string, geometry: BufferGeometry, material: MeshStandardMaterial, matrix?: Matrix4, extras?: Record<string, unknown>) => {
+    const mesh = new Mesh(geometry, material); mesh.name = name;
+    if (matrix) matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+    if (extras) mesh.userData = extras; root.add(mesh); return mesh;
+  };
+  // Metal and other surfaces, grouped by tone.
+  const groups = new Map<string, number[]>(), report: BuildReport = { metalTriangles: 0, heroStones: 0, melee: 0, metal: [], others: 0 };
+  for (const i of analysis.metalShells) {
+    const part = parts[analysis.shells[i].part];
+    const key = OTHER_WORDS.test(part.hint) ? `other:${(part.color || [0.9, 0.9, 0.9]).map(v => v.toFixed(3)).join(',')}` : `metal:${options.metal && options.metal !== 'auto' ? options.metal : metalTone(part.color)}`;
+    let list = groups.get(key); if (!list) groups.set(key, list = []); list.push(i);
+  }
+  const totalMetal = analysis.metalShells.reduce((n, i) => n + analysis.shells[i].triangles.length, 0);
+  for (const [key, shells] of groups) {
+    const count = shells.reduce((n, i) => n + analysis.shells[i].triangles.length, 0), pos = new Float32Array(count * 9); let o = 0;
+    for (const i of shells) { const sh = analysis.shells[i], p = parts[sh.part].positions; for (const t of sh.triangles) { pos.set(p.subarray(t * 9, t * 9 + 9), o); o += 9; } }
+    let g = new BufferGeometry(); g.setAttribute('position', new BufferAttribute(pos, 3));
+    g = mergeVertices(toCreasedNormals(g, Math.PI / 6), 1e-4);
+    if (totalMetal > METAL_BUDGET && g.index) {
+      const target = Math.max(9000, Math.floor(count * METAL_BUDGET / totalMetal) * 3);
+      const [index] = MeshoptSimplifier.simplify(new Uint32Array(g.index.array), new Float32Array(g.getAttribute('position').array), 3, target, 0.0004);
+      g.setIndex(new BufferAttribute(index, 1));
+    }
+    const [kind, value] = key.split(':');
+    let material: MeshStandardMaterial;
+    if (kind === 'metal') { const m = METALS[value as keyof typeof METALS]; report.metal.push(value); material = new MeshStandardMaterial({ name: m.name, color: linear(m.color), metalness: 1, roughness: 0.05 }); }
+    else { report.others++; material = new MeshStandardMaterial({ name: 'Enamel / other | visual study', color: linear(value.split(',').map(Number)), metalness: 0, roughness: 0.35 }); }
+    add(kind === 'metal' ? 'Metal' : 'Other surface', g, material);
+    report.metalTriangles += (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  }
+  // Hero stones: a light placeholder fitted to each stone; the viewer rebuilds the cut from ames_cut.
+  const unit = meleeUnit();
+  for (const [i, s] of analysis.stones.filter(s => !s.melee).entries()) {
+    const g = unit.clone(); g.scale(s.width / 2, s.depth / 1.208, s.length / 2); g.translate(0, 0.282 * s.depth / 1.208, 0);
+    add(`Diamond ${s.cut} ${i + 1}`, g, gemMaterial, basis(s).setPosition(...s.center), { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_cut: s.cut });
+    report.heroStones++;
+  }
+  // Melee: position, rotation and size only (ames_pave_layout); the viewer builds the stones.
+  const melee = analysis.stones.filter(s => s.melee);
+  if (melee.length) {
+    // The viewer's melee sits with its girdle on the layout point: 73% of the depth up from the culet.
+    const girdle = (s: Stone) => s.center.map((v, a) => v + s.y[a] * 0.2334 * s.depth) as Vec3;
+    const layout = new Float32Array(melee.length * 8), q = new Quaternion();
+    melee.forEach((s, i) => { q.setFromRotationMatrix(basis(s)); layout.set([...girdle(s), q.x, q.y, q.z, q.w, s.width], i * 8); });
+    const first = melee[0], g = unit.clone(); g.scale(first.width / 2, first.width / 2, first.width / 2); g.applyMatrix4(basis(first).setPosition(...girdle(first)));
+    let bin = ''; const bytes = new Uint8Array(layout.buffer); for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    add('Pavé', g, gemMaterial, undefined, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_pave: true, ames_pave_layout: btoa(bin) });
+    report.melee = melee.length;
+  }
+  const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js');
+  const glb = await new GLTFExporter().parseAsync(scene, { binary: true, onlyVisible: true }) as ArrayBuffer;
+  report.metalTriangles = Math.round(report.metalTriangles);
+  return { glb: new Uint8Array(glb), report };
+}

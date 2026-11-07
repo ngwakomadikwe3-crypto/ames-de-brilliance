@@ -22,16 +22,20 @@
     "cad:listing": "node --env-file=.env.cad-worker.local scripts/cad/listing-operator.mjs"
   },
   "dependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
     "@google/model-viewer": "^4.3.1",
     "@react-pdf/renderer": "^4.8.1",
     "ames-engine": "file:vendor/ames-engine-0.1.6.tgz",
     "better-sqlite3": "^13.0.3",
     "fflate": "^0.8.3",
+    "meshoptimizer": "^1.1.1",
     "next": "16.4.3",
     "node-appwrite": "^28.0.0",
     "nodemailer": "10.1.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "three": "0.183.2",
     "zod": "4.6.6"
   },
   "devDependencies": {

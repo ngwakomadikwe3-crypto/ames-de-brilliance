@@ -39,6 +39,31 @@ function buildBody(req: SourcingRequestEmail): string {
   return `New sourcing request received.\n\n  Request: ${req.id}\n  Buyer:   ${req.buyer_name} (${req.company})\n  Country: ${req.country}\n  Contact: ${req.contact}\n  Type:    ${req.type}\n\nREQUIREMENT:\n  ${req.shape} ${req.carat_min}\u2013${req.carat_max}ct ${req.color} ${req.clarity}${cert}\n${kp}${decl}\n${req.notes ? `\nNOTES:\n  ${req.notes}\n` : ""}\nLog in to the dashboard to view, update status, or generate an offer.\nhttps://houseofames.com/dashboard`;
 }
 
+function transport() {
+  if (!SMTP_HOST || !SMTP_USER) return null;
+  return nodemailer.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: SMTP_USER, pass: SMTP_PASS } });
+}
+
+/** Studio invite for a verified jeweller. Returns false when mail is not configured (staff then share the link). */
+export async function sendJewellerInvite(to: string, businessName: string, url: string, expires: string): Promise<boolean> {
+  const mail = transport(); if (!mail) return false;
+  try {
+    await mail.sendMail({ from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`, to, subject: 'Your AMES jeweller studio is ready',
+      text: `Hello ${businessName},\n\nAMES has verified your business. Open this link to set up your jeweller studio, where you can upload CAD designs and publish them as 3D pieces in the AMES Boutique:\n\n${url}\n\nSign in (or create your AMES account) with this email address, ${to}, then accept the invite. The link works once and expires on ${expires.slice(0, 10)}.\n\nAMES DE BRILLIANTE` });
+    return true;
+  } catch (err: any) { console.error('[email] Invite failed:', err.message); return false; }
+}
+
+/** Tell staff a jeweller piece went live automatically, so it can be checked or withdrawn. */
+export async function sendAutoPublishNotice(listingId: string, name: string, category: string): Promise<boolean> {
+  const mail = transport(); if (!mail) return false;
+  try {
+    await mail.sendMail({ from: `"AMES DE BRILLIANTE" <${NOTIFY_FROM}>`, to: NOTIFY_TO, subject: `[AMES] New jeweller piece published: ${name}`,
+      text: `A verified jeweller published "${name}" (${category}) through Automatic 3D.\n\nView: https://houseofames.com/jewellery/${listingId}\nManage or withdraw: https://houseofames.com/dashboard/listings` });
+    return true;
+  } catch (err: any) { console.error('[email] Publish notice failed:', err.message); return false; }
+}
+
 export async function sendSourcingNotification(req: SourcingRequestEmail): Promise<boolean> {
   if (!SMTP_HOST || !SMTP_USER) {
     console.log("[email] SMTP not configured, skipping notification for", req.id);

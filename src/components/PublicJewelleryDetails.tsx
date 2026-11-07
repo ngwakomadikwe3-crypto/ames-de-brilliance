@@ -4,6 +4,7 @@ import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
 import { SavePiece, AskJeweller } from './PieceAccountActions';
 import EngineJewelryViewer from './EngineJewelryViewer';
+import { studioCameraPreset } from '@/lib/customer-jewelry-display';
 import { publicCatalogueSchema, originLabel, type CatalogueListing } from '@/lib/catalogue-content';
 export default function PublicJewelleryDetails({ id }: { id: string }) {
   const [listing, setListing] = useState<CatalogueListing | null>(null), [error, setError] = useState('');
@@ -15,7 +16,7 @@ export default function PublicJewelleryDetails({ id }: { id: string }) {
   if (error) return <p role="alert">{error}</p>;
   if (!listing) return <p role="status">Loading jewellery…</p>;
   return <article className="space-y-4"><h2 className="text-2xl">{listing.name}</h2><p className="text-sm text-[#b9cec6]">By {listing.storefrontUrl ? <a href={listing.storefrontUrl} className="underline">{listing.businessName}</a> : listing.businessName}</p>
-    <EngineJewelryViewer src={listing.previewUrl} poster={listing.posterUrl} alt={listing.name} autoLoad opticsProfile="soft-studio" turntableEnabled={false} style={{ height: 'clamp(280px,50dvh,500px)' }} />
+    <EngineJewelryViewer src={listing.previewUrl} poster={listing.posterUrl} alt={listing.name} autoLoad opticsProfile={listing.studio ? 'mounted-gem-studio' : 'soft-studio'} {...(listing.studio ? { cameraPreset: studioCameraPreset(listing.category) } : {})} turntableEnabled={false} style={{ height: 'clamp(280px,50dvh,500px)' }} />
     <p className="text-xl">{listing.price ? new Intl.NumberFormat(undefined, { style: 'currency', currency: listing.price.currency }).format(listing.price.amount) : 'Price on request'}</p>
     <p className="text-sm whitespace-pre-wrap">{listing.description}</p>
     <p className="text-sm">Made in: {originLabel(listing.madeIn.country, listing.madeIn.verified)}</p>

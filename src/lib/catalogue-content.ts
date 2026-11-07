@@ -8,6 +8,8 @@ export const publicCatalogueSchema = z.object({
   price: z.object({ amount: z.number().positive(), currency: z.string().regex(/^[A-Z]{3}$/) }).nullable(),
   madeIn: origin, gemstones: z.array(z.object({ name: z.string().max(80), origin: z.string().max(80), verified: z.boolean() })).max(12),
   previewUrl: artifact, posterUrl: artifact,
+  /** Converted by the AMES converter: tagged stones for the studio diamond viewer. */
+  studio: z.boolean().optional(),
 }).superRefine((value, ctx) => {
   if (value.assetId !== `listing-${value.id}` || !value.revisionId.startsWith(`${value.assetId}:`) || ![value.previewUrl, value.posterUrl].every(url => url.startsWith(`/api/catalogue/${value.id}/files/`))) ctx.addIssue({ code: 'custom', message: 'Catalogue identity mismatch' });
 });

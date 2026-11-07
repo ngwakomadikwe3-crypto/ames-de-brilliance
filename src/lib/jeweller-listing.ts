@@ -3,7 +3,7 @@ import { z } from 'zod';
 const originText = z.string().trim().max(80).default('').transform(v => /^(unknown(?: origin)?|not stated|not known|n\/a)$/i.test(v) ? '' : v);
 export const listingInput = z.object({
   name: z.string().trim().min(2).max(120),
-  category: z.enum(['ring', 'earrings', 'necklace', 'bracelet', 'accessory']),
+  category: z.enum(['ring', 'earrings', 'necklace', 'bracelet', 'watch', 'accessory']),
   description: z.string().trim().max(2000).default(''),
   priceMode: z.enum(['fixed', 'on_request']).default('on_request'),
   amount: z.string().trim().regex(/^(?:|\d{1,9}(?:\.\d{1,2})?)$/).default(''),
@@ -26,7 +26,15 @@ export type ListingFile = {
 export type ListingReview = {
   priceChecked: boolean; originChecked: boolean; rightsChecked: boolean; technicalChecked: boolean; visualChecked: boolean;
   madeInVerified: boolean; gemstoneOriginsVerified: boolean[]; evidenceIds: string[]; notes: string;
+  /** Set when a verified jeweller's converted model passed the automatic check and was published without staff review. */
+  automatic?: AutomaticCheck;
 };
+export type AutomaticCheck = { at: string; triangles: number; stones: number; melee: number; size: number[]; category: string; confidence: string; reasons: string[] };
+/** Review record for automatic publication: only the technical check is attested; origins stay declared. */
+export function automaticReview(listing: JewellerListing, check: Omit<AutomaticCheck, 'at'>): ListingReview {
+  return { priceChecked: false, originChecked: false, rightsChecked: false, technicalChecked: true, visualChecked: false, madeInVerified: false,
+    gemstoneOriginsVerified: listing.details.gemstones.map(() => false), evidenceIds: [], notes: 'Published automatically after the AMES 3D model check.', automatic: { ...check, at: new Date().toISOString() } };
+}
 export const reviewSchema = z.object({
   priceChecked: z.literal(true), originChecked: z.literal(true), rightsChecked: z.literal(true), technicalChecked: z.literal(true), visualChecked: z.literal(true),
   madeInVerified: z.boolean(), gemstoneOriginsVerified: z.array(z.boolean()).max(12), evidenceIds: z.array(z.uuid()).max(12), notes: z.string().trim().min(20).max(1500),
@@ -68,7 +76,7 @@ export function approveListing(listing: JewellerListing, input: unknown): Listin
 }
 export function publicListing(listing: JewellerListing, businessName: string, storefrontSlug?: string) {
   if (listing.status !== 'published' || !listing.review) throw new Error('Listing is not public');
-  approveListing({ ...listing, status: 'submitted' }, listing.review);
+  if (!listing.review.automatic) approveListing({ ...listing, status: 'submitted' }, listing.review);
   const preview = listing.files.find(f => f.kind === 'preview' && f.complete), poster = listing.files.find(f => f.kind === 'poster' && f.complete);
   if (!preview || !poster) throw new Error('Published assets are unavailable');
   const d = listing.details, url = (id: string) => `/api/catalogue/${listing.id}/files/${id}`;
@@ -76,6 +84,6 @@ export function publicListing(listing: JewellerListing, businessName: string, st
     businessName, storefrontUrl: storefrontSlug ? `/makers/${storefrontSlug}` : null, price: d.priceMode === 'fixed' ? { amount: Number(d.amount), currency: d.currency } : null,
     madeIn: { country: d.madeIn, verified: listing.review.madeInVerified },
     gemstones: d.gemstones.map((gem, i) => ({ ...gem, verified: listing.review!.gemstoneOriginsVerified[i] })),
-    previewUrl: url(preview.id), posterUrl: url(poster.id) };
+    previewUrl: url(preview.id), posterUrl: url(poster.id), studio: Boolean(listing.review.automatic) };
 }
 export type PublicListing = ReturnType<typeof publicListing>;
