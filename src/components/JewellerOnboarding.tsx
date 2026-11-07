@@ -31,7 +31,7 @@ export default function JewellerOnboarding() {
   return <div className="space-y-6" data-jeweller-onboarding>
     <p className="text-sm text-[#b9cec6]">Create your private business profile, complete the verification steps, then open a storefront under your verified business name. Identity and business documents stay private.</p>
     {error && <p role="alert" className="rounded-xl border border-red-300/30 p-3 text-sm text-red-200">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}
-    {!account ? <Link className="underline" href="/app/account">Create / sign in to your AMES account</Link> : <>
+    {!account ? <Link className="underline" href="/app/account">Create / sign in to your HOUSEofAMES account</Link> : <>
       <ol className="grid gap-3 text-sm sm:grid-cols-2" aria-label="Jeweller setup checklist">
         <li>1. Account email: {account.verified ? 'verified' : 'verification required'} <Link href="/app/account" className="underline">Account settings</Link></li>
         <li>2. Business details and evidence: {!profile ? 'not started' : profile.gaps.length ? `${profile.gaps.length} requirements remaining` : 'complete'}</li>

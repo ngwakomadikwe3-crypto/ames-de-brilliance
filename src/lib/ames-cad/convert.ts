@@ -4,6 +4,8 @@ import { classify, type Classification } from './classify';
 import { buildPieceGlb, type GemAssignment, type MetalChoice, type BuildReport } from './build';
 import { gem, gemsInText } from './gems';
 import { loadCad, type Units } from './load';
+import { planLinks } from './links';
+import { planDangles } from './dangles';
 import { renderPoster } from './poster';
 
 /** Stones shown to the jeweller for confirmation: one row per centre stone, matching side stones or pavé. */
@@ -62,6 +64,12 @@ export async function convertCad(file: File, options: { units?: Units; metal?: M
   const metalParts = analysis.metalShells.map(i => { const s = analysis.shells[i]; return [0, 1, 2].map(k => s.max[k] - s.min[k]).sort((x, y) => y - x); });
   const classification = classify({ points: pts, metalParts, stones: analysis.stones, names: `${options.listingName || ''} ${names}` });
   applyListing(analysis.stones, [...(options.listingGems || []), options.listingName || '', file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ')].join(' · '));
+  // Moving parts: a bracelet made of separate links is split link by link (the Boutique can unclasp and
+  // measure it); drop earrings hang from their hinges so they dangle.
+  const category = classification.category;
+  if (category === 'bracelet') await step('Finding the links of the bracelet…');
+  if (category === 'earrings') await step('Finding the hinges of the earrings…');
+  const rig = category === 'bracelet' ? planLinks(parts, analysis) : category === 'earrings' ? planDangles(parts, analysis) : null;
   const detected = groupStones(analysis.stones);
   const cuts: Record<string, number> = {}; for (const s of analysis.stones) { const k = s.melee ? 'melee' : s.shape; cuts[k] = (cuts[k] || 0) + 1; }
 
@@ -69,7 +77,7 @@ export async function convertCad(file: File, options: { units?: Units; metal?: M
     const assignment: GemAssignment = {};
     const stones = detected.map(g => { const id = choices[g.key]; if (!id || id === g.gem) return g; for (const i of g.indices) assignment[i] = id; return { ...g, gem: id, source: 'chosen' as const, reason: `chosen by you (detected: ${gem(g.gem).name})` }; });
     await step('Building the 3D model…');
-    const { glb, report } = await buildPieceGlb(parts, analysis, { metal: options.metal, sourceNames: names, gems: assignment });
+    const { glb, report } = await buildPieceGlb(parts, analysis, { metal: options.metal, sourceNames: names, gems: assignment, rig });
     await step('Photographing it for the Boutique…');
     const poster = await renderPoster(glb, classification.category);
     return { glb, poster, classification, stones, report: { ...report, unit, unitSource, size: analysis.size, sourceTriangles: analysis.triangles, cuts }, regem: next => make({ ...choices, ...next }) };

@@ -6,7 +6,7 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "presentation": "interactive",
-  "stageAsset": "web/earrings-v2.glb",
+  "stageAsset": "web/earrings-v3.glb",
   "poster": "web/poster-v2.webp",
   "rotationEnabled": false,
   "defaultView": "three_quarter",

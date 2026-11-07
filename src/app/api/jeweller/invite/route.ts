@@ -6,12 +6,12 @@ import { recordChange, effectiveProfileStatus } from '@/lib/jeweller-profile';
 import { readInvite, maskEmail } from '@/lib/jeweller-invite';
 export const runtime = 'nodejs';
 
-/** Jeweller: accept a studio invite with the AMES account that uses the invited email. */
+/** Jeweller: accept a studio invite with the HOUSEofAMES account that uses the invited email. */
 export async function POST(req: NextRequest) {
   try {
     checkChatOrigin(req); const body = await readChatJson(req), invite = readInvite(body.token);
     const { user } = await customerSession(req, true);
-    if ((await listProfiles()).some(p => p.portalUserId === user.$id && p.id !== invite.profileId)) throw new ChatError(409, 'This AMES account is already linked to another business. Sign in with a different account.');
+    if ((await listProfiles()).some(p => p.portalUserId === user.$id && p.id !== invite.profileId)) throw new ChatError(409, 'This HOUSEofAMES account is already linked to another business. Sign in with a different account.');
     const current = await getProfile(invite.profileId);
     const profile = await mutateProfile(invite.profileId, current.version, p => {
       if (effectiveProfileStatus(p) !== 'verified') throw new ChatError(403, 'This business is not verified at the moment. Contact AMES.');

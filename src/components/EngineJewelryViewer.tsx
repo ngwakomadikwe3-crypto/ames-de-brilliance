@@ -35,6 +35,14 @@ type ViewerProps = {
   style?: React.CSSProperties;
 };
 
+/** "49 diamonds", "12 rubies": the bracelet's stones (the AMES tennis bracelet has one diamond a link). */
+function stonesLabel(b: { links: number; stones?: number; stone?: string }) {
+  const count = b.stones ?? b.links, name = (b.stone ?? 'Diamond').toLowerCase();
+  if (!count) return '';
+  if (count === 1) return `1 ${name}`;
+  return `${count} ${/[^aeiou]y$/.test(name) ? name.slice(0, -1) + 'ies' : /(s|x|z|ch|sh)$/.test(name) ? name + 'es' : name + 's'}`;
+}
+
 function SelectedViewer({
   src,
   poster,
@@ -67,7 +75,7 @@ function SelectedViewer({
     return () => clearTimeout(timeout);
   }, [state, attempt, handleFailure]);
   // A bracelet built link by link reports its size on the canvas; offer to unclasp it and lay it flat.
-  const [bracelet, setBracelet] = useState<{ length_mm: number; width_mm: number; links: number; clasp: string } | null>(null);
+  const [bracelet, setBracelet] = useState<{ length_mm: number; width_mm: number; links: number; clasp: string; stones?: number; stone?: string } | null>(null);
   const [flat, setFlat] = useState(false), [measured, setMeasured] = useState(false);
   useEffect(() => {
     setBracelet(null); setFlat(false); setMeasured(false);
@@ -103,8 +111,8 @@ function SelectedViewer({
       /></ViewerBoundary>}
       {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
         {flat && measured && <span role="status" className="rounded-full bg-[#031815]/85 px-4 py-2 text-center text-[12px] text-[#eef5f2] backdrop-blur-md">
-          <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.width_mm.toFixed(1)} mm wide · {bracelet.links} diamonds
-          <span className="block text-[10px] text-[#b8d0c8]">Fits a wrist up to about {Math.floor(bracelet.length_mm / 10 - 1.5)} cm · {bracelet.clasp}</span>
+          <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.width_mm.toFixed(1)} mm wide{stonesLabel(bracelet) && <> · {stonesLabel(bracelet)}</>}
+          <span className="block text-[10px] text-[#b8d0c8]">Fits a wrist up to about {Math.floor(bracelet.length_mm / 10 - 1.5)} cm{bracelet.clasp && <> · {bracelet.clasp}</>}</span>
         </span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
       </div>}

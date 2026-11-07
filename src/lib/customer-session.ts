@@ -7,7 +7,7 @@ export async function customerSession(req: NextRequest, verified = false) {
   if (!pending) {
     pending = (async () => {
       const secret = req.cookies.get('ames_customer_session')?.value;
-      if (!secret) throw new ChatError(401, 'Sign in to your AMES account.');
+      if (!secret) throw new ChatError(401, 'Sign in to your HOUSEofAMES account.');
       const endpoint = process.env.APPWRITE_ENDPOINT, project = process.env.APPWRITE_PROJECT_ID;
       if (!endpoint || !project) throw new ChatError(503, 'Account service is not configured.');
       const api = new Account(new Client().setEndpoint(endpoint).setProject(project).setSession(secret));

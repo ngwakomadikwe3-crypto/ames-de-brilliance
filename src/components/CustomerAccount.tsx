@@ -96,15 +96,15 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
 
   return <section aria-label="Customer account" className="space-y-4 rounded-2xl border border-white/15 bg-[#031815]/60 p-5">
 
-    <h2 className="text-xl">Your AMES account</h2>
+    <h2 className="text-xl">Your HOUSEofAMES account</h2>
 
     {loading ? <p role="status">Checking your account…</p> : user && !link ? <>
 
       <p className="break-all text-sm">{user.email}</p><a href="/workspace" className="text-sm underline">Open my workspace</a>
-        {user.id && <details className="text-xs text-[#b9cec6]"><summary>Account reference for AMES support</summary><p className="mt-2">If AMES already created your business profile, staff can link it using this account reference.</p><code className="break-all select-all">{user.id}</code><p className="mt-2"><a href="/jeweller/onboarding" className="underline">Set up my jeweller business</a></p></details>}
+        {user.id && <details className="text-xs text-[#b9cec6]"><summary>Account reference for HOUSEofAMES support</summary><p className="mt-2">If HOUSEofAMES already created your business profile, staff can link it using this account reference.</p><code className="break-all select-all">{user.id}</code><p className="mt-2"><a href="/jeweller/onboarding" className="underline">Set up my jeweller business</a></p></details>}
 
       <p className="text-xs text-[#b9cec6]">{user.verified ? 'Email verified' : 'Email not verified yet'} · Customer account</p>
-      {!user.email && <form className="space-y-3" onSubmit={e => { e.preventDefault(); const form = new FormData(e.currentTarget); void perform({ action: 'complete-social-email', email: form.get('email'), password: form.get('password') }); }}><p className="text-sm text-[#b9cec6]">Add a contact email before sending enquiries or opening a professional profile. This also gives you an email sign-in option.</p><label className="block text-sm">Contact email<input name="email" type="email" required maxLength={254} className={inputClass} autoComplete="email" /></label><label className="block text-sm">Set an AMES password<input name="password" type="password" required minLength={12} maxLength={128} className={inputClass} autoComplete="new-password" /></label><button disabled={busy} className="rounded-full border border-white/25 px-4 py-2 text-sm">Save contact email</button></form>}
+      {!user.email && <form className="space-y-3" onSubmit={e => { e.preventDefault(); const form = new FormData(e.currentTarget); void perform({ action: 'complete-social-email', email: form.get('email'), password: form.get('password') }); }}><p className="text-sm text-[#b9cec6]">Add a contact email before sending enquiries or opening a professional profile. This also gives you an email sign-in option.</p><label className="block text-sm">Contact email<input name="email" type="email" required maxLength={254} className={inputClass} autoComplete="email" /></label><label className="block text-sm">Set an HOUSEofAMES password<input name="password" type="password" required minLength={12} maxLength={128} className={inputClass} autoComplete="new-password" /></label><button disabled={busy} className="rounded-full border border-white/25 px-4 py-2 text-sm">Save contact email</button></form>}
 
       <div className="flex flex-wrap gap-4 text-sm">
 

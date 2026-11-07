@@ -16,7 +16,7 @@
     "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
   ],
   "interactive": {
-    "glb": "web/earrings-v2.glb",
+    "glb": "web/earrings-v3.glb",
     "poster": "web/poster-v2.webp"
   }
 }

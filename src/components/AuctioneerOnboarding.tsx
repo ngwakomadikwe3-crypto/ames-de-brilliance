@@ -30,7 +30,7 @@ export default function AuctioneerOnboarding() {
   return <div className="space-y-6" data-auctioneer-onboarding>
     <p className="text-sm text-[#b9cec6]">Create your private auctioneer profile, provide professional references and operating terms, then submit it for staff verification. Your profile and documents stay private. This does not schedule auctions or enable bidding.</p>
     {error && <p role="alert" className="rounded-xl border border-red-300/30 p-3 text-sm text-red-200">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}
-    {!account ? <Link className="underline" href="/app/account">Create / sign in to your AMES account</Link> : <>
+    {!account ? <Link className="underline" href="/app/account">Create / sign in to your HOUSEofAMES account</Link> : <>
       <ol className="grid gap-3 text-sm sm:grid-cols-2" aria-label="Auctioneer setup checklist">
         <li>1. Account email: {account.verified ? 'verified' : 'verification required'} <Link href="/app/account" className="underline">Account settings</Link></li>
         <li>2. Business details and evidence: {!profile ? 'not started' : profile.gaps.length ? `${profile.gaps.length} requirements remaining` : 'complete'}</li>

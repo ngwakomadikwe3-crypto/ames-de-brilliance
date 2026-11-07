@@ -47,7 +47,7 @@ export async function checkPieceGlb(bytes: Uint8Array, names: string): Promise<P
       const raw = Buffer.from(extras.ames_pave_layout, 'base64'); if (raw.length % 32 || raw.length / 32 > LIMITS.melee) fail('invalid pavé layout.');
       const f = new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.length));
       const parent = (node.getParentNode()?.getWorldMatrix() as unknown as number[] | undefined) || [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-      for (let i = 0; i < f.length; i += 8) { const d = f[i + 7] * parent[0] * 1000; if (!(d > 0.2 && d < 6) || [0, 1, 2, 3, 4, 5, 6].some(k => !Number.isFinite(f[i + k]))) fail('invalid melee in the pavé layout.'); grow(worldPoint(parent, [f[i], f[i + 1], f[i + 2]]).map(v => v * 1000)); stones.push({ width: d }); melee++; countGem(gemId, true, d); }
+      for (let i = 0; i < f.length; i += 8) { const d = f[i + 7] * Math.hypot(parent[0], parent[1], parent[2]) * 1000; if (!(d > 0.2 && d < 6) || [0, 1, 2, 3, 4, 5, 6].some(k => !Number.isFinite(f[i + k]))) fail('invalid melee in the pavé layout.'); grow(worldPoint(parent, [f[i], f[i + 1], f[i + 2]]).map(v => v * 1000)); stones.push({ width: d }); melee++; countGem(gemId, true, d); }
       continue;
     }
     for (const prim of mesh.listPrimitives()) {

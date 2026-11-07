@@ -90,12 +90,12 @@ export class Builder {
     if (geo.attributes.uv) p.setAttribute('TEXCOORD_0', d.createAccessor().setType('VEC2').setArray(new Float32Array(geo.attributes.uv.array)).setBuffer(this.buf));
     if (geo.index) p.setIndices(d.createAccessor().setType('SCALAR').setArray(new Uint32Array(geo.index.array)).setBuffer(this.buf));
     p.setMaterial(material); return d.createMesh(name).addPrimitive(p); }
-  node(name, mesh, matrix, extras) { const n = this.doc.createNode(name).setMesh(mesh);
+  node(name, mesh, matrix, extras, parent) { const n = this.doc.createNode(name).setMesh(mesh);
     if (matrix) { const p = V(), q = new THREE.Quaternion(), s = V(); matrix.decompose(p, q, s); n.setTranslation(p.toArray()).setRotation(q.toArray()).setScale(s.toArray()); }
-    if (extras) n.setExtras(extras); this.root.addChild(n); return n; }
+    if (extras) n.setExtras(extras); (parent ?? this.root).addChild(n); return n; }
   /** A hero stone: its own node and real brilliant facets; ames_cut lets the engine refit it. */
-  stone(name, outline, W, L, matrix) { this.gemCount++; (this.heroes ??= []).push({ name, outline, W, L });
-    return this.node(name, this.mesh(name, heroCut(outline, W, L), this.gem), matrix, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_cut: outline }); }
+  stone(name, outline, W, L, matrix, parent) { this.gemCount++; (this.heroes ??= []).push({ name, outline, W, L });
+    return this.node(name, this.mesh(name, heroCut(outline, W, L), this.gem), matrix, { ames_optical_mode: 'closed-dielectric-visual', ames_gemstone_id: 'stone-diamond', ames_cut: outline }, parent); }
   /** Melee for pavé: collected per group and written as one ray-traced mesh. */
   melee(group, D, matrix) { this.meleeCount++; if (!this.pave.has(group)) this.pave.set(group, []);
     const p = V(), q = new THREE.Quaternion(), s = V(); matrix.decompose(p, q, s); this.pave.get(group).push({ D, p, q }); }
@@ -112,7 +112,7 @@ export class Builder {
       for (const n of this.root.listChildren()) if (n.getExtras().ames_pave) { n.getMesh().dispose(); n.dispose(); } this.gemCount -= pave.size; }
     // The viewer rebuilds every ames_cut stone to its bounds, so the web file only needs a light
     // placeholder of the same size (offline stills keep the full facets).
-    for (const n of this.root.listChildren()) { const cut = n.getExtras().ames_cut; if (!cut) continue;
+    for (const n of this.doc.getRoot().listNodes()) { const cut = n.getExtras().ames_cut; if (!cut) continue;
       const h = this.heroes.find(x => x.name === n.getName()), old = n.getMesh();
       n.setMesh(this.mesh(`${h.name} placeholder`, fit(meleeUnit, h.W, h.L), this.gem)); if (!old.listParents().some(p => p !== this.root && p.propertyType === 'Node')) old.dispose(); }
     this.flushPave(true);

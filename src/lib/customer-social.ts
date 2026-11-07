@@ -12,7 +12,7 @@ export function socialOrigin(requestUrl: string) {
   const origin = process.env.AMES_AUTH_ORIGIN || (process.env.NODE_ENV === 'production' ? 'https://houseofames.com' : request.origin);
   const configured = new URL(origin);
   if (configured.origin !== origin || configured.username || configured.password || request.origin !== origin ||
-    (configured.protocol !== 'https:' && !(configured.protocol === 'http:' && process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(configured.hostname)))) throw new Error('Use the AMES account page on the configured site');
+    (configured.protocol !== 'https:' && !(configured.protocol === 'http:' && process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(configured.hostname)))) throw new Error('Use the HOUSEofAMES account page on the configured site');
   return origin;
 }
 export function newSocialAttempt(provider: SocialProvider, now = Date.now()) {

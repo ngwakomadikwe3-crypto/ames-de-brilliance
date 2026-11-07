@@ -105,6 +105,8 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
           <li>Category: <strong>{CATEGORY_LABEL[c.category]}</strong> <span className="text-xs text-[#b9cec6]">({c.confidence} confidence — {c.reasons.join('; ')})</span></li>
           <li>Size: {r.size.map(v => v.toFixed(1)).join(' × ')} mm <span className="text-xs text-[#b9cec6]">(units {r.unit}, {r.unitSource})</span></li>
           <li>Metal: {r.metal.join(', ') || '—'} · {r.metalTriangles.toLocaleString()} triangles</li>
+          {r.bracelet && <li>Bracelet: <strong>{r.bracelet.links} links</strong>, {(r.bracelet.length_mm / 10).toFixed(1)} cm long, {r.bracelet.width_mm.toFixed(1)} mm wide{r.bracelet.clasp ? ` · ${r.bracelet.clasp}` : ''} <span className="text-xs text-[#b9cec6]">— buyers can unclasp it and measure it in 3D</span></li>}
+          {r.dangles ? <li>Hinges: <strong>{r.dangles} hinged {r.dangles === 1 ? 'part' : 'parts'}</strong> <span className="text-xs text-[#b9cec6]">— the drops dangle when buyers turn the piece</span></li> : null}
         </ul>
         <div className="space-y-2" data-stones>
           <h3 className="text-sm">Stones {result.stones.length ? <span className="text-xs text-[#b9cec6]">— check each one; change it if AMES read it wrong</span> : null}</h3>

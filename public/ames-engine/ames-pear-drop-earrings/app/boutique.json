@@ -8,7 +8,7 @@
   "name": "Pear drop earrings",
   "thumbnail": "web/poster-v2.webp",
   "heroImage": "web/poster-v2.webp",
-  "interactiveGlb": "web/earrings-v2.glb",
+  "interactiveGlb": "web/earrings-v3.glb",
   "poster": "web/poster-v2.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,
