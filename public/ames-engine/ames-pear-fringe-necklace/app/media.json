@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "ames.media-content/1",
+  "assetId": "ames-pear-fringe-necklace",
+  "revisionId": "ames-pear-fringe-necklace:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "items": [
+    {
+      "assetId": "ames-pear-fringe-necklace",
+      "id": "ames_pear_fringe_necklace_concept",
+      "mediaType": "image",
+      "path": "web/poster.webp",
+      "aspectRatio": 1,
+      "approvalState": "pending"
+    }
+  ]
+}

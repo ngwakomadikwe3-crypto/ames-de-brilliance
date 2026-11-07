@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "ames.chat-content/1",
+  "assetId": "ames-pear-fringe-necklace",
+  "revisionId": "ames-pear-fringe-necklace:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "presentation": "interactive",
+  "stageAsset": "web/pear-fringe-necklace.glb",
+  "poster": "web/poster.webp",
+  "rotationEnabled": false,
+  "defaultView": "front",
+  "supportedViewerActions": [
+    "rotate",
+    "stop_rotation",
+    "zoom",
+    "reset",
+    "side_view",
+    "inspect_setting"
+  ],
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept; not measured inventory.",
+    "manufacturingReady": false
+  },
+  "heroImage": "web/poster.webp",
+  "macroImage": "web/poster.webp",
+  "visualModes": [
+    "interactive",
+    "side"
+  ]
+}

@@ -113,7 +113,7 @@ export class Builder {
     // The viewer rebuilds every ames_cut stone to its bounds, so the web file only needs a light
     // placeholder of the same size (offline stills keep the full facets).
     for (const n of this.doc.getRoot().listNodes()) { const cut = n.getExtras().ames_cut; if (!cut) continue;
-      const h = this.heroes.find(x => x.name === n.getName()), old = n.getMesh();
+      const h = this.heroes?.find(x => x.name === n.getName()), old = n.getMesh(); if (!h) continue;
       n.setMesh(this.mesh(`${h.name} placeholder`, fit(meleeUnit, h.W, h.L), this.gem)); if (!old.listParents().some(p => p !== this.root && p.propertyType === 'Node')) old.dispose(); }
     this.flushPave(true);
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });

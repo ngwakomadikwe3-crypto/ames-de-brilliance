@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "ames.app-asset/1",
+  "assetId": "ames-pear-fringe-necklace",
+  "revisionId": "ames-pear-fringe-necklace:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "type": "jewelry",
+  "category": "necklace",
+  "name": "Pear-drop fringe necklace",
+  "verifiedClaims": {
+    "originalConcept": true,
+    "commercialStock": false
+  },
+  "limitations": [
+    "Original AMES design: a riviera of round brilliants with a graduated fringe of pear drops and a larger centre pear; white gold, box clasp.",
+    "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
+  ],
+  "interactive": {
+    "glb": "web/pear-fringe-necklace.glb",
+    "poster": "web/poster.webp"
+  }
+}

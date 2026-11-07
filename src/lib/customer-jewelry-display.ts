@@ -1,10 +1,10 @@
 /** Customer-facing presentation holds; source packs remain available for staff review. */
 /** AMES-authored pieces shown in the physical studio (ray-traced diamonds, studio metal). */
-export const AMES_STUDIO_PIECES = new Set(['ames-pear-drop-earrings', 'ames-iced-watch', 'ames-tennis-bracelet']);
+export const AMES_STUDIO_PIECES = new Set(['ames-pear-drop-earrings', 'ames-iced-watch', 'ames-tennis-bracelet', 'ames-pear-fringe-necklace']);
 
-/** Earrings and watches are read face-on; bracelets from above at three-quarter. */
+/** Earrings, necklaces and watches are read face-on; bracelets from above at three-quarter. */
 export function studioCameraPreset(category?: string): 'front' | 'three_quarter' {
-  return category === 'earrings' || category === 'watch' ? 'front' : 'three_quarter';
+  return category === 'earrings' || category === 'watch' || category === 'necklace' ? 'front' : 'three_quarter';
 }
 
 export function showCustomerJewelry(assetId: string, surface: 'interactive' | 'media' = 'interactive'): boolean {
