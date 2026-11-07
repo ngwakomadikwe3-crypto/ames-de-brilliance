@@ -70,7 +70,9 @@ export async function PATCH(req: NextRequest, { params }: Context) {
       throw new Error('Unknown listing action');
     });
     for (const part of replacedParts) await deletePart(part).catch(() => {});
-    if (published) await sendAutoPublishNotice(changed.id, published.name, published.category).catch(() => false);
+    // Assigned inside the mutation callback, which TypeScript's flow analysis cannot see.
+    const notice = published as { name: string; category: string } | null;
+    if (notice) await sendAutoPublishNotice(changed.id, notice.name, notice.category).catch(() => false);
     return NextResponse.json(changed, { headers: privateHeaders });
   } catch (e) { return listingFailure(e); }
 }
