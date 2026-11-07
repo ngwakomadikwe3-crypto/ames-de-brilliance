@@ -14,3 +14,4 @@ To build:
     node watch2.mjs watch.glb watch-raw.glb
 
 The second argument writes an uncompressed copy for Blender.
+- `bracelet3.mjs` builds the tennis bracelet link by link (each link its own node tagged `ames_link`, the clasp split across the two clasp links, `ames_bracelet` on the root with length and width) so the viewer can unclasp it and lay it flat with a ruler.

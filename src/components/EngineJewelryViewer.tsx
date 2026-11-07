@@ -66,6 +66,26 @@ function SelectedViewer({
     const timeout = setTimeout(handleFailure, 60000);
     return () => clearTimeout(timeout);
   }, [state, attempt, handleFailure]);
+  // A bracelet built link by link reports its size on the canvas; offer to unclasp it and lay it flat.
+  const [bracelet, setBracelet] = useState<{ length_mm: number; width_mm: number; links: number; clasp: string } | null>(null);
+  const [flat, setFlat] = useState(false), [measured, setMeasured] = useState(false);
+  useEffect(() => {
+    setBracelet(null); setFlat(false); setMeasured(false);
+    if (state !== 'ready') return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      const info = host.current?.querySelector('canvas')?.dataset.amesBracelet;
+      if (info) { try { setBracelet(JSON.parse(info)); } catch { /* not a bracelet */ } clearInterval(timer); }
+      else if (++tries > 20) clearInterval(timer);
+    }, 250);
+    return () => clearInterval(timer);
+  }, [state, src]);
+  const toggleClasp = useCallback(() => {
+    const canvas = host.current?.querySelector('canvas'); if (!canvas) return;
+    const next = !flat; setFlat(next); setMeasured(false);
+    canvas.dispatchEvent(new CustomEvent('ames:bracelet', { detail: { flat: next } }));
+    if (next) { const check = setInterval(() => { if (canvas.dataset.amesBraceletState === 'flat') { setMeasured(true); clearInterval(check); } }, 100); setTimeout(() => clearInterval(check), 4000); }
+  }, [flat]);
   const modelUrl = attempt && !src.startsWith('blob:') ? `${src}${src.includes('?') ? '&' : '?'}ames_retry=${attempt}` : src;
   const showPoster = poster && !posterFailed && state !== 'ready';
   return (
@@ -81,6 +101,13 @@ function SelectedViewer({
         onModelReady={handleReady}
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></ViewerBoundary>}
+      {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
+        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/85 px-4 py-2 text-center text-[12px] text-[#eef5f2] backdrop-blur-md">
+          <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.width_mm.toFixed(1)} mm wide · {bracelet.links} diamonds
+          <span className="block text-[10px] text-[#b8d0c8]">Fits a wrist up to about {Math.floor(bracelet.length_mm / 10 - 1.5)} cm · {bracelet.clasp}</span>
+        </span>}
+        <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
+      </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-[#eef5f2]">Loading interactive 3D…</span>}
       {state === 'fallback' && <div role="status" style={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 20, color: '#eef5f2', fontSize: 12, textAlign: 'center' }}>
