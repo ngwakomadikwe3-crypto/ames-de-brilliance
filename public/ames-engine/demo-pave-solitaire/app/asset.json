@@ -16,7 +16,7 @@
     "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
   ],
   "interactive": {
-    "glb": "web/solitaire-v1.glb",
-    "poster": "web/poster-v1.webp"
+    "glb": "web/solitaire-v2.glb",
+    "poster": "web/poster-v2.webp"
   }
 }

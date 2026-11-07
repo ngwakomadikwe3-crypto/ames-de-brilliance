@@ -7,7 +7,7 @@ from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
 ID='demo-pave-solitaire'
 OUT=ROOT/'public/ames-engine'/ID
-SOURCE=ROOT/'source-assets/pave-solitaire/revision-1'
+SOURCE=ROOT/'source-assets/pave-solitaire/revision-2'
 for p in [OUT/'web',OUT/'app',SOURCE]:p.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene=bpy.context.scene
@@ -43,7 +43,7 @@ verts=[];faces=[];N=192;S=12
 for i in range(N):
  a=i*math.tau/N;radial=Vector((math.sin(a),0,math.cos(a)))
  center=radial*.0093+Vector((0,.00065*math.sin(2*a)*max(math.cos(a),0),0))
- width=.00085;thickness=.00062
+ width=.00095;thickness=.00062
  for j in range(S):
   b=j*math.tau/S;verts.append(tuple(center+radial*(thickness*math.cos(b))+Vector((0,width*math.sin(b),0))))
 for i in range(N):
@@ -76,20 +76,27 @@ for i in range(4):
  for f in o.data.polygons:f.use_smooth=True
  objects.append(o)
 tube('Open gallery rail',[(.0025*math.cos(i*math.tau/64),.0025*math.sin(i*math.tau/64),.0106) for i in range(65)],.00018)
+# Shoulder pave, revision 2: larger 1.12 mm melee raised so the crown and girdle sit proud of
+# the band, held by shared claws, running from the head down past the sides of the ring so
+# the row of diamonds reads from the side as well as from above.
+PAVE_R=.000565;PAVE_SEAT=.00998;STEP=.1225;COUNT=11;START=.455
+def shoulder(a):
+ radial=Vector((math.sin(a),0,math.cos(a)));return radial,Vector((0,.00065*math.sin(2*a)*max(math.cos(a),0),0))
 for side in [-1,1]:
- for j in range(10):
-  a=side*(.43+j*.075);radial=Vector((math.sin(a),0,math.cos(a)))
-  y=.00065*math.sin(2*a)*max(math.cos(a),0)
-  pos=radial*.00991+Vector((0,y,0));gem('Pave diamond %s %02d'%(side,j),.00039,pos,radial)
+ for j in range(COUNT):
+  a=side*(START+j*STEP);radial,lift=shoulder(a)
+  gem('Pave diamond %s %02d'%(side,j),PAVE_R,radial*PAVE_SEAT+lift,radial)
+ for j in range(COUNT+1):
+  a=side*(START+(j-.5)*STEP);radial,lift=shoulder(a)
   for off in [-1,1]:
-   bpy.ops.mesh.primitive_uv_sphere_add(segments=8,ring_count=6,radius=.00013,location=pos+Vector((0,off*.00048,0)))
-   o=bpy.context.object;o.name='Pave bead';o.data.materials.append(metal)
+   bpy.ops.mesh.primitive_uv_sphere_add(segments=10,ring_count=8,radius=.00017,location=radial*.00995+lift+Vector((0,off*.00047,0)))
+   o=bpy.context.object;o.name='Pave claw';o.data.materials.append(metal)
    for f in o.data.polygons:f.use_smooth=True
    objects.append(o)
 bpy.ops.object.select_all(action='DESELECT')
 for o in objects:o.select_set(True)
 bpy.context.view_layer.objects.active=objects[0]
-glb=OUT/'web/solitaire-v1.glb'
+glb=OUT/'web/solitaire-v2.glb'
 bpy.ops.export_scene.gltf(filepath=str(glb),export_format='GLB',use_selection=True,export_apply=True,export_extras=True,export_animations=False,export_cameras=False,export_lights=False)
 scene.render.engine='CYCLES';scene.cycles.samples=32;scene.cycles.use_denoising=True
 scene.cycles.max_bounces=16;scene.cycles.transmission_bounces=12
@@ -107,8 +114,8 @@ for name,loc,power,size in [('Key',(.02,-.025,.045),.12,.025),('Rim',(-.03,.012,
  o=bpy.data.objects.new(name,d);scene.collection.objects.link(o);o.location=loc;o.rotation_euler=(target-o.location).to_track_quat('-Z','Y').to_euler()
 d=bpy.data.cameras.new('Solitaire portrait');o=bpy.data.objects.new('Solitaire portrait',d);scene.collection.objects.link(o);scene.camera=o
 o.location=(.032,-.052,.029);o.rotation_euler=(target-o.location).to_track_quat('-Z','Y').to_euler();d.type='ORTHO';d.ortho_scale=.029;d.clip_start=.0001
-scene.render.filepath=str(OUT/'web/poster-v1.png')
-bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'solitaire-v1.blend'))
+scene.render.filepath=str(OUT/'web/poster-v2.png')
+bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE/'solitaire-v2.blend'))
 (SOURCE/'provenance.json').write_text(json.dumps({'assetId':ID,'modelSha256':hashlib.sha256(glb.read_bytes()).hexdigest(),'source':'Original geometry interpreting the supplied solitaire photograph','hiddenGeometry':'Authored interpretation, not measured','manufacturingReady':False,'physicalScaleConfirmed':False},indent=2),encoding='utf-8')
 if '--skip-render' not in sys.argv:bpy.ops.render.render(write_still=True)
 print('SOLITAIRE_COMPLETE',flush=True)

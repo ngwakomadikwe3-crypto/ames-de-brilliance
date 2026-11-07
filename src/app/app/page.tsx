@@ -105,6 +105,7 @@ export default function AppPage() {
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
         </button>
+        <span className="absolute left-[3.25rem] select-none pointer-events-none" aria-label="House of Ames" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.34em', lineHeight: 1, background: 'linear-gradient(100deg, #f4f2ed 0%, #c8c6c1 55%, #a6a6ab 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>HOUSEOFAMES</span>
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
           <defs>
