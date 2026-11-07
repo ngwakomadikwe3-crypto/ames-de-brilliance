@@ -51,8 +51,12 @@ export async function PATCH(req: NextRequest, { params }: Context) {
         const web = await saveCompleteFile('preview', 'model.glb', Buffer.from(await compressPieceGlb(new Uint8Array(raw))));
         replacedParts = preview.parts.map(p => p.id);
         published = { name: l.details.name, category };
-        return changeListing(l, { details: { ...l.details, category }, status: 'published', reason: '', files: l.files.map(f => f.id === preview.id ? web : f),
-          review: automaticReview(l, { triangles: check.triangles, stones: check.stones, melee: check.melee, size: check.size, category, confidence, reasons }) }, 'auto_published', actor, `Sorted into ${category} (${confidence}): ${reasons.join('; ')}`.slice(0, 500));
+        // Stones read from the model fill the gemstone list when the jeweller left it empty (origins stay unstated).
+        const gemstones = l.details.gemstones.length ? l.details.gemstones
+          : check.gems.slice(0, 12).map(g => ({ name: g.pave === g.count ? `${g.name} (pavé)` : g.pave ? `${g.name} (${g.count - g.pave} + pavé)` : g.count > 1 ? `${g.name} ×${g.count}` : g.name, origin: '' }));
+        const details = { ...l.details, category, gemstones };
+        return changeListing(l, { details, status: 'published', reason: '', files: l.files.map(f => f.id === preview.id ? web : f),
+          review: automaticReview({ ...l, details }, { triangles: check.triangles, stones: check.stones, melee: check.melee, size: check.size, category, confidence, reasons }) }, 'auto_published', actor, `Sorted into ${category} (${confidence}): ${reasons.join('; ')}`.slice(0, 500));
       }
       if (actor !== 'owner') throw new ChatError(403, 'Only staff can approve or publish listings.');
       const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 1500) : '';

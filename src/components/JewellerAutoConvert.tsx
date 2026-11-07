@@ -6,6 +6,7 @@ import EngineJewelryViewer from './EngineJewelryViewer';
 import { studioCameraPreset } from '@/lib/customer-jewelry-display';
 import type { JewellerListing, ListingFile } from '@/lib/jeweller-listing';
 import type { ConversionResult } from '@/lib/ames-cad/convert';
+import { GEMSTONES } from '@/lib/ames-cad/gems';
 
 const endpoint = '/api/jeweller';
 const fieldClass = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-[#eef5f2]';
@@ -34,10 +35,21 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
     try {
       const { convertCad } = await import('@/lib/ames-cad/convert');
       const converted = await convertCad(file, { units: units as 'auto', metal: metal as 'auto', listingName: `${listing.details.name} ${listing.details.description}`, onStep: setStep });
-      setResult(converted);
-      setModelUrl(URL.createObjectURL(new Blob([converted.glb.slice()], { type: 'model/gltf-binary' })));
-      setPosterUrl(URL.createObjectURL(converted.poster)); setStep('');
+      show(converted);
     } catch (e) { setError(e instanceof Error ? e.message : 'The file could not be converted.'); setStep(''); }
+    finally { setBusy(false); }
+  }
+  function show(converted: ConversionResult) {
+    setResult(converted);
+    setModelUrl(URL.createObjectURL(new Blob([converted.glb.slice()], { type: 'model/gltf-binary' })));
+    setPosterUrl(URL.createObjectURL(converted.poster)); setStep('');
+  }
+  /** The jeweller corrects a stone type: rebuild the model and image with it. */
+  async function regem(key: string, id: string) {
+    if (!result) return;
+    setBusy(true); setError('');
+    try { show(await result.regem({ [key]: id })); }
+    catch (e) { setError(e instanceof Error ? e.message : 'The stones could not be changed.'); setStep(''); }
     finally { setBusy(false); }
   }
   async function upload(row: JewellerListing, kind: ListingFile['kind'], name: string, blob: Blob): Promise<JewellerListing> {
@@ -73,10 +85,9 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
   }
 
   const c = result?.classification, r = result?.report;
-  const stoneSummary = r ? Object.entries(r.cuts).map(([cut, n]) => `${n} ${cut === 'melee' ? 'pavé stones' : `${cut} diamond${n > 1 ? 's' : ''}`}`).join(', ') || 'no stones' : '';
   return <section className="space-y-4 rounded-2xl border border-white/20 p-4" data-auto-convert>
     <h2>Automatic 3D — upload and publish</h2>
-    <p className="text-xs text-[#b9cec6]">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, gives the diamonds their real cut, sorts the piece into its Boutique category and publishes it. Your original stays private.</p>
+    <p className="text-xs text-[#b9cec6]">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, reads each stone's type from its name or colour in your file, gives it its real cut, sorts the piece into its Boutique category and publishes it. Your original stays private.</p>
     {published ? <div className="space-y-3"><p role="status" className="text-emerald-200">Published in the Boutique under <strong>{CATEGORY_LABEL[published.details.category] || published.details.category}</strong>.</p>
       {published.review?.automatic?.reasons?.length ? <p className="text-xs text-[#b9cec6]">Sorted because: {published.review.automatic.reasons.join('; ')}.</p> : null}
       <Link href={`/jewellery/${published.id}`} className={buttonClass}>View the public listing</Link></div> : <>
@@ -94,10 +105,21 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
         </div>
         <ul className="space-y-1 text-sm">
           <li>Category: <strong>{CATEGORY_LABEL[c.category]}</strong> <span className="text-xs text-[#b9cec6]">({c.confidence} confidence — {c.reasons.join('; ')})</span></li>
-          <li>Stones: {stoneSummary}</li>
           <li>Size: {r.size.map(v => v.toFixed(1)).join(' × ')} mm <span className="text-xs text-[#b9cec6]">(units {r.unit}, {r.unitSource})</span></li>
           <li>Metal: {r.metal.join(', ') || '—'} · {r.metalTriangles.toLocaleString()} triangles</li>
         </ul>
+        <div className="space-y-2" data-stones>
+          <h3 className="text-sm">Stones {result.stones.length ? <span className="text-xs text-[#b9cec6]">— check each one; change it if AMES read it wrong</span> : null}</h3>
+          {result.stones.length ? <ul className="space-y-2">{result.stones.map(g => <li key={g.key} className="grid gap-2 rounded-xl border border-white/10 p-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-center">
+            <div className="text-sm">
+              <div>{g.label}{g.count > 1 ? ` · ${g.count} stones` : ''} · {g.shape} {g.size}</div>
+              <div className={`text-xs ${g.source === 'assumed' ? 'text-amber-100' : 'text-[#b9cec6]'}`}>{g.source === 'name' ? `Read from your file: ${g.reason}` : g.source === 'colour' ? `Read from the stone colour: ${g.reason}` : g.source === 'chosen' ? g.reason : 'No type in the file, so shown as diamond — change it if needed'}{g.ownFacets ? ' · kept with your own facets' : ''}</div>
+            </div>
+            <select aria-label={`${g.label} gemstone`} disabled={busy} value={g.gem} onChange={e => regem(g.key, e.target.value)} className={fieldClass.replace('mt-2 ', '')}>
+              {GEMSTONES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </li>)}</ul> : <p className="text-xs text-[#b9cec6]">No stones found: shown as plain metal.</p>}
+        </div>
         {c.confidence === 'low' && <p className="text-xs text-amber-100">The category is uncertain. Including the type of piece in its name (for example “… ring” or “… pendant”) makes sorting certain.</p>}
         {!listing.details.rightsConfirmed && <p className="text-xs text-amber-100">Tick the permission box above and save the draft before publishing.</p>}
         <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed} onClick={publish}>Publish to the Boutique</button>

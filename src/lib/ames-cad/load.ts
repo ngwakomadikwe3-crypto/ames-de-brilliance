@@ -20,7 +20,7 @@ async function readObject(file: File): Promise<{ object: Object3D; declared?: ke
   if (ext === 'obj') { const { OBJLoader } = await import('three/examples/jsm/loaders/OBJLoader.js'); return { object: new OBJLoader().parse(new TextDecoder().decode(bytes)) }; }
   if (ext === 'stl') {
     const { STLLoader } = await import('three/examples/jsm/loaders/STLLoader.js');
-    const geometry = new STLLoader().parse(bytes), mesh = new Mesh(geometry); mesh.name = file.name.replace(/\.stl$/i, '');
+    const geometry = new STLLoader().parse(bytes), mesh = new Mesh(geometry); mesh.name = file.name.replace(/\.stl$/i, ''); mesh.userData.ames_file_name = true; // the file name describes the piece, not a stone
     return { object: mesh };
   }
   if (ext === 'fbx') { const { FBXLoader } = await import('three/examples/jsm/loaders/FBXLoader.js'); return { object: new FBXLoader().parse(bytes, '') }; }
@@ -63,7 +63,8 @@ export async function loadCad(file: File, units: Units = 'auto') {
     const layer = attrs?.layerIndex != null ? layers[attrs.layerIndex] || '' : '';
     const materialName = (Array.isArray(mesh.material) ? mesh.material.map(m => m.name) : [mesh.material?.name]).join(' ');
     const names = [mesh.name, mesh.parent?.name, attrs?.name, layer, materialName].filter(Boolean);
-    parts.push({ name: mesh.name || attrs?.name || layer || 'Part', hint: names.join(' '), color: colorOf(mesh.material), positions });
+    const own = [mesh.userData.ames_file_name ? '' : mesh.name, attrs?.name, layer, materialName].filter(Boolean).join(' ');
+    parts.push({ name: mesh.name || attrs?.name || layer || 'Part', hint: names.join(' '), own, color: colorOf(mesh.material), positions });
   });
   if (!parts.length) throw new Error('This file has no meshes the converter can read. Export a mesh (GLB, OBJ or STL) from your CAD program.');
   return { parts, unit, unitSource: units !== 'auto' ? 'chosen' : declared ? 'declared in the file' : 'estimated from the size', names: [file.name, ...parts.map(p => p.hint)].join(' ') };

@@ -1,16 +1,25 @@
 // AMES CAD analysis: pure geometry shared by the browser converter and the server check.
 // Everything here works on world-space triangle soups in millimetres (no DOM, no three.js scene).
+import { ANY_GEM_WORD, deduceGem, isSurfaceGem, type GemGuess } from './gems';
 
 export type Vec3 = [number, number, number];
 export type Cut = 'round' | 'oval' | 'pear' | 'cushion' | 'radiant';
-/** A source part: one mesh of the CAD file, flattened to world-space triangles (mm). */
-export type SourcePart = { name: string; hint: string; color: Vec3 | null; positions: Float32Array };
+/** A source part: one mesh of the CAD file, flattened to world-space triangles (mm).
+ * hint: every name around it (for sorting); own: only its own object, layer and material names
+ * (for the stone type, so a "Ruby halo ring" group does not turn its diamonds into rubies). */
+export type SourcePart = { name: string; hint: string; own?: string; color: Vec3 | null; positions: Float32Array };
 export type Shell = { part: number; triangles: Uint32Array; vertexCount: number; min: Vec3; max: Vec3 };
-/** A stone found in the design, in its own frame: +y is the table, +z the length (pear: toward the point). */
-export type Stone = { part: number; shell: number; cut: Cut; width: number; length: number; depth: number;
-  center: Vec3; x: Vec3; y: Vec3; z: Vec3; melee: boolean; reason: string };
+/** A stone found in the design, in its own frame: +y is the table, +z the length (pear: toward the point).
+ * cut: an AMES studio cut that replaces the facets, or null to keep the jeweller's own facets (shape names it). */
+export type Stone = { part: number; shell: number; cut: Cut | null; shape: string; width: number; length: number; depth: number;
+  center: Vec3; x: Vec3; y: Vec3; z: Vec3; melee: boolean; reason: string; gem: GemGuess };
+const STUDIO_CUTS = new Set<string>(['round', 'oval', 'pear', 'cushion', 'radiant']);
+/** Cut shapes named in CAD object, layer or material names. */
+const SHAPE_WORDS: [RegExp, string][] = [[/princess|square[\s_-]*brilliant/i, 'princess'], [/asscher/i, 'asscher'], [/emerald[\s_-]*cut|step[\s_-]*cut|octagon/i, 'emerald cut'],
+  [/baguette/i, 'baguette'], [/marquise|navette/i, 'marquise'], [/heart/i, 'heart'], [/trillion|trilliant|triangle/i, 'trillion'], [/cabochon|\bcab\b/i, 'cabochon'],
+  [/rose[\s_-]*cut/i, 'rose cut'], [/briolette|\bbeads?\b|sphere|\bball\b/i, 'bead'], [/radiant/i, 'radiant'], [/cushion/i, 'cushion'], [/\bpear\b|teardrop/i, 'pear'], [/\boval\b/i, 'oval'], [/\bround\b/i, 'round']];
 
-const GEM_WORDS = /diamond|gem|stone|brilliant|melee|pav[eé]|ruby|sapphire|emerald(?!\s*cut)|tanzanite|topaz|amethyst|garnet|morganite|aquamarine|moissanite|\bcz\b|zircon|crystal|spinel|tourmaline|opal|peridot|citrine/i;
+const GEM_WORDS = new RegExp(ANY_GEM_WORD.source + '|crystal|rhinestone', 'i');
 const METAL_WORDS = /gold|platinum|silver|metal|alloy|rhodium|palladium|titanium|steel|prong|claw|shank|band|setting|head|gallery|basket|bezel|bail|chain|link|clasp|post|hook|wire|mount/i;
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -143,20 +152,46 @@ export function analyseStone(part: SourcePart, shell: Shell, partIndex: number, 
   const ratio = depth / Math.max(width, 1e-6), table = flatHi / outlineArea;
   const looksCut = table > 0.12 && flatLo < 0.08 * outlineArea && normals.size >= 10 && ratio > 0.28 && ratio < 1.05 && Math.abs(signedVolume) > 0;
   if (!(named === 'gem' || looksCut)) return null;
+  const own = part.own ?? part.hint, gem = deduceGem(own, part.color), shapeName = SHAPE_WORDS.find(([re]) => re.test(own))?.[1];
+  const base = { part: partIndex, shell: shellIndex, width, length, depth, x, y, z, melee: false, gem };
+  const boxCenter = (): Vec3 => { const mx = (Math.max(...xs) + Math.min(...xs)) / 2, mz = (Math.max(...zs) + Math.min(...zs)) / 2;
+    return [0, 1, 2].map(a => c[a] + x[a] * mx + y[a] * (lo + hi) / 2 + z[a] * mz) as Vec3; };
+  // Cabochons, beads, pearls and opaque stones keep their own surfaces.
+  if (!looksCut || isSurfaceGem(gem.id)) {
+    const shape = shapeName && !STUDIO_CUTS.has(shapeName) ? shapeName : ratio > 0.8 && flatHi < 0.05 * outlineArea ? 'bead' : 'cabochon';
+    return { ...base, cut: null, shape, center: boxCenter(), reason: named === 'gem' ? `named “${part.name}”, kept as modelled` : 'polished stone, kept as modelled' };
+  }
+  // Step cuts (emerald, asscher, baguette) have facets facing only the outline's sides.
+  const azimuths = new Set<number>();
+  for (const t of shell.triangles) {
+    const [a, b, d] = triangle(part, t), n = normalize(cross(sub(b, a), sub(d, a))), up = Math.abs(dot(n, y));
+    if (up > 0.1 && up < 0.99) azimuths.add(Math.round(Math.atan2(dot(n, z), dot(n, x)) / (Math.PI / 18)));
+  }
+  const stepCut = azimuths.size <= 18, aspect = length / Math.max(width, 1e-6);
   // Pear: the narrow end is the point; point +z toward it.
   const zmin = Math.min(...plane.map(q => q[1])), widthNear = (sign: number) => { const band = plane.filter(q => (sign > 0 ? q[1] - zmin > 0.72 * length : q[1] - zmin < 0.28 * length)); return band.length ? Math.max(...band.map(q => q[0])) - Math.min(...band.map(q => q[0])) : 0; };
   const wTop = widthNear(1), wBottom = widthNear(-1);
+  // Width near the very tips: a marquise narrows to points, an oval stays round.
+  const tip = (sign: number) => { const band = plane.filter(q => (sign > 0 ? q[1] - zmin > 0.9 * length : q[1] - zmin < 0.1 * length)); return band.length ? Math.max(...band.map(q => q[0])) - Math.min(...band.map(q => q[0])) : 0; };
+  const pointed = tip(1) < 0.5 * width && tip(-1) < 0.5 * width;
   const elongated = length / width > 1.1, asym = Math.abs(wTop - wBottom) / Math.max(wTop, wBottom, 1e-6) > 0.25;
-  let cut: Cut;
-  if (elongated && asym) { cut = 'pear'; if (wTop > wBottom) { z = scale(z, -1); x = scale(x, -1); } }
+  let cut: Cut | null, shape: string;
+  if (elongated && asym || shapeName === 'pear') { cut = 'pear'; if (wTop > wBottom) { z = scale(z, -1); x = scale(x, -1); } }
+  else if (aspect > 1.45 && pointed) cut = null;
+  else if (fill < 0.6) cut = null;
+  else if (fill > 0.965 || (fill > 0.86 && stepCut)) cut = null;
   else if (fill > 0.9) cut = 'radiant';
   else if (fill > 0.83) cut = 'cushion';
   else cut = elongated ? 'oval' : 'round';
+  shape = cut || (aspect > 1.45 && pointed ? 'marquise' : fill < 0.6 ? 'trillion'
+    : stepCut ? (aspect < 1.12 ? 'asscher' : aspect > 1.7 ? 'baguette' : 'emerald cut') : aspect < 1.12 ? 'princess' : 'rectangular brilliant');
+  // A cut named in the file wins over the measured outline.
+  if (shapeName) { shape = shapeName; cut = STUDIO_CUTS.has(shapeName) ? shapeName as Cut : null; }
   // Centre on the outline's bounding box (girdle plane between lo and hi).
   const midX = (Math.max(...xs) + Math.min(...xs)) / 2, midZ = (Math.max(...zs) + Math.min(...zs)) / 2;
   const center: Vec3 = [c[0] + x[0] * midX + y[0] * (lo + hi) / 2 + z[0] * midZ, c[1] + x[1] * midX + y[1] * (lo + hi) / 2 + z[1] * midZ, c[2] + x[2] * midX + y[2] * (lo + hi) / 2 + z[2] * midZ];
-  return { part: partIndex, shell: shellIndex, cut, width, length, depth, center, x, y, z, melee: false,
-    reason: named === 'gem' ? `named “${part.name}”` : `faceted solid with a table (${Math.round(table * 100)}% of outline)` };
+  return { ...base, x, z, cut, shape, center,
+    reason: (named === 'gem' ? `named “${part.name}”` : `faceted solid with a table (${Math.round(table * 100)}% of outline)`) + (cut ? '' : `, ${shape} kept with its own facets`) };
 }
 
 export type Analysis = { stones: Stone[]; metalShells: number[]; size: Vec3; triangles: number };
