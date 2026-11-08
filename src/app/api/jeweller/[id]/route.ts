@@ -8,6 +8,7 @@ import { checkPieceGlb, compressPieceGlb } from '@/lib/ames-cad/check';
 import { sendApprovalRequest } from '@/lib/email';
 import { checkChatOrigin, readChatJson, privateHeaders, ChatError } from '@/lib/chat-security';
 import { refreshLocalConversion, queueListingConversion } from '@/lib/jeweller-listing-conversion';
+import { z } from 'zod';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 type Context = { params: Promise<{ id: string }> };
@@ -59,11 +60,18 @@ export async function PATCH(req: NextRequest, { params }: Context) {
           review: automaticReview({ ...l, details }, { triangles: check.triangles, stones: check.stones, melee: check.melee, size: check.size, category, confidence, reasons }) }, 'submitted_converted', actor, `Sorted into ${category} (${confidence}): ${reasons.join('; ')}`.slice(0, 500));
       }
       if (actor !== 'owner') throw new ChatError(403, 'Only the Owner can approve, publish or send back listings.');
+      if (action === 'set_stock') {
+        // The Owner sets how many are left at any time. The version stays, so open invoices for this piece still match.
+        if (l.status === 'rejected') throw new Error('This listing was rejected');
+        const stock = z.number().int().min(0).max(99999).nullable().parse(body.stock ?? null), at = new Date().toISOString();
+        return { ...l, details: { ...l.details, stock }, updatedAt: at, audit: [...l.audit, { action: 'stock_set', at, actor, reason: stock == null ? 'not stated' : String(stock) }].slice(-80) };
+      }
       if (action === 'approve_converted') {
         // The Owner approves a converted piece: its 3D model passed the automatic check when it was sent.
         if (l.status !== 'submitted' || !l.review?.automatic) throw new Error('Only converted pieces waiting for approval can be approved here');
         await verifiedListingProfile(l);
-        return changeListing(l, { status: 'published', reason: '' }, 'published', actor, 'Approved by the Owner');
+        const stock = body.stock === undefined ? l.details.stock : z.number().int().min(0).max(99999).nullable().parse(body.stock);
+        return changeListing(l, { status: 'published', reason: '', details: { ...l.details, stock } }, 'published', actor, 'Approved by the Owner');
       }
       const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 1500) : '';
       if (['request_revision', 'reject', 'unpublish'].includes(action)) {

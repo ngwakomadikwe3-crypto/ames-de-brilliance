@@ -8,6 +8,8 @@ export const listingInput = z.object({
   priceMode: z.enum(['fixed', 'on_request']).default('on_request'),
   amount: z.string().trim().regex(/^(?:|\d{1,9}(?:\.\d{1,2})?)$/).default(''),
   currency: z.string().regex(/^[A-Z]{3}$/).refine(v => Intl.supportedValuesOf('currency').includes(v), 'Choose a supported currency').default('USD'),
+  /** Pieces the jeweller has ready to sell; null when not stated. The Owner confirms it at approval. */
+  stock: z.number().int().min(0).max(99999).nullable().default(null),
   madeIn: originText,
   gemstones: z.array(z.object({ name: z.string().trim().min(1).max(80), origin: originText }).strict()).max(12).default([]),
   provenanceNotes: z.string().trim().max(1500).default(''),
@@ -84,6 +86,6 @@ export function publicListing(listing: JewellerListing, businessName: string, st
     businessName, storefrontUrl: storefrontSlug ? `/makers/${storefrontSlug}` : null, price: d.priceMode === 'fixed' ? { amount: Number(d.amount), currency: d.currency } : null,
     madeIn: { country: d.madeIn, verified: listing.review.madeInVerified },
     gemstones: d.gemstones.map((gem, i) => ({ ...gem, verified: listing.review!.gemstoneOriginsVerified[i] })),
-    previewUrl: url(preview.id), posterUrl: url(poster.id), studio: Boolean(listing.review.automatic) };
+    stock: d.stock ?? null, previewUrl: url(preview.id), posterUrl: url(poster.id), studio: Boolean(listing.review.automatic) };
 }
 export type PublicListing = ReturnType<typeof publicListing>;

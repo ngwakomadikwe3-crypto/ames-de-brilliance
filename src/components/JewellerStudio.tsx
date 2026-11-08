@@ -27,7 +27,7 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
   const [loading, setLoading] = useState(true); const [access, setAccess] = useState(false);
   const [kind, setKind] = useState<ListingFile['kind']>('source'); const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0); const [units, setUnits] = useState('unknown'); const [sourceId, setSourceId] = useState('');
-  const [reason, setReason] = useState(''); const [review, setReview] = useState<ListingReview | null>(null);
+  const [reason, setReason] = useState(''); const [stock, setStock] = useState(''); const [review, setReview] = useState<ListingReview | null>(null);
   // Dashboard: the Owner approves; other staff post CAD designs for the verified jeweller who made the piece.
   const [role, setRole] = useState<'owner' | 'staff' | 'jeweller'>('jeweller'), [jewellers, setJewellers] = useState<{ id: string; businessName: string }[]>([]);
   const [creating, setCreating] = useState(false), [makerId, setMakerId] = useState('');
@@ -35,7 +35,7 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
   const dirty = selected && JSON.stringify(selected.details) !== JSON.stringify(details);
   const canEdit = !selected || editable(selected);
   function apply(row: JewellerListing) {
-    setSelected(row); setCreating(false); setDetails(row.details); setRows(current => [row, ...current.filter(l => l.id !== row.id)]);
+    setSelected(row); setCreating(false); setDetails(row.details); setStock(row.details.stock == null ? '' : String(row.details.stock)); setRows(current => [row, ...current.filter(l => l.id !== row.id)]);
     setSourceId(row.files.find(f => f.kind === 'source' && f.complete && /\.(glb|obj|stl|fbx)$/i.test(f.name))?.id || '');
     setReview(row.review || { priceChecked: false, originChecked: false, rightsChecked: false, technicalChecked: false, visualChecked: false,
       madeInVerified: false, gemstoneOriginsVerified: row.details.gemstones.map(() => false), evidenceIds: [], notes: '' });
@@ -66,7 +66,7 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
   }
   async function action(name: string) {
     if (!selected) return;
-    await run(async () => { apply(await patch(selected.id, { action: name, version: selected.version, reason, review, sourceId, units })); setNotice('Listing updated.'); });
+    await run(async () => { apply(await patch(selected.id, { action: name, version: selected.version, reason, review, sourceId, units, stock: stock.trim() === '' ? null : Math.max(0, Math.floor(Number(stock)) || 0) })); setNotice('Listing updated.'); });
   }
   async function upload() {
     if (!selected || !file) return;
@@ -107,6 +107,7 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
                 <label className="block text-sm">Category<select aria-label="Category" value={details.category} onChange={e => setField('category', e.target.value as ListingInput['category'])} className={fieldClass}>{['ring', 'earrings', 'necklace', 'bracelet', 'watch', 'accessory'].map(c => <option key={c} value={c}>{c === 'accessory' ? 'Accessories' : c === 'watch' ? 'Watches' : c[0].toUpperCase() + c.slice(1)}</option>)}</select></label>
                 <label className="block text-sm">Description<textarea value={details.description} onChange={e => setField('description', e.target.value)} maxLength={2000} className={fieldClass} /></label>
                 <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm">Pricing<select value={details.priceMode} onChange={e => setField('priceMode', e.target.value as ListingInput['priceMode'])} className={fieldClass}><option value="on_request">Price on request</option><option value="fixed">Fixed price</option></select></label>{details.priceMode === 'fixed' && <><label className="text-sm">Amount<input required inputMode="decimal" value={details.amount} onChange={e => setField('amount', e.target.value)} className={fieldClass} /></label><label className="text-sm">Currency<select value={details.currency} onChange={e => setField('currency', e.target.value)} className={fieldClass}>{Intl.supportedValuesOf('currency').map(c => <option key={c}>{c}</option>)}</select></label></>}</div>
+                <label className="block text-sm">Pieces in stock<input type="number" min={0} max={99999} step={1} inputMode="numeric" value={details.stock ?? ''} onChange={e => setField('stock', e.target.value === '' ? null : Math.min(99999, Math.max(0, Math.floor(Number(e.target.value)) || 0)))} placeholder="How many you have ready to sell" className={fieldClass} /><span className="mt-1 block text-xs text-[#b9cec6]">The Owner confirms this when approving. Buyers see how many are left.</span></label>
                 <label className="block text-sm">Made in / country of manufacture<input value={details.madeIn} onChange={e => setField('madeIn', e.target.value)} placeholder="Leave blank if unknown or not yet manufactured" maxLength={80} className={fieldClass} /></label>
                 <section className="space-y-3"><h2 className="text-sm">Gemstones and their origin</h2><p className="text-xs text-[#b9cec6]">A jeweller’s business location does not establish where a stone was mined. Leave origin blank when unknown.</p>{details.gemstones.map((gem, i) => <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"><label className="text-xs">Stone name<input required value={gem.name} onChange={e => setField('gemstones', details.gemstones.map((g, n) => n === i ? { ...g, name: e.target.value } : g))} className={fieldClass} /></label><label className="text-xs">Declared stone origin<input value={gem.origin} onChange={e => setField('gemstones', details.gemstones.map((g, n) => n === i ? { ...g, origin: e.target.value } : g))} placeholder="Country, if known" className={fieldClass} /></label><button type="button" className="self-end py-3 text-xs underline" onClick={() => setField('gemstones', details.gemstones.filter((_, n) => n !== i))}>Remove stone</button></div>)}<button type="button" disabled={details.gemstones.length >= 12} className="text-sm underline" onClick={() => setField('gemstones', [...details.gemstones, { name: '', origin: '' }])}>Add gemstone</button></section>
                 <label className="block text-sm">Private provenance notes<textarea value={details.provenanceNotes} onChange={e => setField('provenanceNotes', e.target.value)} maxLength={1500} className={fieldClass} /></label>
@@ -124,11 +125,19 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
                   <li>Stones: {selected.review.automatic.stones} set stones{selected.review.automatic.melee ? ` and ${selected.review.automatic.melee} pavé` : ''}{selected.details.gemstones.length ? ` · ${selected.details.gemstones.map(g => g.name).join(', ')}` : ''}</li>
                   <li>Size: {selected.review.automatic.size.map(v => Number(v).toFixed(1)).join(' × ')} mm · 3D model checked</li>
                   <li>Price: {selected.details.priceMode === 'fixed' ? `${selected.details.amount} ${selected.details.currency}` : 'on request'}</li>
+                  <li>In stock, as sent by the jeweller: {selected.details.stock ?? 'not stated'}</li>
                 </ul>
+                <label className="block text-sm">Pieces in stock to publish<input type="number" min={0} max={99999} step={1} inputMode="numeric" value={stock} onChange={e => setStock(e.target.value)} placeholder="Leave blank if not stated" className={fieldClass} /></label>
                 <p className="text-xs text-[#b9cec6]">Look at the 3D model below before approving. Approving publishes the 3D model and product image in the Boutique; the original CAD file stays private.</p>
                 <button disabled={busy} className={buttonClass} onClick={() => action('approve_converted')}>Approve and publish</button>
                 <label className="block text-sm">Reason, to send it back or reject it<textarea minLength={10} value={reason} onChange={e => setReason(e.target.value)} className={fieldClass} placeholder="What should be changed" /></label>
                 <div className="flex flex-wrap gap-3"><button disabled={busy || reason.trim().length < 10} className={buttonClass} onClick={() => action('request_revision')}>Send back for changes</button><button disabled={busy || reason.trim().length < 10} className={buttonClass} onClick={() => action('reject')}>Reject</button></div>
+              </section>}
+              {owner && selected.status === 'published' && <section className="space-y-3 rounded-2xl border border-emerald-200/30 p-4" data-owner-stock>
+                <h2>Stock</h2>
+                <p className="text-sm">Buyers now see: <strong>{selected.details.stock == null ? 'no count shown' : selected.details.stock === 0 ? 'Sold out' : selected.details.stock === 1 ? 'Last one in stock' : `${selected.details.stock} in stock`}</strong></p>
+                <div className="flex flex-wrap items-end gap-3"><label className="text-sm">Pieces left<input type="number" min={0} max={99999} step={1} inputMode="numeric" value={stock} onChange={e => setStock(e.target.value)} placeholder="Not stated" className={fieldClass} /></label><button disabled={busy || stock === (selected.details.stock == null ? '' : String(selected.details.stock))} className={buttonClass} onClick={() => action('set_stock')}>Save stock</button></div>
+                <p className="text-xs text-[#b9cec6]">Each paid order takes one off automatically. At 0 the piece shows Sold out and can't be bought.</p>
               </section>}
               <section className="space-y-4 border-t border-white/15 pt-5"><h2>CAD, previews and evidence</h2><p className="text-xs text-[#b9cec6]">Keep the native .3dm original, plus a GLB, OBJ, STL or FBX export for conversion. Direct 3DM/STEP conversion is unavailable. Originals stay private; only the reviewed GLB preview and product image can be public.</p>
                 <ul className="space-y-2">{selected.files.map(f => <li key={f.id} className="flex flex-wrap items-center gap-3 text-xs"><span className="min-w-0 break-all">{f.name} · {f.kind} · {f.complete ? 'Complete' : `${Math.round(f.parts.reduce((n, p) => n + p.bytes, 0) / f.bytes * 100)}% uploaded`}</span>{f.complete && <a href={fileUrl(f.id)} className="underline">Private download</a>}{canEdit && <button disabled={busy} className="underline" onClick={() => run(async () => apply(await request(fileUrl(f.id), { method: 'DELETE' })))}>Remove</button>}</li>)}</ul>

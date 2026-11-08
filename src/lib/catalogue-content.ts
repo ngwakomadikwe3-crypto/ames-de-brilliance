@@ -7,6 +7,7 @@ export const publicCatalogueSchema = z.object({
   storefrontUrl: z.string().regex(/^\/makers\/[a-z0-9-]{3,48}$/).nullable().optional(),
   price: z.object({ amount: z.number().positive(), currency: z.string().regex(/^[A-Z]{3}$/) }).nullable(),
   madeIn: origin, gemstones: z.array(z.object({ name: z.string().max(80), origin: z.string().max(80), verified: z.boolean() })).max(12),
+  stock: z.number().int().min(0).nullable().optional(),
   previewUrl: artifact, posterUrl: artifact,
   /** Converted by the AMES converter: tagged stones for the studio diamond viewer. */
   studio: z.boolean().optional(),
@@ -14,6 +15,8 @@ export const publicCatalogueSchema = z.object({
   if (value.assetId !== `listing-${value.id}` || !value.revisionId.startsWith(`${value.assetId}:`) || ![value.previewUrl, value.posterUrl].every(url => url.startsWith(`/api/catalogue/${value.id}/files/`))) ctx.addIssue({ code: 'custom', message: 'Catalogue identity mismatch' });
 });
 export type CatalogueListing = z.infer<typeof publicCatalogueSchema>;
+/** What buyers read about how many are left. */
+export const stockLabel = (stock?: number | null) => stock == null ? '' : stock === 0 ? 'Sold out' : stock === 1 ? 'Last one in stock' : `${stock} in stock`;
 export const originLabel = (country: string, verified: boolean) => country ? `${country} · ${verified ? 'evidence reviewed by AMES' : 'jeweller declared'}` : 'Not stated';
 export async function loadPublishedBoutiqueContent(): Promise<BoutiquePiece[]> {
   const response = await fetch('/api/catalogue', { cache: 'no-store' });

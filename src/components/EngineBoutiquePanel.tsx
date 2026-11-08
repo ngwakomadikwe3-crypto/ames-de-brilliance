@@ -5,7 +5,7 @@ import ModelViewer from './ModelViewer';
 import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
 import { SavePiece } from './PieceAccountActions';
-import { loadPublishedBoutiqueContent, originLabel } from '@/lib/catalogue-content';
+import { loadPublishedBoutiqueContent, originLabel, stockLabel } from '@/lib/catalogue-content';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 /** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
@@ -64,8 +64,9 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {piece.listing && <div className="mt-3 space-y-2 text-xs text-[#b8d0c8]"><p>By {piece.listing.storefrontUrl ? <a href={piece.listing.storefrontUrl} className="underline">{piece.listing.businessName}</a> : piece.listing.businessName}</p><p>{piece.listing.description}</p><p>Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</p>{piece.listing.gemstones.map((g, i) => <p key={i}>{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}<a href={`/jewellery/${piece.listing.id}`} className="underline">Full listing</a></div>}
         {price && <p style={{ marginTop: 12, fontSize: 14, color: '#eef5f2' }}>{price}</p>}
         {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#b8d0c8' }}>{piece.inquiryState}</p>}
+        {piece.listing && stockLabel(piece.listing.stock) && <p data-stock style={{ marginTop: 4, fontSize: 12, color: piece.listing.stock === 0 ? '#f3c9c0' : '#bfe8d4' }}>{stockLabel(piece.listing.stock)}</p>}
         {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#b8d0c8' }}>{piece.availabilityState}</p>}
-        <div className="mt-4 space-y-3">{piece.listing?.price && <PurchaseActions assetId={piece.assetId} />}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
+        <div className="mt-4 space-y-3">{piece.listing?.price && piece.listing.stock !== 0 && <PurchaseActions assetId={piece.assetId} />}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
         <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex items-center min-h-11 rounded-full px-5 text-[12px]">Ask SAME</button>
       </div>
     </div>

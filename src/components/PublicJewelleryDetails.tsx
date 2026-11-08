@@ -5,7 +5,7 @@ import PurchaseActions from './PurchaseActions';
 import { SavePiece, AskJeweller } from './PieceAccountActions';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import { studioCameraPreset } from '@/lib/customer-jewelry-display';
-import { publicCatalogueSchema, originLabel, type CatalogueListing } from '@/lib/catalogue-content';
+import { publicCatalogueSchema, originLabel, stockLabel, type CatalogueListing } from '@/lib/catalogue-content';
 export default function PublicJewelleryDetails({ id }: { id: string }) {
   const [listing, setListing] = useState<CatalogueListing | null>(null), [error, setError] = useState('');
   useEffect(() => {
@@ -22,7 +22,7 @@ export default function PublicJewelleryDetails({ id }: { id: string }) {
     <p className="text-sm">Made in: {originLabel(listing.madeIn.country, listing.madeIn.verified)}</p>
     {listing.gemstones.map((g, i) => <p key={i} className="text-sm">{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}
     <p className="text-xs text-[#b9cec6]">Business location, manufacturing country and gemstone origin are separate. An evidence review is not a laboratory certificate.</p>
-    {listing.price && <PurchaseActions assetId={listing.assetId} />}<SavePiece assetId={listing.assetId} /><PieceComments assetId={listing.assetId} name={listing.name} /><AskJeweller listingId={listing.id} />
+    {stockLabel(listing.stock) && <p className={listing.stock === 0 ? 'text-sm text-red-100' : 'text-sm text-emerald-200'} data-stock>{stockLabel(listing.stock)}</p>}{listing.price && listing.stock !== 0 && <PurchaseActions assetId={listing.assetId} />}<SavePiece assetId={listing.assetId} /><PieceComments assetId={listing.assetId} name={listing.name} /><AskJeweller listingId={listing.id} />
     <a className="inline-block text-sm underline" href="/app">Return to Boutique / ask SAME</a>
   </article>;
 }

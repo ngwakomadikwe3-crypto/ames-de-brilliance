@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { activityId, readActivity, writeActivity, listActivity, type Activity } from './account-activity-store';
-import { withListingLock } from './jeweller-listing-store';
+import { withListingLock, mutateListing } from './jeweller-listing-store';
 import { shopProduct, moneyMinor, type ShopProduct } from './shop-products';
 export type CartData={version:number;items:string[]};
 export type PurchaseData={version:number;buyerName:string;buyerEmail:string;instructions:string;lines:ShopProduct[];currency:string;subtotalMinor:number;invoice:null|{number:string;paymentInstructions:string;shippingMinor:number;taxMinor:number;totalMinor:number;issuedAt:string};receiptReference:string;fulfilmentReference:string;reason:string;history:{action:string;at:string;by:'customer'|'staff'}[]};
@@ -38,6 +38,10 @@ export async function changePurchase(record:Activity<PurchaseData>,body:Record<s
  }
  if(action==='paid'){
   if(!staff||record.status!=='invoiced'||!record.data.invoice||body.receiptConfirmed!==true)throw Error('Staff must confirm a received bank payment against an issued invoice.');next.data.receiptReference=z.string().trim().min(6).max(160).parse(body.reference);next.status='paid';
+  next.data.version++;next.data.history=[...next.data.history,{action,at,by:'staff'}];const paid=await writeActivity(next);
+  // A paid piece leaves the stock count. The version stays, so other open invoices for the same piece still match.
+  for(const l of record.data.lines)await mutateListing(l.listingId,x=>x.details.stock==null?x:{...x,details:{...x.details,stock:Math.max(0,x.details.stock-1)},updatedAt:at,audit:[...x.audit,{action:'stock_sold',at,actor:'staff',reason:record.id}].slice(-80)}).then(async x=>{if(x.details.stock){const id=activityId('reservation',l.assetId),r=await readActivity<{orderId:string}>(id);if(r?.data.orderId===record.id)await writeActivity({...r,status:'released'});}}).catch(()=>{});
+  return paid;
  }else if(action==='fulfilled'){if(!staff||record.status!=='paid')throw Error('Only a paid purchase can be marked fulfilled.');next.data.fulfilmentReference=z.string().trim().min(5).max(160).parse(body.reference);next.status='fulfilled';}
  else throw Error('Unknown purchase action');
  next.data.version++;next.data.history=[...next.data.history,{action,at,by:'staff'}];return writeActivity(next);
