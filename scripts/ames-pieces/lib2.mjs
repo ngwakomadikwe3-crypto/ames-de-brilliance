@@ -118,7 +118,7 @@ export class Builder {
     this.flushPave(true);
     const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder, 'meshopt.decoder': MeshoptDecoder });
     await MeshoptEncoder.ready; await MeshoptDecoder.ready;
-    await this.doc.transform(dedup(), prune());
+    await this.doc.transform(dedup(), prune({ keepAttributes: true }));
     await this.doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'medium', quantizePosition: 14, quantizeNormal: 8 }));
     await io.write(path, this.doc);
   }

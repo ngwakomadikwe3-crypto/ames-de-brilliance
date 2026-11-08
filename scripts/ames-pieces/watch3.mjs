@@ -78,7 +78,13 @@ for (let i = 0; i < links; i++) {
   for (let r = 0; r < 3; r++) for (const c of [-1, 1]) b.melee(`bracelet ${i + 1}`, 1.95, qmat(V(-LEN / 2 + 1.2 + r * ((LEN - 2.4) / 2), 1.36, c * 1.05), new THREE.Quaternion()), node);
   for (const sz of [-1, 1]) { m.rod(V(-LEN / 2 + .5, 1.2, sz * 9.95), V(LEN / 2 - .5, 1.2, sz * 9.95), .28, .28, null, 8); m.rod(V(-LEN / 2 + .6, 1.32, sz * 2.45), V(LEN / 2 - .6, 1.32, sz * 2.45), .16, .16, null, 6); }
   // Fold-over clasp under the six o'clock links: the blade on one side, the catch on the other.
-  if (i === CLASP - 1) { const g = new THREE.BoxGeometry(5.2, .8, 15); g.translate(LEN / 2 - 2, -1.95, 0); m.add(g); }
+  // The clasp blade: its own part, hinged under the link's end, so the viewer swings it open as the watch unclasps.
+  if (i === CLASP - 1) {
+    const blade = new Part(), g = new THREE.BoxGeometry(10.5, .8, 15); g.translate(5.25, 0, 0); blade.add(g);
+    for (const sz of [-1, 1]) blade.rod(V(0, 0, sz * 7.5), V(0, .55, sz * 7.5), .5, .5, null, 8);
+    const hinge = b.doc.createNode('Clasp blade (hinged)').setTranslation([LEN / 2 - 5.2, -1.95, 0]).setExtras({ ames_clasp_part: { axis: [0, 0, 1], angle: -105 } });
+    node.addChild(hinge); b.node('Clasp blade', b.mesh('White gold clasp blade', blade.merged(), b.metal), null, null, hinge);
+  }
   if (i === CLASP) { const g = new THREE.BoxGeometry(5.6, 1.1, 16); g.translate(-LEN / 2 + 2.2, -2.05, 0); m.add(g);
     for (const sz of [-1, 1]) m.rod(V(-LEN / 2 - .2, -1.6, sz * 7.2), V(-LEN / 2 + 1.6, -2.5, sz * 7.2), .3, .3, null, 6); }
   b.node(`Bracelet link ${i + 1} metal`, b.mesh(`White gold bracelet link ${i + 1}`, m.merged(), b.metal), null, null, node);

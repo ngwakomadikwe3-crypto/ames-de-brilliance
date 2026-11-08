@@ -5,10 +5,10 @@
   "publicationStatus": "review",
   "visualApproval": "pending",
   "category": "accessory",
-  "name": "Leather watch roll",
+  "name": "AMES leather watch roll",
   "thumbnail": "web/poster.webp",
   "heroImage": "web/poster.webp",
-  "interactiveGlb": "web/watch-roll.glb",
+  "interactiveGlb": "web/watch-roll-v2.glb",
   "poster": "web/poster.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,

@@ -6,7 +6,7 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "category": "accessory",
-  "name": "Leather watch roll",
+  "name": "AMES leather watch roll",
   "verifiedClaims": {
     "originalConcept": true,
     "commercialStock": false
@@ -16,7 +16,7 @@
     "Dimensions, materials and manufacturing readiness are not verified."
   ],
   "interactive": {
-    "glb": "web/watch-roll.glb",
+    "glb": "web/watch-roll-v2.glb",
     "poster": "web/poster.webp"
   }
 }

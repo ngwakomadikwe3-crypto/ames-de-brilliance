@@ -10,6 +10,11 @@ const suede = b.material('Beige suede lining', [.34, .27, .18, 1], 0, .95);
 const thread = b.material('Cream thread', [.7, .62, .48, 1], 0, .7);
 const snapMetal = b.material('Nickel snap | polished metal', [.86, .86, .84, 1], 1, .12);
 // phi is measured round the x axis from +y (top) toward +z (front): front 90, bottom 180, back 270.
+/** Box-projected texture coordinates: 1 unit = 256 mm (kept within 0..1 for quantization), so the viewer's grain keeps its size. */
+function mmUv(g) { const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) { const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    const [u, v] = ax >= ay && ax >= az ? [p.getY(i), p.getZ(i)] : ay >= az ? [p.getX(i), p.getZ(i)] : [p.getX(i), p.getY(i)]; uv[i * 2] = u / 256 + .5; uv[i * 2 + 1] = v / 256 + .5; }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); return g; }
 const at = (phi, r) => V(0, r * Math.cos(phi * deg), r * Math.sin(phi * deg));
 /** A slice of tube between radii r0..r1 and angles phi0..phi1, length len along x centred on x0. */
 function sector(r0, r1, phi0, phi1, len, x0 = 0, bevel = .6) {
@@ -37,8 +42,8 @@ stitch(bodyThread, linePts(BODY[0] + 4, RO + .12, -LID_L / 2 + 4, LID_L / 2 - 4)
 // The snap's lower half on the body front, under the tab.
 const stud = new THREE.CylinderGeometry(3.2, 3.2, 1.2, 32); stud.rotateX(90 * deg); stud.translate(0, 0, 0);
 { const p = at(99, RO + .5), q = new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), p.clone().normalize()); stud.applyQuaternion(q); stud.translate(p.x, p.y, p.z); }
-b.node('Case body', b.mesh('Tan leather body', body.merged(), leather));
-b.node('Case body lining', b.mesh('Suede body lining', bodyLining.merged(), suede));
+b.node('Case body', b.mesh('Tan leather body', mmUv(body.merged()), leather));
+b.node('Case body lining', b.mesh('Suede body lining', mmUv(bodyLining.merged()), suede));
 b.node('Case body stitching', b.mesh('Cream stitching body', bodyThread.merged(), thread));
 b.node('Snap stud', b.mesh('Snap stud', stud.clone(), snapMetal));
 
@@ -52,7 +57,7 @@ function pillow(x) {
   g.rotateY(90 * deg); g.translate(x - len / 2 + bv, -3, 0); return g;
 }
 const pillows = new Part(); for (const x of [-70, 0, 70]) pillows.add(pillow(x));
-b.node('Watch pillows', b.mesh('Suede watch pillows', pillows.merged(), suede));
+b.node('Watch pillows', b.mesh('Suede watch pillows', mmUv(pillows.merged()), suede));
 
 // Lid: hinged at the back edge; everything on it is authored round the hinge.
 const hinge = at(LID[0], RO), lid = b.doc.createNode('Case lid (hinged)').setTranslation(hinge.toArray())
@@ -72,8 +77,8 @@ stitch(lidThread, linePts(LID[1] - 360 - 4, RO + .12, -LID_L / 2 + 4, -14).map(p
 stitch(lidThread, linePts(LID[1] - 360 - 4, RO + .12, 14, LID_L / 2 - 4).map(p => back(p.clone())));
 for (const sx of [-1, 1]) stitch(lidThread, arcPts(sx * (LID_L / 2 - 3.2), RO + .12, LID[0] + 4, LID[1] - 4).map(p => back(p.clone())));
 stitch(lidThread, linePts(LID[0] + 4, RO + .12, -LID_L / 2 + 4, LID_L / 2 - 4).map(p => back(p.clone())));
-b.node('Case lid', b.mesh('Tan leather lid', lidLeather.merged(), leather), null, null, lid);
-b.node('Case lid lining', b.mesh('Suede lid lining', lidLining.merged(), suede), null, null, lid);
+b.node('Case lid', b.mesh('Tan leather lid', mmUv(lidLeather.merged()), leather), null, null, lid);
+b.node('Case lid lining', b.mesh('Suede lid lining', mmUv(lidLining.merged()), suede), null, null, lid);
 b.node('Case lid stitching', b.mesh('Cream stitching lid', lidThread.merged(), thread), null, null, lid);
 b.node('Snap cap', b.mesh('Snap cap', back(capG), snapMetal), null, null, lid);
 await b.write(process.argv[2] ?? 'watch-case.glb', { raw: process.argv[3] });

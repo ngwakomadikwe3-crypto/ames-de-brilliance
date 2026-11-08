@@ -6,7 +6,7 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "presentation": "interactive",
-  "stageAsset": "web/watch-v3.glb",
+  "stageAsset": "web/watch-v4.glb",
   "poster": "web/poster-v3.webp",
   "rotationEnabled": false,
   "defaultView": "three_quarter",
