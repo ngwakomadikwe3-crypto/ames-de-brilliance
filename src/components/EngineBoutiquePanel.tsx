@@ -90,7 +90,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
 
   useEffect(() => {
     const match = pieces.find(piece => piece.assetId === highlightAssetId);
-    if (match) queueMicrotask(() => setSelected(match));
+    if (match) queueMicrotask(() => { setSelected(match); if (match.category) setCategory(match.category); });
   }, [highlightAssetId, pieces]);
 
   const filtered = boutiqueByCategory(pieces, category);
@@ -117,11 +117,12 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
             </div>
           </section>)}
         </div>
-        <nav className="shrink-0 flex items-center justify-start sm:justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
-          {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
-            className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#eef5f2' : '#9eb8ae', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
-        </nav>
       </>}
+      {/* The categories stay at hand while a piece is open: tapping one goes straight there, no back button needed. */}
+      <nav className="shrink-0 flex items-center justify-start sm:justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
+        {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
+          className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#eef5f2' : '#9eb8ae', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
+      </nav>
     </div>
   );
 }
