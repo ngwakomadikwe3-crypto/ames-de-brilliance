@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
@@ -47,7 +47,7 @@ export default function EngineCataloguePanel() {
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-[#eef5f2]';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
-  if (gem) return <GemDetail stone={gem} onClose={closeGem} />;
+  if (gem) return <GemDetail stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-[#eef5f2]">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
       <header className="border-b border-white/15 pb-9 sm:pb-12">
@@ -146,39 +146,52 @@ function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => v
 
 /** About the stone, shown under its 3D view: what it is, its hardness, where it is mined and what it is made into. */
 function GemFacts({ id }: { id: string }) {
-  const f = GEMSTONE_FACTS[id], [lo, hi] = f.mohs;
-  return <section aria-label="About this gemstone" className="space-y-3 text-xs leading-5 text-[#eef5f2]" data-gem-facts={id}>
-    <p>{f.about}</p>
-    <div>
-      <p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Hardness · Mohs scale</p>
-      <div className="mt-2 flex items-center gap-3">
-        <div className="relative h-2 flex-1 rounded-full bg-white/10" role="img" aria-label={`Mohs hardness ${mohsLabel(f.mohs)} out of 10`}>
-          <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-300/70" style={{ width: `${hi * 10}%` }} />
-          {lo !== hi && <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-200" style={{ width: `${lo * 10}%` }} />}
-        </div>
-        <span className="shrink-0 whitespace-nowrap text-right">{mohsLabel(f.mohs)} / 10</span>
-      </div>
-      <p className="mt-1 text-[#b8d0c8]">Diamond is 10, sapphire and ruby 9, quartz 7, a steel knife about 5.5.</p>
-    </div>
-    <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Where it is found</p><p className="mt-1">{f.foundIn.join(' · ')}</p></div>
-    <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Jewellery it is made into</p><p className="mt-1">{f.jewellery}</p></div>
-    {f.care && <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Care</p><p className="mt-1">{f.care}</p></div>}
+  // Kept short: what it is, then a compact list (label left, answer right).
+  const f = GEMSTONE_FACTS[id];
+  const rows: [string, string][] = [['Hardness', `${mohsLabel(f.mohs)} on the Mohs scale (diamond is 10)`], ['Found in', f.foundIn.join(', ')], ['Worn as', f.jewellery], ...(f.care ? [['Care', f.care] as [string, string]] : [])];
+  return <section aria-label="About this gemstone" className="text-xs leading-5 text-[#eef5f2]" data-gem-facts={id}>
+    <p className="text-[#d6e6e0]">{f.about}</p>
+    <dl className="mt-3 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1.5 border-t border-white/10 pt-3">
+      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#9fbcb1]">{k}</dt><dd>{v}</dd></div>)}
+    </dl>
   </section>;
 }
 
-function GemDetail({ stone, onClose }: { stone: GalleryStone; onClose: () => void }) {
+function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const facts = GEMSTONE_FACTS[stone.id];
-  return <div className="h-full overflow-y-auto overscroll-contain pt-20 text-[#eef5f2]" data-gem-detail={stone.id}>
+  // Previous and next stone without going back to the gallery: arrows on the stage, or a swipe across the details
+  // (on the stage itself a drag turns the stone). Wraps round at either end.
+  const at = Math.max(0, list.findIndex(s => s.id === stone.id));
+  const prev = list[(at - 1 + list.length) % list.length], next = list[(at + 1) % list.length];
+  const swipe = useRef<{ x: number; y: number } | null>(null);
+  const top = useRef<HTMLDivElement>(null);
+  useEffect(() => { top.current?.scrollTo({ top: 0 }); }, [stone.id]);
+  const arrow = 'ames-pill absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full';
+  return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-[#eef5f2]" data-gem-detail={stone.id}>
     <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
       <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
+      {list.length > 1 && <>
+        <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
+        <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
+      </>}
       <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb`} poster={`/ames-engine/${stone.id}/web/poster.webp`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
     </div>
-    <div className="mx-auto w-full px-6 pb-10 pt-3" style={{ maxWidth: 620 }}>
-      <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{stone.name}</h2>
-      <p className="mt-2 text-[11px] text-[#b8d0c8]">{facts?.family ?? stone.category} · {stone.cut} cut · representative stone by AMES</p>
-      {facts && <div className="mt-4"><GemFacts id={stone.id} /></div>}
+    <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
+      onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
+      onTouchEnd={e => { const s0 = swipe.current, t = e.changedTouches[0]; swipe.current = null; if (!s0 || list.length < 2) return;
+        const dx = t.clientX - s0.x, dy = t.clientY - s0.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onGo(dx < 0 ? next : prev); }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{stone.name}</h2>
+        {list.length > 1 && <span className="shrink-0 text-[11px] text-[#9fbcb1]">{at + 1} / {list.length}</span>}
+      </div>
+      <p className="mt-1 text-[11px] text-[#b8d0c8]">{facts?.family ?? stone.category} · {stone.cut}</p>
+      {facts && <div className="mt-3"><GemFacts id={stone.id} /></div>}
+      {list.length > 1 && <div className="mt-5 flex items-center justify-between gap-3 text-xs">
+        <button type="button" className="ames-pill min-h-11 rounded-full border border-white/20 px-4" onClick={() => onGo(prev)}>‹ {prev.name}</button>
+        <button type="button" className="ames-pill min-h-11 rounded-full border border-white/20 px-4" onClick={() => onGo(next)}>{next.name} ›</button>
+      </div>}
     </div>
   </div>;
 }

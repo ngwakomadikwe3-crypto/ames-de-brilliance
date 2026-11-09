@@ -140,7 +140,7 @@ function SelectedViewer({
           <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.kind === 'necklace' && bracelet.drop_mm ? `drops up to ${bracelet.drop_mm.toFixed(0)} mm` : `${bracelet.width_mm.toFixed(1)} mm wide`}{stonesLabel(bracelet) && <> · {stonesLabel(bracelet)}</>}
           <span className="block text-[10px] text-[#b8d0c8]">{bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `Fits a wrist up to about ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}{bracelet.clasp && <> · {bracelet.clasp}</>}</span>
         </span>}
-        {(flat || host.current?.querySelector('canvas')?.dataset.amesFoldable === 'true') && <span className="rounded-full bg-[#031815]/70 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md">Press a link and drag to fold it</span>}
+        {(flat || host.current?.querySelector('canvas')?.dataset.amesFoldable === 'true') && <span className="rounded-full bg-[#031815]/70 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md">{bracelet?.kind === 'watch' ? 'Drag down to curl the bracelet, up to straighten it' : 'Press a link and drag to fold it'}</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
