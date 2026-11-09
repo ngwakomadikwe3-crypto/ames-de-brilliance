@@ -83,7 +83,10 @@ function SelectedViewer({
   }, [state, attempt, handleFailure]);
   // A bracelet built link by link reports its size on the canvas; offer to unclasp it and lay it flat.
   const [bracelet, setBracelet] = useState<{ length_mm: number; width_mm: number; links: number; clasp: string; stones?: number; stone?: string; kind?: string; drop_mm?: number } | null>(null);
+  const [hint, setHint] = useState(false);
   const [flat, setFlat] = useState(false), [measured, setMeasured] = useState(false);
+  // The how-to hint shows for a few seconds once a piece is laid flat, then gets out of the way.
+  useEffect(() => { if (!flat || !measured) { setHint(false); return; } setHint(true); const t = setTimeout(() => setHint(false), 4000); return () => clearTimeout(t); }, [flat, measured]);
   useEffect(() => {
     setBracelet(null); setFlat(false); setMeasured(false);
     if (state !== 'ready') return;
@@ -136,11 +139,11 @@ function SelectedViewer({
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></ViewerBoundary>}
       {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
-        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/85 px-4 py-2 text-center text-[12px] text-[#eef5f2] backdrop-blur-md">
-          <strong className="font-medium">{(bracelet.length_mm / 10).toFixed(1)} cm long</strong> · {bracelet.kind === 'necklace' && bracelet.drop_mm ? `drops up to ${bracelet.drop_mm.toFixed(0)} mm` : `${bracelet.width_mm.toFixed(1)} mm wide`}{stonesLabel(bracelet) && <> · {stonesLabel(bracelet)}</>}
-          <span className="block text-[10px] text-[#b8d0c8]">{bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `Fits a wrist up to about ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}{bracelet.clasp && <> · {bracelet.clasp}</>}</span>
+        {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
+        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-[#eef5f2] backdrop-blur-md">
+          {(bracelet.length_mm / 10).toFixed(1)} cm · {bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `fits a wrist up to ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}
         </span>}
-        {(flat || host.current?.querySelector('canvas')?.dataset.amesFoldable === 'true') && <span className="rounded-full bg-[#031815]/70 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md">{bracelet?.kind === 'watch' ? 'Drag down to curl the bracelet, up to straighten it' : 'Press a link and drag to fold it'}</span>}
+        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md transition-opacity">{bracelet?.kind === 'watch' ? 'Drag the strap down to curl it' : 'Drag a link to fold it'}</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2">

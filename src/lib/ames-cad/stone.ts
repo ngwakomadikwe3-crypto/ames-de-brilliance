@@ -110,15 +110,16 @@ export function stoneSize(specs: StoneSpecs, shape: Shape, gemId = 'stone-diamon
 }
 function stepCut(): BufferGeometry {
   // An emerald-style step cut: three crown steps, a girdle and a pavilion keel, corners cut at 18%.
+  // The girdle is knife-thin, as on a well-cut stone: a tall polished band shows as a bright line round it.
   const pts: Vector3[] = [], c = 0.18;
   const ring = (s: number, y: number) => { const h = s / 2, k = c * s; for (const [x, z] of [[h - k, h], [h, h - k], [h, -h + k], [h - k, -h], [-h + k, -h], [-h, -h + k], [-h, h - k], [-h + k, h]]) pts.push(new Vector3(x, y, z)); };
-  for (const [s, y] of [[0.62, 0.34], [0.8, 0.24], [0.93, 0.12], [1, 0.02], [1, -0.02], [0.78, -0.22], [0.52, -0.42], [0.2, -0.6]] as const) ring(s, y);
+  for (const [s, y] of [[0.62, 0.34], [0.8, 0.24], [0.93, 0.12], [1, 0.006], [1, -0.006], [0.78, -0.22], [0.52, -0.42], [0.2, -0.6]] as const) ring(s, y);
   pts.push(new Vector3(0, -0.66, 0));
   return new ConvexGeometry(pts);
 }
 function marquiseCut(): BufferGeometry {
   const pts: Vector3[] = [], n = 32;
-  for (const [r, h, off] of [[0.02, -0.62, 0], [1, -0.015, 0], [1, 0.015, 0], [0.78, 0.17, 0.5], [0.53, 0.34, 0]] as const)
+  for (const [r, h, off] of [[0.02, -0.62, 0], [1, -0.006, 0], [1, 0.006, 0], [0.78, 0.17, 0.5], [0.53, 0.34, 0]] as const)
     for (let i = 0; i < n; i++) { const a = (i + off) * Math.PI * 2 / n, z = Math.sin(a), x = Math.cos(a) * Math.pow(Math.max(0, 1 - Math.abs(z)), 0.55); pts.push(new Vector3(x * r, h, z * r)); }
   return new ConvexGeometry(pts);
 }
