@@ -42,7 +42,9 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
   }
   useEffect(() => {
     const abort = new AbortController();
-    request(endpoint + (staff ? '?staff=1' : ''), { signal: abort.signal, cache: 'no-store' }).then(body => { if (!abort.signal.aborted) { setRows(body.listings); setRole(body.role || 'jeweller'); setJewellers(body.jewellers || []); setAccess(true); } })
+    request(endpoint + (staff ? '?staff=1' : ''), { signal: abort.signal, cache: 'no-store' }).then(body => { if (!abort.signal.aborted) { setRows(body.listings); setRole(body.role || 'jeweller'); setJewellers(body.jewellers || []); setAccess(true);
+        // ?piece=<id> (from the approvals inbox or a notice) opens that piece straight away.
+        const wanted = new URLSearchParams(window.location.search).get('piece'), row = wanted && (body.listings as JewellerListing[]).find(l => l.id === wanted); if (row) apply(row); } })
       .catch(e => { if (!abort.signal.aborted) setError(e.message); }).finally(() => { if (!abort.signal.aborted) setLoading(false); });
     return () => abort.abort();
   }, [staff]);

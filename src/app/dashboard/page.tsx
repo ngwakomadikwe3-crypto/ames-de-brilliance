@@ -69,6 +69,7 @@ export default function Dashboard() {
       <div className="px-4 md:px-6 pt-3 pb-0 max-w-5xl mx-auto w-full">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-3">
           <BrandMark variant="full" height={28} />
+          {role === "owner" && <a href="/dashboard/approvals" className="rounded-full border border-current px-3 py-1 text-xs font-medium no-underline">Approvals</a>}
           {role === "owner" && <a href="/dashboard/cad" className="text-xs underline">CAD Assets</a>}
           {role === "owner" && <a href="/dashboard/enquiries" className="text-xs underline">Enquiries</a>}
           {role === "owner" && <a href="/dashboard/purchases" className="text-xs underline">Purchase desk</a>}

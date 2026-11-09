@@ -8,6 +8,9 @@ import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 
 /** The AMES gemstone gallery: the house's own 3D stones (the same ones SAME shows in chat), diamonds aside. */
 type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
+// Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
+// must have a new address to be fetched at once.
+const GALLERY_VERSION = '6';
 const GALLERY = (registry as GalleryStone[]).filter(stone => !/diamond/.test(stone.id)).sort((a, b) => a.name.localeCompare(b.name));
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
@@ -75,7 +78,7 @@ export default function EngineCataloguePanel() {
         {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-[#b8d0c8]">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
         {gallery.length === 0 ? <p className="py-6 text-sm text-[#b8d0c8]">No gallery stones match your search.</p> :
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
-          <img src={`/ames-engine/${stone.id}/web/poster.webp`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-[#b8d0c8]">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
         </button>)}</div>}
       </section>
@@ -176,7 +179,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb`} poster={`/ames-engine/${stone.id}/web/poster.webp`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
+      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
