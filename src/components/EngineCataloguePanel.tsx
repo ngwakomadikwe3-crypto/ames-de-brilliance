@@ -33,12 +33,21 @@ export default function EngineCataloguePanel() {
     }).catch(() => { if (!abort.signal.aborted) setState('error'); });
     return () => abort.abort();
   }, [attempt]);
+  // Opening a stone adds a history step, so the phone's back gesture returns to the gallery rather than leaving it.
+  const openGem = (stone: GalleryStone) => { try { history.pushState({ amesGem: stone.id }, ''); } catch {} setGem(stone); };
+  const closeGem = () => { if (history.state?.amesGem) history.back(); else setGem(null); };
+  useEffect(() => {
+    const onPop = () => setGem(null);
+    window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const term = query.trim().toLocaleLowerCase();
   const rough = pieces.filter(p => p.form === 'rough' && matches(p, term, species)), polished = pieces.filter(p => p.form === 'polished' && matches(p, term, species));
   const speciesOptions = [...new Set(pieces.map(piece => piece.species))].sort((a, b) => a.localeCompare(b));
   const gallery = GALLERY.filter(stone => (!term || galleryText(stone).includes(term)) && (!species || galleryText(stone).includes(species.toLocaleLowerCase())));
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-[#eef5f2]';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
+  // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
+  if (gem) return <GemDetail stone={gem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-[#eef5f2]">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
       <header className="border-b border-white/15 pb-9 sm:pb-12">
@@ -65,20 +74,12 @@ export default function EngineCataloguePanel() {
         <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-[#b8d0c8]">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
         {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-[#b8d0c8]">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
         {gallery.length === 0 ? <p className="py-6 text-sm text-[#b8d0c8]">No gallery stones match your search.</p> :
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => setGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
           <img src={`/ames-engine/${stone.id}/web/poster.webp`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-[#b8d0c8]">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
         </button>)}</div>}
       </section>
     </div>
-    {gem && <div role="dialog" aria-modal="true" aria-label={`${gem.name} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setGem(null)}>
-      <div className="max-h-[92dvh] w-full max-w-xl space-y-3 overflow-y-auto overscroll-contain rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">AMES gallery · {GEMSTONE_FACTS[gem.id]?.family ?? gem.category}</p><h3 className="text-lg">{gem.name}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setGem(null)}>Close</button></div>
-        <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb`} poster={`/ames-engine/${gem.id}/web/poster.webp`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 380 }} />
-        <p className="text-xs text-[#b8d0c8]">Drag to turn the stone, pinch or scroll to look closer. A representative {gem.name.toLocaleLowerCase()} by AMES ({gem.cut} cut); colour, size and origin vary from stone to stone.</p>
-        {GEMSTONE_FACTS[gem.id] && <GemFacts id={gem.id} />}
-      </div>
-    </div>}
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
       <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">{viewing.ref} · {viewing.species}</p><h3 className="text-lg">{viewing.title}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setViewing(null)}>Close</button></div>
@@ -146,7 +147,7 @@ function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => v
 /** About the stone, shown under its 3D view: what it is, its hardness, where it is mined and what it is made into. */
 function GemFacts({ id }: { id: string }) {
   const f = GEMSTONE_FACTS[id], [lo, hi] = f.mohs;
-  return <section aria-label="About this gemstone" className="space-y-4 border-t border-white/15 pt-4 text-sm leading-6" data-gem-facts={id}>
+  return <section aria-label="About this gemstone" className="space-y-3 text-xs leading-5 text-[#eef5f2]" data-gem-facts={id}>
     <p>{f.about}</p>
     <div>
       <p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Hardness · Mohs scale</p>
@@ -155,12 +156,29 @@ function GemFacts({ id }: { id: string }) {
           <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-300/70" style={{ width: `${hi * 10}%` }} />
           {lo !== hi && <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-200" style={{ width: `${lo * 10}%` }} />}
         </div>
-        <span className="w-14 text-right">{mohsLabel(f.mohs)} / 10</span>
+        <span className="shrink-0 whitespace-nowrap text-right">{mohsLabel(f.mohs)} / 10</span>
       </div>
-      <p className="mt-1 text-[11px] text-[#b8d0c8]">Diamond is 10, sapphire and ruby 9, quartz 7, a steel knife about 5.5.</p>
+      <p className="mt-1 text-[#b8d0c8]">Diamond is 10, sapphire and ruby 9, quartz 7, a steel knife about 5.5.</p>
     </div>
     <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Where it is found</p><p className="mt-1">{f.foundIn.join(' · ')}</p></div>
     <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Jewellery it is made into</p><p className="mt-1">{f.jewellery}</p></div>
     {f.care && <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Care</p><p className="mt-1">{f.care}</p></div>}
   </section>;
+}
+
+function GemDetail({ stone, onClose }: { stone: GalleryStone; onClose: () => void }) {
+  const facts = GEMSTONE_FACTS[stone.id];
+  return <div className="h-full overflow-y-auto overscroll-contain pt-20 text-[#eef5f2]" data-gem-detail={stone.id}>
+    <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
+      <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
+      </button>
+      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb`} poster={`/ames-engine/${stone.id}/web/poster.webp`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
+    </div>
+    <div className="mx-auto w-full px-6 pb-10 pt-3" style={{ maxWidth: 620 }}>
+      <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{stone.name}</h2>
+      <p className="mt-2 text-[11px] text-[#b8d0c8]">{facts?.family ?? stone.category} · {stone.cut} cut · representative stone by AMES</p>
+      {facts && <div className="mt-4"><GemFacts id={stone.id} /></div>}
+    </div>
+  </div>;
 }
