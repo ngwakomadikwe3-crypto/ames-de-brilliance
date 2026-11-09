@@ -10,7 +10,7 @@ import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
-const GALLERY_VERSION = '6';
+const GALLERY_VERSION = '7';
 const GALLERY = (registry as GalleryStone[]).filter(stone => !/diamond/.test(stone.id)).sort((a, b) => a.name.localeCompare(b.name));
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
