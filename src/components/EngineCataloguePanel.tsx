@@ -4,6 +4,7 @@ import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
 import registry from '../lib/gemstone-registry.json';
+import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 
 /** The AMES gemstone gallery: the house's own 3D stones (the same ones SAME shows in chat), diamonds aside. */
 type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
@@ -71,10 +72,11 @@ export default function EngineCataloguePanel() {
       </section>
     </div>
     {gem && <div role="dialog" aria-modal="true" aria-label={`${gem.name} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setGem(null)}>
-      <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">AMES gallery · {gem.category}</p><h3 className="text-lg">{gem.name}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setGem(null)}>Close</button></div>
+      <div className="max-h-[92dvh] w-full max-w-xl space-y-3 overflow-y-auto overscroll-contain rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">AMES gallery · {GEMSTONE_FACTS[gem.id]?.family ?? gem.category}</p><h3 className="text-lg">{gem.name}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setGem(null)}>Close</button></div>
         <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb`} poster={`/ames-engine/${gem.id}/web/poster.webp`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 380 }} />
         <p className="text-xs text-[#b8d0c8]">Drag to turn the stone, pinch or scroll to look closer. A representative {gem.name.toLocaleLowerCase()} by AMES ({gem.cut} cut); colour, size and origin vary from stone to stone.</p>
+        {GEMSTONE_FACTS[gem.id] && <GemFacts id={gem.id} />}
       </div>
     </div>}
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
@@ -139,4 +141,26 @@ function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => v
         </form>}
     </div>
   </div>;
+}
+
+/** About the stone, shown under its 3D view: what it is, its hardness, where it is mined and what it is made into. */
+function GemFacts({ id }: { id: string }) {
+  const f = GEMSTONE_FACTS[id], [lo, hi] = f.mohs;
+  return <section aria-label="About this gemstone" className="space-y-4 border-t border-white/15 pt-4 text-sm leading-6" data-gem-facts={id}>
+    <p>{f.about}</p>
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Hardness · Mohs scale</p>
+      <div className="mt-2 flex items-center gap-3">
+        <div className="relative h-2 flex-1 rounded-full bg-white/10" role="img" aria-label={`Mohs hardness ${mohsLabel(f.mohs)} out of 10`}>
+          <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-300/70" style={{ width: `${hi * 10}%` }} />
+          {lo !== hi && <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-200" style={{ width: `${lo * 10}%` }} />}
+        </div>
+        <span className="w-14 text-right">{mohsLabel(f.mohs)} / 10</span>
+      </div>
+      <p className="mt-1 text-[11px] text-[#b8d0c8]">Diamond is 10, sapphire and ruby 9, quartz 7, a steel knife about 5.5.</p>
+    </div>
+    <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Where it is found</p><p className="mt-1">{f.foundIn.join(' · ')}</p></div>
+    <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Jewellery it is made into</p><p className="mt-1">{f.jewellery}</p></div>
+    {f.care && <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">Care</p><p className="mt-1">{f.care}</p></div>}
+  </section>;
 }
