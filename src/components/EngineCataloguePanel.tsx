@@ -3,6 +3,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
+import registry from '../lib/gemstone-registry.json';
+
+/** The AMES gemstone gallery: the house's own 3D stones (the same ones SAME shows in chat), diamonds aside. */
+type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
+const GALLERY = (registry as GalleryStone[]).filter(stone => !/diamond/.test(stone.id)).sort((a, b) => a.name.localeCompare(b.name));
+const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
 type CatalogueStone = PublicStoneRecord & { photo: string; model: string; poster: string; modelNote: string };
@@ -15,7 +21,7 @@ export default function EngineCataloguePanel() {
   const [pieces, setPieces] = useState<CatalogueStone[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [query, setQuery] = useState(''), [species, setSpecies] = useState(''), [attempt, setAttempt] = useState(0);
-  const [viewing, setViewing] = useState<CatalogueStone | null>(null), [buying, setBuying] = useState<CatalogueStone | null>(null);
+  const [viewing, setViewing] = useState<CatalogueStone | null>(null), [buying, setBuying] = useState<CatalogueStone | null>(null), [gem, setGem] = useState<GalleryStone | null>(null);
   useEffect(() => {
     const abort = new AbortController();
     fetch('/api/rough-stones', { cache: 'no-store', signal: abort.signal }).then(async response => {
@@ -29,6 +35,7 @@ export default function EngineCataloguePanel() {
   const term = query.trim().toLocaleLowerCase();
   const rough = pieces.filter(p => p.form === 'rough' && matches(p, term, species)), polished = pieces.filter(p => p.form === 'polished' && matches(p, term, species));
   const speciesOptions = [...new Set(pieces.map(piece => piece.species))].sort((a, b) => a.localeCompare(b));
+  const gallery = GALLERY.filter(stone => (!term || galleryText(stone).includes(term)) && (!species || galleryText(stone).includes(species.toLocaleLowerCase())));
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-[#eef5f2]';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-[#eef5f2]">
@@ -52,7 +59,24 @@ export default function EngineCataloguePanel() {
           {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal tracking-tight">Polished stones <span className="text-xs text-[#b8d0c8]">{polished.length}</span></h2>{grid(polished)}</section>}
         </>}
       </section>
+      <section aria-labelledby="gallery-title" className="pt-4" data-gemstone-gallery>
+        <h2 id="gallery-title" className="text-xl font-normal tracking-tight">The AMES gemstone gallery <span className="text-xs text-[#b8d0c8]">{gallery.length}</span></h2>
+        <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-[#b8d0c8]">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
+        {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-[#b8d0c8]">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
+        {gallery.length === 0 ? <p className="py-6 text-sm text-[#b8d0c8]">No gallery stones match your search.</p> :
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => setGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
+          <img src={`/ames-engine/${stone.id}/web/poster.webp`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-[#b8d0c8]">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
+        </button>)}</div>}
+      </section>
     </div>
+    {gem && <div role="dialog" aria-modal="true" aria-label={`${gem.name} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setGem(null)}>
+      <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">AMES gallery · {gem.category}</p><h3 className="text-lg">{gem.name}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setGem(null)}>Close</button></div>
+        <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb`} poster={`/ames-engine/${gem.id}/web/poster.webp`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 380 }} />
+        <p className="text-xs text-[#b8d0c8]">Drag to turn the stone, pinch or scroll to look closer. A representative {gem.name.toLocaleLowerCase()} by AMES ({gem.cut} cut); colour, size and origin vary from stone to stone.</p>
+      </div>
+    </div>}
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
       <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">{viewing.ref} · {viewing.species}</p><h3 className="text-lg">{viewing.title}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setViewing(null)}>Close</button></div>
