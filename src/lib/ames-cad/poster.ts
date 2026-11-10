@@ -37,7 +37,7 @@ export async function renderPoster(glb: Uint8Array, category: Category, size = 9
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
   try {
     renderer.setSize(size, size, false); renderer.toneMapping = ACESFilmicToneMapping; renderer.setClearColor(0x000000, 0);
-    const hdr = await new HDRLoader().loadAsync('/ames-engine/environments/jewellery-tent-v2.hdr'); hdr.mapping = EquirectangularReflectionMapping;
+    const hdr = await new HDRLoader().loadAsync('/ames-engine/environments/jewellery-tent-v3.hdr'); hdr.mapping = EquirectangularReflectionMapping;
     const pmrem = new PMREMGenerator(renderer), envMap = pmrem.fromEquirectangular(hdr).texture, scene = new Scene(); scene.environment = envMap;
     const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(glb.slice().buffer, '');
     const root = gltf.scene, pivot = new Group(); pivot.add(root); scene.add(pivot); root.updateMatrixWorld(true);
