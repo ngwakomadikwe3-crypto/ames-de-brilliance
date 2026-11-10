@@ -395,11 +395,11 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 .ames-piece-image { isolation: isolate; }
 .ames-object-display::before,
 .ames-piece-image::before {
-  content: ''; position: absolute; inset: 2% 0; z-index: -1; pointer-events: none;
-  mask-image: radial-gradient(ellipse closest-side, #000 60%, transparent 100%);
-  background:
-    radial-gradient(ellipse at 48% 37%, rgba(221,239,230,.085), transparent 50%),
-    radial-gradient(ellipse at 50% 46%, rgba(0,10,8,.12), rgba(0,8,7,.30) 42%, transparent 72%);
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  /* A dark, almost neutral stage behind the piece (charcoal with a breath of emerald), as jewellery is shot on
+     near-black: whites read white and a diamond's black-and-white pattern stands out. The emerald silk stays
+     at the edges of the screen. */
+  background: radial-gradient(ellipse closest-side at 50% 48%, rgba(27,36,33,.96) 0%, rgba(20,29,26,.86) 30%, rgba(13,23,20,.6) 58%, rgba(8,18,15,.28) 80%, rgba(6,16,13,0) 100%);
 }
 .ames-object-display::after,
 .ames-piece-image::after {
@@ -482,8 +482,8 @@ body:has(.ames-account-shell) > footer { display: none; }
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 38% 29% at 46% 38%, rgba(184,208,200,.15), transparent 100%),
-    radial-gradient(ellipse 48% 10% at 50% 73%, rgba(158,184,174,.24), transparent 100%),
+    radial-gradient(ellipse 40% 34% at 47% 40%, rgba(27,36,33,.94), rgba(20,29,26,.8) 35%, rgba(12,22,19,.45) 70%, transparent 100%),
+    radial-gradient(ellipse 48% 10% at 50% 73%, rgba(150,160,156,.1), transparent 100%),
     radial-gradient(ellipse 52% 23% at 50% 84%, rgba(6,29,25,.36), transparent 100%);
 }
 .ames-app-shell [data-chat-panel] .ames-jewelry-stage::after {
