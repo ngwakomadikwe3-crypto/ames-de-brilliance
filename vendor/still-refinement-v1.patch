@@ -1,0 +1,164 @@
+--- a/src/engine/renderer/StudioBloom.tsx
++++ b/src/engine/renderer/StudioBloom.tsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useMemo } from 'react'
+ import { useFrame, useThree } from '@react-three/fiber'
+-import { Color, HalfFloatType, NoToneMapping, ShaderMaterial, Vector2, WebGLRenderTarget } from 'three'
++import { Color, ConstantAlphaFactor, CustomBlending, HalfFloatType, NoBlending, NoToneMapping, OneMinusConstantAlphaFactor, Quaternion, ShaderMaterial, Vector2, Vector3, WebGLRenderTarget } from 'three'
++import type { Object3D, PerspectiveCamera } from 'three'
+ import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
+ 
+ let bloomSamples = 4
+@@ -10,6 +11,30 @@
+ /** Edge smoothing samples for the studio render (fewer on phones). */
+ export function setBloomSamples(n: number) { bloomSamples = n }
+ 
++/**
++ * Still-frame refinement: how a photograph differs from a single rendered frame. Once the piece and the view have
++ * come to rest, the studio keeps drawing the same picture, each time through a slightly different point of the
++ * lens, and averages the frames. The hard stair-steps inside the stones melt into clean facets, fine detail stops
++ * shimmering, and what lies in front of or behind the point of focus softens a little, as it does through a real
++ * macro lens. Nothing is spent while the piece is being turned: the first frame is exactly the unrefined picture.
++ *  frames: how many frames are averaged; aperture: lens radius as a fraction of the distance to the point of
++ *  focus (0 = everything sharp); budgetMs: stop early on a slow device once this long has been spent.
++ */
++export const stillRefinement = { frames: 28, aperture: .0035, budgetMs: 4000 }
++export function setStillRefinement(next: Partial<typeof stillRefinement>) { Object.assign(stillRefinement, next) }
++/** After the piece itself last moved (a swinging drop, a ticking hand, an opening lid), wait this long before refining. */
++const REFINE_SETTLE_MS = 380
++const halton = (index: number, base: number) => { let f = 1, r = 0; for (let i = index; i > 0; i = Math.floor(i / base)) { f /= base; r += f * (i % base) } return r }
++/** A number that changes whenever anything that is drawn moves, appears or disappears. */
++function poseOf(root: Object3D) {
++  let h = 0, n = 0
++  root.traverse(object => { n++
++    if (!object.visible) { h = (h * 31 + n) % 2147483647; return }
++    const e = object.matrixWorld.elements
++    h = (h * 31 + (e[0] * 3 + e[1] * 5 + e[2] * 7 + e[4] * 11 + e[5] * 13 + e[6] * 17 + e[8] * 19 + e[9] * 23 + e[10] * 29 + e[12] * 37 + e[13] * 41 + e[14] * 43) * 8191) % 2147483647 })
++  return h
++}
++
+ /** HDR-only highlight bloom, preserving transparent alpha and tone-mapping once. */
+ export function StudioBloom() {
+   const {gl,size}=useThree(),dpr=useThree(s=>s.viewport.dpr)
+@@ -17,6 +42,14 @@
+     const target=()=>new WebGLRenderTarget(1,1,{type:HalfFloatType,depthBuffer:true})
+     const base=target(), blurA=target(),blurB=target(),peaks=target(),rayA=target(),rayB=target(),gemPass=target()
+     base.samples=bloomSamples
++    // The averaged picture, and the pass that folds each new frame into it (weight 1/n, set per frame).
++    const still=new WebGLRenderTarget(1,1,{type:HalfFloatType,depthBuffer:false})
++    const fold=new ShaderMaterial({vertexShader:'varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',depthTest:false,depthWrite:false,toneMapped:false,
++      transparent:true,blending:CustomBlending,blendSrc:ConstantAlphaFactor,blendDst:OneMinusConstantAlphaFactor,
++      uniforms:{inputMap:{value:base.texture}},
++      // Clamped: one runaway pixel must not be able to stay in the average.
++      fragmentShader:'varying vec2 vUv;uniform sampler2D inputMap;void main(){gl_FragColor=clamp(texture2D(inputMap,vUv),0.,60000.);}'})
++    const refine={count:0,camera:'',pose:0,movedAt:0,startedAt:0,done:false,timer:0 as unknown as ReturnType<typeof setTimeout>|0,position:new Vector3(),quaternion:new Quaternion(),right:new Vector3(),up:new Vector3(),focus:new Vector3()}
+     const vertexShader='varying vec2 vUv; void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}'
+     const blur=new ShaderMaterial({vertexShader,depthTest:false,depthWrite:false,toneMapped:false,
+       uniforms:{inputMap:{value:base.texture},stepUv:{value:new Vector2()},threshold:{value:2}},
+@@ -44,7 +77,7 @@
+         sum+=(texture2D(inputMap,vUv+float(i)*stepUv).rgb+texture2D(inputMap,vUv-float(i)*stepUv).rgb)*w;}
+         gl_FragColor=vec4(sum,1.);}`})
+     const output=new ShaderMaterial({vertexShader,depthTest:false,depthWrite:false,toneMapped:true,
+-      uniforms:{baseMap:{value:base.texture},glowMap:{value:blurB.texture},rayMapA:{value:rayA.texture},rayMapB:{value:rayB.texture},starGain:{value:STAR_GAIN}},
++      uniforms:{baseMap:{value:still.texture},glowMap:{value:blurB.texture},rayMapA:{value:rayA.texture},rayMapB:{value:rayB.texture},starGain:{value:STAR_GAIN}},
+       fragmentShader:`varying vec2 vUv;uniform sampler2D baseMap;uniform sampler2D glowMap;uniform sampler2D rayMapA;uniform sampler2D rayMapB;uniform float starGain;
+       void main(){vec4 base=texture2D(baseMap,vUv);vec3 glow=texture2D(glowMap,vUv).rgb*.035+(texture2D(rayMapA,vUv).rgb+texture2D(rayMapB,vUv).rgb)*starGain;
+         float halo=clamp(max(glow.r,max(glow.g,glow.b)),0.,.18);float a=max(base.a,halo);
+@@ -53,19 +86,61 @@
+         #include <colorspace_fragment>
+         gl_FragColor.rgb *= gl_FragColor.a;
+       }`})
+-    return {base,blurA,blurB,gemPass,peaks,rayA,rayB,peak,ray,blur,output,quad:new FullScreenQuad(blur),clear:new Color()}
++    return {base,still,fold,refine,blurA,blurB,gemPass,peaks,rayA,rayB,peak,ray,blur,output,quad:new FullScreenQuad(blur),clear:new Color()}
+   },[])
+   useEffect(()=>{
+     const dpr=gl.getPixelRatio(),w=Math.max(1,Math.round(size.width*dpr)),h=Math.max(1,Math.round(size.height*dpr))
+-    state.base.setSize(w,h);state.blurA.setSize(Math.ceil(w/2),Math.ceil(h/2));state.blurB.setSize(Math.ceil(w/2),Math.ceil(h/2))
++    state.base.setSize(w,h);state.still.setSize(w,h);state.refine.count=0;state.refine.done=false;state.blurA.setSize(Math.ceil(w/2),Math.ceil(h/2));state.blurB.setSize(Math.ceil(w/2),Math.ceil(h/2))
+     const qw=Math.ceil(w/4),qh=Math.ceil(h/4);state.peaks.setSize(qw,qh);state.gemPass.setSize(qw,qh);state.rayA.setSize(qw,qh);state.rayB.setSize(qw,qh)
+     gl.domElement.dataset.studioBloom='hdr-threshold';return()=>{delete gl.domElement.dataset.studioBloom}
+   },[gl,size,state,dpr])
+-  useEffect(()=>()=>{state.base.dispose();state.blurA.dispose();state.blurB.dispose();state.peaks.dispose();state.gemPass.dispose();state.rayA.dispose();state.rayB.dispose();state.peak.dispose();state.ray.dispose();state.blur.dispose();state.output.dispose();state.quad.dispose()},[state])
+-  useFrame(({scene,camera})=>{
++  useEffect(()=>()=>{if(state.refine.timer)clearTimeout(state.refine.timer);state.still.dispose();state.fold.dispose();state.base.dispose();state.blurA.dispose();state.blurB.dispose();state.peaks.dispose();state.gemPass.dispose();state.rayA.dispose();state.rayB.dispose();state.peak.dispose();state.ray.dispose();state.blur.dispose();state.output.dispose();state.quad.dispose()},[state])
++  useFrame(({scene,camera,controls,invalidate})=>{
+     const target=gl.getRenderTarget(),tone=gl.toneMapping,alpha=gl.getClearAlpha();gl.getClearColor(state.clear)
++    // Has the view or the piece changed since the last frame? If so, start the picture again from this frame.
++    const r=state.refine,now=performance.now(),lens=camera as PerspectiveCamera
++    scene.updateMatrixWorld();camera.updateMatrixWorld()
++    const view=camera.matrixWorld.elements.join()+camera.projectionMatrix.elements.join(),pose=poseOf(scene)
++    if(pose!==r.pose){r.pose=pose;r.movedAt=now;r.count=0;r.done=false
++      // Nothing else will ask for a frame once the piece has come to rest: come back then and refine.
++      if(r.timer)clearTimeout(r.timer);r.timer=setTimeout(()=>{r.timer=0;invalidate()},REFINE_SETTLE_MS+30)}
++    if(view!==r.camera){r.camera=view;r.count=0;r.done=false}
++    // The picture is finished and nothing has moved: show it again as it is, without drawing the piece again.
++    if(r.done){gl.setRenderTarget(target);state.quad.material=state.output;state.quad.render(gl);return}
++    const settled=now-r.movedAt>=REFINE_SETTLE_MS,frames=settled&&lens.isPerspectiveCamera?Math.max(1,Math.round(stillRefinement.frames)):1
++    const sample=r.count
++    if(sample===1)r.startedAt=now
++    if(sample>0){
++      // Each later frame looks through another point of the lens (and another point within each pixel).
++      const w=state.base.width,h=state.base.height
++      lens.setViewOffset(w,h,halton(sample,5)-.5,halton(sample,7)-.5,w,h)
++      if(stillRefinement.aperture>0){
++        r.position.copy(camera.position);r.quaternion.copy(camera.quaternion)
++        r.focus.copy((controls as unknown as {target?:Vector3}|null)?.target??r.focus.set(0,0,0))
++        const reach=camera.position.distanceTo(r.focus)*stillRefinement.aperture,radius=Math.sqrt(halton(sample,2))*reach,turn=halton(sample,3)*Math.PI*2
++        r.right.setFromMatrixColumn(camera.matrixWorld,0);r.up.setFromMatrixColumn(camera.matrixWorld,1)
++        camera.position.addScaledVector(r.right,Math.cos(turn)*radius).addScaledVector(r.up,Math.sin(turn)*radius)
++        camera.lookAt(r.focus);camera.updateMatrixWorld()
++      }
++    }
+     gl.setClearColor(0,0);gl.toneMapping=NoToneMapping;gl.setRenderTarget(state.base);gl.clear();gl.render(scene,camera)
+-    state.quad.material=state.blur;state.blur.uniforms.inputMap.value=state.base.texture
++    if(sample>0){
++      // Put the camera back exactly: the orbit controls must never see the lens move.
++      if(stillRefinement.aperture>0){camera.position.copy(r.position);camera.quaternion.copy(r.quaternion)}
++      lens.clearViewOffset();camera.updateMatrixWorld()
++    }
++    // Fold this frame into the averaged picture.
++    // (The first frame replaces the picture outright; later ones are weighted 1/n.)
++    state.quad.material=state.fold;state.fold.uniforms.inputMap.value=state.base.texture;state.fold.blending=sample>0?CustomBlending:NoBlending;state.fold.blendAlpha=1/(sample+1)
++    // (Without clearing: the picture so far is what the new frame is folded into.)
++    const autoClear=gl.autoClear;gl.autoClear=false;gl.setRenderTarget(state.still);state.quad.render(gl);gl.autoClear=autoClear
++    r.count=sample+1
++    const spent=sample>0?now-r.startedAt:0
++    if(r.count<frames&&!(r.count>=3&&spent>stillRefinement.budgetMs))invalidate()
++    else if(settled&&frames>1)r.done=true
++    if(gl.domElement.dataset.studioRefined!==String(r.count))gl.domElement.dataset.studioRefined=String(r.count)
++    gl.domElement.dataset.studioStill=r.done?'done':'refining'
++    state.quad.material=state.blur;state.blur.uniforms.inputMap.value=state.still.texture
+     state.blur.uniforms.threshold.value=2;state.blur.uniforms.stepUv.value.set(1/state.blurA.width,0)
+     gl.setRenderTarget(state.blurA);state.quad.render(gl)
+     state.blur.uniforms.inputMap.value=state.blurA.texture;state.blur.uniforms.threshold.value=0;state.blur.uniforms.stepUv.value.set(0,1/state.blurB.height)
+--- a/src/engine/renderer/JewelryViewer.tsx
++++ b/src/engine/renderer/JewelryViewer.tsx
+@@ -10,7 +10,7 @@
+ import { ViewerScene } from './ViewerScene'
+ import { chooseGemstoneQuality, chooseViewerQuality, nextLowerViewerQuality, qualityProfile, readViewerRuntime } from './viewerQuality'
+ import { setGemBudget } from '../materials/PhysicalStudioGem'
+-import { setBloomSamples } from './StudioBloom'
++import { setBloomSamples, setStillRefinement } from './StudioBloom'
+ import type { JewelryOpticsProfile } from './opticsProfiles'
+ 
+ export const DIAMOND_VIEWER_CAMERA = {
+@@ -69,7 +69,11 @@
+   const [initialRuntime] = useState(() => readViewerRuntime())
+   // Phones and tablets: a lighter render (resolution, light tracing, smoothing) so turning a piece stays fluid.
+   const phone = initialRuntime.coarsePointer || initialRuntime.webKitMobile === true
+-  useState(() => { setGemBudget(phone); setBloomSamples(phone ? 2 : 4); return 0 })
++  useState(() => { setGemBudget(phone); setBloomSamples(phone ? 2 : 4)
++    // The finished still: fewer frames on a phone, fewer again on iPhone and iPad. The lens is kept small, as a
++    // jewellery photograph is: the whole piece stays sharp, with only a trace of softness away from the focus.
++    setStillRefinement(initialRuntime.webKitMobile === true ? { frames: 8, aperture: .003, budgetMs: 900 } : phone ? { frames: 12, aperture: .003, budgetMs: 1400 } : { frames: 28, aperture: .0035, budgetMs: 4000 })
++    return 0 })
+   const [tier, setTier] = useState(() => (opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(initialRuntime) : chooseViewerQuality(initialRuntime))
+   useEffect(() => {
+     const update = () => setTier((opticsProfile === 'gemstone-studio' || opticsProfile === 'mounted-gem-studio') ? chooseGemstoneQuality(readViewerRuntime()) : chooseViewerQuality(readViewerRuntime()))
+--- a/src/engine/renderer/index.ts
++++ b/src/engine/renderer/index.ts
+@@ -5,3 +5,4 @@
+ 
+ export type { CameraPreset } from './cameraFraming'
+ export type { JewelryOpticsProfile } from './opticsProfiles'
++export { setStillRefinement, stillRefinement } from './StudioBloom'

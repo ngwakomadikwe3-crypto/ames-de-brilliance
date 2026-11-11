@@ -7,10 +7,16 @@ const appRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const sources = await enginePackSources(appRoot);
 const publicRoot = join(appRoot, 'public', 'ames-engine');
 const contracts = [];
+// The house Boutique carries one default piece per category; development test packs are never listed.
+const categories = new Set();
+const skipped = [];
 
 for (const sourceRoot of sources) {
   const { boutique } = await readPackContracts(sourceRoot);
   if (!/^[a-z0-9][a-z0-9-]*$/.test(boutique.assetId)) throw new Error('Unsafe asset ID');
+  const category = String(boutique.category).toLowerCase() === 'accessories' ? 'accessory' : String(boutique.category).toLowerCase();
+  if (boutique.assetId.startsWith('dev-test-') || categories.has(category)) { skipped.push(boutique.assetId); continue; }
+  categories.add(category);
   if (contracts.includes(`${boutique.assetId}/app/boutique.json`)) throw new Error('Duplicate Boutique asset ID');
   const paths = ['app/boutique.json', boutique.thumbnail, boutique.heroImage, boutique.interactiveGlb, boutique.poster];
   const targetRoot = resolve(publicRoot, boutique.assetId);
@@ -29,3 +35,4 @@ for (const sourceRoot of sources) {
 await mkdir(join(publicRoot, 'boutique'), { recursive: true });
 await writeFile(join(publicRoot, 'boutique', 'index.json'), JSON.stringify({ schemaVersion: 'ames.boutique-index/1', contracts }, null, 2) + '\n');
 console.log(`Synced ${contracts.length} AMES Boutique contract(s)`);
+if (skipped.length) console.log(`Not listed (test pack, or the category already has its default piece): ${skipped.join(', ')}`);

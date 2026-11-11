@@ -65,12 +65,28 @@ export async function loadBoutiqueContent(fetcher: typeof fetch = fetch): Promis
     } satisfies BoutiquePiece;
   }));
   if (new Set(pieces.map(piece => piece.assetId)).size !== pieces.length) throw new Error('Duplicate AMES Boutique asset');
-  return pieces;
+  return defaultBoutiquePieces(pieces);
+}
+
+const normalizeCategory = (value: string) => value.toLowerCase() === 'accessories' ? 'accessory' : value.toLowerCase();
+
+/**
+ * The house Boutique shows one default piece per category: the first listed in the index.
+ * Development test packs (`dev-test-*`) are never house defaults. Published catalogue
+ * listings are loaded separately and are not limited by this rule.
+ */
+export function defaultBoutiquePieces(pieces: BoutiquePiece[]): BoutiquePiece[] {
+  const seen = new Set<string>();
+  return pieces.filter(piece => {
+    const category = normalizeCategory(piece.category);
+    if (piece.assetId.startsWith('dev-test-') || seen.has(category)) return false;
+    seen.add(category);
+    return true;
+  });
 }
 
 export function boutiqueByCategory(pieces: BoutiquePiece[], category: BoutiqueCategory): BoutiquePiece[] {
-  const normalize = (value: string) => value.toLowerCase() === 'accessories' ? 'accessory' : value.toLowerCase();
-  return pieces.filter(piece => normalize(piece.category) === normalize(category));
+  return pieces.filter(piece => normalizeCategory(piece.category) === normalizeCategory(category));
 }
 
 export function boutiqueCategories(pieces: BoutiquePiece[]): { key: string; label: string }[] {
