@@ -58,6 +58,9 @@ function SelectedViewer({
   cameraPreset, zoom, turntableEnabled, resetToken, paused = false, opticsProfile = "soft-studio", autoLoad = false,
 }: ViewerProps) {
   const host = useRef<HTMLDivElement>(null);
+  const [viewReset, setViewReset] = useState(0);
+  const [viewZoom, setViewZoom] = useState(zoom ?? 1);
+  useEffect(() => { setViewZoom(zoom ?? 1); }, [zoom, resetToken]);
   const reducedMotion = useReducedMotion();
   const effectiveTurntable = paused || reducedMotion ? false : turntableEnabled;
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'fallback'>(autoLoad ? 'loading' : 'idle');
@@ -130,7 +133,7 @@ function SelectedViewer({
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
       {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><JewelryViewer
         modelUrl={modelUrl}
-        cameraPreset={cameraPreset} zoom={zoom} turntableEnabled={effectiveTurntable} resetToken={resetToken}
+        cameraPreset={cameraPreset ?? 'three_quarter'} zoom={viewZoom} turntableEnabled={effectiveTurntable} resetToken={(resetToken ?? 0) + viewReset}
         paused={paused}
         opticsProfile={opticsProfile}
         controlsEnabled
@@ -138,6 +141,11 @@ function SelectedViewer({
         onModelReady={handleReady}
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></ViewerBoundary>}
+      {state === 'ready' && <div role="group" aria-label="3D view controls" className="absolute right-3 top-3 z-20 flex gap-2">
+        <button type="button" aria-label="Zoom out" disabled={viewZoom <= 0.5} onClick={() => setViewZoom(value => Math.max(0.5, value - 0.25))} className="ames-pill min-h-11 min-w-11 rounded-full px-3 disabled:opacity-40">−</button>
+        <button type="button" aria-label="Zoom in" disabled={viewZoom >= 3} onClick={() => setViewZoom(value => Math.min(3, value + 0.25))} className="ames-pill min-h-11 min-w-11 rounded-full px-3 disabled:opacity-40">+</button>
+        <button type="button" onClick={() => { setViewZoom(zoom ?? 1); setViewReset(value => value + 1); }} className="ames-pill min-h-11 rounded-full px-3 text-xs">Reset view</button>
+      </div>}
       {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
         {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
         {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-[#eef5f2] backdrop-blur-md">
