@@ -6,8 +6,8 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "presentation": "interactive",
-  "stageAsset": "web/tennis-bracelet-v3.glb",
-  "poster": "web/poster-v2.webp",
+  "stageAsset": "web/tennis-bracelet-v4.glb",
+  "poster": "web/poster-v4.webp",
   "rotationEnabled": false,
   "defaultView": "three_quarter",
   "supportedViewerActions": [
@@ -23,8 +23,8 @@
     "unitMeaning": "Authored concept; not measured inventory.",
     "manufacturingReady": false
   },
-  "heroImage": "web/poster-v2.webp",
-  "macroImage": "web/poster-v2.webp",
+  "heroImage": "web/poster-v4.webp",
+  "macroImage": "web/poster-v4.webp",
   "visualModes": [
     "interactive",
     "side"

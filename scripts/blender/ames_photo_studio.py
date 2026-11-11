@@ -39,6 +39,7 @@ p.add_argument('--table', type=float, default=.02, help='how light the table is 
 p.add_argument('--threads', type=int, default=0)
 p.add_argument('--room', type=float, default=6.5, help='brightness of the white panels the stones see')
 p.add_argument('--aim', type=float, default=0, help='where the lens points: 0 the middle of the piece, 1 its top (for close-ups of a setting)')
+p.add_argument('--mm', action='store_true', help='the piece is modelled in millimetres (1 unit = 1 mm) rather than metres')
 p.add_argument('--hang', action='store_true', help='a piece that hangs (earrings, pendants): no table or shadow under it')
 p.add_argument('--clay', action='store_true', help='plain grey model check, no studio materials')
 p.add_argument('--frames', type=int, default=0, help='turntable: number of frames round the piece (0 = one still)')
@@ -96,6 +97,9 @@ def diamond_material():
     return m
 
 
+UNIT = 1000 if a.mm else 1            # scene units per metre, for the grain of the polish
+
+
 def metal_material(name, colour, roughness=.055):
     """Hand-polished precious metal: bright, but not a mirror. The polish varies a little from place to place and
     carries the faintest lines of the polishing wheel, which is what stops it looking like chrome."""
@@ -103,16 +107,16 @@ def metal_material(name, colour, roughness=.055):
     b = nt.nodes.new('ShaderNodeBsdfPrincipled')
     b.inputs['Base Color'].default_value = (*colour, 1); b.inputs['Metallic'].default_value = 1
     coord = nt.nodes.new('ShaderNodeTexCoord')
-    patches = nt.nodes.new('ShaderNodeTexNoise'); patches.inputs['Scale'].default_value = 900; patches.inputs['Detail'].default_value = 3
+    patches = nt.nodes.new('ShaderNodeTexNoise'); patches.inputs['Scale'].default_value = 900 / UNIT; patches.inputs['Detail'].default_value = 3
     nt.links.new(coord.outputs['Object'], patches.inputs['Vector'])
     ramp = nt.nodes.new('ShaderNodeMapRange'); ramp.inputs['From Min'].default_value = .3; ramp.inputs['From Max'].default_value = .7
     ramp.inputs['To Min'].default_value = roughness * .75; ramp.inputs['To Max'].default_value = roughness * 1.55
     nt.links.new(patches.outputs['Fac'], ramp.inputs['Value']); nt.links.new(ramp.outputs['Result'], b.inputs['Roughness'])
     # Polishing lines: noise stretched hard along one direction, as a very slight bump.
-    stretch = nt.nodes.new('ShaderNodeMapping'); stretch.inputs['Scale'].default_value = (60000, 1800, 60000)
+    stretch = nt.nodes.new('ShaderNodeMapping'); stretch.inputs['Scale'].default_value = (60000 / UNIT, 1800 / UNIT, 60000 / UNIT)
     lines = nt.nodes.new('ShaderNodeTexNoise'); lines.inputs['Scale'].default_value = 1; lines.inputs['Detail'].default_value = 2
     nt.links.new(coord.outputs['Object'], stretch.inputs['Vector']); nt.links.new(stretch.outputs['Vector'], lines.inputs['Vector'])
-    bump = nt.nodes.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = .012; bump.inputs['Distance'].default_value = .00002
+    bump = nt.nodes.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = .012; bump.inputs['Distance'].default_value = .00002 * UNIT
     nt.links.new(lines.outputs['Fac'], bump.inputs['Height']); nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
     nt.links.new(b.outputs['BSDF'], out.inputs['Surface'])
     return m

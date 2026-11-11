@@ -10,8 +10,8 @@ Geometry a bench jeweller would recognise, built in real units (metres; 1 mm = 0
 Proportions are the usual "ideal" round brilliant and are visual inputs, not a grading claim.
 """
 import math
-import bmesh
 import bpy
+import bmesh  # noqa: E402 (after bpy)
 from mathutils import Vector
 
 TAU = math.tau
