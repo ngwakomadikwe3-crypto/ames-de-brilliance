@@ -730,3 +730,44 @@ body:has(.ames-account-shell) > footer { display: none; }
   mask-image: linear-gradient(to bottom, transparent 0, #000 9%, #000 88%, transparent 100%), linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
   mask-composite: intersect;
 }
+
+/* Recessed presentation case. This is interface depth, independent of the model
+   camera, so dragging and zooming still act only on the jewellery. */
+.ames-presentation-frame {
+  --case-rim: clamp(7px, 1.8vw, 12px);
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  border: var(--case-rim) solid #173d33;
+  border-top-color: #416052;
+  border-left-color: #2b5144;
+  border-right-color: #0b241c;
+  border-bottom-color: #061b14;
+  border-radius: 18px;
+  box-shadow: inset 0 2px 1px rgba(0,0,0,.7),
+    inset 5px 8px 20px rgba(0,8,5,.44),
+    inset -1px -1px 0 rgba(192,213,197,.3);
+}
+.ames-presentation-frame::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--case-rim));
+  border: 1px solid rgba(194,210,185,.32);
+  border-right-color: rgba(0,10,5,.8);
+  border-bottom-color: rgba(0,10,5,.9);
+  border-radius: inherit;
+  box-shadow: inset 0 1px 1px rgba(235,241,219,.25);
+}
+.ames-presentation-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  box-shadow: inset 0 -12px 18px -16px rgba(184,207,170,.36);
+}
+/* Controls sit above the case lip; the case never captures pointer events. */
+.ames-object-display:has(> .ames-presentation-frame) {
+  border-radius: 18px;
+  background-color: rgba(3,22,16,.25);
+}

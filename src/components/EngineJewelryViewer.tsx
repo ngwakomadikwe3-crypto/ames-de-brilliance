@@ -130,6 +130,7 @@ function SelectedViewer({
   const showPoster = poster && !posterFailed && state !== 'ready';
   return (
     <div ref={host} className="ames-object-display" data-ames-engine-host data-viewer-state={state} data-model-source={src} data-optics-profile={opticsProfile} data-camera-preset={cameraPreset} data-zoom={zoom} data-turntable-enabled={effectiveTurntable} aria-label={alt ?? 'Jewelry preview'} style={{ position: "relative", width: "100%", height: "100%", overflow: 'hidden', ...style }}>
+      <span aria-hidden="true" className="ames-presentation-frame" />
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
       {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><JewelryViewer
         modelUrl={modelUrl}

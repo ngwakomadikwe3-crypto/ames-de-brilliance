@@ -1,0 +1,135 @@
+{
+  "source": "public/ames-engine/demo-pave-solitaire/web/solitaire-v3.glb",
+  "sourceSha256": "3d5d40a414abb6e3fd96b7b35b4c38a2c7c7776fa64b80293ddcd5a5d1b2b0df",
+  "gemstones": [
+    {
+      "name": "Pave diamond L 00",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 01",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 02",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 03",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 04",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 05",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 06",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 07",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 08",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 09",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 10",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond L 11",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 00",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 01",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 02",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 03",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 04",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 05",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 06",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 07",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 08",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 09",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 10",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Pave diamond R 11",
+      "closed": true,
+      "triangles": 448
+    },
+    {
+      "name": "Solitaire diamond",
+      "closed": true,
+      "triangles": 448
+    }
+  ],
+  "samples": 384,
+  "resolution": 720,
+  "visualApproval": "pending",
+  "notes": "Source geometry retained. Benchmark isolates lighting and materials."
+}
