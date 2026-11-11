@@ -4,7 +4,7 @@ import { mkdtemp, readFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { unzipSync } from 'fflate';
-import { buildStudioPack, getStudioJob, listStudioJobs, queueStudioUpload, studioInput } from './cad/studio.mjs';
+import { buildStudioPack, getStudioJob, listStudioJobs, queueStudioUpload, rerenderStudioJob, studioInput } from './cad/studio.mjs';
 import { atomicJson, jobDir, sha256 } from './cad/store.mjs';
 import { readPackContracts } from './ames-engine-packs.mjs';
 
@@ -75,4 +75,20 @@ test('existing owner code remains usable during database outages without accepti
   assert.equal(response.status, 200); assert.equal(sessions.getSessionRole(response.headers.get('set-cookie')), 'owner');
   assert.equal((await exports.POST({ json: async () => ({ code: 'toString' }) })).status, 401);
   assert.equal((await exports.POST({ json: async () => ({ code: {} }) })).status, 400);
+});
+
+
+test('latest-settings render creates a separate revision from checksum-verified source', async () => {
+  const original = await queueStudioUpload({ name: 'Iced watch', category: 'watch', units: 'mm' }, 'watch.glb', glb);
+  await assert.rejects(rerenderStudioJob(original.id), /already rendering/);
+  await atomicJson(join(jobDir(original.id), 'job.json'), { ...original, status: 'ready' });
+  const updated = await rerenderStudioJob(original.id);
+  assert.notEqual(updated.id, original.id);
+  assert.equal(updated.category, 'watch');
+  assert.equal(updated.sourceSha256, original.sourceSha256);
+  assert.equal(updated.status, 'queued');
+  assert.equal((await getStudioJob(original.id)).status, 'ready');
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(join(jobDir(original.id), 'source.glb'), 'corrupted');
+  await assert.rejects(rerenderStudioJob(original.id), /checksum/);
 });

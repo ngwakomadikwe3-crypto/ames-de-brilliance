@@ -35,8 +35,8 @@ else:
     raise ValueError('Unsupported automatic conversion format')
 
 meshes = sorted([o for o in bpy.context.scene.objects if o.type == 'MESH'], key=lambda o:o.name)
-if not meshes or len(meshes)>500:
-    raise ValueError('Source must contain between 1 and 500 mesh components')
+if not meshes or len(meshes)>2000:
+    raise ValueError('Source must contain between 1 and 2000 mesh components')
 triangles = sum(sum(len(p.vertices)-2 for p in obj.data.polygons) for obj in meshes)
 if triangles == 0 or triangles > 2000000:
     raise ValueError('Source must contain 1 to 2 million triangles. Export a lighter visualization mesh.')
@@ -151,21 +151,55 @@ bpy.context.view_layer.objects.active=meshes[0]
 bpy.ops.export_scene.gltf(filepath=str(folder/'preview.glb'),export_format='GLB',use_selection=True,export_animations=False,export_cameras=False,export_lights=False,export_extras=True)
 # Transparent, consistently framed product render; no baked studio square.
 scene=bpy.context.scene
-scene.render.engine='CYCLES';scene.cycles.samples=max(8,min(128,int(os.environ.get('AMES_CAD_RENDER_SAMPLES','48'))));scene.cycles.use_denoising=os.environ.get('AMES_CAD_DENOISE', '1') != '0'
-scene.cycles.max_bounces=12;scene.cycles.transmission_bounces=10;scene.cycles.glossy_bounces=6
-render_size=max(128,min(1024,int(os.environ.get('AMES_CAD_RENDER_SIZE','768'))))
+scene.render.engine='CYCLES';scene.cycles.samples=max(8,min(1024,int(os.environ.get('AMES_CAD_RENDER_SAMPLES','192'))));scene.cycles.use_denoising=os.environ.get('AMES_CAD_DENOISE', '1') != '0'
+scene.cycles.max_bounces=32;scene.cycles.transmission_bounces=24;scene.cycles.glossy_bounces=16
+scene.cycles.use_adaptive_sampling=True;scene.cycles.adaptive_threshold=0.015
+scene.cycles.sample_clamp_indirect=10
+scene.view_settings.view_transform='AgX'
+scene.view_settings.look='AgX - Medium High Contrast'
+# Render materials are separate from the portable GLB materials above. Coloured
+# gemstones absorb light through their volume, rather than painting every facet.
+render_materials={}
+for obj in meshes:
+    for slot in obj.material_slots:
+        source_material=slot.material
+        if not source_material or not source_material.use_nodes: continue
+        if source_material.name in render_materials:
+            slot.material=render_materials[source_material.name];continue
+        mat=source_material.copy();render_materials[source_material.name]=mat;slot.material=mat
+        bsdf=mat.node_tree.nodes.get('Principled BSDF')
+        if not bsdf: continue
+        if bsdf.inputs['Transmission Weight'].default_value > .5:
+            color=tuple(bsdf.inputs['Base Color'].default_value)
+            bsdf.inputs['Base Color'].default_value=(1,1,1,1)
+            bsdf.inputs['Roughness'].default_value=min(.025,bsdf.inputs['Roughness'].default_value)
+            bsdf.inputs['Coat Weight'].default_value=0
+            if max(color[:3])-min(color[:3]) > .08:
+                volume=mat.node_tree.nodes.new('ShaderNodeVolumeAbsorption')
+                volume.inputs['Color'].default_value=color
+                # Relative to the fitted object's depth, independent of CAD units.
+                volume.inputs['Density'].default_value=.45/max(min(obj.dimensions),.02)
+                output=mat.node_tree.nodes.get('Material Output')
+                mat.node_tree.links.new(volume.outputs['Volume'],output.inputs['Volume'])
+render_size=max(128,min(1024,int(os.environ.get('AMES_CAD_RENDER_SIZE','1024'))))
 scene.render.resolution_x=render_size;scene.render.resolution_y=render_size;scene.render.resolution_percentage=100
 scene.render.film_transparent=True
 scene.world.use_nodes=True
-scene.world.node_tree.nodes['Background'].inputs[0].default_value=(0.3,0.34,0.37,1)
-scene.world.node_tree.nodes['Background'].inputs[1].default_value=0.35
-for name,position,power,size_light in [('Key',(3,-4,4),500,3),('Fill',(-3,-2,1),240,2),('Rim',(1,3,3),650,2),('Strip',(-1,-3,4),180,0.7)]:
-    light=bpy.data.lights.new(name,'AREA');light.energy=power;light.shape='DISK';light.size=size_light
+scene.world.node_tree.nodes['Background'].inputs[0].default_value=(1,1,1,1)
+scene.world.node_tree.nodes['Background'].inputs[1].default_value=0.5
+studio_hdr=Path(__file__).resolve().parents[2]/'public/ames-engine/environments/jewellery-tent-v3.hdr'
+if not studio_hdr.exists(): studio_hdr=Path(__file__).with_name('jewellery-tent-v3.hdr')
+if studio_hdr.exists():
+    environment=scene.world.node_tree.nodes.new('ShaderNodeTexEnvironment')
+    environment.image=bpy.data.images.load(str(studio_hdr))
+    scene.world.node_tree.links.new(environment.outputs['Color'],scene.world.node_tree.nodes['Background'].inputs['Color'])
+for name,position,power,size_light in [('Key',(3,-4,4),350,3),('Fill',(-3,-2,1),90,2.5),('Rim',(1,3,3),400,2),('Strip',(-1,-3,4),140,0.8)]:
+    light=bpy.data.lights.new(name,'AREA');light.energy=power;light.shape='RECTANGLE';light.size=size_light;light.size_y=size_light*.45
     obj=bpy.data.objects.new(name,light);scene.collection.objects.link(obj);obj.location=position
     obj.rotation_euler=(-obj.location).to_track_quat('-Z','Y').to_euler()
 camera=bpy.data.cameras.new('Product camera');obj=bpy.data.objects.new('Product camera',camera);scene.collection.objects.link(obj)
 obj.location=(3,-5,2.6);obj.rotation_euler=(-obj.location).to_track_quat('-Z','Y').to_euler();camera.type='ORTHO';camera.ortho_scale=3.1;scene.camera=obj
 scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGBA';scene.render.filepath=str(folder/'poster.png')
 bpy.ops.render.render(write_still=True)
-result={'components':components,'triangleCount':triangles,'sourceBounds':list(size),'declaredUnits':job['units'],'physicalScaleVerified':False,'manufacturingReady':False,'limitations':limitations,'previewSha256':hashlib.sha256((folder/'preview.glb').read_bytes()).hexdigest(),'posterSha256':hashlib.sha256((folder/'poster.png').read_bytes()).hexdigest()}
+result={'renderProfile':'ames-cycles-jewellery-2','renderSamples':scene.cycles.samples,'renderEngine':'CYCLES','components':components,'triangleCount':triangles,'sourceBounds':list(size),'declaredUnits':job['units'],'physicalScaleVerified':False,'manufacturingReady':False,'limitations':limitations,'previewSha256':hashlib.sha256((folder/'preview.glb').read_bytes()).hexdigest(),'posterSha256':hashlib.sha256((folder/'poster.png').read_bytes()).hexdigest()}
 (folder/'result.json').write_text(json.dumps(result,indent=2))

@@ -6,9 +6,10 @@ import EngineJewelryViewer from './EngineJewelryViewer';
 import type { CadJob } from '@/lib/cad-types';
 
 const endpoint = '/api/cad-studio';
-const categories = [['accessory', 'Accessories'], ['ring', 'Rings'], ['earrings', 'Earrings'], ['necklace', 'Necklaces'], ['bracelet', 'Bracelets']];
+const categories = [['accessory', 'Accessories'], ['ring', 'Rings'], ['earrings', 'Earrings'], ['necklace', 'Necklaces'], ['bracelet', 'Bracelets'], ['watch', 'Watches']];
 export default function CadAssetStudio() {
   const [jobs, setJobs] = useState<CadJob[]>([]);
+  const [maxBytes, setMaxBytes] = useState(4 * 1024 * 1024);
   const [online, setOnline] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [name, setName] = useState('');
@@ -26,7 +27,7 @@ export default function CadAssetStudio() {
       throw new Error(body.error || 'CAD Assets is unavailable');
     }
     if (!signal?.aborted) {
-      setJobs(body.jobs); setOnline(body.worker.online); setError(''); setAuthRequired(false);
+      setMaxBytes(body.maxBytes); setJobs(body.jobs); setOnline(body.worker.online); setError(''); setAuthRequired(false);
       setSelectedId(current => current || body.jobs[0]?.id || '');
     }
   }, []);
@@ -42,8 +43,8 @@ export default function CadAssetStudio() {
   }, [load]);
   async function upload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!source || busy) return;
-    if (source.size > 100 * 1024 * 1024 || !/\.(glb|obj|stl|fbx)$/i.test(source.name)) {
-      setError('Choose a GLB, OBJ, STL or FBX file, up to 100 MB.'); return;
+    if (source.size > maxBytes || !/\.(glb|obj|stl|fbx)$/i.test(source.name)) {
+      setError(`Choose a GLB, OBJ, STL or FBX file, up to ${Math.floor(maxBytes / 1024 / 1024)} MB.`); return;
     }
     setBusy(true); setError('');
     try {
@@ -55,12 +56,23 @@ export default function CadAssetStudio() {
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed'); }
     finally { setBusy(false); }
   }
+  async function rerender() {
+    if (!selectedId || busy) return;
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(`${endpoint}/${selectedId}`, { method: 'POST' });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Re-render failed');
+      setSelectedId(body.id); await load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Re-render failed'); }
+    finally { setBusy(false); }
+  }
   const selected = jobs.find(job => job.id === selectedId);
   const artifact = (file: string) => `${endpoint}/${selected?.id}/${file}`;
   return <div className="space-y-8" data-cad-studio>
     <p className="text-sm text-[#b9cec6]">Upload a design, convert it privately, and download a reusable 3D asset pack. Nothing is added to the Boutique automatically.</p>
-    <p role="status" className="text-sm">Local worker: <span className={online ? 'text-emerald-300' : 'text-[#b9cec6]'}>{online ? 'Ready' : 'Offline'}</span></p>
-    {!online && !authRequired && <p className="text-sm text-[#b9cec6]">On this computer, run <code>npm run cad:worker</code> from the project folder to enable conversion.</p>}
+    <p role="status" className="text-sm">Blender renderer: <span className={online ? 'text-emerald-300' : 'text-[#b9cec6]'}>{online ? 'Ready' : 'Offline'}</span></p>
+    {!online && !authRequired && <p className="text-sm text-[#b9cec6]">The rendering service must be connected and running before a design can be processed.</p>}
     {error && <p role="alert" className="rounded-lg border border-red-300/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
     {authRequired && <Link className="underline text-sm" href="/login">Sign in with your owner account</Link>}
     <form onSubmit={upload} className="space-y-4 rounded-xl border border-white/15 bg-[#031815]/60 p-5">
@@ -71,7 +83,7 @@ export default function CadAssetStudio() {
         <label className="block text-sm">Source units<select value={units} onChange={e => setUnits(e.target.value)} className="field-input mt-1 w-full">{[['unknown', 'Not confirmed'], ['mm', 'Millimetres'], ['cm', 'Centimetres'], ['m', 'Metres'], ['in', 'Inches']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       </div>
       <label className="block text-sm">CAD / 3D export<input required type="file" accept=".glb,.obj,.stl,.fbx" onChange={e => setSource(e.target.files?.[0] || null)} className="mt-2 block w-full text-sm" /></label>
-      <p className="text-xs text-[#b9cec6]">GLB, OBJ, STL or FBX · up to 100 MB. Export Rhino/Matrix .3dm or STEP to one of these formats first. Embed GLB textures; external textures are not imported.</p>
+      <p className="text-xs text-[#b9cec6]">GLB, OBJ, STL or FBX · up to {Math.floor(maxBytes / 1024 / 1024)} MB. Export Rhino/Matrix .3dm or STEP to one of these formats first. Embed GLB textures; external textures are not imported.</p>
       <button disabled={busy || !online || !source || authRequired} className="rounded-full border border-white/30 px-5 py-2.5 text-sm disabled:opacity-40">{busy ? 'Uploading…' : 'Upload and create 3D asset'}</button>
       {busy && <progress className="block w-full" aria-label="Uploading CAD design" />}
     </form>
@@ -81,6 +93,7 @@ export default function CadAssetStudio() {
       {!!jobs.length && <label className="block text-sm">Select design<select value={selectedId} onChange={e => setSelectedId(e.target.value)} className="field-input mt-1 w-full">{jobs.map(job => <option key={job.id} value={job.id}>{job.name} · {job.status}</option>)}</select></label>}
       {selected && <div className="space-y-4">
         <p role="status" className="text-sm">{selected.sourceFilename} · {selected.status === 'ready' ? '3D asset ready for review' : selected.status === 'queued' ? 'Waiting for the conversion worker' : selected.status === 'processing' ? 'Converting geometry and rendering the preview…' : 'Conversion failed'}</p>
+        {(selected.status === 'ready' || selected.status === 'failed') && <button disabled={busy || !online} onClick={rerender} className="rounded-full border border-white/30 px-5 py-2.5 text-sm disabled:opacity-40">Re-render with latest settings</button>}
         {selected.error && <p role="alert" className="text-sm text-red-200">{selected.error}</p>}
         {selected.status === 'ready' && selected.result && <>
           <div className="h-80 overflow-hidden rounded-xl border border-white/10"><EngineJewelryViewer key={selected.id} src={artifact('preview.glb')} poster={artifact('poster.png')} alt={selected.name} autoLoad opticsProfile="soft-studio" cameraPreset="three_quarter" /></div>

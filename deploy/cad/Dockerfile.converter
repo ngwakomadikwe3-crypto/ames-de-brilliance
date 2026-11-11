@@ -5,6 +5,7 @@ ARG BLENDER_SHA256
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils libx11-6 libxi6 libxrender1 libxxf86vm1 libxfixes3 libxkbcommon0 libsm6 libice6 libgl1 libegl1 libgomp1 && rm -rf /var/lib/apt/lists/*
 RUN test -n "$BLENDER_SHA256" && case "$BLENDER_ARCHIVE_URL" in https://download.blender.org/release/*) ;; *) exit 1;; esac && curl --fail --location --proto '=https' --proto-redir '=https' "$BLENDER_ARCHIVE_URL" -o /tmp/blender.tar.xz && echo "$BLENDER_SHA256  /tmp/blender.tar.xz" | sha256sum -c - && mkdir /opt/blender && tar -xJf /tmp/blender.tar.xz -C /opt/blender --strip-components=1 && rm /tmp/blender.tar.xz
 COPY scripts/cad/convert.py /opt/ames/convert.py
+COPY public/ames-engine/environments/jewellery-tent-v3.hdr /opt/ames/jewellery-tent-v3.hdr
 ENV HOME=/tmp
 USER 1000:1000
 WORKDIR /job

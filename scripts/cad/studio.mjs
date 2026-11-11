@@ -7,7 +7,7 @@ import { root, readJob, jobDir, queueJob, sha256 } from './store.mjs';
 
 export const studioInput = z.object({
   name: z.string().trim().min(1).max(120),
-  category: z.enum(['ring', 'earrings', 'necklace', 'bracelet', 'accessory']),
+  category: z.enum(['ring', 'earrings', 'necklace', 'bracelet', 'watch', 'accessory']),
   units: z.enum(['unknown', 'mm', 'cm', 'm', 'in']).default('unknown'),
 });
 
@@ -73,4 +73,13 @@ export function buildStudioPack(job, glb, poster) {
   json('sha256.json', { files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, sha256(bytes)])) });
   files['README.txt'] = Buffer.from('Private CAD review pack. Original source remains on the workstation.\nGLB and transparent PNG are accompanied by AMES Chat, Boutique and Media contracts.\nNot published or commercially approved. Technical checks, browser validation and visual approval are still required.\nExtract into a folder named after the assetId. Keep this ZIP as delivery.zip alongside the extracted manifest for the existing review workflow.\n');
   return zipSync(Object.fromEntries(Object.entries(files).map(([name, bytes]) => [`${job.assetId}/${name}`, bytes])), { level: 1 });
+}
+
+/** Make a fresh revision from the retained source; never overwrite an approved pack. */
+export async function rerenderStudioJob(id) {
+  const job = await getStudioJob(id);
+  if (job.status === 'queued' || job.status === 'processing') throw new Error('This design is already rendering');
+  const bytes = await readFile(join(jobDir(id), 'source.' + job.extension));
+  if (sha256(bytes) !== job.sourceSha256) throw new Error('Source checksum mismatch');
+  return queueStudioUpload({ name: job.name, category: job.category, units: job.units }, job.sourceFilename, bytes);
 }
