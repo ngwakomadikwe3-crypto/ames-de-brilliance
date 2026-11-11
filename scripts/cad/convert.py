@@ -108,12 +108,16 @@ for index,obj in enumerate(meshes):
             bsdf.inputs['Transmission Weight'].default_value=1
             bsdf.inputs['IOR'].default_value=gems[choice]
         elif choice != 'unassigned':
-            bsdf.inputs['Coat Weight'].default_value=0.16
+            bsdf.inputs['Coat Weight'].default_value=0
             bsdf.inputs['Coat Roughness'].default_value=0.1
         obj.data.materials.clear();obj.data.materials.append(material)
         for polygon in obj.data.polygons: polygon.material_index=0
     obj.data.transform(fit)
-    clean_mesh(obj, smooth=not declared_gem)
+    preserved_transmission = choice == 'preserve' and any(
+        m and m.use_nodes and m.node_tree.nodes.get('Principled BSDF') and
+        m.node_tree.nodes['Principled BSDF'].inputs['Transmission Weight'].default_value > .5
+        for m in obj.data.materials)
+    clean_mesh(obj, smooth=not (declared_gem or preserved_transmission))
     watertight = closed_manifold(obj.data)
     # Uploaded extras are not proof of geometry qualification. Recompute them here.
     for properties in (obj, obj.data):
@@ -147,7 +151,7 @@ bpy.context.view_layer.objects.active=meshes[0]
 bpy.ops.export_scene.gltf(filepath=str(folder/'preview.glb'),export_format='GLB',use_selection=True,export_animations=False,export_cameras=False,export_lights=False,export_extras=True)
 # Transparent, consistently framed product render; no baked studio square.
 scene=bpy.context.scene
-scene.render.engine='CYCLES';scene.cycles.samples=max(8,min(128,int(os.environ.get('AMES_CAD_RENDER_SAMPLES','48'))));scene.cycles.use_denoising=True
+scene.render.engine='CYCLES';scene.cycles.samples=max(8,min(128,int(os.environ.get('AMES_CAD_RENDER_SAMPLES','48'))));scene.cycles.use_denoising=os.environ.get('AMES_CAD_DENOISE', '1') != '0'
 scene.cycles.max_bounces=12;scene.cycles.transmission_bounces=10;scene.cycles.glossy_bounces=6
 render_size=max(128,min(1024,int(os.environ.get('AMES_CAD_RENDER_SIZE','768'))))
 scene.render.resolution_x=render_size;scene.render.resolution_y=render_size;scene.render.resolution_percentage=100
