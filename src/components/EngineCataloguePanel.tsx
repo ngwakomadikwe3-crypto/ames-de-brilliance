@@ -172,8 +172,8 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const top = useRef<HTMLDivElement>(null);
   useEffect(() => { top.current?.scrollTo({ top: 0 }); }, [stone.id]);
   const arrow = 'ames-pill absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full';
-  // A stone photographed as a studio spin opens on the spin; live 3D stays one tap away.
-  const spin = useSpin(stone.id), [liveFor, setLiveFor] = useState<string | null>(null), live = liveFor === stone.id;
+  // Live 3D is the main view; the studio photograph is one tap away.
+  const spin = useSpin(stone.id), [photoFor, setPhotoFor] = useState<string | null>(null), photo = photoFor === stone.id;
   return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-white" data-gem-detail={stone.id}>
     <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
       <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
@@ -183,8 +183,8 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      {spin && <button type="button" onClick={() => setLiveFor(live ? null : stone.id)} aria-pressed={live} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{live ? 'Studio spin' : 'Interact in 3D'}</button>}
-      {spin && !live ? <SpinViewer key={stone.id} base={spin.base} manifest={spin.manifest} alt={stone.name} /> :
+      {spin && <button type="button" onClick={() => setPhotoFor(photo ? null : stone.id)} aria-pressed={photo} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{photo ? 'Back to 3D' : 'Studio photo'}</button>}
+      {spin && photo ? <SpinViewer key={stone.id} base={spin.base} manifest={spin.manifest} alt={stone.name} /> :
       <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />}
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}

@@ -45,22 +45,22 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   const price = boutiquePrice(piece.price);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
-  // A piece photographed as a studio spin opens on the spin; live 3D stays one tap away (unclasp, measure, open).
+  // Live 3D is the main view (turn, unclasp, measure, open); the studio photograph is one tap away.
   const spinBase = `/ames-engine/${piece.assetId}/spin/`;
-  const [spin, setSpin] = useState<SpinManifest | null>(null), [live, setLive] = useState(false);
+  const [spin, setSpin] = useState<SpinManifest | null>(null), [photo, setPhoto] = useState(false);
   useEffect(() => {
     let alive = true;
     fetch(spinBase + 'manifest.json').then(r => r.ok ? r.json() : null).then(m => { if (alive && m?.frames) setSpin(m); }).catch(() => {});
     return () => { alive = false; };
   }, [spinBase]);
-  const showSpin = !!spin && !live;
+  const showSpin = !!spin && photo;
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain pt-20" data-boutique-detail={piece.assetId}>
       <div className="ames-jewelry-stage relative shrink-0 mx-auto w-full" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {spin && <button type="button" onClick={() => setLive(value => !value)} aria-pressed={live} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{live ? 'Studio spin' : 'Interact in 3D'}</button>}
+        {spin && <button type="button" onClick={() => setPhoto(value => !value)} aria-pressed={photo} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{photo ? 'Back to 3D' : 'Studio photo'}</button>}
         {showSpin ? <SpinViewer base={spinBase} manifest={spin} alt={piece.name} /> :
         piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
