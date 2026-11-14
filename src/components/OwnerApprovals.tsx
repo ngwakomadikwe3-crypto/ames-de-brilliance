@@ -27,7 +27,7 @@ const price = (l: JewellerListing) => l.details.priceMode === 'fixed' && l.detai
   ? new Intl.NumberFormat(undefined, { style: 'currency', currency: l.details.currency }).format(Number(l.details.amount)) : 'Price on request';
 const fileUrl = (l: JewellerListing, kind: 'poster' | 'preview') => { const f = l.files.find(x => x.kind === kind && x.complete); return f ? `/api/jeweller/${l.id}/files/${f.id}` : ''; };
 const pill = 'ames-pill inline-flex min-h-11 items-center justify-center rounded-full border border-white/20 px-4 text-xs disabled:opacity-40';
-const label = 'text-[10px] uppercase tracking-[0.16em] text-[#9fbcb1]';
+const label = 'text-[10px] uppercase tracking-[0.16em] text-white';
 
 export default function OwnerApprovals() {
   const [listings, setListings] = useState<JewellerListing[]>([]);
@@ -57,11 +57,11 @@ export default function OwnerApprovals() {
   const total = counts.pieces + counts.accounts + counts.stones;
   const openPiece = pieces.find(l => l.id === open) ?? null;
 
-  if (state === 'loading') return <p role="status" className="py-10 text-sm text-[#b8d0c8]">Loading what is waiting…</p>;
+  if (state === 'loading') return <p role="status" className="py-10 text-sm text-white">Loading what is waiting…</p>;
   if (state === 'error') return <div role="alert" className="py-10 text-sm"><p>{error}</p><button className={`${pill} mt-4`} onClick={() => { setState('loading'); load(); }}>Try again</button></div>;
 
-  return <div className="text-[#eef5f2]" data-owner-approvals>
-    <p className="text-sm text-[#b8d0c8]">{total ? `${total} waiting for your decision.` : 'Nothing is waiting. New pieces, jeweller accounts and stone models appear here.'}</p>
+  return <div className="text-white" data-owner-approvals>
+    <p className="text-sm text-white">{total ? `${total} waiting for your decision.` : 'Nothing is waiting. New pieces, jeweller accounts and stone models appear here.'}</p>
     <nav className="mt-5 flex gap-2 overflow-x-auto" aria-label="Approval queues">
       {([['pieces', 'Pieces'], ['accounts', 'Jeweller accounts'], ['stones', 'Stone 3D']] as [Queue, string][]).map(([q, name]) =>
         <button key={q} type="button" onClick={() => { setQueue(q); setOpen(null); }} aria-pressed={queue === q}
@@ -77,9 +77,9 @@ export default function OwnerApprovals() {
           {fileUrl(l, 'poster') ? <img src={fileUrl(l, 'poster')} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /> : <span className="h-20 w-20 shrink-0 rounded-xl bg-white/5" />}
           <span className="min-w-0 text-xs leading-5">
             <span className="block truncate text-sm">{l.details.name}</span>
-            <span className="block truncate text-[#b8d0c8]">{maker.get(l.jewellerId) ?? 'Jeweller'} · {l.details.category}</span>
-            <span className="block text-[#b8d0c8]">{price(l)}{l.details.stock != null ? ` · ${l.details.stock} in stock` : ''}</span>
-            <span className="block text-[#9fbcb1]">Sent {ago(l.updatedAt)}</span>
+            <span className="block truncate text-white">{maker.get(l.jewellerId) ?? 'Jeweller'} · {l.details.category}</span>
+            <span className="block text-white">{price(l)}{l.details.stock != null ? ` · ${l.details.stock} in stock` : ''}</span>
+            <span className="block text-white">Sent {ago(l.updatedAt)}</span>
           </span>
         </button>)}
       </section>)}
@@ -88,8 +88,8 @@ export default function OwnerApprovals() {
       {!accounts.length && <Empty text="No jeweller accounts are waiting for verification." />}
       {accounts.map(p => <div key={p.id} className="rounded-2xl border border-white/15 bg-emerald-950/20 p-4 text-xs leading-5" data-approval-account={p.id}>
         <p className="text-sm">{p.businessName}</p>
-        <p className="text-[#b8d0c8]">{[p.city, p.country].filter(Boolean).join(', ') || 'Location not given'}{p.specialties.length ? ` · ${p.specialties.slice(0, 3).join(', ')}` : ''}</p>
-        <p className="text-[#9fbcb1]">{p.files.length} document{p.files.length === 1 ? '' : 's'} · sent {ago(p.updatedAt)}</p>
+        <p className="text-white">{[p.city, p.country].filter(Boolean).join(', ') || 'Location not given'}{p.specialties.length ? ` · ${p.specialties.slice(0, 3).join(', ')}` : ''}</p>
+        <p className="text-white">{p.files.length} document{p.files.length === 1 ? '' : 's'} · sent {ago(p.updatedAt)}</p>
         <Link href={`/dashboard/jewellers#${p.id}`} className={`${pill} mt-3`}>Review documents and verify</Link>
       </div>)}
     </section>}
@@ -98,7 +98,7 @@ export default function OwnerApprovals() {
       {!stone3d.length && <Empty text="No stone 3D models are waiting for approval." />}
       {stone3d.map(s => <div key={s.id} className="flex gap-3 rounded-2xl border border-white/15 bg-emerald-950/20 p-3 text-xs leading-5">
         {s.photo ? <img src={s.photo} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" /> : <span className="h-16 w-16 shrink-0 rounded-xl bg-white/5" />}
-        <span className="min-w-0"><span className="block text-sm">{s.ref} · {s.stone_type}</span><span className="block text-[#b8d0c8]">{s.shape} · {s.carat} ct</span>
+        <span className="min-w-0"><span className="block text-sm">{s.ref} · {s.stone_type}</span><span className="block text-white">{s.shape} · {s.carat} ct</span>
           <Link href={`/dashboard/stone-3d#${s.id}`} className="mt-1 inline-block underline">Review the 3D model</Link></span>
       </div>)}
     </section>}
@@ -106,7 +106,7 @@ export default function OwnerApprovals() {
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-6 text-sm text-[#b8d0c8]">{text}</p>;
+  return <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-6 text-sm text-white">{text}</p>;
 }
 
 /** One piece, opened in the inbox: the 3D model, what the jeweller sent, stock, and the decision. */
@@ -134,23 +134,23 @@ function PieceReview({ piece, maker, onBack, onDone }: { piece: JewellerListing;
     <div className="mt-4 grid gap-5 md:grid-cols-[1.2fr_1fr]">
       <div className="ames-jewelry-stage relative overflow-hidden rounded-2xl" style={{ height: 'clamp(260px, 46dvh, 460px)' }}>
         {preview ? <EngineJewelryViewer key={preview} src={preview} poster={poster || undefined} alt={piece.details.name} autoLoad opticsProfile={auto ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
-          : <p className="p-6 text-sm text-[#b8d0c8]">No 3D model yet.</p>}
+          : <p className="p-6 text-sm text-white">No 3D model yet.</p>}
       </div>
       <div className="text-xs leading-5">
         <h2 className="text-xl">{piece.details.name}</h2>
-        {piece.details.description && <p className="mt-2 text-[#d6e6e0]">{piece.details.description}</p>}
+        {piece.details.description && <p className="mt-2 text-white">{piece.details.description}</p>}
         <dl className="mt-3 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1.5 border-t border-white/10 pt-3">
-          {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#9fbcb1]">{k}</dt><dd className="capitalize-first">{v}</dd></div>)}
+          {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-white">{k}</dt><dd className="capitalize-first">{v}</dd></div>)}
         </dl>
         {auto ? <>
           <label className={`${label} mt-5 block`}>Pieces in stock to publish
             <input type="number" min={0} max={99999} inputMode="numeric" value={stock} onChange={e => setStock(e.target.value)} placeholder="Not stated"
-              className="mt-2 block w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base normal-case tracking-normal text-[#eef5f2]" /></label>
+              className="mt-2 block w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base normal-case tracking-normal text-white" /></label>
           <button type="button" disabled={busy} onClick={() => act('approve_converted')} className={`${pill} mt-3 w-full border-emerald-200/50 bg-emerald-300/15 text-sm`}>Approve and publish</button>
         </> : <Link href={`/dashboard/listings?piece=${piece.id}`} className={`${pill} mt-5 w-full`}>Open the full review (origin and evidence checks)</Link>}
         <label className={`${label} mt-5 block`}>Reason, to send back or reject
           <textarea value={reason} onChange={e => setReason(e.target.value)} minLength={10} rows={3} placeholder="What the jeweller should change"
-            className="mt-2 block w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-sm normal-case tracking-normal text-[#eef5f2]" /></label>
+            className="mt-2 block w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-sm normal-case tracking-normal text-white" /></label>
         <div className="mt-3 flex gap-2">
           <button type="button" disabled={busy || reason.trim().length < 10} onClick={() => act('request_revision')} className={`${pill} flex-1`}>Send back for changes</button>
           <button type="button" disabled={busy || reason.trim().length < 10} onClick={() => act('reject')} className={`${pill} flex-1`}>Reject</button>

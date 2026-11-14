@@ -10,7 +10,7 @@ type ThreeD = { status: string; scan: { name: string; bytes: number; complete: b
 type Row = { id: string; ref: string; stone_type: string; shape: string; carat: number; color: string; clarity: string; category: string; crystal_form: string; status: string; source: string; photo: string; threeD: ThreeD };
 type Detail = { role: 'owner' | 'staff'; stone: Record<string, unknown>; review: { title: string; species: string; otherSpecies: string; form: string; measurements: string; carats: number } | null; published: boolean; threeD: ThreeD };
 
-const field = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-[#eef5f2]';
+const field = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-white';
 const button = 'ames-pill rounded-full border border-white/25 px-4 py-2 text-sm disabled:opacity-40';
 const STATUS: Record<string, string> = { none: 'No 3D yet', scan_uploaded: 'Dealer scan received', converting: 'Being converted', awaiting_approval: 'Waiting for the Owner’s approval', approved: 'Approved for the catalogue', withdrawn: 'Withdrawn' };
 const FILTERS = [['todo', 'Needs 3D'], ['waiting', 'Waiting for approval'], ['approved', 'Approved'], ['all', 'All stones']] as const;
@@ -74,25 +74,25 @@ export default function StoneStudio() {
   if (loading) return <p role="status">Loading stones…</p>;
   const s = detail && specs(detail), stored = detail?.threeD.hasModel ? `/api/stone-3d/${detail.stone.id}/model.glb?v=${detail.threeD.revision || detail.threeD.version}` : '';
   return <div className="space-y-6" data-stone-studio>
-    <p className="text-sm text-[#b9cec6]">{role === 'owner' ? 'Approve each stone’s 3D before buyers see it in the Catalogue Room. The stone itself is published through Stone verification.' : 'Convert dealers’ stones to 3D: from the dealer’s scan, or for polished stones from their shape and measurements. Each 3D goes to the Owner for approval.'}</p>
+    <p className="text-sm text-white">{role === 'owner' ? 'Approve each stone’s 3D before buyers see it in the Catalogue Room. The stone itself is published through Stone verification.' : 'Convert dealers’ stones to 3D: from the dealer’s scan, or for polished stones from their shape and measurements. Each 3D goes to the Owner for approval.'}</p>
     {error && <p role="alert" className="rounded-xl border border-red-300/40 p-3 text-sm text-red-200">{error}</p>}
     <div className="flex flex-wrap gap-2">{FILTERS.map(([k, label]) => <button key={k} className={`${button} ${filter === k ? 'border-white/70' : ''}`} onClick={() => setFilter(k)}>{label} ({rows.filter(r => k === 'all' || (k === 'todo' ? ['none', 'scan_uploaded', 'converting', 'withdrawn'].includes(r.threeD.status) : k === 'waiting' ? r.threeD.status === 'awaiting_approval' : r.threeD.status === 'approved')).length})</button>)}</div>
     <div className="grid gap-6 md:grid-cols-[230px_minmax(0,1fr)]">
-      <nav aria-label="Stones" className="space-y-2">{!visible.length && <p className="text-sm text-[#b9cec6]">No stones here.</p>}{visible.map(r => <button key={r.id} disabled={busy} onClick={() => open(r)} className={`block w-full rounded-xl border px-3 py-3 text-left text-sm ${detail && String(detail.stone.id) === r.id ? 'border-white/60' : 'border-white/15'}`}>
+      <nav aria-label="Stones" className="space-y-2">{!visible.length && <p className="text-sm text-white">No stones here.</p>}{visible.map(r => <button key={r.id} disabled={busy} onClick={() => open(r)} className={`block w-full rounded-xl border px-3 py-3 text-left text-sm ${detail && String(detail.stone.id) === r.id ? 'border-white/60' : 'border-white/15'}`}>
         <span className="block font-mono text-xs">{r.ref}</span><span className="block">{r.stone_type === 'rough' ? 'Rough' : r.shape || 'Polished'} · {r.carat} ct{r.color ? ` · ${r.color}` : ''}</span>
-        <span className="text-xs text-[#b9cec6]">{STATUS[r.threeD.status] || r.threeD.status}{r.threeD.scan?.complete && r.threeD.status !== 'approved' ? ' · scan ready' : ''}</span></button>)}</nav>
+        <span className="text-xs text-white">{STATUS[r.threeD.status] || r.threeD.status}{r.threeD.scan?.complete && r.threeD.status !== 'approved' ? ' · scan ready' : ''}</span></button>)}</nav>
       <div className="min-w-0 space-y-5">
         {!detail || !s ? <p>Select a stone.</p> : <>
           <div className="space-y-1 text-sm">
             <h2 className="text-lg">{detail.review?.title || String(detail.stone.ref)}</h2>
             <p>{s.form === 'rough' ? 'Rough' : 'Polished'} · {s.shape || '—'} · {s.carat} ct · {s.color || 'colour not stated'}{s.measurements ? ` · ${s.measurements}` : ''}</p>
-            <p className="text-xs text-[#b9cec6]">{STATUS[detail.threeD.status]}{detail.published ? ' · stone published in the catalogue' : ' · stone not yet published (Stone verification)'}</p>
-            <p className="text-xs text-[#b9cec6]">Dealer’s scan: {detail.threeD.scan ? `${detail.threeD.scan.name} (${(detail.threeD.scan.bytes / 1024 / 1024).toFixed(1)} MB${detail.threeD.scan.complete ? '' : ', upload unfinished'})` : 'none — the dealer can upload one from their portal'}</p>
+            <p className="text-xs text-white">{STATUS[detail.threeD.status]}{detail.published ? ' · stone published in the catalogue' : ' · stone not yet published (Stone verification)'}</p>
+            <p className="text-xs text-white">Dealer’s scan: {detail.threeD.scan ? `${detail.threeD.scan.name} (${(detail.threeD.scan.bytes / 1024 / 1024).toFixed(1)} MB${detail.threeD.scan.complete ? '' : ', upload unfinished'})` : 'none — the dealer can upload one from their portal'}</p>
           </div>
           {stored && !model && <div className="space-y-3 rounded-2xl border border-white/15 p-4">
             <h3 className="text-sm">Current 3D {detail.threeD.approved ? '(live in the catalogue once the stone is published)' : ''}</h3>
             <EngineJewelryViewer key={stored} src={stored} alt={String(detail.stone.ref)} autoLoad opticsProfile="mounted-gem-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 300 }} />
-            <p className="text-xs text-[#b9cec6]">{detail.threeD.note}</p>
+            <p className="text-xs text-white">{detail.threeD.note}</p>
             {role === 'owner' && <div className="flex flex-wrap gap-3">
               {detail.threeD.status !== 'approved' && <button disabled={busy} className={button} onClick={() => decide('approve')}>Approve for the Catalogue Room</button>}
               {detail.threeD.status === 'approved' && <button disabled={busy} className={button} onClick={() => decide('withdraw')}>Withdraw the 3D</button>}
@@ -108,7 +108,7 @@ export default function StoneStudio() {
               <button disabled={busy || !detail.threeD.scan?.complete} className={button} onClick={fromScan}>Convert the dealer’s scan</button>
               <button disabled={busy || s.form === 'rough'} className={button} onClick={fromSpecs}>Build from shape and measurements</button>
             </div>
-            {s.form === 'rough' && !detail.threeD.scan?.complete && <p className="text-xs text-amber-100">Rough crystals need the dealer’s scan: their shape can’t be built from measurements. Until then the catalogue shows the dealer’s photo.</p>}
+            {s.form === 'rough' && !detail.threeD.scan?.complete && <p className="text-xs text-white">Rough crystals need the dealer’s scan: their shape can’t be built from measurements. Until then the catalogue shows the dealer’s photo.</p>}
             {model && <div className="space-y-3">
               <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
                 <EngineJewelryViewer key={modelUrl} src={modelUrl} poster={posterUrl} alt={String(detail.stone.ref)} autoLoad opticsProfile="mounted-gem-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 300 }} />
@@ -116,7 +116,7 @@ export default function StoneStudio() {
                 <img src={posterUrl} alt="Catalogue picture" className="w-full rounded-xl border border-white/10 bg-[#061d19]" />
               </div>
               <p className="text-sm">{GEMSTONES.find(g => g.id === model.gemId)?.name} · {model.size.map(v => v.toFixed(2)).join(' × ')} mm</p>
-              <p className="text-xs text-[#b9cec6]">{model.note}</p>
+              <p className="text-xs text-white">{model.note}</p>
               <button disabled={busy} className={button} onClick={send}>{role === 'owner' ? 'Save the 3D' : 'Send for approval'}</button>
             </div>}
           </section>

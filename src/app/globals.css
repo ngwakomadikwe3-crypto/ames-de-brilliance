@@ -265,7 +265,7 @@ button { font-family: inherit; }
 /* AMES app environment: the product viewer and panels sit inside the living silk field. */
 body:has(.ames-app-shell), html:has(.ames-app-shell) {
   background: #061d19 !important;
-  color: #eef5f2;
+  color: #ffffff;
 }
 body:has(.ames-app-shell) {
   font-family: var(--font-satoshi) !important;
@@ -278,7 +278,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
   isolation: isolate;
   min-height: 100dvh;
   overflow: hidden;
-  color: #eef5f2;
+  color: #ffffff;
   background: transparent !important;
   --ames-editorial-font: var(--font-satoshi);
   --ames-interface-font: var(--font-satoshi);
@@ -317,7 +317,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 .ames-app-shell [data-chat-panel],
 .ames-app-shell [data-boutique-panel],
 .ames-app-shell [data-media-panel],
-.ames-app-shell [data-auction-panel] { background: rgba(4, 25, 22, 0.14) !important; color: #eef5f2 !important; }
+.ames-app-shell [data-auction-panel] { background: rgba(4, 25, 22, 0.14) !important; color: #ffffff !important; }
 .ames-app-shell [data-chat-surface] {
   background: rgba(3, 24, 21, 0.56) !important;
   border-color: rgba(235, 247, 243, 0.24) !important;
@@ -326,9 +326,9 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
   -webkit-backdrop-filter: blur(14px);
 }
 .ames-app-shell [data-chat-message='user'] { background: rgba(236, 246, 242, 0.92) !important; color: #08231e !important; }
-.ames-app-shell [data-chat-message='assistant'] { background: rgba(4, 31, 27, 0.72) !important; border-color: rgba(235, 247, 243, 0.24) !important; color: #eef5f2 !important; }
+.ames-app-shell [data-chat-message='assistant'] { background: rgba(4, 31, 27, 0.72) !important; border-color: rgba(235, 247, 243, 0.24) !important; color: #ffffff !important; }
 .ames-app-shell [data-ames-engine-host] canvas { background: transparent !important; }
-.ames-app-shell [data-media-panel] input { background: rgba(3, 20, 18, 0.54) !important; border-color: rgba(238, 247, 244, 0.28) !important; color: #eef5f2 !important; }
+.ames-app-shell [data-media-panel] input { background: rgba(3, 20, 18, 0.54) !important; border-color: rgba(238, 247, 244, 0.28) !important; color: #ffffff !important; }
 .ames-app-shell [data-chat-surface]:focus-within,
 .ames-app-shell [data-media-panel] input:focus-visible { border-color: rgba(238, 247, 244, 0.5) !important; }
 .ames-app-shell [data-media-item] { background: transparent !important; }
@@ -354,7 +354,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 .ames-piece-name { line-height: 1.45; text-wrap: balance; }
 .ames-collection-heading {
   margin: 0 0 20px;
-  color: #eef5f2;
+  color: #ffffff;
   font-size: clamp(24px, 3vw, 34px);
   font-weight: 300;
   letter-spacing: .025em;
@@ -371,8 +371,8 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 
 /* Editorial navigation: pages stay mounted, so conversations and selections persist. */
 .ames-page-index { position: fixed; inset: 44px 0 auto; z-index: 50; display: flex; justify-content: center; gap: clamp(4px, 2vw, 20px); background: rgba(3,24,21,.7); backdrop-filter: blur(18px); }
-.ames-page-index button { min-height: 36px; padding: 0 8px; color: #9eb8ae; font-size: 11px; letter-spacing: .04em; border-bottom: 1px solid transparent; }
-.ames-page-index button[aria-current] { color: #eef5f2; border-bottom-color: #b8d0c8; }
+.ames-page-index button { min-height: 36px; padding: 0 8px; color: #ffffff; font-size: 11px; letter-spacing: .04em; border-bottom: 1px solid transparent; }
+.ames-page-index button[aria-current] { color: #ffffff; border-bottom-color: #ffffff; }
 .ames-page-number { font-size: 9px; margin-right: 6px; opacity: .65; }
 .ames-page-index button:focus-visible { outline: 1px solid #dceee8; outline-offset: -3px; }
 .ames-magazine { position: fixed; inset: 0; height: 100dvh; overflow: hidden; perspective: 1800px; }
@@ -447,18 +447,18 @@ body:has(.ames-app-shell) > footer { display: none; }
 .ames-editorial-copy :is(h2, h3) { font-size: 21px; line-height: 1.3; margin-bottom: 10px; }
 .ames-editorial-copy p + p { margin-top: 12px; }
 .ames-editorial-copy ul { padding-left: 4px; }
-.ames-editorial-intro { color: #b9cec6; margin-bottom: 32px; }
+.ames-editorial-intro { color: #ffffff; margin-bottom: 32px; }
 body:has(.ames-account-shell) > footer { display: none; }
 .ames-account-header { display: flex; gap: 5px; align-items: baseline; padding: 24px; border-bottom: 1px solid #eef5f226; }
 .ames-account-header > a { letter-spacing: .08em; }
-.ames-account-header > span { font-size: 10px; letter-spacing: .06em; color: #b9cec6; }
+.ames-account-header > span { font-size: 10px; letter-spacing: .06em; color: #ffffff; }
 .ames-account-content { max-width: 560px; margin: auto; padding: 36px 24px; }
 .ames-account-content:has([data-jeweller-profiles]) { max-width: 1040px; }
-.ames-account-back { font-size: 13px; color: #b9cec6; }
+.ames-account-back { font-size: 13px; color: #ffffff; }
 .ames-account-content h1 { margin: 24px 0; font-size: 28px; font-weight: 400; }
-.ames-account-links { display: flex; gap: 24px; margin-top: 40px; font-size: 12px; color: #b9cec6; }
+.ames-account-links { display: flex; gap: 24px; margin-top: 40px; font-size: 12px; color: #ffffff; }
 .ames-account-shell :focus-visible { outline: 2px solid #dceae2; outline-offset: 4px; }
-.ames-comment-dialog { position: fixed; inset: auto 0 0; margin: 0 auto; width: min(100%, 672px); max-width: 100%; padding: 20px; border: 1px solid #eef5f233; border-radius: 20px 20px 0 0; background: #082820; color: #eef5f2; box-shadow: 0 -16px 60px #0008; }
+.ames-comment-dialog { position: fixed; inset: auto 0 0; margin: 0 auto; width: min(100%, 672px); max-width: 100%; padding: 20px; border: 1px solid #eef5f233; border-radius: 20px 20px 0 0; background: #082820; color: #ffffff; box-shadow: 0 -16px 60px #0008; }
 .ames-comment-dialog::backdrop { background: #0009; }
 .ames-comment-dialog input { font-size: 16px; }
 
@@ -598,7 +598,7 @@ body:has(.ames-account-shell) > footer { display: none; }
   border-top-color: rgba(238,247,244,.62);
   border-bottom-color: rgba(0,10,8,.8);
   background: rgba(6,29,25,.75);
-  color: #eef5f2;
+  color: #ffffff;
   box-shadow: inset 0 1px 0 rgba(238,247,244,.14), 0 3px 0 #021510, 0 6px 12px rgba(0,10,8,.25);
   transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, opacity 160ms ease;
 }
@@ -705,7 +705,7 @@ body:has(.ames-account-shell) > footer { display: none; }
   transition: color 220ms ease, background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, transform 160ms ease;
 }
 .ames-app-shell .ames-page-index button[aria-current] {
-  color: #eef5f2;
+  color: #ffffff;
   border-color: rgba(220,238,232,.6);
   border-top-color: rgba(238,247,244,.75);
   border-bottom-color: rgba(0,10,8,.8);
@@ -713,7 +713,7 @@ body:has(.ames-account-shell) > footer { display: none; }
   box-shadow: inset 0 1px 0 rgba(238,247,244,.28), inset 0 0 12px rgba(220,238,232,.1), 0 2px 0 #021510, 0 5px 10px rgba(0,10,8,.3);
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .ames-app-shell .ames-page-index button:not([aria-current]):hover { color: #dceee8; transform: translateY(-1px); }
+  .ames-app-shell .ames-page-index button:not([aria-current]):hover { color: #ffffff; transform: translateY(-1px); }
 }
 .ames-app-shell .ames-page-index button:active { transform: translateY(1px); }
 @media (max-width: 380px) {
@@ -771,3 +771,207 @@ body:has(.ames-account-shell) > footer { display: none; }
   border-radius: 18px;
   background-color: rgba(3,22,16,.25);
 }
+
+/* ── White type, white bubbles, a living shine (12 Nov 2026) ─────────────────────
+   Every word in the app reads in white; hierarchy comes from size and weight, not
+   from dimming. Round controls and pills are glossy white with emerald icons.
+   Light moves across the silk, the tab bar, the bubbles and the jewellery; all
+   motion stops for visitors who ask for reduced motion. Theme colours unchanged. */
+.ames-app-shell { color: #ffffff; }
+.ames-app-shell .ames-collection-heading { color: #ffffff; font-weight: 400; text-shadow: 0 1px 14px rgba(0,0,0,.35); }
+.ames-app-shell .ames-piece-name { font-weight: 500; }
+.ames-page-number { opacity: .85; }
+.ames-app-shell [aria-label='Boutique categories'] button { color: #ffffff !important; font-size: 12px !important; letter-spacing: .02em; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.ames-app-shell [aria-label='Boutique categories'] button[aria-current] { font-weight: 700 !important; border-bottom-color: #ffffff !important; }
+
+/* Bubbles: solid glossy white, emerald icon, a lit top and a soft cast shadow. */
+/* Floating bubbles (absolute / fixed) keep their placement; only in-flow ones become the sheen's anchor. */
+.ames-app-shell .ames-pill:where(:not(.absolute, .fixed, .sticky)) { position: relative; }
+.ames-app-shell .ames-pill {
+  overflow: hidden;
+  isolation: isolate;
+  color: #06291f !important;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,.95);
+  border-bottom-color: rgba(190,214,205,.9);
+  background: linear-gradient(180deg, #ffffff 0%, #f6faf8 48%, #e6efeb 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 3px rgba(6,41,31,.10),
+    0 2px 0 rgba(2,21,16,.55), 0 8px 18px rgba(0,10,8,.38), 0 0 18px rgba(255,255,255,.10);
+}
+.ames-app-shell .ames-pill svg { stroke: currentColor; }
+/* A thin bar of light glides across each bubble now and then. */
+.ames-app-shell .ames-pill::after {
+  content: '';
+  position: absolute;
+  inset: -40% auto -40% -60%;
+  width: 40%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.95), transparent);
+  transform: skewX(-18deg) translateX(-120%);
+  opacity: 0;
+}
+.ames-app-shell .ames-pill.ames-pill[aria-pressed='true'],
+.ames-app-shell .ames-pill.ames-pill[aria-current] {
+  background: linear-gradient(180deg, #ffffff 0%, #f2f8f5 100%);
+  border-color: #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 0 2px rgba(255,255,255,.35), 0 2px 0 rgba(2,21,16,.55), 0 8px 22px rgba(0,10,8,.4), 0 0 26px rgba(255,255,255,.22);
+}
+/* A switched-off choice in a pair (Instant / Expert) stays clear glass, so the selected one is obvious. */
+.ames-app-shell .ames-pill.ames-pill[aria-pressed='false'] {
+  color: #ffffff !important;
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 6px 14px rgba(0,10,8,.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.ames-app-shell .ames-pill:disabled { opacity: .6; }
+.ames-app-shell .ames-pill:not(:disabled):active {
+  transform: translateY(1px) scale(.97);
+  box-shadow: inset 0 2px 5px rgba(6,41,31,.22), 0 1px 0 rgba(2,21,16,.55), 0 3px 8px rgba(0,10,8,.3);
+}
+.ames-app-shell .ames-pill:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+
+/* Page tabs: the open page is a white bubble with emerald type; the rest are white type on glass. */
+.ames-app-shell .ames-page-index button { color: #ffffff; font-size: 12px; font-weight: 500; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.ames-app-shell .ames-page-index button[aria-current] {
+  color: #06291f;
+  font-weight: 700;
+  text-shadow: none;
+  border-color: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8f6 55%, #e3ede9 100%);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 0 rgba(2,21,16,.55), 0 6px 16px rgba(0,10,8,.35), 0 0 20px rgba(255,255,255,.18);
+}
+.ames-app-shell .ames-page-index button[aria-current] .ames-page-number { opacity: .7; }
+.ames-app-shell .ames-page-index { overflow: hidden; }
+.ames-app-shell .ames-page-index::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -30%;
+  width: 30%;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.16), transparent);
+  transform: skewX(-20deg) translateX(-100%);
+}
+/* Wet-glass sheen on the tab bar and app frame. */
+.ames-app-shell .ames-page-index {
+  background: linear-gradient(180deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,.04) 46%, rgba(3,24,21,.78) 52%, rgba(3,24,21,.86) 100%);
+}
+.ames-app-shell:not(.ames-account-shell)::after {
+  border-top-color: rgba(255,255,255,.62);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -3px 8px rgba(0,10,8,.42), 0 0 0 3px rgba(3,24,21,.42), 0 0 24px rgba(184,208,200,.08);
+}
+
+/* Cards and panels catch a little more light along their top edge. */
+.ames-account-content,
+.ames-app-shell [data-catalogue-panel] > div > header,
+.ames-app-shell [data-catalogue-panel] > div > section,
+.ames-app-shell [data-catalogue-stone] {
+  border-top-color: rgba(255,255,255,.7);
+  background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(184,208,200,.05) 30%, rgba(3,24,21,.62) 72%);
+}
+
+/* A glint of light passes over each Boutique piece, one after another. */
+.ames-glint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.0) 42%, rgba(255,255,255,.28) 50%, rgba(255,255,255,0) 58%, transparent 65%);
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  mix-blend-mode: screen;
+}
+
+@keyframes ames-sheen {
+  0%, 72% { transform: skewX(-18deg) translateX(-120%); opacity: 0; }
+  74% { opacity: 1; }
+  92% { transform: skewX(-18deg) translateX(480%); opacity: 1; }
+  93%, 100% { transform: skewX(-18deg) translateX(480%); opacity: 0; }
+}
+@keyframes ames-bar-sheen {
+  0%, 60% { transform: skewX(-20deg) translateX(-100%); }
+  100% { transform: skewX(-20deg) translateX(560%); }
+}
+@keyframes ames-glint-pass {
+  0%, 70% { background-position: 130% 0; }
+  100% { background-position: -30% 0; }
+}
+@keyframes ames-silk-glow {
+  0%, 100% { opacity: .75; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ames-app-shell .ames-pill::after { animation: ames-sheen 7s ease-in-out infinite; }
+  .ames-app-shell .ames-pill:nth-of-type(2)::after { animation-delay: .35s; }
+  .ames-app-shell .ames-pill:nth-of-type(3)::after { animation-delay: .7s; }
+  .ames-app-shell .ames-page-index::after { animation: ames-bar-sheen 9s ease-in-out infinite; }
+  .ames-glint { animation: ames-glint-pass 6s ease-in-out infinite; }
+  .ames-app-shell [data-boutique-group] > div > :nth-child(2) .ames-glint { animation-delay: 1.2s; }
+  .ames-app-shell [data-boutique-group] > div > :nth-child(3) .ames-glint { animation-delay: 2.4s; }
+  .ames-app-shell [data-boutique-group] > div > :nth-child(4) .ames-glint { animation-delay: 3.6s; }
+  /* The silk light drifts faster and brighter so the page visibly breathes. */
+  .ames-magazine::before {
+    background:
+      radial-gradient(ellipse 40% 32% at 30% 28%, rgba(220,238,232,.16), transparent 70%),
+      radial-gradient(ellipse 32% 28% at 72% 70%, rgba(255,255,255,.09), transparent 70%);
+    animation: ames-silk-light 16s ease-in-out infinite, ames-silk-glow 8s ease-in-out infinite;
+  }
+  .ames-app-shell .ames-piece-tile { transition: transform 260ms cubic-bezier(.2,.7,.2,1), filter 260ms ease; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .ames-app-shell .ames-piece-tile:hover { transform: translateY(-4px); filter: drop-shadow(0 14px 22px rgba(0,0,0,.35)) brightness(1.06); }
+  .ames-app-shell .ames-pill:not(:disabled):hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 #ffffff, 0 3px 0 rgba(2,21,16,.55), 0 12px 24px rgba(0,10,8,.42), 0 0 28px rgba(255,255,255,.25); }
+}
+/* Page-turn corners become white tabs with an emerald arrow. */
+.ames-app-shell .ames-curl-corner {
+  color: #06291f;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f7f4 60%, #dfeae5 100%);
+  box-shadow: inset 0 1px 0 #ffffff, -2px 4px 14px rgba(0,10,8,.4), 0 0 18px rgba(255,255,255,.14);
+}
+.ames-app-shell .ames-curl-corner svg { stroke: currentColor; }
+
+/* Tighter Boutique tiles (12 Nov 2026): the studio images carry empty floor above and below the piece, which left a
+   wide gap between the jewellery and its name. A slightly wider frame, cropped to the middle, brings the name up
+   under the piece without shrinking the jewellery. */
+.ames-app-shell .ames-piece-tile .ames-piece-image { aspect-ratio: 5 / 4; }
+.ames-app-shell .ames-piece-tile .ames-piece-image > img { object-fit: cover; object-position: 50% 45%; }
+.ames-app-shell .ames-piece-tile > div + div { padding-top: 2px; gap: 2px; }
+.ames-app-shell [data-boutique-group] .ames-collection-heading { margin-bottom: 8px; }
+
+/* Chat box (12 Nov 2026): no focus rectangle inside the pill; the whole box glows instead. Clear white type and a
+   readable hint that fits on a phone. */
+.ames-app-shell [data-chat-input],
+.ames-app-shell [data-chat-input]:focus,
+.ames-app-shell [data-chat-input]:focus-visible { outline: none !important; box-shadow: none !important; }
+.ames-app-shell [data-chat-input]::placeholder { color: rgba(255,255,255,.82); font-weight: 400; opacity: 1; }
+.ames-app-shell [data-chat-surface]:has([data-chat-input]) {
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,.38) !important;
+  border-top-color: rgba(255,255,255,.6) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(3,24,21,.72) 55%) !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.ames-app-shell [data-chat-surface]:has([data-chat-input]:focus-visible),
+.ames-app-shell [data-chat-surface]:has([data-chat-input]:focus) {
+  border-color: rgba(255,255,255,.85) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.14), 0 0 26px rgba(255,255,255,.16), 0 8px 30px rgba(0,0,0,.28) !important;
+}
+
+/* Studio spin (13 Nov 2026): the photographed frames carry their own soft shadow; fade the square frame edge into
+   the silk so only the piece and its shadow show. */
+.ames-spin canvas.ames-feathered-stage {
+  -webkit-mask-image: radial-gradient(circle closest-side at 50% 50%, #000 68%, transparent 100%);
+  mask-image: radial-gradient(circle closest-side at 50% 50%, #000 68%, transparent 100%);
+  -webkit-mask-composite: source-over; mask-composite: add;
+}
+/* Zoomed in, the piece may fill the whole stage: fade only at the stage edges. */
+.ames-spin[data-spin-zoomed] canvas.ames-feathered-stage {
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 70%, transparent 100%);
+}
+
+/* Jewellery collection titles in the house script: larger, because a script
+   face sits small for its size, and without the wide tracking meant for caps. */
+.ames-app-shell .ames-collection-heading.ames-script-title { font-size: clamp(36px, 4.6vw, 50px); font-weight: 400; letter-spacing: 0; line-height: 1.15; }

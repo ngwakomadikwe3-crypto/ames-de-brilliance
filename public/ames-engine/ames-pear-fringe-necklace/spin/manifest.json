@@ -1,0 +1,8 @@
+{
+  "frames": 1,
+  "pattern": "frame-%03d.webp",
+  "size": 1080,
+  "turnSeconds": 16,
+  "renderer": "Blender Cycles \u00b7 AMES photo studio",
+  "note": "Studio still; a full 360-degree turn replaces this once the GPU render runs."
+}

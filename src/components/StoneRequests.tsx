@@ -20,13 +20,13 @@ export default function StoneRequests() {
   }
   return <section className="mb-10 space-y-3" data-stone-requests>
     <h2 className="text-lg">Catalogue Room stone requests</h2>
-    <p className="text-xs text-[#b9cec6]">Buyers asking to buy a catalogue stone. Agree the price, complete KYC and arrange payment with the buyer directly, then record the outcome here.</p>
+    <p className="text-xs text-white">Buyers asking to buy a catalogue stone. Agree the price, complete KYC and arrange payment with the buyer directly, then record the outcome here.</p>
     {error && <p role="alert" className="text-sm text-red-200">{error}</p>}
-    {loading ? <p role="status" className="text-sm">Loading requests…</p> : !rows.length ? <p className="text-sm text-[#b9cec6]">No requests yet.</p> :
+    {loading ? <p role="status" className="text-sm">Loading requests…</p> : !rows.length ? <p className="text-sm text-white">No requests yet.</p> :
       <ul className="space-y-3">{rows.map(r => <li key={r.id} className="space-y-2 rounded-2xl border border-white/15 p-4 text-sm">
-        <div className="flex flex-wrap justify-between gap-2"><span><span className="font-mono">{r.ref}</span> · {r.title} · {r.carats} ct</span><span className="text-xs text-[#b9cec6]">{LABEL[r.status]} · {r.createdAt.slice(0, 10)}</span></div>
+        <div className="flex flex-wrap justify-between gap-2"><span><span className="font-mono">{r.ref}</span> · {r.title} · {r.carats} ct</span><span className="text-xs text-white">{LABEL[r.status]} · {r.createdAt.slice(0, 10)}</span></div>
         <p>{r.buyerName} · <a className="underline" href={`mailto:${r.buyerEmail}?subject=${encodeURIComponent(`Your request for ${r.ref}`)}`}>{r.buyerEmail}</a>{r.phone ? <> · <a className="underline" href={`https://wa.me/${r.phone.replace(/[^\d]/g, '')}`} target="_blank" rel="noreferrer">{r.phone}</a></> : null}</p>
-        {r.message && <p className="text-[#b9cec6]">“{r.message}”</p>}
+        {r.message && <p className="text-white">“{r.message}”</p>}
         {r.note && <p className="text-xs">Note: {r.note}</p>}
         <label className="block text-xs">Note for the record<input value={notes[r.id] || ''} onChange={e => setNotes(n => ({ ...n, [r.id]: e.target.value }))} maxLength={600} className="mt-1 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2 text-sm" /></label>
         <div className="flex flex-wrap gap-2">{r.status !== 'contacted' && <button className="ames-pill rounded-full border border-white/25 px-3 py-1.5 text-xs" onClick={() => change(r, 'contacted')}>Mark buyer contacted</button>}{r.status !== 'closed' && <button className="ames-pill rounded-full border border-white/25 px-3 py-1.5 text-xs" onClick={() => change(r, 'closed')}>Close</button>}{r.status === 'closed' && <button className="ames-pill rounded-full border border-white/25 px-3 py-1.5 text-xs" onClick={() => change(r, 'requested')}>Reopen</button>}</div>

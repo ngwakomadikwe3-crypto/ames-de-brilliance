@@ -19,7 +19,7 @@ export async function customerRequest(body?: Record<string, unknown>) {
 
 }
 
-const inputClass = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-3 text-base text-[#eef5f2]';
+const inputClass = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-3 text-base text-white';
 
 export default function CustomerAccount({ user, onChange, onReady }: { user: Customer | null; onChange: (user: Customer | null) => void; onReady: (ready: boolean) => void }) {
 
@@ -101,10 +101,10 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
     {loading ? <p role="status">Checking your account…</p> : user && !link ? <>
 
       <p className="break-all text-sm">{user.email}</p><a href="/workspace" className="text-sm underline">Open my workspace</a>
-        {user.id && <details className="text-xs text-[#b9cec6]"><summary>Account reference for HOUSEofAMES support</summary><p className="mt-2">If HOUSEofAMES already created your business profile, staff can link it using this account reference.</p><code className="break-all select-all">{user.id}</code><p className="mt-2"><a href="/jeweller/onboarding" className="underline">Set up my jeweller business</a></p></details>}
+        {user.id && <details className="text-xs text-white"><summary>Account reference for HOUSEofAMES support</summary><p className="mt-2">If HOUSEofAMES already created your business profile, staff can link it using this account reference.</p><code className="break-all select-all">{user.id}</code><p className="mt-2"><a href="/jeweller/onboarding" className="underline">Set up my jeweller business</a></p></details>}
 
-      <p className="text-xs text-[#b9cec6]">{user.verified ? 'Email verified' : 'Email not verified yet'} · Customer account</p>
-      {!user.email && <form className="space-y-3" onSubmit={e => { e.preventDefault(); const form = new FormData(e.currentTarget); void perform({ action: 'complete-social-email', email: form.get('email'), password: form.get('password') }); }}><p className="text-sm text-[#b9cec6]">Add a contact email before sending enquiries or opening a professional profile. This also gives you an email sign-in option.</p><label className="block text-sm">Contact email<input name="email" type="email" required maxLength={254} className={inputClass} autoComplete="email" /></label><label className="block text-sm">Set an HOUSEofAMES password<input name="password" type="password" required minLength={12} maxLength={128} className={inputClass} autoComplete="new-password" /></label><button disabled={busy} className="rounded-full border border-white/25 px-4 py-2 text-sm">Save contact email</button></form>}
+      <p className="text-xs text-white">{user.verified ? 'Email verified' : 'Email not verified yet'} · Customer account</p>
+      {!user.email && <form className="space-y-3" onSubmit={e => { e.preventDefault(); const form = new FormData(e.currentTarget); void perform({ action: 'complete-social-email', email: form.get('email'), password: form.get('password') }); }}><p className="text-sm text-white">Add a contact email before sending enquiries or opening a professional profile. This also gives you an email sign-in option.</p><label className="block text-sm">Contact email<input name="email" type="email" required maxLength={254} className={inputClass} autoComplete="email" /></label><label className="block text-sm">Set an HOUSEofAMES password<input name="password" type="password" required minLength={12} maxLength={128} className={inputClass} autoComplete="new-password" /></label><button disabled={busy} className="rounded-full border border-white/25 px-4 py-2 text-sm">Save contact email</button></form>}
 
       <div className="flex flex-wrap gap-4 text-sm">
 
@@ -118,10 +118,10 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
 
     </> : <>
 
-      <p className="text-sm text-[#b9cec6]">Sign in to save your name and preferences across devices.</p>
+      <p className="text-sm text-white">Sign in to save your name and preferences across devices.</p>
       {!link && ['login', 'register'].includes(mode) && <SocialSignIn />}
 
-      {!link && <div className="flex flex-wrap gap-4 text-sm" aria-label="Account options">{[['login', 'Sign in'], ['register', 'Create account'], ['recover', 'Forgot password']].map(([value, label]) => <button key={value} disabled={busy} type="button" aria-pressed={mode === value} onClick={() => { setMode(value); setError(''); setNotice(''); }} className={mode === value ? 'underline text-white' : 'text-[#b9cec6]'}>{label}</button>)}</div>}
+      {!link && <div className="flex flex-wrap gap-4 text-sm" aria-label="Account options">{[['login', 'Sign in'], ['register', 'Create account'], ['recover', 'Forgot password']].map(([value, label]) => <button key={value} disabled={busy} type="button" aria-pressed={mode === value} onClick={() => { setMode(value); setError(''); setNotice(''); }} className={mode === value ? 'underline text-white' : 'text-white'}>{label}</button>)}</div>}
 
       <form onSubmit={submit} className="space-y-4">
 
@@ -129,7 +129,7 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
 
         {!link && <label className="block text-sm">Email<input required name="email" type="email" autoComplete="email" maxLength={254} className={inputClass} /></label>}
 
-        {['login', 'register', 'reset'].includes(mode) && <label className="block text-sm">{mode === 'reset' ? 'New password' : 'Password'}<input required name="password" type="password" minLength={mode === 'login' ? 1 : 12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={inputClass} />{mode !== 'login' && <span className="mt-1 block text-xs text-[#b9cec6]">At least 12 characters. Use a unique password.</span>}</label>}
+        {['login', 'register', 'reset'].includes(mode) && <label className="block text-sm">{mode === 'reset' ? 'New password' : 'Password'}<input required name="password" type="password" minLength={mode === 'login' ? 1 : 12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={inputClass} />{mode !== 'login' && <span className="mt-1 block text-xs text-white">At least 12 characters. Use a unique password.</span>}</label>}
 
         <button disabled={busy} className="w-full rounded-xl bg-[#dceae2] px-4 py-3 text-sm font-medium text-[#08231e] disabled:opacity-40">{busy ? 'Please wait…' : ({ login: 'Sign in', register: 'Create account', recover: 'Send reset link', reset: 'Set new password', verify: 'Confirm email verification' } as Record<string, string>)[mode]}</button>
 

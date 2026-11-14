@@ -85,22 +85,22 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
           <ModelViewer key={stageSrc} src={stageSrc!} poster={hasUnfinishedJewelryImages(content.contract.assetId) ? undefined : content.posterUrl} alt={content.name} jewelryPresentation metalPreview={content.contract.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined}
             autoRotate={false} controlledTurntable turntableEnabled={rotation && active} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}
             fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />) :
-          <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#9eb8ae' }}>
+          <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#ffffff' }}>
             {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
           </div>}
       </div>
-      {content?.contract.assetId === DEFAULT_CHAT_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-[#b8d0c8]">Pavé solitaire · Interactive concept · Not for sale</p>}
-      {content?.contract.assetId === CONCEPT_DIAMOND_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-[#b8d0c8]">AMES Éclat · Concept diamond · Not for sale</p>}
-      {content?.contract.assetId === 'dev-test-earring-001' && <p className="mt-1 text-[10px] text-[#b8d0c8]">Yellow-gold material preview · finish unverified</p>}
+      {content?.contract.assetId === DEFAULT_CHAT_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-white">Pavé solitaire · Interactive concept · Not for sale</p>}
+      {content?.contract.assetId === CONCEPT_DIAMOND_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-white">AMES Éclat · Concept diamond · Not for sale</p>}
+      {content?.contract.assetId === 'dev-test-earring-001' && <p className="mt-1 text-[10px] text-white">Yellow-gold material preview · finish unverified</p>}
       {content && (
-        <details style={{ marginTop: 3, fontSize: 10, color: '#9eb8ae', display: compact ? undefined : 'none' }}>
+        <details style={{ marginTop: 3, fontSize: 10, color: '#ffffff', display: compact ? undefined : 'none' }}>
           <summary style={{ cursor: 'pointer', listStyle: 'none', opacity: 0.78 }}>Viewer details</summary>
           <div className="flex justify-center gap-1.5 flex-wrap mt-2" aria-label="Jewelry viewer actions">
             {content.contract.supportedViewerActions.map(action =>
               <button key={action} type="button" onClick={() => applyAction(action)} className="ames-pill px-3 min-h-8 rounded-full text-[11px]">{actionLabels[action]}</button>)}
           </div>
           {!content.commerciallyApproved && <p style={{ fontSize: 10, color: '#b8cdbf', marginTop: 5 }}>Visual review pending · Not approved for publication</p>}
-          {content.contract.essentialSpecs.physicalScaleConfirmed === false && <p style={{ fontSize: 10, color: '#9eb8ae' }}>Physical scale unverified; dimensions and carat are not claimed.</p>}
+          {content.contract.essentialSpecs.physicalScaleConfirmed === false && <p style={{ fontSize: 10, color: '#ffffff' }}>Physical scale unverified; dimensions and carat are not claimed.</p>}
           {content.limitations.length > 0 && <div style={{ marginTop: 3 }}>Current limitations<ul style={{ textAlign: 'left', paddingLeft: 16 }}>{content.limitations.map(item => <li key={item}>{item}</li>)}</ul></div>}
         </details>
       )}

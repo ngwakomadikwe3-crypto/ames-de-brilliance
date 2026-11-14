@@ -19,14 +19,14 @@ export default function JewellerInviteAccept() {
     } catch (e) { setState('error'); setMessage(e instanceof Error ? e.message : 'The invite could not be accepted.'); }
   }
   if (!token) return <p role="alert">This invite link is incomplete. Open the full link from your HOUSEofAMES email.</p>;
-  if (state === 'done') return <div className="space-y-4"><p role="status" className="text-emerald-200">Welcome, {business}. Your jeweller studio is ready.</p><p className="text-sm text-[#b9cec6]">Upload a CAD file and HOUSEofAMES turns it into a 3D piece and sorts it into the right Boutique category. It appears in the Boutique once HOUSEofAMES approves it.</p><Link href="/jeweller" className={buttonClass}>Open my studio</Link></div>;
+  if (state === 'done') return <div className="space-y-4"><p role="status" className="text-emerald-200">Welcome, {business}. Your jeweller studio is ready.</p><p className="text-sm text-white">Upload a CAD file and HOUSEofAMES turns it into a 3D piece and sorts it into the right Boutique category. It appears in the Boutique once HOUSEofAMES approves it.</p><Link href="/jeweller" className={buttonClass}>Open my studio</Link></div>;
   return <div className="space-y-5" data-jeweller-invite>
     <p>HOUSEofAMES has verified your business and invited you to the jeweller studio.</p>
-    <ol className="list-decimal space-y-2 pl-5 text-sm text-[#b9cec6]">
+    <ol className="list-decimal space-y-2 pl-5 text-sm text-white">
       <li><Link href="/app/account" target="_blank" className="underline">Sign in or create your HOUSEofAMES account</Link> with the email address this invite was sent to, and verify that email.</li>
       <li>Come back to this page and accept the invite.</li>
     </ol>
-    {message && <p role="alert" className="rounded-xl border border-amber-200/30 p-3 text-sm text-amber-100">{message}</p>}
+    {message && <p role="alert" className="rounded-xl border border-white/30 p-3 text-sm text-white">{message}</p>}
     <button className={buttonClass} disabled={state === 'busy'} onClick={accept}>{state === 'busy' ? 'Accepting…' : state === 'signin' ? 'I’ve signed in — accept invite' : 'Accept invite'}</button>
   </div>;
 }

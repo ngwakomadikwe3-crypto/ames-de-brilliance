@@ -8,7 +8,7 @@ import type { ConversionResult } from '@/lib/ames-cad/convert';
 import { GEMSTONES } from '@/lib/ames-cad/gems';
 
 const endpoint = '/api/jeweller';
-const fieldClass = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-[#eef5f2]';
+const fieldClass = 'mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-white';
 const buttonClass = 'ames-pill rounded-full border border-white/25 px-4 py-2 text-sm disabled:opacity-40';
 const CATEGORY_LABEL: Record<string, string> = { ring: 'Rings', earrings: 'Earrings', necklace: 'Necklaces', bracelet: 'Bracelets', watch: 'Watches', accessory: 'Accessories' };
 async function request(path: string, options?: RequestInit) {
@@ -86,9 +86,9 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
   const c = result?.classification, r = result?.report;
   return <section className="space-y-4 rounded-2xl border border-white/20 p-4" data-auto-convert>
     <h2>Automatic 3D — convert and send for approval</h2>
-    <p className="text-xs text-[#b9cec6]">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, reads each stone's type from its name or colour in your file, gives it its real cut, sorts the piece into its Boutique category and sends it to the Owner, who approves it before it appears in the Boutique. The original stays private.</p>
+    <p className="text-xs text-white">Choose your CAD file (.3dm, .glb, .obj, .stl or .fbx). It is converted on this device: AMES finds the metal and every stone, reads each stone's type from its name or colour in your file, gives it its real cut, sorts the piece into its Boutique category and sends it to the Owner, who approves it before it appears in the Boutique. The original stays private.</p>
     {published ? <div className="space-y-3"><p role="status" className="text-emerald-200">Sent to the Owner for approval. Once approved it appears in the Boutique under <strong>{CATEGORY_LABEL[published.details.category] || published.details.category}</strong>.</p>
-      {published.review?.automatic?.reasons?.length ? <p className="text-xs text-[#b9cec6]">Sorted because: {published.review.automatic.reasons.join('; ')}.</p> : null}</div> : <>
+      {published.review?.automatic?.reasons?.length ? <p className="text-xs text-white">Sorted because: {published.review.automatic.reasons.join('; ')}.</p> : null}</div> : <>
       <input aria-label="Choose CAD file" disabled={busy} type="file" accept=".3dm,.glb,.gltf,.obj,.stl,.fbx" onChange={e => { setFile(e.target.files?.[0] || null); setResult(null); }} className="block w-full text-sm" />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">File units<select disabled={busy} value={units} onChange={e => setUnits(e.target.value)} className={fieldClass}><option value="auto">Automatic</option><option value="mm">Millimetres</option><option value="cm">Centimetres</option><option value="in">Inches</option><option value="m">Metres</option></select></label>
@@ -102,31 +102,31 @@ export default function JewellerAutoConvert({ listing, onListing, dirty }: { lis
           <img src={posterUrl} alt="Boutique image" className="w-full rounded-xl border border-white/10 bg-[#061d19]" />
         </div>
         <ul className="space-y-1 text-sm">
-          <li>Category: <strong>{CATEGORY_LABEL[c.category]}</strong> <span className="text-xs text-[#b9cec6]">({c.confidence} confidence — {c.reasons.join('; ')})</span></li>
-          <li>Size: {r.size.map(v => v.toFixed(1)).join(' × ')} mm <span className="text-xs text-[#b9cec6]">(units {r.unit}, {r.unitSource})</span></li>
+          <li>Category: <strong>{CATEGORY_LABEL[c.category]}</strong> <span className="text-xs text-white">({c.confidence} confidence — {c.reasons.join('; ')})</span></li>
+          <li>Size: {r.size.map(v => v.toFixed(1)).join(' × ')} mm <span className="text-xs text-white">(units {r.unit}, {r.unitSource})</span></li>
           <li>Metal: {r.metal.join(', ') || '—'} · {r.metalTriangles.toLocaleString()} triangles</li>
-          {r.bracelet && <li>{r.bracelet.kind === 'necklace' ? 'Necklace' : r.bracelet.kind === 'watch' ? 'Watch bracelet' : 'Bracelet'}: <strong>{r.bracelet.links} links</strong>, {(r.bracelet.length_mm / 10).toFixed(1)} cm long, {r.bracelet.width_mm.toFixed(1)} mm wide{r.bracelet.clasp ? ` · ${r.bracelet.clasp}` : ''} <span className="text-xs text-[#b9cec6]">— buyers can unclasp it, measure it and fold it by hand in 3D</span></li>}
-          {r.opens ? <li>Opening: <strong>the lid opens on its hinge</strong> <span className="text-xs text-[#b9cec6]">— buyers can open it in 3D (name the lid “lid”, “cover” or “flap” in your CAD; a part named “hinge” sets the hinge)</span></li> : null}
-          {r.dangles ? <li>Hinges: <strong>{r.dangles} hinged {r.dangles === 1 ? 'part' : 'parts'}</strong> <span className="text-xs text-[#b9cec6]">— the drops dangle when buyers turn the piece</span></li> : null}
+          {r.bracelet && <li>{r.bracelet.kind === 'necklace' ? 'Necklace' : r.bracelet.kind === 'watch' ? 'Watch bracelet' : 'Bracelet'}: <strong>{r.bracelet.links} links</strong>, {(r.bracelet.length_mm / 10).toFixed(1)} cm long, {r.bracelet.width_mm.toFixed(1)} mm wide{r.bracelet.clasp ? ` · ${r.bracelet.clasp}` : ''} <span className="text-xs text-white">— buyers can unclasp it, measure it and fold it by hand in 3D</span></li>}
+          {r.opens ? <li>Opening: <strong>the lid opens on its hinge</strong> <span className="text-xs text-white">— buyers can open it in 3D (name the lid “lid”, “cover” or “flap” in your CAD; a part named “hinge” sets the hinge)</span></li> : null}
+          {r.dangles ? <li>Hinges: <strong>{r.dangles} hinged {r.dangles === 1 ? 'part' : 'parts'}</strong> <span className="text-xs text-white">— the drops dangle when buyers turn the piece</span></li> : null}
         </ul>
         <div className="space-y-2" data-stones>
-          <h3 className="text-sm">Stones {result.stones.length ? <span className="text-xs text-[#b9cec6]">— check each one; change it if AMES read it wrong</span> : null}</h3>
+          <h3 className="text-sm">Stones {result.stones.length ? <span className="text-xs text-white">— check each one; change it if AMES read it wrong</span> : null}</h3>
           {result.stones.length ? <ul className="space-y-2">{result.stones.map(g => <li key={g.key} className="grid gap-2 rounded-xl border border-white/10 p-3 sm:grid-cols-[minmax(0,1fr)_200px] sm:items-center">
             <div className="text-sm">
               <div>{g.label}{g.count > 1 ? ` · ${g.count} stones` : ''} · {g.shape} {g.size}</div>
-              <div className={`text-xs ${g.source === 'assumed' ? 'text-amber-100' : 'text-[#b9cec6]'}`}>{g.source === 'name' ? `Read from your file: ${g.reason}` : g.source === 'colour' ? `Read from the stone colour: ${g.reason}` : g.source === 'listing' ? `Taken ${g.reason}` : g.source === 'chosen' ? g.reason : `Nothing in your file or listing says what ${g.count > 1 ? 'these are' : 'this is'}, so shown as ${GEMSTONES.find(s => s.id === g.gem)?.name.toLowerCase() || 'diamond'} — confirm or change it`}{g.ownFacets ? ' · kept with your own facets' : ''}</div>
+              <div className={`text-xs ${g.source === 'assumed' ? 'text-white' : 'text-white'}`}>{g.source === 'name' ? `Read from your file: ${g.reason}` : g.source === 'colour' ? `Read from the stone colour: ${g.reason}` : g.source === 'listing' ? `Taken ${g.reason}` : g.source === 'chosen' ? g.reason : `Nothing in your file or listing says what ${g.count > 1 ? 'these are' : 'this is'}, so shown as ${GEMSTONES.find(s => s.id === g.gem)?.name.toLowerCase() || 'diamond'} — confirm or change it`}{g.ownFacets ? ' · kept with your own facets' : ''}</div>
             </div>
             <select aria-label={`${g.label} gemstone`} disabled={busy} value={g.gem} onChange={e => regem(g.key, e.target.value)} className={fieldClass.replace('mt-2 ', '')}>
               {GEMSTONES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-          </li>)}</ul> : <p className="text-xs text-[#b9cec6]">No stones found: shown as plain metal.</p>}
+          </li>)}</ul> : <p className="text-xs text-white">No stones found: shown as plain metal.</p>}
         </div>
-        {result.stones.some(g => g.source === 'assumed') && <label className="flex items-start gap-2 rounded-xl border border-amber-200/30 p-3 text-sm text-amber-100">
+        {result.stones.some(g => g.source === 'assumed') && <label className="flex items-start gap-2 rounded-xl border border-white/30 p-3 text-sm text-white">
           <input type="checkbox" className="mt-1" checked={stonesChecked} onChange={e => setStonesChecked(e.target.checked)} />
           <span>I have checked the stones marked in amber: the types shown are right.</span>
         </label>}
-        {c.confidence === 'low' && <p className="text-xs text-amber-100">The category is uncertain. Including the type of piece in its name (for example “… ring” or “… pendant”) makes sorting certain.</p>}
-        {!listing.details.rightsConfirmed && <p className="text-xs text-amber-100">Tick the permission box above and save the draft before sending it for approval.</p>}
+        {c.confidence === 'low' && <p className="text-xs text-white">The category is uncertain. Including the type of piece in its name (for example “… ring” or “… pendant”) makes sorting certain.</p>}
+        {!listing.details.rightsConfirmed && <p className="text-xs text-white">Tick the permission box above and save the draft before sending it for approval.</p>}
         <button className={buttonClass} disabled={busy || dirty || !listing.details.rightsConfirmed || (result.stones.some(g => g.source === 'assumed') && !stonesChecked)} onClick={publish}>Send for approval</button>
       </div>}
     </>}

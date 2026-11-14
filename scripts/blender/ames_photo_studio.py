@@ -37,6 +37,7 @@ p.add_argument('--key', type=float, default=1.0, help='strength of the broad sof
 p.add_argument('--exposure', type=float, default=0, help='camera exposure, stops')
 p.add_argument('--table', type=float, default=.02, help='how light the table is (0 black .. 1 white); it shows only as reflections and shadow')
 p.add_argument('--threads', type=int, default=0)
+p.add_argument('--gpu', action='store_true', help='render on the graphics card when Blender finds one (OptiX, CUDA, HIP, Metal or oneAPI); falls back to the processor')
 p.add_argument('--room', type=float, default=6.5, help='brightness of the white panels the stones see')
 p.add_argument('--aim', type=float, default=0, help='where the lens points: 0 the middle of the piece, 1 its top (for close-ups of a setting)')
 p.add_argument('--mm', action='store_true', help='the piece is modelled in millimetres (1 unit = 1 mm) rather than metres')
@@ -57,6 +58,21 @@ sc = bpy.context.scene
 sc.render.engine = 'CYCLES'
 cy = sc.cycles
 cy.device = 'CPU'
+if a.gpu:
+    # A graphics card renders a spin frame in seconds instead of minutes. Use the first kind Blender can drive.
+    prefs = bpy.context.preferences.addons['cycles'].preferences
+    for kind in ('OPTIX', 'CUDA', 'HIP', 'METAL', 'ONEAPI'):
+        try:
+            prefs.compute_device_type = kind; prefs.get_devices()
+        except TypeError:
+            continue
+        cards = [d for d in prefs.devices if d.type == kind]
+        if cards:
+            for d in prefs.devices: d.use = d.type == kind
+            cy.device = 'GPU'; print('STUDIO graphics card:', kind, ', '.join(d.name for d in cards), flush=True)
+            break
+    else:
+        print('STUDIO no supported graphics card found; rendering on the processor', flush=True)
 cy.samples = a.spp
 cy.use_adaptive_sampling = True; cy.adaptive_threshold = .01
 cy.use_denoising = True
@@ -97,6 +113,46 @@ def diamond_material():
     return m
 
 
+GEMS = {  # index of refraction, body colour, and how far light travels before the colour is fully taken up
+    'stone-fancy-color-diamond': (2.417, '#ffe18c', 2.8),
+    'stone-amber': (1.54, '#e0861c', 2.2),
+    'stone-emerald': (1.577, '#14a85e', 1.25),
+    'stone-alexandrite': (1.746, '#248c76', 1.25),
+    'stone-amethyst': (1.544, '#7a2cc0', 1.0),
+    'stone-ametrine': (1.544, '#8432b9', 1.56),
+    'stone-aquamarine': (1.577, '#92e0ff', 2.08),
+    'stone-citrine': (1.544, '#ff9f07', 1.2),
+    'stone-garnet': (1.79, '#ae060e', 1.25),
+    'stone-iolite': (1.54, '#5451b9', 1.3),
+    'stone-kunzite': (1.66, '#f79ddb', 2.6),
+    'stone-morganite': (1.58, '#ffaea3', 2.6),
+    'stone-peridot': (1.67, '#8cd51c', 1.56),
+    'stone-ruby': (1.762, '#e0020e', 0.74),
+    'stone-sapphire': (1.762, '#1132db', 1.39),
+    'stone-spinel': (1.718, '#925ab9', 1.56),
+    'stone-tanzanite': (1.69, '#5d43db', 1.39),
+    'stone-topaz': (1.62, '#7bcdff', 2.08),
+    'stone-tourmaline': (1.624, '#22813e', 1.25),
+    'stone-zircon': (1.93, '#f1ae5f', 2.08),
+}
+
+
+def gem_material(gem_id, span):
+    """A coloured faceted stone: clear glass at the stone's own index, with the colour living inside the stone
+    (deeper where light travels further through it), not painted on its surface."""
+    ior, colour, distance = GEMS[gem_id]
+    rgb = [int(colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    lin = [c / 12.92 if c <= .04045 else ((c + .055) / 1.055) ** 2.4 for c in rgb]
+    m, nt, out = nodes_of('AMES studio ' + gem_id)
+    g = nt.nodes.new('ShaderNodeBsdfGlass'); g.distribution = 'BECKMANN'
+    g.inputs['Color'].default_value = (1, 1, 1, 1); g.inputs['Roughness'].default_value = 0; g.inputs['IOR'].default_value = ior
+    v = nt.nodes.new('ShaderNodeVolumeAbsorption'); v.inputs['Color'].default_value = (*lin, 1)
+    # The viewer's distances are for a stone about 2.2 units across; scale to this stone's real size.
+    v.inputs['Density'].default_value = 2.6 / (distance * span / 2.2)
+    nt.links.new(g.outputs[0], out.inputs['Surface']); nt.links.new(v.outputs[0], out.inputs['Volume'])
+    return m
+
+
 UNIT = 1000 if a.mm else 1            # scene units per metre, for the grain of the polish
 
 
@@ -129,6 +185,11 @@ if not a.clay:
         if ob.type != 'MESH': continue
         for i, mat in enumerate(ob.data.materials):
             n = (mat.name if mat else '').lower()
+            gem = ob.get('ames_gemstone_id')
+            if gem in GEMS and ob.get('ames_optical_mode') == 'closed-dielectric-visual':
+                if gem not in studio: studio[gem] = gem_material(gem, max(ob.dimensions))
+                ob.data.materials[i] = studio[gem]; continue
+            if gem and ob.get('ames_optical_mode') != 'closed-dielectric-visual' and 'diamond' not in n: continue   # cabochons keep their own surface
             if 'diamond' in n or ob.get('ames_optical_mode') == 'closed-dielectric-visual': key = 'diamond'
             elif 'yellow gold' in n: key = 'yellow gold'
             elif 'rose gold' in n: key = 'rose gold'

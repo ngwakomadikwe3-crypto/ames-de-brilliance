@@ -149,18 +149,18 @@ function SelectedViewer({
       </div>}
       {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
         {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
-        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-[#eef5f2] backdrop-blur-md">
+        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
           {(bracelet.length_mm / 10).toFixed(1)} cm · {bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `fits a wrist up to ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}
         </span>}
-        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-[#b8d0c8] backdrop-blur-md transition-opacity">Drag to rotate · pinch to zoom</span>}
+        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">Drag to rotate · pinch to zoom</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
         <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
       </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
-      {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-[#eef5f2]">Loading interactive 3D…</span>}
-      {state === 'fallback' && <div role="status" style={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 20, color: '#eef5f2', fontSize: 12, textAlign: 'center' }}>
+      {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-white">Loading interactive 3D…</span>}
+      {state === 'fallback' && <div role="status" style={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 20, color: '#ffffff', fontSize: 12, textAlign: 'center' }}>
         <span style={{ background: 'rgba(3,24,21,0.92)', padding: '6px 10px', borderRadius: 12 }}>
           {failureReason} {showPoster ? 'Showing the still preview.' : '3D preview unavailable.'}
           <button type="button" data-load-3d onClick={() => { setAttempt(value => value + 1); load3D(); }} style={{ marginLeft: 10, textDecoration: 'underline', cursor: 'pointer' }}>Retry 3D</button>

@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   // Separate cache for isolated integration tests; production keeps the default.
   distDir: process.env.NODE_ENV === 'development' ? process.env.AMES_QA_DIST_DIR || '.next' : '.next',
   transpilePackages: ["ames-engine"],
+  // Development only: also serve the app's scripts when it is opened at 127.0.0.1 or from a phone on the same Wi-Fi
+  // (192.168.x.x). Next.js otherwise blocks them, and the page shows without jewellery and ignores taps.
+  allowedDevOrigins: ['127.0.0.1', '192.168.*.*', '10.*.*.*'],
   ...(process.env.AMES_QA_LOW_MEMORY === '1' ? { experimental: { cpus: 1 } } : {}),
   // Private jobs, editable art and review evidence are not runtime website assets.
   outputFileTracingExcludes: { "/*": [

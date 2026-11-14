@@ -70,9 +70,9 @@ export default function CadAssetStudio() {
   const selected = jobs.find(job => job.id === selectedId);
   const artifact = (file: string) => `${endpoint}/${selected?.id}/${file}`;
   return <div className="space-y-8" data-cad-studio>
-    <p className="text-sm text-[#b9cec6]">Upload a design, convert it privately, and download a reusable 3D asset pack. Nothing is added to the Boutique automatically.</p>
-    <p role="status" className="text-sm">Blender renderer: <span className={online ? 'text-emerald-300' : 'text-[#b9cec6]'}>{online ? 'Ready' : 'Offline'}</span></p>
-    {!online && !authRequired && <p className="text-sm text-[#b9cec6]">The rendering service must be connected and running before a design can be processed.</p>}
+    <p className="text-sm text-white">Upload a design, convert it privately, and download a reusable 3D asset pack. Nothing is added to the Boutique automatically.</p>
+    <p role="status" className="text-sm">Blender renderer: <span className={online ? 'text-emerald-300' : 'text-white'}>{online ? 'Ready' : 'Offline'}</span></p>
+    {!online && !authRequired && <p className="text-sm text-white">The rendering service must be connected and running before a design can be processed.</p>}
     {error && <p role="alert" className="rounded-lg border border-red-300/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</p>}
     {authRequired && <Link className="underline text-sm" href="/login">Sign in with your owner account</Link>}
     <form onSubmit={upload} className="space-y-4 rounded-xl border border-white/15 bg-[#031815]/60 p-5">
@@ -83,13 +83,13 @@ export default function CadAssetStudio() {
         <label className="block text-sm">Source units<select value={units} onChange={e => setUnits(e.target.value)} className="field-input mt-1 w-full">{[['unknown', 'Not confirmed'], ['mm', 'Millimetres'], ['cm', 'Centimetres'], ['m', 'Metres'], ['in', 'Inches']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       </div>
       <label className="block text-sm">CAD / 3D export<input required type="file" accept=".glb,.obj,.stl,.fbx" onChange={e => setSource(e.target.files?.[0] || null)} className="mt-2 block w-full text-sm" /></label>
-      <p className="text-xs text-[#b9cec6]">GLB, OBJ, STL or FBX · up to {Math.floor(maxBytes / 1024 / 1024)} MB. Export Rhino/Matrix .3dm or STEP to one of these formats first. Embed GLB textures; external textures are not imported.</p>
+      <p className="text-xs text-white">GLB, OBJ, STL or FBX · up to {Math.floor(maxBytes / 1024 / 1024)} MB. Export Rhino/Matrix .3dm or STEP to one of these formats first. Embed GLB textures; external textures are not imported.</p>
       <button disabled={busy || !online || !source || authRequired} className="rounded-full border border-white/30 px-5 py-2.5 text-sm disabled:opacity-40">{busy ? 'Uploading…' : 'Upload and create 3D asset'}</button>
       {busy && <progress className="block w-full" aria-label="Uploading CAD design" />}
     </form>
     <section className="space-y-3">
       <h2 className="text-xl">Your conversions</h2>
-      {!jobs.length && <p className="text-sm text-[#b9cec6]">Your uploaded designs will appear here.</p>}
+      {!jobs.length && <p className="text-sm text-white">Your uploaded designs will appear here.</p>}
       {!!jobs.length && <label className="block text-sm">Select design<select value={selectedId} onChange={e => setSelectedId(e.target.value)} className="field-input mt-1 w-full">{jobs.map(job => <option key={job.id} value={job.id}>{job.name} · {job.status}</option>)}</select></label>}
       {selected && <div className="space-y-4">
         <p role="status" className="text-sm">{selected.sourceFilename} · {selected.status === 'ready' ? '3D asset ready for review' : selected.status === 'queued' ? 'Waiting for the conversion worker' : selected.status === 'processing' ? 'Converting geometry and rendering the preview…' : 'Conversion failed'}</p>
@@ -98,8 +98,8 @@ export default function CadAssetStudio() {
         {selected.status === 'ready' && selected.result && <>
           <div className="h-80 overflow-hidden rounded-xl border border-white/10"><EngineJewelryViewer key={selected.id} src={artifact('preview.glb')} poster={artifact('poster.png')} alt={selected.name} autoLoad opticsProfile="soft-studio" cameraPreset="three_quarter" /></div>
           <div className="flex flex-wrap gap-5 text-sm underline"><a href={artifact('asset-pack.zip')}>Download 3D asset pack</a><a href={artifact('preview.glb')} download>GLB</a><a href={artifact('poster.png')} download>Transparent render</a><a href={artifact('result.json')}>Conversion report</a></div>
-          <p className="text-sm text-[#b9cec6]">The pack includes the 3D model, render, source checksum, and AMES Chat, Boutique and Media contracts. All contracts remain pending review.</p>
-          <ul className="list-disc space-y-1 pl-5 text-xs text-[#b9cec6]">{selected.result.limitations.map(item => <li key={item}>{item}</li>)}</ul>
+          <p className="text-sm text-white">The pack includes the 3D model, render, source checksum, and AMES Chat, Boutique and Media contracts. All contracts remain pending review.</p>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-white">{selected.result.limitations.map(item => <li key={item}>{item}</li>)}</ul>
         </>}
       </div>}
     </section>

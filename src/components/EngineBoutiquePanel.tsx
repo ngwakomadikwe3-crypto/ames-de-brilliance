@@ -7,6 +7,8 @@ import PurchaseActions from './PurchaseActions';
 import { SavePiece } from './PieceAccountActions';
 import { loadPublishedBoutiqueContent, originLabel, stockLabel } from '@/lib/catalogue-content';
 import EngineJewelryViewer from './EngineJewelryViewer';
+import SpinViewer, { type SpinManifest } from './SpinViewer';
+import { houseScript } from '../lib/script-font';
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 /** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
 const studioPiece = (piece: { assetId: string; listing?: { studio?: boolean } }) => AMES_STUDIO_PIECES.has(piece.assetId) || !!piece.listing?.studio;
@@ -19,6 +21,7 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
     <button type="button" onClick={onOpen} data-boutique-tile={piece.assetId} aria-label={`Open ${piece.name}`}
       className="ames-piece-tile text-center flex flex-col min-h-0" style={{ width: '100%', maxWidth: single ? 480 : undefined, justifySelf: single ? 'center' : undefined, alignSelf: 'start', gridColumn: single ? '1 / -1' : undefined, gridRow: single ? '1 / -1' : undefined }}>
       <div className="ames-piece-image w-full flex items-center justify-center overflow-hidden">
+        <span aria-hidden="true" className="ames-glint" />
         {piece.assetId === 'dev-test-earring-001' ? <ModelViewer src={piece.interactiveGlb} alt={piece.name}
           autoRotate={false} cameraControls={false} ar={false} jewelryPresentation metalPreview="yellow-gold" cameraOrbit="35deg 75deg 110%"
           style={{ width: '100%', height: '100%', pointerEvents: 'none' }} /> :
@@ -26,13 +29,13 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       </div>
       <div className="pt-3 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
-          <p className="ames-piece-name" style={{ fontSize: 13, color: '#eef5f2' }}>{piece.name}</p>
-          {review && <p style={{ fontSize: 10, color: '#9eb8ae' }}>Preview · approval pending</p>}
-          {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-[#b8d0c8]">Yellow-gold material preview</p>}
+          <p className="ames-piece-name" style={{ fontSize: 13, color: '#ffffff' }}>{piece.name}</p>
+          {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
+          {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
-        {piece.listing && <span className="text-[10px] text-[#b8d0c8]">Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</span>}
-        {price && <span className="shrink-0" style={{ fontSize: 11, color: '#b8d0c8' }}>{price}</span>}
-        {!price && piece.inquiryState && <span className="shrink-0" style={{ fontSize: 11, color: '#b8d0c8' }}>{piece.inquiryState}</span>}
+        {piece.listing && <span className="text-[10px] text-white">Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</span>}
+        {price && <span className="shrink-0" style={{ fontSize: 11, color: '#ffffff' }}>{price}</span>}
+        {!price && piece.inquiryState && <span className="shrink-0" style={{ fontSize: 11, color: '#ffffff' }}>{piece.inquiryState}</span>}
       </div>
     </button>
   );
@@ -42,30 +45,41 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   const price = boutiquePrice(piece.price);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
+  // A piece photographed as a studio spin opens on the spin; live 3D stays one tap away (unclasp, measure, open).
+  const spinBase = `/ames-engine/${piece.assetId}/spin/`;
+  const [spin, setSpin] = useState<SpinManifest | null>(null), [live, setLive] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    fetch(spinBase + 'manifest.json').then(r => r.ok ? r.json() : null).then(m => { if (alive && m?.frames) setSpin(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [spinBase]);
+  const showSpin = !!spin && !live;
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain pt-20" data-boutique-detail={piece.assetId}>
       <div className="ames-jewelry-stage relative shrink-0 mx-auto w-full" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
+        {spin && <button type="button" onClick={() => setLive(value => !value)} aria-pressed={live} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{live ? 'Studio spin' : 'Interact in 3D'}</button>}
+        {showSpin ? <SpinViewer base={spinBase} manifest={spin} alt={piece.name} /> :
+        piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled={false} style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
             autoRotate={false} cameraControls ar={false} jewelryPresentation metalPreview={piece.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 105%' : '35deg 75deg 105%'}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{piece.name}</h2>
-        {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-[#b8d0c8]">Yellow-gold material preview · finish unverified</p>}
-        {review && <p style={{ fontSize: 10, color: '#9eb8ae', marginTop: 5 }}>Preview · visual approval pending</p>}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#b8d0c8' }}>
+        <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
+        {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
+        {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
           {knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
           {piece.essentialSpecs.physicalScaleConfirmed === false && <span>Physical scale unverified</span>}
         </div>
-        {piece.listing && <div className="mt-3 space-y-2 text-xs text-[#b8d0c8]"><p>By {piece.listing.storefrontUrl ? <a href={piece.listing.storefrontUrl} className="underline">{piece.listing.businessName}</a> : piece.listing.businessName}</p><p>{piece.listing.description}</p><p>Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</p>{piece.listing.gemstones.map((g, i) => <p key={i}>{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}<a href={`/jewellery/${piece.listing.id}`} className="underline">Full listing</a></div>}
-        {price && <p style={{ marginTop: 12, fontSize: 14, color: '#eef5f2' }}>{price}</p>}
-        {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#b8d0c8' }}>{piece.inquiryState}</p>}
-        {piece.listing && stockLabel(piece.listing.stock) && <p data-stock style={{ marginTop: 4, fontSize: 12, color: piece.listing.stock === 0 ? '#f3c9c0' : '#bfe8d4' }}>{stockLabel(piece.listing.stock)}</p>}
-        {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#b8d0c8' }}>{piece.availabilityState}</p>}
+        {piece.listing && <div className="mt-3 space-y-2 text-xs text-white"><p>By {piece.listing.storefrontUrl ? <a href={piece.listing.storefrontUrl} className="underline">{piece.listing.businessName}</a> : piece.listing.businessName}</p><p>{piece.listing.description}</p><p>Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</p>{piece.listing.gemstones.map((g, i) => <p key={i}>{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}<a href={`/jewellery/${piece.listing.id}`} className="underline">Full listing</a></div>}
+        {price && <p style={{ marginTop: 12, fontSize: 14, color: '#ffffff' }}>{price}</p>}
+        {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#ffffff' }}>{piece.inquiryState}</p>}
+        {piece.listing && stockLabel(piece.listing.stock) && <p data-stock style={{ marginTop: 4, fontSize: 12, color: piece.listing.stock === 0 ? '#f3c9c0' : '#ffffff' }}>{stockLabel(piece.listing.stock)}</p>}
+        {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#ffffff' }}>{piece.availabilityState}</p>}
         <div className="mt-4 space-y-3">{piece.listing?.price && piece.listing.stock !== 0 && <PurchaseActions assetId={piece.assetId} />}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
         <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex items-center min-h-11 rounded-full px-5 text-[12px]">Ask SAME</button>
       </div>
@@ -104,15 +118,15 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
 
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
-      {catalogueError && <p role="status" className="px-5 pt-20 text-xs text-[#b9cec6]">{catalogueError}</p>}
+      {catalogueError && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
       {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-boutique-scroll>
-          {loading && <div className="h-full flex items-center justify-center" style={{ color: '#9eb8ae', fontSize: 12 }}>Loading pieces…</div>}
-          {!loading && (error || groups.length === 0) && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#9eb8ae', fontSize: 13 }}>{error ? 'Boutique pieces are unavailable.' : 'No pieces in this category yet.'}</div>}
+          {loading && <div className="h-full flex items-center justify-center" style={{ color: '#ffffff', fontSize: 12 }}>Loading pieces…</div>}
+          {!loading && (error || groups.length === 0) && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>{error ? 'Boutique pieces are unavailable.' : 'No pieces in this category yet.'}</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="min-h-full px-4 sm:px-8 pb-8 pt-20 mx-auto"
             style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
-            <h2 className="ames-collection-heading">{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
+            <h2 className={`ames-collection-heading ames-script-title ${houseScript.className}`}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-7 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>
@@ -122,7 +136,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
       {/* The categories stay at hand while a piece is open: tapping one goes straight there, no back button needed. */}
       <nav className="shrink-0 flex items-center justify-start sm:justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
         {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
-          className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#eef5f2' : '#9eb8ae', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
+          className="shrink-0" style={{ fontSize: 11, color: category === item.key ? '#ffffff' : '#ffffff', fontWeight: category === item.key ? 600 : 400, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 3 }}>{item.label}</button>)}
       </nav>
     </div>
   );

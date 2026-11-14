@@ -38,6 +38,17 @@ export default function AppPage() {
   // Each page reloads its own content when pulled down; the other pages keep their state.
   const [refreshTokens, setRefreshTokens] = useState([0, 0, 0, 0]);
   const magazineRef = useRef<HTMLDivElement>(null);
+  // Tapping the wordmark always lands on a clean chat, whatever page the
+  // reader is on and whatever was already in the thread.
+  const startFreshChat = useCallback(() => {
+    hapticTap();
+    setChatAssetId(null);
+    setChatPrefill("");
+    setChatDraft("");
+    setRefreshTokens((t) => { const n = [...t]; n[1] += 1; return n; });
+    turnTo(1);
+  }, [turnTo]);
+
   const refreshActivePage = useCallback(() => {
     hapticTap();
     setRefreshTokens(tokens => tokens.map((token, index) => index === activePanel ? token + 1 : token));
@@ -102,11 +113,14 @@ export default function AppPage() {
       {/* Minimal transparent top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(3,24,21,0.46)', borderBottom: '1px solid rgba(238,247,244,0.1)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => { hapticTap(); setDrawerOpen(!drawerOpen); }} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu" aria-expanded={drawerOpen}>
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
-          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
-          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#dceee8', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#ffffff', transition: 'all 0.3s' }} />
+          <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#ffffff', transition: 'all 0.3s' }} />
+          <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#ffffff', transition: 'all 0.3s' }} />
         </button>
-        <HouseWordmark size={12.5} className="absolute left-[3.25rem] select-none pointer-events-none" />
+        <button type="button" onClick={startFreshChat} aria-label="HOUSEofAMES — new chat"
+          className="absolute left-[3.25rem] select-none" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>
+          <HouseWordmark size={12.5} />
+        </button>
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
           <defs>
@@ -126,8 +140,8 @@ export default function AppPage() {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
           <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: 'rgba(3,25,22,0.92)', border: '1px solid rgba(238,247,244,0.14)', backdropFilter: 'blur(18px)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(238,247,244,0.12)' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#eef5f2' }}>AMES</div>
-              <div className="mt-2 break-words text-sm text-[#eef5f2]" data-customer-name>{displayName || 'Guest profile'}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#ffffff' }}>AMES</div>
+              <div className="mt-2 break-words text-sm text-white" data-customer-name>{displayName || 'Guest profile'}</div>
             </div>
             <div className="py-2">
               {NAV_ITEMS.map((item) => (
@@ -138,7 +152,7 @@ export default function AppPage() {
                     window.location.href = item.href!;
                   }}
                   className="w-full text-left px-5 py-3 text-[13px] transition-colors"
-                  style={{ color: '#b8d0c8', fontWeight: 400 }}
+                  style={{ color: '#ffffff', fontWeight: 400 }}
                 >
                   {item.label}
                 </button>
@@ -161,7 +175,7 @@ export default function AppPage() {
           <EngineBoutiquePanel key={`boutique-${refreshTokens[0]}`} highlightAssetId={highlightStone} onAskSame={handleAskBoutique} />
         </section>
         <section id="ames-page-1" data-panel="1" aria-label="Chat" hidden={activePanel !== 1 && turn?.from !== 1} aria-hidden={activePanel !== 1} data-curl-source={turn?.from === 1} style={curlPageStyle(turn, 1)} inert={activePanel !== 1} className="ames-magazine-page flex-col">
-          <ChatPanel stageActive={activePanel === 1} assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} onBrowseBoutique={() => turnTo(0)} refreshToken={refreshTokens[1]} />
+          <ChatPanel key={`chat-${refreshTokens[1]}`} stageActive={activePanel === 1} assetId={chatAssetId} prefill={chatPrefill} onPrefillConsumed={() => setChatPrefill("")} draft={chatDraft} onDraftConsumed={() => setChatDraft("")} refreshToken={refreshTokens[1]} />
         </section>
         <section id="ames-page-2" data-panel="2" aria-label="Videos" hidden={activePanel !== 2 && turn?.from !== 2} aria-hidden={activePanel !== 2} data-curl-source={turn?.from === 2} style={curlPageStyle(turn, 2)} inert={activePanel !== 2} className="ames-magazine-page">
           <EngineMediaPanel key={`media-${refreshTokens[2]}`} active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
@@ -201,7 +215,7 @@ interface ChatMessage {
 
 
 
-function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, onBrowseBoutique, refreshToken = 0 }: { stageActive: boolean; assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; onBrowseBoutique: () => void; refreshToken?: number }) {
+function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, onDraftConsumed, refreshToken = 0 }: { stageActive: boolean; assetId: string | null; prefill: string; onPrefillConsumed: () => void; draft: string; onDraftConsumed: () => void; refreshToken?: number }) {
   const [chats, setChats] = useState<ChatHistory[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -219,6 +233,33 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(assetId ?? DEFAULT_CHAT_ASSET_ID);
   const selectionVersion = useRef(0);
   const [stageRefresh, setStageRefresh] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<{ id: string; name: string; url: string; file: File }[]>([]);
+
+  function addAttachments(list: FileList | null) {
+    if (!list?.length) return;
+    const picked = Array.from(list)
+      .filter((f) => f.type.startsWith('image/'))
+      .slice(0, 4)
+      .map((f) => ({ id: `${f.name}-${f.size}-${f.lastModified}`, name: f.name, url: URL.createObjectURL(f), file: f }));
+    setAttachments((prev) => {
+      const seen = new Set(prev.map((a) => a.id));
+      return [...prev, ...picked.filter((a) => !seen.has(a.id))].slice(0, 4);
+    });
+    hapticTap();
+  }
+
+  function removeAttachment(id: string) {
+    setAttachments((prev) => {
+      const gone = prev.find((a) => a.id === id);
+      if (gone) URL.revokeObjectURL(gone.url);
+      return prev.filter((a) => a.id !== id);
+    });
+  }
+
+  // Object URLs are per-mount; release them when the composer goes away.
+  useEffect(() => () => { setAttachments((prev) => { prev.forEach((a) => URL.revokeObjectURL(a.url)); return []; }); }, []);
+
 
   useEffect(() => {
     selectionVersion.current += 1;
@@ -364,7 +405,7 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
   return (
     <div data-chat-panel className="flex flex-col" style={{ height: '100dvh', overflow: 'hidden', background: 'transparent', position: 'relative' }}>
 
-      {sendError && <p role="alert" className="absolute top-20 left-4 right-4 z-30 rounded-lg bg-[#082820] p-3 text-sm text-[#eef5f2]">{sendError}</p>}
+      {sendError && <p role="alert" className="absolute top-20 left-4 right-4 z-30 rounded-lg bg-[#082820] p-3 text-sm text-white">{sendError}</p>}
 
       {chatStarted ? (
         /* === CHAT MODE === */
@@ -375,8 +416,8 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
               <svg viewBox="0 0 24 24" fill="none" style={{ width: 18, height: 18 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" strokeLinejoin="round" fill="none" /></svg>
             </div>
             <div className="flex gap-1.5 ml-auto" role="group" aria-label="Answer mode">
-              <button onClick={() => setMode("instant")} aria-pressed={mode === "instant"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]" style={{ color: mode === "instant" ? "#eef5f2" : "#9eb8ae" }}>Instant</button>
-              <button onClick={() => setMode("expert")} aria-pressed={mode === "expert"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]" style={{ color: mode === "expert" ? "#eef5f2" : "#9eb8ae" }}>Expert</button>
+              <button onClick={() => setMode("instant")} aria-pressed={mode === "instant"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]">Instant</button>
+              <button onClick={() => setMode("expert")} aria-pressed={mode === "expert"} className="ames-pill px-3 min-h-8 rounded-full text-[11px]">Expert</button>
             </div>
           </div>
 
@@ -393,7 +434,7 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
                         <svg viewBox="0 0 24 24" fill="none" style={{ width: 12, height: 12 }}><path d="M12 2L22 9L12 22L2 9L12 2Z" stroke="#A6A6AB" strokeWidth="1.5" fill="none" /></svg>
                       </div>
                     )}
-                    <div data-chat-message={m.role} className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: 'rgba(236,246,242,0.92)', color: '#08231e', borderRadius: '18px 18px 4px 18px' } : { background: 'rgba(4,31,27,0.58)', border: '1px solid rgba(235,247,243,0.14)', color: '#eef5f2', borderRadius: '18px 18px 18px 4px' }) }}>
+                    <div data-chat-message={m.role} className="max-w-[85%]" style={{ padding: '10px 14px', fontSize: 14, lineHeight: 1.45, fontWeight: 400, ...(m.role === 'user' ? { background: 'rgba(236,246,242,0.92)', color: '#08231e', borderRadius: '18px 18px 4px 18px' } : { background: 'rgba(4,31,27,0.58)', border: '1px solid rgba(235,247,243,0.14)', color: '#ffffff', borderRadius: '18px 18px 18px 4px' }) }}>
                       {m.role === 'assistant' ? customerAnswer(m.text) : m.text}
                     </div>
                   </div>
@@ -422,11 +463,25 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
                   <a href="https://wa.me/26772839152" target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: '#A6A6AB', textDecoration: 'none', fontWeight: 400 }}>Talk to a human on WhatsApp</a>
                 </div>
               )}
+              {attachments.length > 0 && (
+                <div className="flex gap-2 mb-2 px-1 overflow-x-auto">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="relative shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt={a.name} style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 12, border: '1px solid rgba(235,247,243,0.22)' }} />
+                      <button type="button" aria-label={`Remove ${a.name}`} onClick={() => removeAttachment(a.id)}
+                        style={{ position: 'absolute', top: -5, right: -5, width: 19, height: 19, borderRadius: '50%', background: 'rgba(3,24,21,0.95)', border: '1px solid rgba(235,247,243,0.35)', color: '#fff', fontSize: 11, lineHeight: '17px', cursor: 'pointer', padding: 0 }}>&times;</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+                <button type="button" aria-label="Attach a photo" onClick={() => fileRef.current?.click()} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
                 </button>
-                <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
+                <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+                  onChange={(e) => { addAttachments(e.target.files); e.target.value = ''; }} />
+                <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything…" data-chat-input className="flex-1 min-w-0 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 500, color: '#ffffff', lineHeight: 1.4, letterSpacing: '.01em' }} />
                 <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} className="ames-pill" aria-pressed={input.trim() ? true : undefined} style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eef5f2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                 </button>
@@ -448,11 +503,25 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
         <div className="shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))', position: 'relative', zIndex: 1 }}>
           <div className="mx-auto" style={{ maxWidth: 360 }}>
             {/* Floating card */}
-            <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button type="button" aria-label="Browse jewelry" onClick={onBrowseBoutique} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
+            {attachments.length > 0 && (
+                <div className="flex gap-2 mb-2 px-1 overflow-x-auto">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="relative shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt={a.name} style={{ width: 54, height: 54, objectFit: 'cover', borderRadius: 12, border: '1px solid rgba(235,247,243,0.22)' }} />
+                      <button type="button" aria-label={`Remove ${a.name}`} onClick={() => removeAttachment(a.id)}
+                        style={{ position: 'absolute', top: -5, right: -5, width: 19, height: 19, borderRadius: '50%', background: 'rgba(3,24,21,0.95)', border: '1px solid rgba(235,247,243,0.35)', color: '#fff', fontSize: 11, lineHeight: '17px', cursor: 'pointer', padding: 0 }}>&times;</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div data-chat-surface style={{ background: 'rgba(3,24,21,0.62)', border: '1px solid rgba(235,247,243,0.14)', borderRadius: 24, boxShadow: '0 8px 30px rgba(0,0,0,0.18)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button type="button" aria-label="Attach a photo" onClick={() => fileRef.current?.click()} className="ames-pill" style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dceee8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
               </button>
-              <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME about a stone, a lot, or the house…" className="flex-1 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 400, color: '#eef5f2', lineHeight: 1.4 }} />
+              <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+                onChange={(e) => { addAttachments(e.target.files); e.target.value = ''; }} />
+              <input aria-label="Message SAME" maxLength={4000} ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSend(); } }} placeholder="Ask SAME anything…" data-chat-input className="flex-1 min-w-0 bg-transparent outline-none border-none" style={{ fontSize: 16, fontWeight: 500, color: '#ffffff', lineHeight: 1.4, letterSpacing: '.01em' }} />
               <button aria-label="Send message" onClick={() => handleSend()} disabled={!input.trim() || typing} className="ames-pill" aria-pressed={input.trim() ? true : undefined} style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eef5f2" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </button>

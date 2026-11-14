@@ -2,8 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
+import SpinViewer, { useSpin } from './SpinViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
 import registry from '../lib/gemstone-registry.json';
+import { houseScript } from '../lib/script-font';
 import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 
 /** The AMES gemstone gallery: the house's own 3D stones (the same ones SAME shows in chat), diamonds aside. */
@@ -47,47 +49,47 @@ export default function EngineCataloguePanel() {
   const rough = pieces.filter(p => p.form === 'rough' && matches(p, term, species)), polished = pieces.filter(p => p.form === 'polished' && matches(p, term, species));
   const speciesOptions = [...new Set(pieces.map(piece => piece.species))].sort((a, b) => a.localeCompare(b));
   const gallery = GALLERY.filter(stone => (!term || galleryText(stone).includes(term)) && (!species || galleryText(stone).includes(species.toLocaleLowerCase())));
-  const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-[#eef5f2]';
+  const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-white';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
   if (gem) return <GemDetail stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
-  return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-[#eef5f2]">
+  return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
       <header className="border-b border-white/15 pb-9 sm:pb-12">
-        <p className="text-[10px] uppercase tracking-[0.24em] text-[#b8d0c8]">HOUSEofAMES · Catalogue</p>
-        <h1 className="mt-5 text-[40px] font-normal leading-[1.08] tracking-[-0.04em] sm:text-6xl">The Catalogue Room</h1>
-        <p className="mt-5 max-w-lg text-sm leading-6 text-[#b8d0c8]">Discover stones from our dealers, from rough diamonds and emeralds to tourmaline, quartz and more. Turn each reviewed stone in 3D, and ask to buy the ones you love.</p>
+        <p className="text-[10px] uppercase tracking-[0.24em] text-white">HOUSEofAMES · Catalogue</p>
+        <h1 className={`${houseScript.className} mt-5 text-[52px] font-normal leading-[1.1] sm:text-7xl`}>The Catalogue Room</h1>
+        <p className="mt-5 max-w-lg text-sm leading-6 text-white">Discover stones from our dealers, from rough diamonds and emeralds to tourmaline, quartz and more. Turn each reviewed stone in 3D, and ask to buy the ones you love.</p>
       </header>
       <section aria-label="Stones" className="pt-8 sm:pt-10">
-        {state === 'loading' && <p role="status" className="py-12 text-sm text-[#b8d0c8]">Loading the catalogue…</p>}
-        {state === 'error' && <div role="status" className="py-12 text-sm text-[#b8d0c8]"><p>The catalogue is unavailable. Please try again.</p><button type="button" onClick={() => { setState('loading'); setAttempt(value => value + 1); }} className="mt-4 min-h-11 rounded-full border border-white/25 px-5">Try again</button></div>}
-        {state === 'ready' && pieces.length === 0 && <p role="status" className="py-12 text-sm leading-6 text-[#b8d0c8]">No reviewed stones are listed yet. New stones will appear here after review.</p>}
+        {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
+        {state === 'error' && <div role="status" className="py-12 text-sm text-white"><p>The catalogue is unavailable. Please try again.</p><button type="button" onClick={() => { setState('loading'); setAttempt(value => value + 1); }} className="mt-4 min-h-11 rounded-full border border-white/25 px-5">Try again</button></div>}
+        {state === 'ready' && pieces.length === 0 && <p role="status" className="py-12 text-sm leading-6 text-white">No reviewed stones are listed yet. New stones will appear here after review.</p>}
         {state === 'ready' && pieces.length > 0 && <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <label className="text-xs text-[#b8d0c8]">Search by name or reference<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>
-            <label className="text-xs text-[#b8d0c8]">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+            <label className="text-xs text-white">Search by name or reference<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>
+            <label className="text-xs text-white">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
           </div>
-          {!rough.length && !polished.length && <div className="py-8 text-sm text-[#b8d0c8]">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
-          {rough.length > 0 && <section aria-labelledby="rough-catalogue-title" className="mb-12"><h2 id="rough-catalogue-title" className="mb-5 text-xl font-normal tracking-tight">Rough gemstones <span className="text-xs text-[#b8d0c8]">{rough.length}</span></h2>{grid(rough)}</section>}
-          {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal tracking-tight">Polished stones <span className="text-xs text-[#b8d0c8]">{polished.length}</span></h2>{grid(polished)}</section>}
+          {!rough.length && !polished.length && <div className="py-8 text-sm text-white">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
+          {rough.length > 0 && <section aria-labelledby="rough-catalogue-title" className="mb-12"><h2 id="rough-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Rough gemstones</span> <span className="text-xs text-white">{rough.length}</span></h2>{grid(rough)}</section>}
+          {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Polished stones</span> <span className="text-xs text-white">{polished.length}</span></h2>{grid(polished)}</section>}
         </>}
       </section>
       <section aria-labelledby="gallery-title" className="pt-4" data-gemstone-gallery>
-        <h2 id="gallery-title" className="text-xl font-normal tracking-tight">The AMES gemstone gallery <span className="text-xs text-[#b8d0c8]">{gallery.length}</span></h2>
-        <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-[#b8d0c8]">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
-        {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-[#b8d0c8]">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
-        {gallery.length === 0 ? <p className="py-6 text-sm text-[#b8d0c8]">No gallery stones match your search.</p> :
+        <h2 id="gallery-title" className="text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>The AMES gemstone gallery</span> <span className="text-xs text-white">{gallery.length}</span></h2>
+        <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-white">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
+        {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-white">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
+        {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
           <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-          <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-[#b8d0c8]">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
+          <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-white">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
         </button>)}</div>}
       </section>
     </div>
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
       <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">{viewing.ref} · {viewing.species}</p><h3 className="text-lg">{viewing.title}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setViewing(null)}>Close</button></div>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-white">{viewing.ref} · {viewing.species}</p><h3 className="text-lg">{viewing.title}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setViewing(null)}>Close</button></div>
         <EngineJewelryViewer key={viewing.model} src={viewing.model} poster={viewing.poster} alt={viewing.title} autoLoad opticsProfile="mounted-gem-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 380 }} />
-        <p className="text-xs text-[#b8d0c8]">Drag to turn the stone. {viewing.modelNote}</p>
+        <p className="text-xs text-white">Drag to turn the stone. {viewing.modelNote}</p>
         <button type="button" className="ames-pill min-h-11 rounded-full border border-white/25 px-5 text-sm" onClick={() => { setBuying(viewing); setViewing(null); }}>Request to buy</button>
       </div>
     </div>}
@@ -103,13 +105,13 @@ function StoneCard({ piece, onView, onBuy }: { piece: CatalogueStone; onView: ()
       <img src={image} alt={piece.title} loading="lazy" className={`h-full w-full ${piece.poster ? 'object-contain p-6' : 'object-cover'}`} />
     </button> : null}
     <div className="p-5">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">{piece.ref} · {piece.species}</p>
+      <p className="text-[10px] uppercase tracking-[0.16em] text-white">{piece.ref} · {piece.species}</p>
       <h3 className="mt-2 text-lg font-normal leading-snug">{piece.title}</h3>
       <p className="mt-3 text-sm">{piece.form === 'rough' ? 'Rough' : 'Polished'} · {piece.carats} ct</p>
-      <p className="mt-2 text-xs text-[#b8d0c8]">Material origin: {piece.origin.replaceAll('-', ' ')}<br />{piece.measurements}</p>
+      <p className="mt-2 text-xs text-white">Material origin: {piece.origin.replaceAll('-', ' ')}<br />{piece.measurements}</p>
       <p className="mt-2 text-xs">Treatments: {piece.treatments === 'none-reported' ? 'None reported' : piece.treatmentDetails}</p>
       {piece.gradeSummary && <p className="mt-2 text-xs">{piece.gradeSummary}</p>}
-      {piece.reportStatus === 'verified' ? <a className="mt-4 inline-block border-b border-white/50 text-xs" href={piece.reportUrl} target="_blank" rel="noreferrer">{piece.laboratory} · {piece.reportNumber}</a> : <p className="mt-4 text-xs text-[#b8d0c8]">No laboratory report issued</p>}
+      {piece.reportStatus === 'verified' ? <a className="mt-4 inline-block border-b border-white/50 text-xs" href={piece.reportUrl} target="_blank" rel="noreferrer">{piece.laboratory} · {piece.reportNumber}</a> : <p className="mt-4 text-xs text-white">No laboratory report issued</p>}
       <div className="mt-5 flex flex-wrap gap-2">
         {piece.model && <button type="button" onClick={onView} className="ames-pill min-h-11 rounded-full border border-white/25 px-4 text-xs">View in 3D</button>}
         <button type="button" onClick={onBuy} className="ames-pill min-h-11 rounded-full border border-white/25 px-4 text-xs">Request to buy</button>
@@ -130,14 +132,14 @@ function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => v
       setState('sent');
     } catch (e) { setState('error'); setError(e instanceof Error ? e.message : 'The request could not be sent.'); }
   }
-  const field = 'mt-1 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-[#eef5f2]';
+  const field = 'mt-1 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-white';
   return <div role="dialog" aria-modal="true" aria-label={`Request to buy ${piece.ref}`} className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
     <div className="w-full max-w-md space-y-4 rounded-3xl border border-white/15 bg-[#04201b] p-5 text-sm" onClick={e => e.stopPropagation()}>
-      <div><p className="text-[10px] uppercase tracking-[0.16em] text-[#b8d0c8]">{piece.ref} · {piece.carats} ct</p><h3 className="text-lg">Request to buy {piece.title}</h3></div>
+      <div><p className="text-[10px] uppercase tracking-[0.16em] text-white">{piece.ref} · {piece.carats} ct</p><h3 className="text-lg">Request to buy {piece.title}</h3></div>
       {state === 'sent' ? <><p role="status" className="text-emerald-200">Your request has been sent. HOUSEofAMES will contact you to agree the price and complete the buyer checks.</p><button type="button" className="ames-pill min-h-11 rounded-full border border-white/25 px-5" onClick={onClose}>Close</button></>
         : state === 'signin' ? <><p>Sign in to your HOUSEofAMES account (with a verified email) to ask to buy this stone.</p><div className="flex gap-3"><Link href="/app/account" className="ames-pill inline-flex min-h-11 items-center rounded-full border border-white/25 px-5">Sign in</Link><button type="button" className="min-h-11 underline" onClick={onClose}>Not now</button></div></>
         : <form onSubmit={send} className="space-y-3">
-          <p className="text-xs text-[#b8d0c8]">HOUSEofAMES confirms the price with you directly. As a licensed dealer we complete buyer identity (KYC) checks before any sale.</p>
+          <p className="text-xs text-white">HOUSEofAMES confirms the price with you directly. As a licensed dealer we complete buyer identity (KYC) checks before any sale.</p>
           <label className="block text-xs">WhatsApp or phone (optional)<input value={phone} onChange={e => setPhone(e.target.value)} maxLength={40} inputMode="tel" className={field} /></label>
           <label className="block text-xs">Message (optional)<textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={1000} rows={3} className={field} placeholder="Questions, or how you would like to view the stone" /></label>
           {error && <p role="alert" className="text-xs text-red-200">{error}</p>}
@@ -152,10 +154,10 @@ function GemFacts({ id }: { id: string }) {
   // Kept short: what it is, then a compact list (label left, answer right).
   const f = GEMSTONE_FACTS[id];
   const rows: [string, string][] = [['Hardness', `${mohsLabel(f.mohs)} on the Mohs scale (diamond is 10)`], ['Found in', f.foundIn.join(', ')], ['Worn as', f.jewellery], ...(f.care ? [['Care', f.care] as [string, string]] : [])];
-  return <section aria-label="About this gemstone" className="text-xs leading-5 text-[#eef5f2]" data-gem-facts={id}>
-    <p className="text-[#d6e6e0]">{f.about}</p>
+  return <section aria-label="About this gemstone" className="text-xs leading-5 text-white" data-gem-facts={id}>
+    <p className="text-white">{f.about}</p>
     <dl className="mt-3 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1.5 border-t border-white/10 pt-3">
-      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-[#9fbcb1]">{k}</dt><dd>{v}</dd></div>)}
+      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-white">{k}</dt><dd>{v}</dd></div>)}
     </dl>
   </section>;
 }
@@ -170,7 +172,9 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const top = useRef<HTMLDivElement>(null);
   useEffect(() => { top.current?.scrollTo({ top: 0 }); }, [stone.id]);
   const arrow = 'ames-pill absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full';
-  return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-[#eef5f2]" data-gem-detail={stone.id}>
+  // A stone photographed as a studio spin opens on the spin; live 3D stays one tap away.
+  const spin = useSpin(stone.id), [liveFor, setLiveFor] = useState<string | null>(null), live = liveFor === stone.id;
+  return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-white" data-gem-detail={stone.id}>
     <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
       <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
@@ -179,17 +183,19 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
+      {spin && <button type="button" onClick={() => setLiveFor(live ? null : stone.id)} aria-pressed={live} className="ames-pill absolute left-[4.5rem] top-3 z-20 min-h-11 whitespace-nowrap rounded-full px-4 text-[12px]">{live ? 'Studio spin' : 'Interact in 3D'}</button>}
+      {spin && !live ? <SpinViewer key={stone.id} base={spin.base} manifest={spin.manifest} alt={stone.name} /> :
+      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />}
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
       onTouchEnd={e => { const s0 = swipe.current, t = e.changedTouches[0]; swipe.current = null; if (!s0 || list.length < 2) return;
         const dx = t.clientX - s0.x, dy = t.clientY - s0.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onGo(dx < 0 ? next : prev); }}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 style={{ fontSize: 27, color: '#eef5f2', lineHeight: 1.1 }}>{stone.name}</h2>
-        {list.length > 1 && <span className="shrink-0 text-[11px] text-[#9fbcb1]">{at + 1} / {list.length}</span>}
+        <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
+        {list.length > 1 && <span className="shrink-0 text-[11px] text-white">{at + 1} / {list.length}</span>}
       </div>
-      <p className="mt-1 text-[11px] text-[#b8d0c8]">{facts?.family ?? stone.category} · {stone.cut}</p>
+      <p className="mt-1 text-[11px] text-white">{facts?.family ?? stone.category} · {stone.cut}</p>
       {facts && <div className="mt-3"><GemFacts id={stone.id} /></div>}
       {list.length > 1 && <div className="mt-5 flex items-center justify-between gap-3 text-xs">
         <button type="button" className="ames-pill min-h-11 rounded-full border border-white/20 px-4" onClick={() => onGo(prev)}>‹ {prev.name}</button>

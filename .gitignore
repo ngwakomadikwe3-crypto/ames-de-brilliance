@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Isolated development and verification caches
 /.next-*/
+
+# Earlier spin renders kept for reference, not shipped
+_archive/

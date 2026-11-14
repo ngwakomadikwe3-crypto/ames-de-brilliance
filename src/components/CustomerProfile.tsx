@@ -84,7 +84,7 @@ export default function CustomerProfile() {
 
         <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-white/25 text-xl" aria-hidden="true">{(user?.name || storedName || 'Guest').slice(0, 1).toUpperCase()}</span>
 
-        <div className="min-w-0"><h2 className="break-words text-xl">{user?.name || storedName || 'Guest profile'}</h2><p className="text-xs text-[#b9cec6]">{user ? 'Saved to your customer account' : 'Guest preferences saved on this device'}</p></div>
+        <div className="min-w-0"><h2 className="break-words text-xl">{user?.name || storedName || 'Guest profile'}</h2><p className="text-xs text-white">{user ? 'Saved to your customer account' : 'Guest preferences saved on this device'}</p></div>
 
       </div>
 
@@ -96,15 +96,15 @@ export default function CustomerProfile() {
 
             onChange={e => { setDraftName(e.target.value); setNotice(''); setError(''); }} placeholder="Your name"
 
-            className="mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-3 text-base text-[#eef5f2]" />
+            className="mt-2 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-3 text-base text-white" />
 
         </label>
 
-        <p className="text-xs text-[#b9cec6]">This name appears in your AMES menu. An account requires a display name.</p>
+        <p className="text-xs text-white">This name appears in your AMES menu. An account requires a display name.</p>
 
         <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-5">
 
-          <div><p className="text-sm">Haptic feedback</p><p id="haptics-help" className="mt-1 text-xs text-[#b9cec6]">Light feedback on navigation taps, where your device supports vibration.</p></div>
+          <div><p className="text-sm">Haptic feedback</p><p id="haptics-help" className="mt-1 text-xs text-white">Light feedback on navigation taps, where your device supports vibration.</p></div>
 
           <button disabled={!ready || saving} type="button" role="switch" aria-label="Haptic feedback" aria-describedby="haptics-help" aria-checked={haptics}
 
@@ -128,7 +128,7 @@ export default function CustomerProfile() {
 
       <nav aria-label="Profile links" className="flex flex-wrap gap-5 text-sm"><Link href="/app/billing" className="underline">Billing information</Link><Link href="/app" className="underline">Return to AMES</Link></nav>
 
-      <p className="text-xs text-[#b9cec6]">Signed-in names and haptic preferences are saved to your account. Guest preferences, chat history and saved media remain specific to this browser; signing in does not transfer them between devices.</p>
+      <p className="text-xs text-white">Signed-in names and haptic preferences are saved to your account. Guest preferences, chat history and saved media remain specific to this browser; signing in does not transfer them between devices.</p>
 
     </div>
 
