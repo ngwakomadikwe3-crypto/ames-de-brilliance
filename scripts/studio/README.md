@@ -18,3 +18,15 @@ Renders the jewellery and gemstones the app shows as studio spins
 - `pack_spins.py` – PNG frames to the app's WebP spin folders.
 
 The piece meshes (`pieces/*.blend|glb`) are in the render kit, not the repo.
+
+## Real stones in the live 3D files
+
+`restone-glb.mjs` swaps the placeholder stone geometry inside a jewellery or
+gemstone GLB for real cuts, leaving nodes, names, materials and the metal
+untouched so the live 3D engine (turn, unclasp, measure) works as before.
+Run `python3 dump_templates.py` first to write `cut-templates.json`, then e.g.
+
+    node restone-glb.mjs in.glb out.glb 'Tennis diamond=round'
+    node restone-glb.mjs stone-ruby/web/jewelry.glb out.glb '@gem=stone-ruby'
+
+Needs `@gltf-transform/core`, `@gltf-transform/extensions` and `meshoptimizer`.

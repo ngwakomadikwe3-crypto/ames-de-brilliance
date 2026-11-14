@@ -8,7 +8,7 @@
   "name": "Pear-drop fringe necklace",
   "thumbnail": "web/poster.webp",
   "heroImage": "web/poster.webp",
-  "interactiveGlb": "web/pear-fringe-necklace.glb",
+  "interactiveGlb": "web/pear-fringe-necklace-v2.glb",
   "poster": "web/poster.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,

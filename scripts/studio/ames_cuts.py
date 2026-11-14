@@ -149,10 +149,13 @@ def shaped(outline='round', p=None):
         for (x, y, z) in V:
             th = math.atan2(z, x) % (2 * math.pi)       # 0 at the tip
             pinch = abs(math.sin(th / 2.0)) ** 0.72
-            out.append((x, y * 0.80, z * pinch * 0.78))
+            out.append((x, y * 0.62, z * pinch * 0.78))   # depth ~62% of the true widest point
         return out, F, G
-    sx, sz = {'oval': (1.00, 0.72), 'marquise': (1.00, 0.50), 'cushion': (0.94, 0.94)}[outline]
-    return [(x * sx, y, z * sz) for (x, y, z) in V], F, G
+    # Depth scales with the narrower outline too: an oval cut keeps a round
+    # stone's full depth and comes out ~85% deep, dark and heavy, where real
+    # ovals sit near 60%.
+    sx, sz, sy = {'oval': (1.00, 0.72, 0.74), 'marquise': (1.00, 0.50, 0.55), 'cushion': (0.94, 0.94, 0.96)}[outline]
+    return [(x * sx, y * sy, z * sz) for (x, y, z) in V], F, G
 
 
 def step_cut(length=1.0, width=0.72, corner=0.26):

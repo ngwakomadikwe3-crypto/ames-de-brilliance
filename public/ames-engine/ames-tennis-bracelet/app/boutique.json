@@ -8,7 +8,7 @@
   "name": "Diamond tennis bracelet",
   "thumbnail": "web/poster-v4.webp",
   "heroImage": "web/poster-v4.webp",
-  "interactiveGlb": "web/tennis-bracelet-v4.glb",
+  "interactiveGlb": "web/tennis-bracelet-v5.glb",
   "poster": "web/poster-v4.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,
