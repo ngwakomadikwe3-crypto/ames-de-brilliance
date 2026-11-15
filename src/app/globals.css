@@ -294,7 +294,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
   z-index: -1;
   pointer-events: none;
   background: #061d19 url('/ames-silk-bg.webp') center / cover no-repeat;
-  filter: saturate(1.2) contrast(1.12) brightness(0.96);
+  filter: saturate(1.08) contrast(1.04);
 }
 .ames-app-shell button,
 .ames-app-shell input,
@@ -421,7 +421,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 @media (hover: none) and (pointer: coarse) {
   .ames-app-shell::before {
     inset: -4px;
-    filter: blur(1.5px) saturate(1.2) contrast(1.04) brightness(0.96);
+    filter: saturate(1.1) contrast(1.04) brightness(0.96);
   }
   .ames-magazine-page[data-curl-source='true'] {
     background: #061d19;
@@ -434,7 +434,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
     z-index: -1;
     pointer-events: none;
     background: #061d19 url('/ames-silk-bg.webp') center / cover no-repeat;
-    filter: blur(1.5px) saturate(1.2) contrast(1.04) brightness(0.96);
+    filter: saturate(1.1) contrast(1.04) brightness(0.96);
   }
 }
 

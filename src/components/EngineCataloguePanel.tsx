@@ -75,7 +75,7 @@ export default function EngineCataloguePanel() {
         </>}
       </section>
       <section aria-labelledby="gallery-title" className="pt-4" data-gemstone-gallery>
-        <h2 id="gallery-title" className="text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>The AMES gemstone gallery</span> <span className="text-xs text-white">{gallery.length}</span></h2>
+        <h2 id="gallery-title" className="text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>The</span> <span className="text-[22px] font-normal tracking-[0.14em] align-[0.12em]">AMES</span> <span className={`${houseScript.className} text-[34px] leading-none`}>gemstone gallery</span> <span className="text-xs text-white">{gallery.length}</span></h2>
         <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-white">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
         {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-white">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
         {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
