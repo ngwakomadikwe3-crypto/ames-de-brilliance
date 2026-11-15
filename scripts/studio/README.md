@@ -30,3 +30,15 @@ Run `python3 dump_templates.py` first to write `cut-templates.json`, then e.g.
     node restone-glb.mjs stone-ruby/web/jewelry.glb out.glb '@gem=stone-ruby'
 
 Needs `@gltf-transform/core`, `@gltf-transform/extensions` and `meshoptimizer`.
+
+## Smooth stones (cabochons)
+
+`cab_textures.py` paints each smooth stone's real surface into textures (jade
+mottling, lapis pyrite and calcite, turquoise matrix web, opal play-of-colour,
+sunstone copper glitter, amber flow, rose quartz cloud). `cabs-glb.mjs` maps them
+onto the stone's GLB with top-down UVs, and `compress.mjs` re-applies meshopt
+compression so files stay close to their original size.
+
+    python3 cab_textures.py                      # writes ./tex
+    node cabs-glb.mjs in.glb out.glb stone-opal ./tex
+    node compress.mjs out.glb=final.glb
