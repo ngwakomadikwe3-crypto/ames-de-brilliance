@@ -975,3 +975,27 @@ body:has(.ames-account-shell) > footer { display: none; }
 /* Jewellery collection titles in the house script: larger, because a script
    face sits small for its size, and without the wide tracking meant for caps. */
 .ames-app-shell .ames-collection-heading.ames-script-title { font-size: clamp(36px, 4.6vw, 50px); font-weight: 400; letter-spacing: 0; line-height: 1.15; }
+
+/* ── Open silk (15 Nov 2026) ─────────────────────────────────────────────────────
+   No dark frames: the page border, the recessed viewer case and the charcoal stages
+   behind pieces are gone, so jewellery sits straight on the emerald silk. Only a soft
+   floor shadow stays under each piece. Cards become clear glass over the silk. */
+.ames-app-shell:not(.ames-account-shell)::after,
+.ames-presentation-frame { display: none !important; content: none !important; }
+.ames-object-display,
+.ames-object-display:has(> .ames-presentation-frame) { background: transparent !important; border-radius: 0 !important; }
+.ames-object-display::before,
+.ames-piece-image::before,
+.ames-app-shell [data-chat-panel] .ames-jewelry-stage::before { content: none !important; }
+.ames-app-shell [data-chat-panel]::before {
+  background: linear-gradient(180deg, transparent 60%, rgba(3,24,21,.35)) !important;
+}
+.ames-app-shell [data-auction-panel] { background: transparent !important; }
+.ames-account-content,
+.ames-app-shell [data-catalogue-panel] > div > header,
+.ames-app-shell [data-catalogue-panel] > div > section,
+.ames-app-shell [data-catalogue-stone] {
+  background: linear-gradient(160deg, rgba(255,255,255,.10), rgba(255,255,255,.03) 60%) !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
