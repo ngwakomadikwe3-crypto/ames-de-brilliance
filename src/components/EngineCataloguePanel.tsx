@@ -57,7 +57,7 @@ export default function EngineCataloguePanel() {
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
       <header className="border-b border-white/15 pb-9 sm:pb-12">
         <p className="text-[10px] uppercase tracking-[0.24em] text-white">HOUSEofAMES · Catalogue</p>
-        <h1 className={`${houseScript.className} mt-5 text-[52px] font-normal leading-[1.1] sm:text-7xl`}>The Catalogue Room</h1>
+        <h1 className={`${houseScript.className} mt-5 text-[52px] font-normal leading-[1.1] sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>The Catalogue Room</h1>
         <p className="mt-5 max-w-lg text-sm leading-6 text-white">Discover stones from our dealers, from rough diamonds and emeralds to tourmaline, quartz and more. Turn each reviewed stone in 3D, and ask to buy the ones you love.</p>
       </header>
       <section aria-label="Stones" className="pt-8 sm:pt-10">

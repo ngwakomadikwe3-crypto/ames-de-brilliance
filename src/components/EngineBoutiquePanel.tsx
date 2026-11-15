@@ -126,7 +126,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="min-h-full px-4 sm:px-8 pb-8 pt-20 mx-auto"
             style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
-            <h2 className={`ames-collection-heading ames-script-title ${houseScript.className}`}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
+            <h2 className={`ames-collection-heading ames-script-title ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily }}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-7 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>
@@ -136,7 +136,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
       {/* The categories stay at hand while a piece is open: tapping one goes straight there, no back button needed. */}
       <nav className="shrink-0 flex items-center justify-start sm:justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 58, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
         {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
-          className={`shrink-0 ${houseScript.className}`} style={{ fontSize: 24, lineHeight: 1.2, color: '#ffffff', fontWeight: 400, opacity: category === item.key ? 1 : 0.78, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 1 }}>{item.label}</button>)}
+          className={`shrink-0 ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 24, lineHeight: 1.2, color: '#ffffff', fontWeight: 400, opacity: category === item.key ? 1 : 0.78, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 1 }}>{item.label}</button>)}
       </nav>
     </div>
   );
