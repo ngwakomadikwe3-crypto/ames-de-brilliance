@@ -55,31 +55,24 @@ export default function EngineCataloguePanel() {
   if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
-      <header className="border-b border-white/15 pb-9 sm:pb-12">
-        <h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>The Catalogue Room</h1>
-        <p className="mt-5 max-w-lg text-sm leading-6 text-white">Explore polished gemstones in 3D.</p>
-      </header>
-      <section aria-label="Stones" className="pt-8 sm:pt-10">
+      <header className="pb-4"><h1 className="text-4xl font-normal tracking-tight">Gemstones</h1></header>
+      <input type="search" aria-label="Search gemstones by name or reference" placeholder="Search gemstones" value={query} onChange={event => setQuery(event.target.value)} className={field} />
+      <section aria-label="Available polished stones">
         {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
         {state === 'error' && <div role="status" className="py-12 text-sm text-white"><p>The catalogue is unavailable. Please try again.</p><button type="button" onClick={() => { setState('loading'); setAttempt(value => value + 1); }} className="mt-4 min-h-11 rounded-full border border-white/25 px-5">Try again</button></div>}
-        {state === 'ready' && pieces.length === 0 && <p role="status" className="py-12 text-sm leading-6 text-white">No reviewed stones are listed yet. New stones will appear here after review.</p>}
         {state === 'ready' && pieces.length > 0 && <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <label className="text-xs text-white">Search by name or reference<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>
             <label className="text-xs text-white">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
           </div>
           {!polished.length && <div className="py-8 text-sm text-white">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
           {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Polished stones</span> <span className="text-xs text-white">{polished.length}</span></h2>{grid(polished)}</section>}
         </>}
       </section>
-      <section aria-labelledby="gallery-title" className="pt-4" data-gemstone-gallery>
-        <h2 id="gallery-title" className="text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>The</span> <span className="text-[22px] font-normal tracking-[0.14em] align-[0.12em]">AMES</span> <span className={`${houseScript.className} text-[34px] leading-none`}>gemstone gallery</span> <span className="text-xs text-white">{gallery.length}</span></h2>
-        <p className="mb-5 mt-2 max-w-lg text-xs leading-5 text-white">Our own 3D stones, from alexandrite to zircon. Turn each one to see how it plays with light, then ask SAME about finding one.</p>
-        {state !== 'ready' && <label className="mb-6 block max-w-md text-xs text-white">Search the gallery<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>}
+      <section aria-label="Gemstone gallery" className="pt-4" data-gemstone-gallery>
         {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
           <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-          <span className="block px-4 pb-4 pt-3"><span className="block text-base leading-snug">{stone.name}</span><span className="mt-1 block text-[11px] capitalize text-white">{stone.form} · {stone.defaultColors.slice(0, 2).join(', ')}</span><span className="mt-2 block text-[11px] underline">View in 3D</span></span>
+          <span className="block px-4 py-3 text-base leading-snug">{stone.name}</span>
         </button>)}</div>}
       </section>
     </div>
@@ -197,10 +190,9 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         const dx = t.clientX - s0.x, dy = t.clientY - s0.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onGo(dx < 0 ? next : prev); }}>
       <div className="flex items-baseline justify-between gap-3">
         <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
-        {list.length > 1 && <span className="shrink-0 text-[11px] text-white">{at + 1} / {list.length}</span>}
       </div>
-      <label className="mt-3 inline-flex items-center gap-3 text-sm">Cut
-        <select className="min-h-11 rounded-lg bg-[#10372f] px-3" value={cut} onChange={event => setCut(event.target.value)}>
+      <label className="mt-3 flex w-full items-center justify-between gap-3 text-sm">Cut
+        <select className="min-h-11 min-w-0 max-w-[80%] rounded-lg bg-[#10372f] px-3 text-base" value={cut} onChange={event => setCut(event.target.value)}>
           <option value="">Original · {stone.cut}</option>
           {cuts.filter(name => name.toLowerCase() !== stone.cut.toLowerCase()).map(name => <option key={name}>{name}</option>)}
         </select>
