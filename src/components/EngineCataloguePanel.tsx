@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import ModelViewer from './ModelViewer';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
 import registry from '../lib/gemstone-registry.json';
@@ -163,8 +164,9 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const facts = GEMSTONE_FACTS[stone.id];
   const [cut, setCut] = useState('');
   const cuts = ['Round','Princess','Emerald','Asscher','Cushion','Marquise','Radiant','Oval','Pear','Heart'];
-  const src = cut
-    ? `/ames-engine/gallery-cuts/${cut}/${stone.id}.glb?v=${GALLERY_VERSION}`
+  const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
+  const src = modelCut
+    ? `/ames-engine/gallery-cuts/${modelCut}/${stone.id}.glb?v=11`
     : `/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`;
   // Previous and next stone without going back to the gallery: arrows on the stage, or a swipe across the details
   // (on the stage itself a drag turns the stone). Wraps round at either end.
@@ -183,7 +185,11 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
+      {stone.id === 'stone-amber' ? <ModelViewer key={src} src={src} alt={stone.name}
+        poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`}
+        autoRotate={false} ar={false} jewelryPresentation cameraOrbit="25deg 49deg auto"
+        style={{ width: '100%', height: '100%' }} /> :
+      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />}
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}

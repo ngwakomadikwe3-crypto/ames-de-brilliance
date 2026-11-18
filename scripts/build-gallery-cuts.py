@@ -2,9 +2,13 @@
 import json
 import math
 import struct
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'scripts/studio'))
+import ames_cuts
+
 CUTS = 'Round Princess Emerald Asscher Cushion Marquise Radiant Oval Pear Heart'.split()
 
 
@@ -29,6 +33,27 @@ def outline(cut):
 
 
 def geometry(cut):
+    if cut in ('Round', 'Oval', 'Pear', 'Emerald', 'Asscher'):
+        if cut in ('Emerald', 'Asscher'):
+            vertices, faces, _ = ames_cuts.step_cut(width=1.0 if cut == 'Asscher' else .72)
+        else:
+            vertices, faces, _ = ames_cuts.shaped(cut.lower())
+        positions, normals = [], []
+        for face in faces:
+            a = vertices[face[0]]
+            for i in range(1, len(face)-1):
+                b, c = vertices[face[i]], vertices[face[i+1]]
+                u = [b[j]-a[j] for j in range(3)]
+                v = [c[j]-a[j] for j in range(3)]
+                n = [u[(j+1)%3]*v[(j+2)%3]-u[(j+2)%3]*v[(j+1)%3] for j in range(3)]
+                length = math.hypot(*n)
+                if length < 1e-10:
+                    continue
+                if sum(n[j]*a[j] for j in range(3)) < 0:
+                    b, c, n = c, b, [-x for x in n]
+                positions.extend((a,b,c))
+                normals.extend([tuple(x/length for x in n)]*3)
+        return positions, normals
     points = outline(cut)
     rings = []
     for scale,height in ((.55,.4),(.81,.23),(1,.018),(1,-.018),(.62,-.38)):
