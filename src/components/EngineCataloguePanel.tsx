@@ -55,7 +55,7 @@ export default function EngineCataloguePanel() {
   if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
-      <header className="pb-4"><h1 className="text-4xl font-normal tracking-tight">Gemstones</h1></header>
+      <header className="pb-4"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>Gemstones</h1></header>
       <input type="search" aria-label="Search gemstones by name or reference" placeholder="Search gemstones" value={query} onChange={event => setQuery(event.target.value)} className={field} />
       <section aria-label="Available polished stones">
         {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
