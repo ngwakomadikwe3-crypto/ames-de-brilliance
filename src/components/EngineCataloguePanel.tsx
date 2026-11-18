@@ -33,7 +33,7 @@ export default function EngineCataloguePanel() {
       if (!response.ok) throw new Error('Catalogue unavailable');
       const body = await response.json();
       if (!Array.isArray(body.items)) throw new Error('Invalid catalogue');
-      if (!abort.signal.aborted) { setPieces(body.items); setState('ready'); }
+      if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished')); setState('ready'); }
     }).catch(() => { if (!abort.signal.aborted) setState('error'); });
     return () => abort.abort();
   }, [attempt]);
@@ -45,18 +45,18 @@ export default function EngineCataloguePanel() {
     window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop);
   }, []);
   const term = query.trim().toLocaleLowerCase();
-  const rough = pieces.filter(p => p.form === 'rough' && matches(p, term, species)), polished = pieces.filter(p => p.form === 'polished' && matches(p, term, species));
+  const polished = pieces.filter(p => p.form === 'polished' && matches(p, term, species));
   const speciesOptions = [...new Set(pieces.map(piece => piece.species))].sort((a, b) => a.localeCompare(b));
   const gallery = GALLERY.filter(stone => (!term || galleryText(stone).includes(term)) && (!species || galleryText(stone).includes(species.toLocaleLowerCase())));
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-white';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
-  if (gem) return <GemDetail stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
+  if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
       <header className="border-b border-white/15 pb-9 sm:pb-12">
         <h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>The Catalogue Room</h1>
-        <p className="mt-5 max-w-lg text-sm leading-6 text-white">Discover stones from our dealers, from rough diamonds and emeralds to tourmaline, quartz and more. Turn each reviewed stone in 3D, and ask to buy the ones you love.</p>
+        <p className="mt-5 max-w-lg text-sm leading-6 text-white">Explore polished gemstones in 3D.</p>
       </header>
       <section aria-label="Stones" className="pt-8 sm:pt-10">
         {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
@@ -67,8 +67,7 @@ export default function EngineCataloguePanel() {
             <label className="text-xs text-white">Search by name or reference<input type="search" value={query} onChange={event => setQuery(event.target.value)} className={field} /></label>
             <label className="text-xs text-white">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
           </div>
-          {!rough.length && !polished.length && <div className="py-8 text-sm text-white">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
-          {rough.length > 0 && <section aria-labelledby="rough-catalogue-title" className="mb-12"><h2 id="rough-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Rough gemstones</span> <span className="text-xs text-white">{rough.length}</span></h2>{grid(rough)}</section>}
+          {!polished.length && <div className="py-8 text-sm text-white">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
           {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Polished stones</span> <span className="text-xs text-white">{polished.length}</span></h2>{grid(polished)}</section>}
         </>}
       </section>
@@ -162,6 +161,9 @@ function GemFacts({ id }: { id: string }) {
 
 function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const facts = GEMSTONE_FACTS[stone.id];
+  const [cut, setCut] = useState('');
+  const cuts = ['Round','Princess','Emerald','Asscher','Cushion','Marquise','Radiant','Oval','Pear','Heart'];
+  const src = `/ames-engine/${stone.id}/web/${cut ? `cuts/${cut}.glb` : 'jewelry.glb'}?v=${GALLERY_VERSION}`;
   // Previous and next stone without going back to the gallery: arrows on the stage, or a swipe across the details
   // (on the stage itself a drag turns the stone). Wraps round at either end.
   const at = Math.max(0, list.findIndex(s => s.id === stone.id));
@@ -179,7 +181,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      <EngineJewelryViewer key={stone.id} src={`/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
+      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
@@ -189,12 +191,13 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
         {list.length > 1 && <span className="shrink-0 text-[11px] text-white">{at + 1} / {list.length}</span>}
       </div>
-      <p className="mt-1 text-[11px] text-white">{facts?.family ?? stone.category} · {stone.cut}</p>
-      {facts && <div className="mt-3"><GemFacts id={stone.id} /></div>}
-      {list.length > 1 && <div className="mt-5 flex items-center justify-between gap-3 text-xs">
-        <button type="button" className="ames-pill min-h-11 rounded-full border border-white/20 px-4" onClick={() => onGo(prev)}>‹ {prev.name}</button>
-        <button type="button" className="ames-pill min-h-11 rounded-full border border-white/20 px-4" onClick={() => onGo(next)}>{next.name} ›</button>
-      </div>}
+      {stone.form === 'faceted' && <label className="mt-3 inline-flex items-center gap-3 text-sm">Cut
+        <select className="min-h-11 rounded-lg bg-[#10372f] px-3" value={cut} onChange={event => setCut(event.target.value)}>
+          <option value="">Original · {stone.cut}</option>
+          {cuts.filter(name => name.toLowerCase() !== stone.cut.toLowerCase()).map(name => <option key={name}>{name}</option>)}
+        </select>
+      </label>}
+      {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>
   </div>;
 }
