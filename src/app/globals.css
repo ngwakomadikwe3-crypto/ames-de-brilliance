@@ -293,7 +293,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: #061d19 url('/ames-silk-bg.webp') center / cover no-repeat;
+  background: #061d19 var(--ames-fabric-photo) center / cover no-repeat;
   filter: saturate(1.08) contrast(1.04);
 }
 .ames-app-shell button,
@@ -380,7 +380,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
 .ames-magazine-page:not([hidden]) { display: flex; }
 .ames-magazine-page[hidden] { display: none !important; }
 .ames-magazine-page > * { width: 100%; min-width: 0; }
-.ames-magazine-page[data-curl-source='true'] { background: #061d19 url('/ames-silk-bg.webp') center / cover no-repeat; will-change: clip-path; }
+.ames-magazine-page[data-curl-source='true'] { background: #061d19 var(--ames-fabric-photo) center / cover no-repeat; will-change: clip-path; }
 .ames-magazine[data-turning] .ames-magazine-page { pointer-events: none; }
 .ames-page-curl { position: fixed; inset: 0; width: 100%; height: 100dvh; z-index: 35; pointer-events: none; overflow: hidden; }
 .ames-curl-corner { position: fixed; right: 0; bottom: 88px; width: 44px; height: 44px; z-index: 40; display: grid; place-items: center; border-radius: 22px 0 0 0; background: linear-gradient(135deg, transparent 20%, rgba(184,208,200,.2) 21%, rgba(3,24,21,.55)); }
@@ -433,7 +433,7 @@ body:has(.ames-app-shell) > main { min-height: 100dvh; }
     inset: -4px;
     z-index: -1;
     pointer-events: none;
-    background: #061d19 url('/ames-silk-bg.webp') center / cover no-repeat;
+    background: #061d19 var(--ames-fabric-photo) center / cover no-repeat;
     filter: saturate(1.1) contrast(1.04) brightness(0.96);
   }
 }
@@ -1000,14 +1000,22 @@ body:has(.ames-account-shell) > footer { display: none; }
   box-shadow: none !important;
 }
 
-.ames-draped-silk {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-  z-index: -1;
-  filter: saturate(1.12) brightness(.94);
+
+.ames-app-shell { --ames-fabric-photo: url('/emerald-weave-wide.webp'); }
+@media (orientation: portrait) {
+  .ames-app-shell { --ames-fabric-photo: url('/emerald-weave.webp'); }
 }
-.ames-app-shell:has(> .ames-draped-silk) .ames-magazine::before { display: none; }
+.ames-app-shell::before,
+.ames-magazine-page[data-curl-source='true']::before { filter: none; }
+.ames-magazine::before { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-ames-app].ames-app-shell::before {
+    inset: -2%;
+    animation: ames-fabric-drift 12s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+}
+@keyframes ames-fabric-drift {
+  from { transform: translate3d(-.6%, -.3%, 0) rotate(-.2deg); }
+  to { transform: translate3d(.6%, .3%, 0) rotate(.2deg); }
+}

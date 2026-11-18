@@ -28,18 +28,6 @@ const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: f
 const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Catalogue"] as const;
 
 export default function AppPage() {
-  const [movingSilk, setMovingSilk] = useState(false);
-  useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: no-preference)');
-    const update = () => setMovingSilk(motion.matches && !document.hidden);
-    update();
-    motion.addEventListener('change', update);
-    document.addEventListener('visibilitychange', update);
-    return () => {
-      motion.removeEventListener('change', update);
-      document.removeEventListener('visibilitychange', update);
-    };
-  }, []);
   const displayName = useSyncExternalStore(subscribeCustomerPreferences, readCustomerDisplayName, () => '');
   const { activePage: activePanel, turn, turnTo, cornerGesture } = usePageCurl(1, PANEL_LABELS.length);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);
@@ -113,7 +101,6 @@ export default function AppPage() {
 
   return (
     <div data-ames-app className="ames-app-shell">
-      {movingSilk && <video aria-hidden="true" className="ames-draped-silk" autoPlay muted loop playsInline disablePictureInPicture src="/ames-draped-silk.mp4" />}
       <style>{`
         :root { background: #061d19; }
         footer { display: none !important; }
