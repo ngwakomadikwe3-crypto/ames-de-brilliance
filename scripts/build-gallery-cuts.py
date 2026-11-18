@@ -75,6 +75,8 @@ for stone in json.loads((ROOT/'src/lib/gemstone-registry.json').read_text()):
     folder = ROOT/'public/ames-engine'/stone['id']/'web'
     raw = (folder/'jewelry.glb').read_bytes()
     source = json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])
-    out = folder/'cuts'
-    out.mkdir(exist_ok=True)
-    for cut in CUTS: write_model(out/(cut+'.glb'),source,cut)
+    # Keep finished meshes outside the engine's legacy /stone-*/ representative-cut path.
+    for cut in CUTS:
+        out = ROOT/'public/ames-engine/gallery-cuts'/cut
+        out.mkdir(parents=True, exist_ok=True)
+        write_model(out/(stone['id']+'.glb'), source, cut)

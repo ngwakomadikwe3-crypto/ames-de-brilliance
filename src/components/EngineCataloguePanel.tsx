@@ -163,7 +163,9 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const facts = GEMSTONE_FACTS[stone.id];
   const [cut, setCut] = useState('');
   const cuts = ['Round','Princess','Emerald','Asscher','Cushion','Marquise','Radiant','Oval','Pear','Heart'];
-  const src = `/ames-engine/${stone.id}/web/${cut ? `cuts/${cut}.glb` : 'jewelry.glb'}?v=${GALLERY_VERSION}`;
+  const src = cut
+    ? `/ames-engine/gallery-cuts/${cut}/${stone.id}.glb?v=${GALLERY_VERSION}`
+    : `/ames-engine/${stone.id}/web/jewelry.glb?v=${GALLERY_VERSION}`;
   // Previous and next stone without going back to the gallery: arrows on the stage, or a swipe across the details
   // (on the stage itself a drag turns the stone). Wraps round at either end.
   const at = Math.max(0, list.findIndex(s => s.id === stone.id));
