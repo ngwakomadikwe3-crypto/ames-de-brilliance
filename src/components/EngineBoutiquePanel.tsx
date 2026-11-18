@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import ModelViewer from './ModelViewer';
+import { houseScript } from '../lib/script-font';
+import housePieces from '../lib/boutique-house-pieces.json';
 import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
 import { SavePiece } from './PieceAccountActions';
@@ -11,7 +13,7 @@ import EngineJewelryViewer from './EngineJewelryViewer';
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 /** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
 const studioPiece = (piece: { assetId: string; listing?: { studio?: boolean } }) => AMES_STUDIO_PIECES.has(piece.assetId) || !!piece.listing?.studio;
-import { boutiqueCategories, boutiqueByCategory, boutiqueGroups, boutiquePrice, loadBoutiqueContent, type BoutiqueCategory, type BoutiquePiece } from '../lib/ames-boutique-content';
+import { boutiqueCategories, boutiqueByCategory, boutiqueGroups, boutiquePrice, type BoutiqueCategory, type BoutiquePiece } from '../lib/ames-boutique-content';
 
 function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: boolean; onOpen: () => void }) {
   const price = boutiquePrice(piece.price);
@@ -24,11 +26,11 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
         {piece.assetId === 'dev-test-earring-001' ? <ModelViewer src={piece.interactiveGlb} alt={piece.name}
           autoRotate={false} cameraControls={false} ar={false} jewelryPresentation metalPreview="yellow-gold" cameraOrbit="35deg 75deg 110%"
           style={{ width: '100%', height: '100%', pointerEvents: 'none' }} /> :
-          <img src={piece.heroImage} alt={piece.name} className="w-full h-full object-contain" loading="lazy" />}
+          <img src={piece.heroImage} alt={piece.name} className="w-full h-full object-contain" loading="eager" />}
       </div>
       <div className="pt-3 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
-          <p className="ames-piece-name" style={{ fontSize: 13, color: '#ffffff' }}>{piece.name}</p>
+          <p className={`ames-piece-name ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 24, color: '#ffffff' }}>{piece.name}</p>
           {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
@@ -56,7 +58,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
+        <h2 className={houseScript.className} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
@@ -76,18 +78,17 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
 }
 
 export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { highlightAssetId: string | null; onAskSame: (piece: BoutiquePiece) => void }) {
-  const [pieces, setPieces] = useState<BoutiquePiece[]>([]);
+  const [pieces, setPieces] = useState<BoutiquePiece[]>(() => (housePieces as BoutiquePiece[]).filter(piece => showCustomerJewelry(piece.assetId)));
   const [category, setCategory] = useState<BoutiqueCategory>('ring');
   const [selected, setSelected] = useState<BoutiquePiece | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [catalogueError, setCatalogueError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
-    Promise.all([loadBoutiqueContent(), loadPublishedBoutiqueContent().catch(e => { if (active) setCatalogueError(e.message); return []; })]).then(parts => parts.flat()).then(value => { if (active) { setPieces(value.filter(piece => showCustomerJewelry(piece.assetId))); setError(false); setLoading(false); } })
-      .catch(() => { if (active) { setError(true); setLoading(false); } });
+    loadPublishedBoutiqueContent().then(listings => {
+      if (active) setPieces([...(housePieces as BoutiquePiece[]), ...listings].filter(piece => showCustomerJewelry(piece.assetId)));
+    }).catch(e => { if (active) setCatalogueError(e.message); });
     return () => { active = false; };
   }, []);
 
@@ -109,12 +110,11 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
       {catalogueError && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
       {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-boutique-scroll>
-          {loading && <div className="h-full flex items-center justify-center" style={{ color: '#ffffff', fontSize: 12 }}>Loading pieces…</div>}
-          {!loading && (error || groups.length === 0) && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>{error ? 'Boutique pieces are unavailable.' : 'No pieces in this category yet.'}</div>}
+          {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="min-h-full px-4 sm:px-8 pb-8 pt-20 mx-auto"
             style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
-            <h2 className="ames-collection-heading" style={{ fontFamily: "var(--font-satoshi)" }}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
+            <h2 className={`ames-collection-heading ames-script-title ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily }}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-7 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>
