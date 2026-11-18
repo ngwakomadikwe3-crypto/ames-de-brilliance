@@ -65,16 +65,43 @@ def write_model(path, source, cut):
                buffers=[{'byteLength':len(data)}], bufferViews=[{'buffer':0,'byteOffset':i*count*12,'byteLength':count*12} for i in range(2)],
                accessors=[{'bufferView':i,'count':count,'componentType':5126,'type':'VEC3'} for i in range(2)])
     doc['accessors'][0].update(min=list(map(min,zip(*positions))),max=list(map(max,zip(*positions))))
+    if source.get('textures'):
+        for field in ('textures', 'images', 'samplers'):
+            if field in source:
+                doc[field] = source[field]
+        xmax = max(abs(x) for x,_,_ in positions)
+        zmax = max(abs(z) for _,_,z in positions)
+        uv = b''.join(struct.pack('<2f', .5+.5*x/xmax, .5-.5*z/zmax) for x,_,z in positions)
+        doc['bufferViews'].append({'buffer':0, 'byteOffset':len(data), 'byteLength':len(uv)})
+        doc['accessors'].append({'bufferView':2,'count':count,'componentType':5126,'type':'VEC2'})
+        doc['meshes'][0]['primitives'][0]['attributes']['TEXCOORD_0'] = 2
+        data += uv
+        doc['buffers'][0]['byteLength'] = len(data)
     header = json.dumps(doc,separators=(',',':')).encode()
     header += b' '*(-len(header)%4)
     path.write_bytes(struct.pack('<4sIIII',b'glTF',2,28+len(header)+len(data),len(header),0x4e4f534a)+header+struct.pack('<I4s',len(data),b'BIN\0')+data)
 
 
 for stone in json.loads((ROOT/'src/lib/gemstone-registry.json').read_text()):
-    if stone['form'] != 'faceted' or 'diamond' in stone['id']: continue
+    if 'diamond' in stone['id']: continue
     folder = ROOT/'public/ames-engine'/stone['id']/'web'
     raw = (folder/'jewelry.glb').read_bytes()
     source = json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])
+    # Share embedded texture images across cuts. Image URIs resolve relative to each model.
+    if source.get('images'):
+        header_size = struct.unpack_from('<I', raw, 12)[0]
+        binary = memoryview(raw)[28 + header_size:]
+        texture_dir = ROOT/'public/ames-engine/gallery-cuts/textures'
+        texture_dir.mkdir(parents=True, exist_ok=True)
+        images = []
+        for index, image in enumerate(source['images']):
+            view = source['bufferViews'][image['bufferView']]
+            start = view.get('byteOffset', 0)
+            extension = {'image/png':'png', 'image/jpeg':'jpg', 'image/webp':'webp'}[image['mimeType']]
+            name = f"{stone['id']}-{index}.{extension}"
+            (texture_dir/name).write_bytes(binary[start:start+view['byteLength']])
+            images.append({'uri': '../textures/'+name, 'mimeType': image['mimeType']})
+        source['images'] = images
     # Keep finished meshes outside the engine's legacy /stone-*/ representative-cut path.
     for cut in CUTS:
         out = ROOT/'public/ames-engine/gallery-cuts'/cut

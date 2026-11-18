@@ -193,12 +193,12 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <h2 style={{ fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
         {list.length > 1 && <span className="shrink-0 text-[11px] text-white">{at + 1} / {list.length}</span>}
       </div>
-      {stone.form === 'faceted' && <label className="mt-3 inline-flex items-center gap-3 text-sm">Cut
+      <label className="mt-3 inline-flex items-center gap-3 text-sm">Cut
         <select className="min-h-11 rounded-lg bg-[#10372f] px-3" value={cut} onChange={event => setCut(event.target.value)}>
           <option value="">Original · {stone.cut}</option>
           {cuts.filter(name => name.toLowerCase() !== stone.cut.toLowerCase()).map(name => <option key={name}>{name}</option>)}
         </select>
-      </label>}
+      </label>
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>
   </div>;
