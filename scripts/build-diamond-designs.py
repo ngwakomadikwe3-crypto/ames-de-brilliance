@@ -116,6 +116,45 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
 folder = base/'ames-iced-watch/web'
 watch, binary = read(folder/'watch-v8.glb')
 gems = [n for n in watch['nodes'] if n.get('extras',{}).get('ames_gemstone_id')]
+# Preserve the printed face while giving the case, bracelet and hands their own finishes.
+for m in watch['materials']:
+    pbr=m.setdefault('pbrMetallicRoughness',{})
+    if 'white gold' in m['name'].lower() or 'Blued hands' in m['name']:
+        brushed='brushed' in m['name'].lower()
+        m['name']=('Brushed' if brushed else 'Polished')+' silver steel'
+        pbr.update(baseColorFactor=[.78,.82,.86,1],metallicFactor=1,roughnessFactor=.26 if brushed else .085)
+    if m['name']=='Dial sunburst':
+        m['name']='White enamel dial';pbr.update(baseColorFactor=[1,1,1,1],metallicFactor=0,roughnessFactor=.25)
+binary=bytearray(binary)
+def add_vec3(values, bounds=False):
+    start=len(binary)
+    for value in values: binary.extend(struct.pack('<3f',*value))
+    view=len(watch['bufferViews'])
+    watch['bufferViews'].append(dict(buffer=0,byteOffset=start,byteLength=len(binary)-start))
+    accessor=dict(bufferView=view,componentType=5126,count=len(values),type='VEC3')
+    if bounds: accessor.update(min=list(map(min,zip(*values))),max=list(map(max,zip(*values))))
+    watch['accessors'].append(accessor)
+    return len(watch['accessors'])-1
+
+def add_beads(node):
+    positions=[];normals=[]
+    for x,y,z,qx,qy,qz,qw,d in struct.iter_unpack('<8f',base64.b64decode(node['extras']['ames_pave_layout'])):
+        for side in (-1,1):
+            for k in range(6):
+                for t,h in [(k+1,0),(k,0),(k+.5,1)]:
+                    angle=t*math.tau/6
+                    u,v,w=math.cos(angle)*(1-h),h,math.sin(angle)*(1-h)
+                    a,b,c=(side*.39+u*.085)*d,(.04+v*.12)*d,(side*.24+w*.085)*d
+                    def orient(a,b,c):
+                        i,j,l=2*(qy*c-qz*b),2*(qz*a-qx*c),2*(qx*b-qy*a)
+                        return a+qw*i+qy*l-qz*j,b+qw*j+qz*i-qx*l,c+qw*l+qx*j-qy*i
+                    dx,dy,dz=orient(a,b,c);positions.append((x+dx,y+dy,z+dz));normals.append(orient(u,v,w))
+    prim=dict(attributes={'POSITION':add_vec3(positions,True),'NORMAL':add_vec3(normals)},material=0)
+    parent=next(p for p in watch['nodes'] if watch['nodes'].index(node) in p.get('children',[]))
+    parent['children'].append(len(watch['nodes']))
+    watch['nodes'].append(dict(name='Setting beads '+node['name'],mesh=len(watch['meshes'])))
+    watch['meshes'].append(dict(primitives=[prim]))
+
 for node in gems:
     if node['name'].startswith('Pavé · bracelet '):
         # The six large stones occupy the centre of the link. Smaller pavé
@@ -130,17 +169,20 @@ for node in gems:
                     records.append((x,1.36,z,0,0,0,1,1.10))
         node['extras']['ames_pave_layout'] = base64.b64encode(b''.join(struct.pack('<8f',*r) for r in records)).decode()
     pink = 'case side' in node['name'] or 'lugs' in node['name'] or ('bracelet ' in node['name'] and int(node['name'].split()[-1])%2==0)
-    colour = [0.96,0.30,0.51] if pink else [0.98,0.72,0.12]
+    white = 'bezel' in node['name'] or 'Crown' in node['name'] or ('bracelet ' in node['name'] and int(node['name'].split()[-1])%3==0)
+    colour = [1,1,1] if white else [0.96,0.34,0.51] if pink else [0.98,0.75,0.19]
+    if 'ames_pave_layout' in node['extras']: add_beads(node)
     mesh = copy.deepcopy(watch['meshes'][node['mesh']])
     node['mesh'] = len(watch['meshes'])
     watch['meshes'].append(mesh)
-    node['extras']['ames_gemstone_id'] = 'house-pink-diamond' if pink else 'house-yellow-diamond'
+    node['extras']['ames_gemstone_id'] = 'house-white-diamond' if white else 'house-pink-sapphire' if pink else 'house-yellow-sapphire'
     for prim in mesh['primitives']:
         m = copy.deepcopy(watch['materials'][prim['material']])
         m['name'] = node['extras']['ames_gemstone_id']
-        m['extensions'] = {'KHR_materials_ior':{'ior':2.417},'KHR_materials_transmission':{'transmissionFactor':1},'KHR_materials_volume':{'thicknessFactor':1,'attenuationColor':colour}}
+        m['extensions'] = {'KHR_materials_ior':{'ior':2.417 if white else 1.762},'KHR_materials_transmission':{'transmissionFactor':1},'KHR_materials_volume':{'thicknessFactor':1,'attenuationColor':colour}}
         prim['material'] = len(watch['materials'])
         watch['materials'].append(m)
+watch['buffers'][0]['byteLength']=len(binary)
 for ext in ('KHR_materials_ior','KHR_materials_volume','KHR_materials_transmission'):
     if ext not in watch['extensionsUsed']: watch['extensionsUsed'].append(ext)
 # Set real diamond hour markers between the dial surface and the crystal.
@@ -198,7 +240,7 @@ def round_case(doc, geometry, buffer_index):
     surface('Watch glass',14.5,0,0)
     surface('Case and lugs',18.3,14.4,6)
     parts['Case and lugs']['translation']=[0,0,7.25]
-    children[:]=[i for i in children if doc['nodes'][i]['name'] not in ('Pavé · bezel','Pavé · case side')]
+    children[:]=[i for i in children if doc['nodes'][i]['name'] not in ('Pavé · bezel','Pavé · case side','Setting beads Pavé · bezel','Setting beads Pavé · case side')]
     # The rectangular case contained the original lugs and winding crown.
     # Rebuild both interfaces around the circular case in head-local millimetres.
     metal = doc['meshes'][parts['Case and lugs']['mesh']]['primitives'][0]['material']

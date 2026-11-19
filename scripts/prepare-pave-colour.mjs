@@ -22,7 +22,7 @@ if(!source.includes(replacement)){
 
 const polished=await readFile(file,'utf8');
 const polishAnchor='handPolish(p)}';
-const watchFinish = "if(hands.length){const brushed=/brushed|satin/i.test(p.name);p.envMap=studio.environment;p.envMapIntensity=brushed ? .88 : 1.12;p.metalness=1;p.clearcoat=0;p.roughness=brushed ? .26 : .105;}";
+const watchFinish = "if(hands.length){const brushed=/brushed|satin/i.test(p.name);p.envMap=brushed?studio.environment:studio.metal;p.envMapIntensity=brushed ? .92 : 1.15;p.metalness=1;p.clearcoat=0;p.roughness=brushed ? .24 : .078;}";
 const roseFinish="if(/rose gold/i.test(p.name)||(new URL(url,window.location.origin).searchParams.get('metal')==='rose-gold'&&/white gold|platinum|silver|rhodium/i.test(p.name))){p.color.setRGB(.96,.47,.36);p.envMapIntensity=1.18;p.roughness=/brushed|satin/i.test(p.name) ? .24 : .10;}";
 const goldPolish=watchFinish+roseFinish+"if(/yellow gold/i.test(p.name)||(new URL(url,window.location.origin).searchParams.get('metal')==='gold'&&/white gold|platinum|silver|rhodium/i.test(p.name))){p.color.setRGB(1,.59,.19);p.envMapIntensity=1.38;p.roughness=/brushed|satin/i.test(p.name) ? .22 : .085;}handPolish(p)}";
 if(!polished.includes(goldPolish)){
