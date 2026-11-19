@@ -18,14 +18,24 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
   }
   const ball=new T.SphereGeometry(1,10,8);
   const cut=new T.LatheGeometry([new T.Vector2(0,-.62),new T.Vector2(1,0),new T.Vector2(.98,.06),new T.Vector2(.57,.39),new T.Vector2(0,.39)],shape==='Princess'?4:12).toNonIndexed();
-  cut.rotateX(Math.PI/2);cut.computeVertexNormals();
-  if(shape==='Pear'){
+  if(kind!=='bracelet'||shape==='Princess')cut.rotateX(Math.PI/2);cut.computeVertexNormals();
+  if(shape==='Pear' && kind!=='bracelet'){
     const p=cut.getAttribute('position');
     for(let i=0;i<p.count;i++){const y=p.getY(i);p.setXYZ(i,p.getX(i)*(1-.48*Math.max(0,y)),y*(y>0?1.5:1),p.getZ(i))}
     cut.computeVertexNormals();
   }
   function jewel(x:number,y:number,z:number,size:number,setting=style){
     const g=mesh(cut,gem,x,y,z);g.scale.setScalar(size);
+    if(kind==='bracelet'){
+      g.userData.ames_optical_mode='closed-dielectric-visual';
+      g.userData.ames_gemstone_id=coloured?'stone-tsavorite-garnet':'stone-diamond';
+      if(shape!=='Princess'){
+        g.userData.ames_cut=shape==='Pear'?'pear':'round';
+        g.rotation.x=Math.PI/2;
+        g.rotateOnWorldAxis(new T.Vector3(0,0,1),Math.atan2(y,x));
+        if(shape==='Pear')g.scale.z*=1.35;
+      }
+    }
     if(setting==='Rub Over Tennis'||setting==='Bezel Set'||setting==='Illusion'){
       circle(size*1.01,size*(setting==='Illusion'?.18:.09),main,x,y,z);
     }else{
