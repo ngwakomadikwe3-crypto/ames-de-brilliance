@@ -8,7 +8,7 @@
   "name": "Pavé solitaire",
   "thumbnail": "web/poster-v3.webp",
   "heroImage": "web/poster-v3.webp",
-  "interactiveGlb": "web/solitaire-ice-blue.glb",
+  "interactiveGlb": "web/solitaire-all-blue.glb",
   "poster": "web/poster-v3.webp",
   "essentialSpecs": {
     "physicalScaleConfirmed": false,

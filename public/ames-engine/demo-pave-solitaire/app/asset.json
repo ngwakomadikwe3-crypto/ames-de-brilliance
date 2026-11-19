@@ -16,7 +16,7 @@
     "Dimensions, metal purity, diamond grading and manufacturing readiness are not verified."
   ],
   "interactive": {
-    "glb": "web/solitaire-ice-blue.glb",
+    "glb": "web/solitaire-all-blue.glb",
     "poster": "web/poster-v3.webp"
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import {DiamondControls,useDiamondDesign} from './DiamondDesign';
 import ModelViewer from './ModelViewer';
 import { houseScript } from '../lib/script-font';
 import housePieces from '../lib/boutique-house-pieces.json';
@@ -43,6 +44,9 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
 }
 
 function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onClose: () => void; onAskSame: () => void }) {
+  const ring = piece.assetId === 'demo-pave-solitaire';
+  const customizable = ring || ['ames-iced-watch','ames-pear-drop-earrings','ames-pear-fringe-necklace','ames-tennis-bracelet'].includes(piece.assetId);
+  const design = useDiamondDesign(piece.interactiveGlb, ring);
   const price = boutiquePrice(piece.price);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
@@ -52,13 +56,14 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
+        {customizable && !design.src ? <p role="status" className="p-8 text-center">{design.error ? "Colour preview unavailable. Choose Original to restore the design." : "Preparing your design…"}</p> : piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={design.src} src={design.src} poster={design.colour || design.cut !== "Original" ? undefined : piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
             autoRotate cameraControls ar={false} jewelryPresentation metalPreview={piece.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 105%' : '35deg 75deg 105%'}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
         <h2 className={houseScript.className} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
+        {customizable && <DiamondControls design={design} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
@@ -108,7 +113,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {catalogueError && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
-      {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
+      {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-boutique-scroll>
           {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
