@@ -1009,13 +1009,17 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-magazine-page[data-curl-source='true']::before { filter: none; }
 .ames-magazine::before { display: none; }
 @media (prefers-reduced-motion: no-preference) {
-  [data-ames-app].ames-app-shell::before {
-    inset: -2%;
-    animation: ames-fabric-drift 12s ease-in-out infinite alternate;
+  .ames-app-shell::before {
+    inset: -4%;
+    background-image: radial-gradient(ellipse at center, rgba(214,241,222,.12), transparent 60%), var(--ames-fabric-photo);
+    background-repeat: no-repeat;
+    background-size: 160% 150%, cover;
+    animation: ames-fabric-swell 24s ease-in-out infinite;
     will-change: transform;
   }
 }
-@keyframes ames-fabric-drift {
-  from { transform: translate3d(-.6%, -.3%, 0) rotate(-.2deg); }
-  to { transform: translate3d(.6%, .3%, 0) rotate(.2deg); }
+@keyframes ames-fabric-swell {
+  0%, 100% { transform: translate3d(-1.4%, -.5%, 0) rotate(-.35deg); background-position: 15% 38%, center; }
+  48% { transform: translate3d(1.6%, 1%, 0) skewX(.65deg) rotate(.35deg); background-position: 82% 62%, center; }
+  76% { transform: translate3d(.2%, -.8%, 0) skewX(-.3deg); background-position: 54% 44%, center; }
 }
