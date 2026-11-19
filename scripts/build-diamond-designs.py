@@ -35,7 +35,7 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
     # Preserve the authored outline's proportions and seat the girdle at the original height.
     width = max(span(original, i) for i in (0, 2))
     setting_width = width
-    width *= .90
+    width *= 1.04
     scale = [width/max(span(incoming, 0), span(incoming, 2))]*3
     scale[1] = span(original, 1)/span(incoming, 1)
     centre['scale'] = scale
@@ -64,7 +64,7 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
                     x = sx*(a[0]+u/(u-v)*(b[0]-a[0]))
                     reach = max(reach, math.sqrt(2)*x*scale[0])
             if reach:
-                factor = reach/(setting_width/2)
+                factor = .95*reach/(setting_width/2)
                 claw['scale']=[factor,1,factor]
     fit_setting(ring,centre)
     start = len(ring['bufferViews'])
@@ -127,6 +127,16 @@ for node in gems:
         watch['materials'].append(m)
 for ext in ('KHR_materials_ior','KHR_materials_volume','KHR_materials_transmission'):
     if ext not in watch['extensionsUsed']: watch['extensionsUsed'].append(ext)
+# Set real diamond hour markers between the dial surface and the crystal.
+head = next(n for n in watch['nodes'] if n['name']=='Watch head')
+crown = next(n for n in watch['nodes'] if n['name']=='Crown diamond')
+for hour in range(12):
+    angle = hour*math.tau/12
+    marker = copy.deepcopy(crown)
+    marker.update(name=f'Dial diamond {hour or 12}',translation=[12.1*math.sin(angle),12.1*math.cos(angle),6.58],
+                  rotation=[math.sqrt(.5),0,0,math.sqrt(.5)],scale=[.93,.78,.93])
+    head['children'].append(len(watch['nodes']))
+    watch['nodes'].append(marker)
 save(folder/'watch-pink-yellow.glb',watch,binary)
 
 for name, width in [('square', 1.19), ('slim', .81)]:

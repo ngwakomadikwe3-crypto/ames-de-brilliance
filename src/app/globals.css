@@ -1043,3 +1043,5 @@ body:has(.ames-account-shell) > footer { display: none; }
 [data-boutique-tile="ames-pear-drop-earrings"] { --piece-framing:inset(10% 10% 9% 8%); }
 [data-boutique-tile="ames-watch-roll"] { --piece-framing:inset(3% 4% 22% 10%); }
 .ames-app-shell .ames-piece-name { line-height:1.12; }
+.ames-app-shell [data-catalogue-panel] > div > :is(header, section) { background:transparent; border:0; box-shadow:none; padding:0; margin:0; }
+.ames-app-shell [data-catalogue-panel] > div > section { margin-top:.4rem; }

@@ -23,6 +23,14 @@ for (const [setting, asset] of Object.entries(templates)) {
   const input = base + '/' + asset + '/' + (setting === 'ring' ? 'web/solitaire-ice-blue.glb' : setting === 'watch' ? 'web/watch-v8.glb' : setting.startsWith('necklace-') && setting !== 'necklace-pear' ? 'web/fringe-'+setting.slice(9)+'.glb' : record.interactiveGlb);
   const model = await io.read(input);
   const root = model.getRoot();
+  if(setting==='watch'){
+    const head=root.listNodes().find(node=>node.getName()==='Watch head');
+    const crown=root.listNodes().find(node=>node.getName()==='Crown diamond');
+    for(let hour=0;hour<12;hour++){
+      const angle=hour*Math.PI/6;
+      head.addChild(model.createNode().setMesh(crown.getMesh()).setExtras({...crown.getExtras()}).setName('Dial diamond '+(hour||12)).setTranslation([12.1*Math.sin(angle),12.1*Math.cos(angle),6.58]).setRotation([Math.SQRT1_2,0,0,Math.SQRT1_2]).setScale([.93,.78,.93]));
+    }
+  }
   const gems = root.listNodes().filter(n => n.getExtras().ames_gemstone_id);
   if (!gems.length) throw Error('Missing gemstones: ' + asset);
   for (const node of gems) {
@@ -45,6 +53,11 @@ for (const [setting, asset] of Object.entries(templates)) {
   for (const stone of [...registry.filter(s => !s.id.includes('diamond')), ...(setting === 'ring' ? [{ id: 'ice-blue' }] : [])]) {
     const blue = stone.id === 'ice-blue';
     const doc = blue ? unpack(await readFile(input)).doc : structuredClone(template);
+    if(setting==='ring'){
+      const centre=doc.nodes.find(node=>node.name==='Solitaire diamond');
+      centre.scale=(centre.scale||[1,1,1]).map((v,i)=>i===1?v:v*1.04);
+      for(const claw of doc.nodes.filter(node=>node.name?.startsWith('Claw ')))claw.scale=[.97,1,.97];
+    }
     let material, mode, id;
     if (stone.id === 'ice-blue') {
       material = doc.materials.find(m => m.name.includes('Ice blue'));

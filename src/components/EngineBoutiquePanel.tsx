@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
-import {useAtelierLanguage,LanguageSwitch} from './AtelierLanguage';
+import {useAtelierLanguage} from './AtelierLanguage';
 import {houseScript} from '../lib/script-font';
 import SizeGuide from './SizeGuide';
 import ModelViewer from './ModelViewer';
@@ -138,7 +138,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
       <nav className="shrink-0 flex items-center justify-start sm:justify-center gap-4 sm:gap-7 px-3 overflow-x-auto" style={{ minHeight: 52, borderTop: '1px solid rgba(238,247,244,0.12)', scrollbarWidth: 'none' }} aria-label="Boutique categories">
         {boutiqueCategories(pieces).map(item => <button key={item.key} type="button" onClick={() => changeCategory(item.key)} aria-current={category === item.key ? 'page' : undefined}
           className="shrink-0" style={{ fontFamily: "var(--font-satoshi)", lineHeight: 1.4, borderBottom: category === item.key ? '1px solid rgba(238,247,244,0.7)' : '1px solid transparent', paddingBottom: 1 }}>{t(item.label)}</button>)}
-      <LanguageSwitch/></nav>
+      </nav>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { studioCameraPreset } from '../lib/customer-jewelry-display';
 import {HouseChoices,diamondCuts} from './HouseChoices';
-import {useAtelierLanguage,LanguageSwitch} from './AtelierLanguage';
+import {useAtelierLanguage} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
 import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
@@ -61,10 +61,9 @@ export default function EngineCataloguePanel() {
   if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
-      <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>{t('Gemstones')}</h1><LanguageSwitch/></header>
+      <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>{t('Gemstones')}</h1></header>
       <input type="search" aria-label="Search gemstones by name or reference" placeholder={t('Search gemstones')} value={query} onChange={event => setQuery(event.target.value)} className={field} />
-      <section aria-label="Available polished stones">
-        {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
+      {state==='ready' && pieces.length>0 && <section aria-label="Available polished stones">
         {state === 'ready' && pieces.length > 0 && <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
             <label className="text-xs text-white">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -72,7 +71,7 @@ export default function EngineCataloguePanel() {
           {!polished.length && <div className="py-8 text-sm text-white">No stones match your search.<button type="button" className="ml-3 min-h-11 underline" onClick={() => { setQuery(''); setSpecies(''); }}>Clear filters</button></div>}
           {polished.length > 0 && <section aria-labelledby="polished-catalogue-title"><h2 id="polished-catalogue-title" className="mb-5 text-xl font-normal"><span className={`${houseScript.className} text-[34px] leading-none`}>Polished stones</span> <span className="text-xs text-white">{polished.length}</span></h2>{grid(polished)}</section>}
         </>}
-      </section>
+      </section>}
       <section aria-label="Gemstone gallery" className="pt-4" data-gemstone-gallery>
         {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
         <GemShowcase stones={gallery} onOpen={openGem}/>}
@@ -95,7 +94,7 @@ function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:Galler
   const [selected,setSelected]=useState('stone-amethyst');
   const stone=stones.find(item=>item.id===selected)??stones[0];
   return <div className="mx-auto max-w-2xl py-1">
-    <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(225px,38dvh,420px)'}}/>
+    <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(190px,29dvh,300px)'}}/>
     <div className="flex items-center justify-between gap-2 py-1"><h2 className="text-4xl" style={{fontFamily:houseScript.style.fontFamily}}>{t(stone.name)}</h2>
       <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>{t('Explore settings')}</button></div>
     <div role="group" aria-label="Choose a gemstone" className="ames-gem-strip">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{t(s.name)}</button>)}</div>
@@ -187,7 +186,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   useEffect(() => { top.current?.scrollTo({ top: 0 }); }, [stone.id]);
   const arrow = 'ames-pill absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full';
   return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-white" data-gem-detail={stone.id}>
-    <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(225px, 43dvh, 450px)' }}>
+    <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(200px, 34dvh, 335px)' }}>
       <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
