@@ -36,7 +36,7 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
     # Preserve the authored outline's proportions and seat the girdle at the original height.
     width = max(span(original, i) for i in (0, 2))
     setting_width = width
-    width *= 1.04
+    width *= 1.18
     scale = [width/max(span(incoming, 0), span(incoming, 2))]*3
     scale[1] = span(original, 1)/span(incoming, 1)
     centre['scale'] = scale
@@ -65,8 +65,11 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
                     x = sx*(a[0]+u/(u-v)*(b[0]-a[0]))
                     reach = max(reach, math.sqrt(2)*x*scale[0])
             if reach:
-                factor = .95*reach/(setting_width/2)
-                claw['scale']=[factor,1,factor]
+                factor = .69*reach/(setting_width/2)
+                claw['scale']=[factor,.68,factor]
+                claw['translation']=[0,.0032,0]
+        rail = next(n for n in doc['nodes'] if n.get('name') == 'Gallery rail')
+        rail['scale'] = [.68,1,.68]
     fit_setting(ring,centre)
     start = len(ring['bufferViews'])
     for view in shape['bufferViews']:
