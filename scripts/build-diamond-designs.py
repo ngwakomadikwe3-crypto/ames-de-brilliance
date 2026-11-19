@@ -2,6 +2,7 @@
 import copy
 import json
 import math
+import base64
 import struct
 from pathlib import Path
 
@@ -113,6 +114,18 @@ folder = base/'ames-iced-watch/web'
 watch, binary = read(folder/'watch-v8.glb')
 gems = [n for n in watch['nodes'] if n.get('extras',{}).get('ames_gemstone_id')]
 for node in gems:
+    if node['name'].startswith('Pavé · bracelet '):
+        # The six large stones occupy the centre of the link. Smaller pavé
+        # covers the two exposed shoulders without bridging the moving links.
+        packed = base64.b64decode(node['extras']['ames_pave_layout'])
+        records = list(struct.iter_unpack('<8f', packed))
+        for side in (-1, 1):
+            for row in range(5):
+                for col in range(5):
+                    x = (col-2)*1.16 + (.18 if row%2 else -.18)
+                    z = side*(2.72 + row*1.25)
+                    records.append((x,1.36,z,0,0,0,1,1.10))
+        node['extras']['ames_pave_layout'] = base64.b64encode(b''.join(struct.pack('<8f',*r) for r in records)).decode()
     pink = 'case side' in node['name'] or 'lugs' in node['name'] or ('bracelet ' in node['name'] and int(node['name'].split()[-1])%2==0)
     colour = [0.96,0.30,0.51] if pink else [0.98,0.72,0.12]
     mesh = copy.deepcopy(watch['meshes'][node['mesh']])
