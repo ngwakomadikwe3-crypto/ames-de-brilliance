@@ -71,6 +71,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
         <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
+        {piece.category==='watch' && <WatchMovement/>}
         {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
         {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide category={piece.category} model={collection.active?collection.src:design.src} wrist={piece.category !== "ring"}/>}
         {collection.controls}
