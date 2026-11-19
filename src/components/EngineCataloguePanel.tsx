@@ -208,7 +208,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
-      {['ring','bracelet','watch'].includes(setting) && <SizeGuide key={setting} wrist={setting!=='ring'}/>}
+      {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={`/ames-engine/jewellery-samples/${setting==="ring" && ringCut ? ringCut+"/" : ""}${stone.id}-${setting}.gltf`} key={setting} wrist={setting!=='ring'}/>}
       {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
       {setting !== 'loose' && <SampleQuote key={setting + ringCut + dropCut} stone={stone.name} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
       {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
