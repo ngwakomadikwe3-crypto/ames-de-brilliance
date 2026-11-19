@@ -4,7 +4,7 @@ import EngineJewelryViewer from './EngineJewelryViewer';
 import {fingerPose,markerWidth} from '../lib/ring-camera';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
-export default function TrackedRing({video,model,measure}:{video:RefObject<HTMLVideoElement|null>;model:string;measure:boolean}){
+export default function TrackedRing({video,model}:{video:RefObject<HTMLVideoElement|null>;model:string}){
   const [pose,setPose]=useState<ReturnType<typeof fingerPose>>(null),[diameter,setDiameter]=useState(0),[status,setStatus]=useState('Loading hand tracking…');
   const layer=useRef<HTMLDivElement>(null);
   const [photo,setPhoto]=useState(''),[captureMessage,setCaptureMessage]=useState('');
@@ -43,14 +43,14 @@ export default function TrackedRing({video,model,measure}:{video:RefObject<HTMLV
           const image=ctx.getImageData(0,0,canvas.width,canvas.height);
           const p=hand?fingerPose(image,hand[13],hand[14]):null;
           setPose(p);
-          const scale=p?.measured&&measure?markerWidth(image):0;
+          const scale=p?.measured?markerWidth(image):0;
           const mm=p&&scale?20*p.width/scale:0;
           if(mm>=8&&mm<=35){history.push(mm);if(history.length>9)history.shift();}
           else history.length=0;
           const values=[...history].sort((a,b)=>a-b);
           const stable=values.length>=7&&values[values.length-1]-values[0]<1.2;
           setDiameter(stable?values[Math.floor(values.length/2)]:0);
-          setStatus(!p?'Show the back of your hand with your fingers slightly apart.':measure&&!scale?'Keep the 20 mm square upright beside your ring finger, at the same height.':measure&&!stable?'Hold still for measurement…':'');
+          setStatus(!p?'Show the back of your hand with your fingers slightly apart.':scale&&!stable?'Hold still for measurement…':'');
         }
         id=requestAnimationFrame(tick);
       }
@@ -58,10 +58,10 @@ export default function TrackedRing({video,model,measure}:{video:RefObject<HTMLV
     }
     start().catch(()=>{if(!closed)setStatus('Hand tracking could not load. Check your connection and reopen the camera.');});
     return ()=>{closed=true;cancelAnimationFrame(id);tracker?.close();};
-  },[video,measure]);
+  },[video]);
   return <>{pose && <div ref={layer} data-ring-photo className="pointer-events-none absolute" style={{left:pose.x*100+'%',top:pose.y*100+'%',width:pose.width/480*150+'%',aspectRatio:1,transform:`translate(-50%,-50%) rotate(${pose.angle}deg)`}}><EngineJewelryViewer src={model} alt="Ring on your finger" autoLoad cameraPreset="setting" opticsProfile="mounted-gem-studio" turntableEnabled={false} style={{width:'100%',height:'100%'}}/></div>}
-    {!measure && pose && !photo && <button type="button" className="absolute bottom-2 left-1/2 z-20 min-h-11 -translate-x-1/2 rounded-full bg-[#08251f] px-4" onClick={takePhoto}>Take photo</button>}
+    {pose && !photo && <button type="button" className="absolute bottom-2 left-1/2 z-20 min-h-11 -translate-x-1/2 rounded-full bg-[#08251f] px-4" onClick={takePhoto}>Take photo</button>}
     {captureMessage && <p role="status" className="absolute inset-x-0 top-0 bg-black/70 p-2">{captureMessage}</p>}
     {photo && <div className="absolute inset-0 z-30 bg-black"><img src={photo} className="h-full w-full object-contain" alt="Your ring try-on photo"/><div className="absolute inset-x-0 bottom-0 flex justify-center gap-4 bg-black/70 p-2"><a className="p-2 underline" href={photo} download="HOUSEofAMES-ring-try-on.jpg">Save photo</a><button type="button" onClick={()=>setPhoto('')}>Retake</button></div></div>}
-    {(status||diameter>0)&&<div role="status" className="absolute inset-x-0 bottom-0 bg-black/75 p-2 text-center text-xs">{diameter>0?`Estimated finger width: ${diameter.toFixed(1)} mm. Confirm fit with a jeweller.`:status}</div>}</>;
+    {!photo && (status||diameter>0)&&<div role="status" className="absolute inset-x-0 top-0 bg-black/75 p-2 text-center text-xs">{diameter>0?`Estimated finger width: ${diameter.toFixed(1)} mm. Confirm fit with a jeweller.`:status}</div>}</>;
 }
