@@ -52,3 +52,13 @@ if(!studioGem.includes(watchReflection)){
   if(!studioGem.includes(reflection)||!studioGem.includes(cacheKey))throw Error('Watch lighting hooks have changed.');
   await writeFile(gemFile,studioGem.replace(reflection,watchReflection).replace(cacheKey,watchKey));
 }
+
+// Keep the transparent ring layer readable when capturing a camera fitting.
+const viewerFile=resolve(dirname(file),'../renderer/JewelryViewer.tsx');
+const viewer=await readFile(viewerFile,'utf8');
+const capture='preserveDrawingBuffer: initialRuntime.webKitMobile === true';
+const captureEnabled=capture+" || (typeof document !== 'undefined' && !!document.querySelector('[data-ring-photo]'))";
+if(!viewer.includes(captureEnabled)){
+  if(!viewer.includes(capture))throw Error('Viewer capture configuration has changed.');
+  await writeFile(viewerFile,viewer.replace(capture,captureEnabled));
+}
