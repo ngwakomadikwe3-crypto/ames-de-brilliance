@@ -7,6 +7,7 @@ import {useAtelierLanguage} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
 import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
+import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
 import registry from '../lib/house-gemstones.json';
@@ -212,6 +213,7 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
         const detail = setting==='watch'?caseShape+' case':setting==='necklace'?dropCut+' drop cut':setting==='ring'&&ringCut?ringCut+' cut':'';
         onAskSame(stone.id, 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
       }}>Ask SAME</button>}
+      {setting==='watch' && <WatchMovement/>}
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
       {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}

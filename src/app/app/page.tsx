@@ -29,21 +29,6 @@ const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: f
 const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Catalogue"] as const;
 
 export default function AppPage() {
-  useEffect(() => {
-    const sound = new Audio('/opening-timer.wav');
-    let active = true;
-    const play = () => {
-      if (active) void sound.play().then(removeListeners).catch(() => {});
-    };
-    function removeListeners() {
-      window.removeEventListener('click', play);
-      window.removeEventListener('keydown', play);
-    }
-    window.addEventListener('click', play);
-    window.addEventListener('keydown', play);
-    play();
-    return () => { active = false; removeListeners(); sound.pause(); };
-  }, []);
   const displayName = useSyncExternalStore(subscribeCustomerPreferences, readCustomerDisplayName, () => '');
   const { activePage: activePanel, turn, turnTo, cornerGesture } = usePageCurl(1, PANEL_LABELS.length);
   const [highlightStone, setHighlightStone] = useState<string | null>(null);

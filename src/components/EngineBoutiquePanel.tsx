@@ -13,6 +13,7 @@ import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
 import { SavePiece } from './PieceAccountActions';
 import { loadPublishedBoutiqueContent, originLabel, stockLabel } from '@/lib/catalogue-content';
+import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
