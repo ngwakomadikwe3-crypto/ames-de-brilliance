@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
+import HouseWordmark from "./HouseWordmark";
+
 interface VideoIntroProps {
   onDone: () => void;
 }
@@ -110,51 +112,14 @@ export default function VideoIntro({ onDone }: VideoIntroProps) {
         </video>
       )}
 
-      {/* AMES letters — snap in one by one with shine sweep */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          gap: 18,
-          opacity: showLetters ? 1 : 0,
-          transition: "opacity 0.1s",
-        }}
-      >
-        {["A", "M", "E", "S"].map((letter, i) => (
-          <span
-            key={letter}
-            style={{
-              fontSize: 48,
-              fontWeight: 600,
-              letterSpacing: "0.18em",
-              color: "#F5F5F2",
-              fontFamily:
-                "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-              opacity: showLetters ? 1 : 0,
-              transform: showLetters ? "translateY(0)" : "translateY(8px)",
-              transition: `opacity 0.15s ${i * 0.06}s, transform 0.15s ${i * 0.06}s`,
-              position: "relative",
-              display: "inline-block",
-            }}
-          >
-            {letter}
-            {/* Shine sweep */}
-            {showLetters && (
-              <span
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)",
-                  backgroundSize: "200% 100%",
-                  animation: `shineSweep 0.6s ${i * 0.06}s ease-out forwards`,
-                  pointerEvents: "none",
-                }}
-              />
-            )}
-          </span>
-        ))}
+      <div style={{
+        position: "relative",
+        opacity: showLetters ? 1 : 0,
+        transition: "opacity 180ms ease",
+        fontSize: "clamp(18px, 5vw, 48px)",
+        textShadow: "0 2px 12px rgba(0,0,0,.65)",
+      }}>
+        <HouseWordmark tone="light" className="!text-[1em]" />
       </div>
 
       {/* Tap hint */}
@@ -175,12 +140,6 @@ export default function VideoIntro({ onDone }: VideoIntroProps) {
         </div>
       )}
 
-      <style>{`
-        @keyframes shineSweep {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
     </div>
   );
 }
