@@ -5,7 +5,7 @@ import {HouseChoices} from './HouseChoices';
 const necklaces=['Prong Set','Rub Over Tennis','Bow Tie','Illusion','Cluster'];
 const bracelets=['Tennis','Prong Set','Bezel Set','Delicate'];
 const bangles=['Claw Set','Channel Set','Pavé Set','Fancy Bangles'];
-const womens=['Diamond Set','Gemstone'];
+const womens=['Diamond Set','Vintage','Gemstone'];
 const mens=['Diamond Set','Gemstone'];
 export function useCollectionStyles(id:string){
   const kind=({'demo-pave-solitaire':'ring','ames-pear-fringe-necklace':'necklace','ames-tennis-bracelet':'bracelet'} as Record<string,string>)[id];
