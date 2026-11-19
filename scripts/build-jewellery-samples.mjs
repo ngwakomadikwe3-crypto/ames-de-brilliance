@@ -55,8 +55,11 @@ for (const [setting, asset] of Object.entries(templates)) {
     const doc = blue ? unpack(await readFile(input)).doc : structuredClone(template);
     if(setting==='ring'){
       const centre=doc.nodes.find(node=>node.name==='Solitaire diamond');
-      centre.scale=(centre.scale||[1,1,1]).map((v,i)=>i===1?v:v*1.04);
-      for(const claw of doc.nodes.filter(node=>node.name?.startsWith('Claw ')))claw.scale=[.97,1,.97];
+      centre.scale=(centre.scale||[1,1,1]).map((v,i)=>i===1?v:v*1.18);
+      for(const claw of doc.nodes.filter(node=>node.name?.startsWith('Claw '))){
+        claw.scale=[.73,.68,.73];
+        claw.translation=[0,.0032,0]; // Compress each claw about its 10 mm base.
+      };
     }
     let material, mode, id;
     if (stone.id === 'ice-blue') {
