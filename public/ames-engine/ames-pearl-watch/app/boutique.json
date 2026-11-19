@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "ames.boutique-content/1",
+  "assetId": "ames-pearl-watch",
+  "revisionId": "ames-pearl-watch:1",
+  "publicationStatus": "review",
+  "visualApproval": "pending",
+  "category": "watch",
+  "name": "AMES Pearl Pav\u00e9",
+  "thumbnail": "web/poster.webp",
+  "heroImage": "web/poster.webp",
+  "interactiveGlb": "web/watch.glb",
+  "poster": "web/poster.webp",
+  "essentialSpecs": {
+    "physicalScaleConfirmed": false,
+    "unitMeaning": "Authored concept; not measured inventory.",
+    "manufacturingReady": false
+  },
+  "categoryTags": [
+    "watch"
+  ]
+}

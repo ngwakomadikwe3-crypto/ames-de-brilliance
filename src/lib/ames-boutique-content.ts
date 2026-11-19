@@ -79,7 +79,7 @@ export function defaultBoutiquePieces(pieces: BoutiquePiece[]): BoutiquePiece[] 
   const seen = new Set<string>();
   return pieces.filter(piece => {
     const category = normalizeCategory(piece.category);
-    if (piece.assetId.startsWith('dev-test-') || seen.has(category)) return false;
+    if (piece.assetId.startsWith('dev-test-') || (seen.has(category) && piece.assetId !== 'ames-pearl-watch')) return false;
     seen.add(category);
     return true;
   });

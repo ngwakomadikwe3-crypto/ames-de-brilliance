@@ -61,7 +61,7 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
   if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
-      <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>{t('Gemstones')}</h1></header>
+      <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily, padding: "0.32em 0.18em 0.05em", lineHeight: 1.25 }}>{t('Gemstones')}</h1></header>
       <input type="search" aria-label="Search gemstones by name or reference" placeholder={t('Search gemstones')} value={query} onChange={event => setQuery(event.target.value)} className={field} />
       {state==='ready' && pieces.length>0 && <section aria-label="Available polished stones">
         {state === 'ready' && pieces.length > 0 && <>

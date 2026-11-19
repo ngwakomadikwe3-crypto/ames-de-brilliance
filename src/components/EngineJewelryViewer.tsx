@@ -1,6 +1,7 @@
 "use client";
 
 import {hapticTap} from '../lib/customer-preferences';
+import HandClasp from './HandClasp';
 import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {useReducedMotion} from '@/lib/use-reduced-motion';
@@ -118,10 +119,12 @@ function SelectedViewer({
   }, [state, src]);
   const toggleOpen = useCallback(() => {
     const canvas = host.current?.querySelector('canvas'); if (!canvas) return;
+    hapticTap();
     canvas.dispatchEvent(new CustomEvent('ames:open', { detail: { open: !opened } })); setOpened(!opened);
   }, [opened]);
   const toggleClasp = useCallback(() => {
     const canvas = host.current?.querySelector('canvas'); if (!canvas) return;
+    hapticTap();
     const next = !flat; setFlat(next); setMeasured(false);
     canvas.dispatchEvent(new CustomEvent('ames:bracelet', { detail: { flat: next } }));
     if (next) { const check = setInterval(() => { if (canvas.dataset.amesBraceletState === 'flat') { setMeasured(true); clearInterval(check); } }, 100); setTimeout(() => clearInterval(check), 4000); }
@@ -132,7 +135,7 @@ function SelectedViewer({
     <div ref={host} onPointerDownCapture={e=>{if((e.target as HTMLElement).tagName==="CANVAS"){setHeld(true);hapticTap();}}} className="ames-object-display" data-ames-engine-host data-viewer-state={state} data-model-source={src} data-optics-profile={opticsProfile} data-camera-preset={cameraPreset} data-zoom={zoom} data-turntable-enabled={effectiveTurntable} aria-label={alt ?? 'Jewelry preview'} style={{ position: "relative", width: "100%", height: "100%", overflow: 'hidden', ...style }}>
       <span aria-hidden="true" className="ames-presentation-frame" />
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
-      {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><JewelryViewer
+      {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><div className="ames-floating-piece" style={{animationPlayState: held || paused || flat || opened ? "paused" : "running"}}><JewelryViewer
         modelUrl={modelUrl}
         cameraPreset={cameraPreset ?? 'three_quarter'} zoom={zoom ?? 1} turntableEnabled={effectiveTurntable} resetToken={resetToken ?? 0}
         paused={paused}
@@ -141,7 +144,7 @@ function SelectedViewer({
         transparentBackground
         onModelReady={handleReady}
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
-      /></ViewerBoundary>}
+      /></div></ViewerBoundary>}
       {state === 'ready' && bracelet && <div data-bracelet-measure className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2" style={{ width: 'max-content', maxWidth: 'calc(100% - 24px)' }}>
         {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
         {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
@@ -149,9 +152,11 @@ function SelectedViewer({
         </span>}
         {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">Drag to rotate · pinch to zoom</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
+        <HandClasp onPose={open=>{if(open!==flat)toggleClasp()}} />
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2">
         <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
+        <HandClasp onPose={open=>{if(open!==opened)toggleOpen()}} />
       </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-white">Loading interactive 3D…</span>}
