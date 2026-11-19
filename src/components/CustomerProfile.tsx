@@ -74,20 +74,14 @@ export default function CustomerProfile() {
 
   }
 
-  return <AppAccountShell title="Your profile">
+  return <AppAccountShell title={user ? "Your profile" : "Your account"}>
 
     <div className="space-y-6" data-customer-profile>
 
       <CustomerAccount user={user} onChange={changeUser} onReady={setReady} />
 
-      <div className="flex items-center gap-4 rounded-2xl border border-white/15 bg-[#031815]/60 p-5">
-
-        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-white/25 text-xl" aria-hidden="true">{(user?.name || storedName || 'Guest').slice(0, 1).toUpperCase()}</span>
-
-        <div className="min-w-0"><h2 className="break-words text-xl">{user?.name || storedName || 'Guest profile'}</h2><p className="text-xs text-white">{user ? 'Saved to your customer account' : 'Guest preferences saved on this device'}</p></div>
-
-      </div>
-
+      <details key={user?.id || 'guest'} open={user ? true : undefined}>
+        <summary className="cursor-pointer py-3 text-sm">{user ? 'Profile preferences' : 'Guest settings on this device'}</summary>
       <form onSubmit={save} aria-busy={saving} className="space-y-6 rounded-2xl border border-white/15 bg-[#031815]/60 p-5">
 
         <label htmlFor="display-name" className="block text-sm">Display name
@@ -125,10 +119,11 @@ export default function CustomerProfile() {
         {error && <p role="alert" className="text-sm text-red-200">{error}</p>}
 
       </form>
+      </details>
 
-      <nav aria-label="Profile links" className="flex flex-wrap gap-5 text-sm"><Link href="/app/billing" className="underline">Billing information</Link><Link href="/app" className="underline">Return to AMES</Link></nav>
+      {user && <nav aria-label="Profile links" className="flex flex-wrap gap-5 text-sm"><Link href="/app/billing" className="underline">Billing information</Link></nav>}
 
-      <p className="text-xs text-white">Signed-in names and haptic preferences are saved to your account. Guest preferences, chat history and saved media remain specific to this browser; signing in does not transfer them between devices.</p>
+
 
     </div>
 

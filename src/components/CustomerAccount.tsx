@@ -96,7 +96,7 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
 
   return <section aria-label="Customer account" className="space-y-4 rounded-2xl border border-white/15 bg-[#031815]/60 p-5">
 
-    <h2 className="text-xl">Your HOUSEofAMES account</h2>
+
 
     {loading ? <p role="status">Checking your account…</p> : user && !link ? <>
 
@@ -118,7 +118,7 @@ export default function CustomerAccount({ user, onChange, onReady }: { user: Cus
 
     </> : <>
 
-      <p className="text-sm text-white">Sign in to save your name and preferences across devices.</p>
+
       {!link && ['login', 'register'].includes(mode) && <SocialSignIn />}
 
       {!link && <div className="flex flex-wrap gap-4 text-sm" aria-label="Account options">{[['login', 'Sign in'], ['register', 'Create account'], ['recover', 'Forgot password']].map(([value, label]) => <button key={value} disabled={busy} type="button" aria-pressed={mode === value} onClick={() => { setMode(value); setError(''); setNotice(''); }} className={mode === value ? 'underline text-white' : 'text-white'}>{label}</button>)}</div>}
