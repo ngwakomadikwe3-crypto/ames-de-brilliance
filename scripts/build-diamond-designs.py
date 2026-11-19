@@ -181,7 +181,7 @@ def round_case(doc, geometry, buffer_index):
         def vertex(r, angle, z, side=False):
             x,y=math.cos(angle),math.sin(angle)
             pos.append((r*x,r*y,z)); norm.append((x,y,0) if side else (0,0,1))
-            uv.append((.5+.5*r*x/radius,.5+.5*r*y/radius))
+            uv.append((.5+.5*r*x/radius,.5-.5*r*y/radius))
         for k in range(96):
             a,b=k*math.tau/96,(k+1)*math.tau/96
             for r,t in [(inner,a),(radius,a),(radius,b),(inner,a),(radius,b),(inner,b)]:
@@ -199,6 +199,36 @@ def round_case(doc, geometry, buffer_index):
     surface('Case and lugs',18.3,14.4,6)
     parts['Case and lugs']['translation']=[0,0,7.25]
     children[:]=[i for i in children if doc['nodes'][i]['name'] not in ('Pavé · bezel','Pavé · case side')]
+    # The rectangular case contained the original lugs and winding crown.
+    # Rebuild both interfaces around the circular case in head-local millimetres.
+    metal = doc['meshes'][parts['Case and lugs']['mesh']]['primitives'][0]['material']
+    def solid(name, outline, lower, upper, crown=False):
+        positions, normals = [], []
+        def triangle(a,b,c):
+            u=[b[i]-a[i] for i in range(3)]
+            v=[c[i]-a[i] for i in range(3)]
+            n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]]
+            mag=math.hypot(*n)
+            positions.extend((a,b,c)); normals.extend([tuple(x/mag for x in n)]*3)
+        top=[(*p,upper) for p in outline]; bottom=[(*p,lower) for p in outline]
+        for i in range(1,len(top)-1):
+            triangle(top[0],top[i],top[i+1]); triangle(bottom[0],bottom[i+1],bottom[i])
+        for i in range(len(top)):
+            j=(i+1)%len(top)
+            triangle(bottom[i],bottom[j],top[j]); triangle(bottom[i],top[j],top[i])
+        mesh=len(doc['meshes'])
+        doc['meshes'].append(dict(primitives=[dict(material=metal,attributes=dict(POSITION=accessor(positions,'VEC3'),NORMAL=accessor(normals,'VEC3')))]))
+        node=dict(name=name,mesh=mesh)
+        if crown: node.update(rotation=[0,math.sqrt(.5),0,math.sqrt(.5)],translation=[0,0,3.8])
+        children.append(len(doc['nodes']));doc['nodes'].append(node)
+    for side in [-1,1]:
+        outline=[(-10.6,13),(10.6,13),(10.6,20.8),(8.5,24.7),(-8.5,24.7),(-10.6,20.8)]
+        solid('Integrated bracelet end link '+str(side),[(x*side,y*side) for x,y in outline],1.3,7.1)
+    rim=[(2.0*math.cos(k*math.tau/48),2.0*math.sin(k*math.tau/48)) for k in range(48)]
+    solid('Winding crown',rim,17.6,20.7,True)
+    parts['Crown diamond']['translation']=[20.9,0,3.8]
+    disc=[(17.8*math.cos(k*math.tau/96),17.8*math.sin(k*math.tau/96)) for k in range(96)]
+    solid('Circular caseback',disc,.9,1.5)
     for k in range(64):
         a=k*math.tau/64
         gem=copy.deepcopy(parts['Dial diamond 12'])

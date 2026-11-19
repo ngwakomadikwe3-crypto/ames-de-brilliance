@@ -1001,7 +1001,7 @@ body:has(.ames-account-shell) > footer { display: none; }
 }
 
 
-.ames-app-shell { --ames-fabric-photo: url('/emerald-scales.png'); }
+.ames-app-shell { --ames-fabric-photo: url('/emerald-satin.png'); }
 .ames-app-shell::before,
 .ames-magazine-page[data-curl-source='true'],
 .ames-magazine-page[data-curl-source='true']::before {
@@ -1060,3 +1060,11 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-app-shell [data-catalogue-panel] button.ames-stone-option { display:grid; justify-items:center; align-content:end; padding:.25rem; background:transparent; border:0; border-bottom:1px solid rgb(255 255 255 / .18); border-radius:0; box-shadow:none; font-family:var(--font-satoshi); }
 .ames-stone-option img { width:100%; height:clamp(72px,12dvh,110px); object-fit:contain; }
 .ames-stone-option span { padding-bottom:.35rem; font-size:.9rem; }
+
+.ames-object-display[data-model-source*="watch"] [data-bracelet-measure] {
+  left: auto;
+  right: .5rem;
+  bottom: .35rem;
+  transform: none;
+  translate: none;
+}
