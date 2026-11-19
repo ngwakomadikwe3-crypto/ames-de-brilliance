@@ -82,21 +82,6 @@
     ]
   },
   {
-    "id": "stone-black-opal",
-    "name": "Black opal",
-    "sourceId": "stone-opal",
-    "tint": "#39354c",
-    "aliases": [
-      "black opal"
-    ],
-    "category": "Black opal",
-    "form": "cabochon with play of color",
-    "cut": "oval cabochon",
-    "defaultColors": [
-      "dark body"
-    ]
-  },
-  {
     "id": "stone-chrysoberyl",
     "name": "Chrysoberyl",
     "sourceId": "stone-alexandrite",
