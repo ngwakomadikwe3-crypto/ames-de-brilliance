@@ -122,7 +122,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {catalogueError && !pieces.length && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
       {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-boutique-scroll>
+        <div ref={scrollRef} className="flex-initial min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-boutique-scroll>
           {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="ames-compact-collection px-4 sm:px-8 mx-auto"
