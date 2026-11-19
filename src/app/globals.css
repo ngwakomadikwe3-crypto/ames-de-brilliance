@@ -1099,3 +1099,25 @@ body:has(.ames-account-shell) > footer { display: none; }
     to { transform: translateY(-5px); }
   }
 }
+/* Colourways share the original satin fold map and its motion. */
+.ames-app-shell[data-silk=burgundy] { --ames-fabric-photo:url('/satin-burgundy.webp'); --silk-surface:#30131d; }
+.ames-app-shell[data-silk=dark] { --ames-fabric-photo:url('/satin-dark.webp'); --silk-surface:#212225; }
+.ames-app-shell[data-silk=white] { --ames-fabric-photo:url('/satin-white.webp'); --silk-surface:#faf9f7; --silk-ink:#141414; color-scheme:light; }
+.ames-app-shell:is([data-silk=dark],[data-silk=burgundy]) { --silk-ink:#f5f5f5; color-scheme:dark; }
+.ames-app-shell[data-silk]:not([data-silk=emerald]) :is([data-app-bar],[data-app-menu],.ames-page-index,[data-chat-surface],[data-chat-message=assistant],dialog) {
+  background:var(--silk-surface) !important; color:var(--silk-ink) !important;
+}
+.ames-app-shell[data-silk]:not([data-silk=emerald]) :is([data-chat-panel],[data-boutique-panel],[data-media-panel],[data-auction-panel],[data-catalogue-panel]) {
+  background:transparent !important; color:var(--silk-ink) !important;
+}
+.ames-app-shell [data-app-menu] select { background:var(--silk-surface,#13362e); color:var(--silk-ink,#fff); }
+.ames-app-shell[data-silk=white] { color:var(--silk-ink); }
+.ames-app-shell[data-silk=white] :is(h1,h2,h3,h4,p,label,summary,small,a,button,.text-white,.ames-collection-heading,.ames-piece-name,[style*="color: rgb(255, 255, 255)"],[style*="color:#ffffff"],[style*="color: #ffffff"]) {
+  color:var(--silk-ink) !important; text-shadow:none !important;
+}
+.ames-app-shell[data-silk=white] :is(input,textarea,select,[data-chat-message],.field-input,[data-gallery-stone],[class*="bg-[#0"],[class*="bg-[#1"],[class*="bg-emerald-9"],[role=status]) {
+  color:#141414 !important; background-color:#f5f4f1 !important;
+}
+.ames-app-shell[data-silk=white] [data-app-bar] button[aria-label=Menu] span {background:#141414 !important;}
+.ames-app-shell[data-silk=white] [aria-label='Boutique categories'] button[aria-current] {border-color:currentColor !important;}
+.ames-app-shell[data-silk=white] :is(.ames-page-index,[class*="border-white"]) {border-color:rgb(20 20 20 / .25) !important;}

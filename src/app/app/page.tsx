@@ -49,6 +49,16 @@ export default function AppPage() {
   const [chatPrefill, setChatPrefill] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatAssetId, setChatAssetId] = useState<string | null>(null);
+  const backgrounds=['Emerald','Burgundy','White','Dark'] as const;
+  type Background=typeof backgrounds[number];
+  const [background,setBackground]=useState<Background>('Emerald');
+  useEffect(()=>{
+    try{const saved=localStorage.getItem('ames-silk-colour');if(saved==='Burgundy'||saved==='White'||saved==='Dark')setBackground(saved)}catch{}
+  },[]);
+  function chooseBackground(value:Background){
+    setBackground(value);
+    try{localStorage.setItem('ames-silk-colour',value)}catch{}
+  }
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Each page reloads its own content when pulled down; the other pages keep their state.
   const [refreshTokens, setRefreshTokens] = useState([0, 0, 0, 0]);
@@ -115,7 +125,7 @@ export default function AppPage() {
   ];
 
   return (
-    <div data-ames-app className="ames-app-shell">
+    <div data-ames-app data-silk={background.toLowerCase()} className="ames-app-shell">
       <style>{`
         :root { background: #061d19; }
         footer { display: none !important; }
@@ -126,7 +136,7 @@ export default function AppPage() {
       {!introDone && <VideoIntro onDone={() => setIntroDone(true)} />}
 
       {/* Minimal transparent top bar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(3,24,21,0.46)', borderBottom: '1px solid rgba(238,247,244,0.1)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+      <div data-app-bar className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-11" style={{ background: 'rgba(3,24,21,0.46)', borderBottom: '1px solid rgba(238,247,244,0.1)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
         <button onClick={() => { hapticTap(); setDrawerOpen(!drawerOpen); }} className="flex flex-col justify-center items-center w-9 h-9 gap-[5px] shrink-0 z-60" aria-label="Menu" aria-expanded={drawerOpen}>
           <span className="block w-5 h-[1.5px] rounded-full" style={{ background: '#ffffff', transition: 'all 0.3s' }} />
           <span className="block w-4 h-[1.5px] rounded-full" style={{ background: '#ffffff', transition: 'all 0.3s' }} />
@@ -153,11 +163,16 @@ export default function AppPage() {
       {drawerOpen && (
         <div className="fixed inset-0 z-[70]" onClick={() => setDrawerOpen(false)}>
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
-          <div className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: 'rgba(3,25,22,0.92)', border: '1px solid rgba(238,247,244,0.14)', backdropFilter: 'blur(18px)' }} onClick={e => e.stopPropagation()}>
+          <div data-app-menu className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: 'rgba(3,25,22,0.92)', border: '1px solid rgba(238,247,244,0.14)', backdropFilter: 'blur(18px)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(238,247,244,0.12)' }}>
               <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#ffffff' }}>AMES</div>
               <div className="mt-2 break-words text-sm text-white" data-customer-name>{displayName || 'Guest profile'}</div>
             </div>
+            <label className="flex items-center justify-between gap-3 px-5 pt-3 text-sm">Silk background
+              <select value={background} onChange={e=>chooseBackground(e.target.value as Background)} className="min-h-10 rounded px-2">
+                {backgrounds.map(value=><option key={value}>{value}</option>)}
+              </select>
+            </label>
             <div className="py-2">
               {NAV_ITEMS.map((item) => (
                 <button
