@@ -1001,30 +1001,32 @@ body:has(.ames-account-shell) > footer { display: none; }
 }
 
 
-.ames-app-shell { --ames-fabric-photo: url('/emerald-satin.png'); }
+
+.ames-app-shell {
+  --ames-fabric-photo:
+    radial-gradient(ellipse 76% 150% at -13% -28%, transparent 58%, #001d1ace 64%, #073d36e8 67%, #3f9b83c4 69%, #164e46d9 71%, transparent 75%),
+    radial-gradient(ellipse 97% 122% at 105% 114%, #082924 15%, #0c453c 30%, #1d7765 34%, #358a75 35%, #125549 37%, #042420 42%, transparent 52%),
+    radial-gradient(ellipse 96% 152% at -15% -22%, #041f1b 34%, #105248 48%, #287461 51%, #07392f 54%, #011f1b 60%, #0c463c 65%, #2e8270 68%, #104f43 71%, #031f1c 82%);
+}
 .ames-app-shell::before,
 .ames-magazine-page[data-curl-source='true'],
 .ames-magazine-page[data-curl-source='true']::before {
-  background-size: cover;
+  background-image: var(--ames-fabric-photo);
   background-repeat: no-repeat;
+  background-size: 113% 114%, 118% 118%, 110% 114%;
+  background-position: 46% 42%, 51% 48%, center;
+  filter: none;
 }
-.ames-app-shell::before,
-.ames-magazine-page[data-curl-source='true']::before { filter: none; }
 .ames-magazine::before { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .ames-app-shell::before {
-    inset: -4%;
-    background-image: radial-gradient(ellipse at center, rgba(214,241,222,.12), transparent 60%), var(--ames-fabric-photo);
-    background-repeat: no-repeat, no-repeat;
-    background-size: 160% 150%, cover;
-    animation: ames-fabric-swell 24s ease-in-out infinite;
-    will-change: transform;
+    inset: -3%;
+    animation: ames-satin-light 16s ease-in-out infinite alternate;
   }
 }
-@keyframes ames-fabric-swell {
-  0%, 100% { transform: translate3d(-1.4%, -.5%, 0) rotate(-.35deg); background-position: 15% 38%, center; }
-  48% { transform: translate3d(1.6%, 1%, 0) skewX(.65deg) rotate(.35deg); background-position: 82% 62%, center; }
-  76% { transform: translate3d(.2%, -.8%, 0) skewX(-.3deg); background-position: 54% 44%, center; }
+@keyframes ames-satin-light {
+  from { background-position: 18% 30%, 72% 65%, 44% 48%; transform: translate3d(-.7%, 0, 0); }
+  to { background-position: 78% 53%, 24% 32%, 56% 52%; transform: translate3d(.7%, .4%, 0); }
 }
 
 .ames-app-shell [data-gallery-stone] { background: #143830; border-color: rgb(240 237 218 / .18); box-shadow: none; }
