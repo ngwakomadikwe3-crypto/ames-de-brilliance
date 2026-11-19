@@ -1068,3 +1068,21 @@ body:has(.ames-account-shell) > footer { display: none; }
   transform: none;
   translate: none;
 }
+
+/* Give the mounted piece room to rotate beneath the fixed navigation. */
+.ames-app-shell :is([data-gem-detail], [data-boutique-detail]) {
+  padding-top: calc(env(safe-area-inset-top, 0px) + clamp(88px, 11dvh, 108px));
+  scroll-padding-top: 88px;
+}
+.ames-app-shell :is([data-gem-detail], [data-boutique-detail]) > .ames-jewelry-stage {
+  height: clamp(265px, 52dvh, 570px) !important;
+  max-width: 960px !important;
+}
+@media (max-height: 480px) {
+  .ames-app-shell :is([data-gem-detail], [data-boutique-detail]) {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 76px);
+  }
+  .ames-app-shell :is([data-gem-detail], [data-boutique-detail]) > .ames-jewelry-stage {
+    height: clamp(185px, 55dvh, 265px) !important;
+  }
+}
