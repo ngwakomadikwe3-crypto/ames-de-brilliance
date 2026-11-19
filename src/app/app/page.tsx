@@ -144,7 +144,7 @@ export default function AppPage() {
         </button>
         <button type="button" onClick={startFreshChat} aria-label="HOUSEofAMES — new chat"
           className="absolute left-[3.25rem] select-none" style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer' }}>
-          <HouseWordmark size={12.5} />
+          <HouseWordmark size={14} tone={background === "White" ? "ink" : "light"} />
         </button>
         {/* Platinum glyph */}
         <svg viewBox="0 0 24 24" fill="none" style={{ width: 20, height: 20 }} aria-hidden="true">
