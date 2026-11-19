@@ -95,7 +95,7 @@ function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:Galler
   const stone=stones.find(item=>item.id===selected)??stones[0];
   return <div className="mx-auto max-w-2xl py-1">
     <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(190px,29dvh,300px)'}}/>
-    <div className="flex items-center justify-between gap-2 py-1"><h2 className="text-4xl" style={{fontFamily:houseScript.style.fontFamily}}>{t(stone.name)}</h2>
+    <div className="flex items-center justify-between gap-2 py-1"><h2 className="text-2xl" style={{fontFamily:'var(--font-satoshi)'}}>{t(stone.name)}</h2>
       <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>{t('Explore settings')}</button></div>
     <div role="group" aria-label="Choose a gemstone" className="ames-gem-strip">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{t(s.name)}</button>)}</div>
   </div>;
@@ -205,7 +205,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
       onTouchEnd={e => { const s0 = swipe.current, t = e.changedTouches[0]; swipe.current = null; if (!s0 || list.length < 2) return;
         const dx = t.clientX - s0.x, dy = t.clientY - s0.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onGo(dx < 0 ? next : prev); }}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className={houseScript.className} style={{ fontFamily:houseScript.style.fontFamily, fontSize: 38, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
+        <h2 style={{ fontFamily:'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}

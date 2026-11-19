@@ -35,7 +35,7 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       </div>
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
-          <p className="ames-piece-name" style={{ fontFamily: houseScript.style.fontFamily, fontSize: 29, color: '#ffffff' }}>{t(piece.name)}</p>
+          <p className="ames-piece-name" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 22, color: '#ffffff' }}>{t(piece.name)}</p>
           {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
@@ -67,7 +67,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2  style={{ fontFamily: houseScript.style.fontFamily, fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
+        <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
         {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
         {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide wrist={piece.category !== "ring"}/>}
         {customizable && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
