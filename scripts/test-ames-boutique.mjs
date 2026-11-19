@@ -14,7 +14,7 @@ test('loads the engine Boutique record without inventing price or approval', asy
   const piece = pieces.find(item => item.assetId === 'demo-pave-solitaire');
   assert.ok(piece);
   assert.equal(piece.category, 'ring');
-  assert.equal(piece.interactiveGlb, '/ames-engine/demo-pave-solitaire/web/solitaire-v4.glb');
+  assert.equal(piece.interactiveGlb, '/ames-engine/demo-pave-solitaire/web/solitaire-ice-blue.glb');
   assert.equal(piece.revisionId, 'demo-pave-solitaire:1');
   assert.equal(piece.poster, '/ames-engine/demo-pave-solitaire/web/poster-v3.webp');
   assert.equal(piece.price, undefined);
