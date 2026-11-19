@@ -35,7 +35,7 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       </div>
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
-          <p className="ames-piece-name" style={{ fontFamily: piece.category==='necklace'?houseScript.style.fontFamily:'var(--font-satoshi)', fontSize: 24, color: '#ffffff' }}>{t(piece.name)}</p>
+          <p className="ames-piece-name" style={{ fontFamily: houseScript.style.fontFamily, fontSize: 29, color: '#ffffff' }}>{t(piece.name)}</p>
           {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
@@ -67,7 +67,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2  style={{ fontFamily: piece.category==='necklace'?houseScript.style.fontFamily:'var(--font-satoshi)', fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
+        <h2  style={{ fontFamily: houseScript.style.fontFamily, fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
         {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
         {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide wrist={piece.category !== "ring"}/>}
         {customizable && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
@@ -120,14 +120,14 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
 
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
-      {catalogueError && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
+      {catalogueError && !pieces.length && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
       {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
-        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }} data-boutique-scroll>
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-boutique-scroll>
           {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
-            className="min-h-full px-4 sm:px-8 pb-8 pt-20 mx-auto"
-            style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
-            <h2 className="ames-collection-heading" style={{ fontFamily:category==='necklace'?houseScript.style.fontFamily:'var(--font-satoshi)' }}>{t(boutiqueCategories(pieces).find(item => item.key === category)?.label??'')}</h2>
+            className="ames-compact-collection px-4 sm:px-8 mx-auto"
+            style={{ maxWidth: 760 }}>
+            <h2 className="ames-collection-heading text-center" style={{ fontFamily:houseScript.style.fontFamily }}>{t(boutiqueCategories(pieces).find(item => item.key === category)?.label??'')}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>

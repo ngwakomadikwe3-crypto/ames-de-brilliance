@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from 'react';
+import {houseScript} from '../lib/script-font';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import ModelViewer from './ModelViewer';
 import { DEFAULT_CHAT_ASSET_ID, CONCEPT_DIAMOND_ASSET_ID } from '../lib/chat-asset-selection';
@@ -89,7 +90,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
             {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
           </div>}
       </div>
-      {content?.contract.assetId === DEFAULT_CHAT_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-white">Pavé solitaire · Interactive concept · Not for sale</p>}
+      {content?.contract.assetId === DEFAULT_CHAT_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-white"><span style={{fontFamily:houseScript.style.fontFamily,fontSize:24}}>Pavé solitaire</span> · Interactive concept · Not for sale</p>}
       {content?.contract.assetId === CONCEPT_DIAMOND_ASSET_ID && <p data-demonstration-label className="mt-1 text-[10px] tracking-wide text-white">AMES Éclat · Concept diamond · Not for sale</p>}
       {content?.contract.assetId === 'dev-test-earring-001' && <p className="mt-1 text-[10px] text-white">Yellow-gold material preview · finish unverified</p>}
       {content && (

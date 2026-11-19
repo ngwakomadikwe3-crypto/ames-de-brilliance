@@ -1029,3 +1029,17 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-gem-strip { display:flex; gap:.375rem; overflow-x:auto; padding:.25rem 0 .5rem; scrollbar-width:thin; }
 .ames-app-shell .ames-gem-strip button[data-gem-choice] { flex:none; min-height:44px; padding:0 1rem; background:transparent; border:1px solid rgb(255 255 255 / .24); border-radius:999px; box-shadow:none; text-decoration:none; }
 .ames-app-shell .ames-gem-strip button[aria-pressed=true] { background:#e3ece4; color:#11362c; }
+
+/* Let the visible piece, rather than the transparent poster canvas, set the framing. */
+.ames-compact-collection { padding-block: .25rem .65rem; }
+.ames-compact-collection:first-child { padding-top: clamp(44px,8dvh,68px); }
+.ames-app-shell .ames-compact-collection .ames-collection-heading { font-size: clamp(32px,4.2vw,44px); line-height:1.06; margin:0 0 .25rem; letter-spacing:0; }
+.ames-app-shell .ames-piece-tile .ames-piece-image { aspect-ratio:auto; height:clamp(124px,31dvh,290px); mask-image:none; }
+.ames-app-shell .ames-piece-tile .ames-piece-image > img { object-fit:contain; object-position:center; object-view-box:var(--piece-framing,inset(0)); }
+[data-boutique-tile="demo-pave-solitaire"] { --piece-framing:inset(7% 15% 12% 17%); }
+[data-boutique-tile="ames-iced-watch"] { --piece-framing:inset(18% 33% 16% 21%); }
+[data-boutique-tile="ames-tennis-bracelet"] { --piece-framing:inset(27% 0% 21% 2%); }
+[data-boutique-tile="ames-pear-fringe-necklace"] { --piece-framing:inset(20% 22% 15% 22%); }
+[data-boutique-tile="ames-pear-drop-earrings"] { --piece-framing:inset(10% 10% 9% 8%); }
+[data-boutique-tile="ames-watch-roll"] { --piece-framing:inset(3% 4% 22% 10%); }
+.ames-app-shell .ames-piece-name { line-height:1.12; }
