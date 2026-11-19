@@ -1,5 +1,6 @@
 "use client";
 
+import {backgrounds,chooseBackground,useSilk,type Background} from '@/components/SilkPreference';
 import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { subscribeCustomerPreferences, readCustomerDisplayName, hapticTap } from '../../lib/customer-preferences';
 import { customerAnswer } from '../../lib/same-answer';
@@ -49,16 +50,7 @@ export default function AppPage() {
   const [chatPrefill, setChatPrefill] = useState("");
   const [chatDraft, setChatDraft] = useState("");
   const [chatAssetId, setChatAssetId] = useState<string | null>(null);
-  const backgrounds=['Emerald','Burgundy','White','Dark'] as const;
-  type Background=typeof backgrounds[number];
-  const [background,setBackground]=useState<Background>('Emerald');
-  useEffect(()=>{
-    try{const saved=localStorage.getItem('ames-silk-colour');if(saved==='Burgundy'||saved==='White'||saved==='Dark')setBackground(saved)}catch{}
-  },[]);
-  function chooseBackground(value:Background){
-    setBackground(value);
-    try{localStorage.setItem('ames-silk-colour',value)}catch{}
-  }
+  const background=useSilk();
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Each page reloads its own content when pulled down; the other pages keep their state.
   const [refreshTokens, setRefreshTokens] = useState([0, 0, 0, 0]);

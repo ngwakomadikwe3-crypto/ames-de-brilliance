@@ -1121,3 +1121,15 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-app-shell[data-silk=white] [data-app-bar] button[aria-label=Menu] span {background:#141414 !important;}
 .ames-app-shell[data-silk=white] [aria-label='Boutique categories'] button[aria-current] {border-color:currentColor !important;}
 .ames-app-shell[data-silk=white] :is(.ames-page-index,[class*="border-white"]) {border-color:rgb(20 20 20 / .25) !important;}
+
+html[data-silk=white]{--site-silk:url('/satin-white.webp');--site-ink:#141414;--site-surface:#faf9f7}
+html[data-silk=dark]{--site-silk:url('/satin-dark.webp');--site-ink:#f5f5f5;--site-surface:#212225}
+html[data-silk=burgundy]{--site-silk:url('/satin-burgundy.webp');--site-ink:#f5f5f5;--site-surface:#30131d}
+html:is([data-silk=white],[data-silk=dark],[data-silk=burgundy]) body:not(:has(.ames-app-shell)){
+ background:var(--site-surface) var(--site-silk) center/cover fixed; color:var(--site-ink);
+ --color-background:transparent;--color-foreground:var(--site-ink);--color-surface:var(--site-surface);--color-muted:var(--site-ink)
+}
+.ames-account-shell[data-silk]:not([data-silk=emerald]) :is(.ames-account-header,input:not([type=checkbox]),select,textarea,[class*="bg-[#0"],[class*="bg-[#1"]){
+ background-color:var(--site-surface)!important;color:var(--site-ink)!important
+}
+.ames-account-shell[data-silk=white] :focus-visible{outline-color:#343434}
