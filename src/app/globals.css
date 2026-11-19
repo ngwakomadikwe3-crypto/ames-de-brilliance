@@ -1001,9 +1001,9 @@ body:has(.ames-account-shell) > footer { display: none; }
 }
 
 
-.ames-app-shell { --ames-fabric-photo: url('/emerald-weave-wide.webp'); }
+.ames-app-shell { --ames-fabric-photo: url('/studio-fabric-wide.webp'); }
 @media (orientation: portrait) {
-  .ames-app-shell { --ames-fabric-photo: url('/emerald-weave.webp'); }
+  .ames-app-shell { --ames-fabric-photo: url('/studio-fabric.webp'); }
 }
 .ames-app-shell::before,
 .ames-magazine-page[data-curl-source='true']::before { filter: none; }
