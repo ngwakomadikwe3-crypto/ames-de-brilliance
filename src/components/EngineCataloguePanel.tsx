@@ -28,7 +28,7 @@ function matches(stone: CatalogueStone, term: string, species: string) {
   return (!species || stone.species === species) && (!term || `${stone.ref} ${stone.title} ${stone.species}`.toLocaleLowerCase().includes(term));
 }
 
-export default function EngineCataloguePanel() {
+export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,question:string)=>void}) {
   const {t}=useAtelierLanguage();
   const [pieces, setPieces] = useState<CatalogueStone[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -58,7 +58,7 @@ export default function EngineCataloguePanel() {
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-white';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
-  if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
+  if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
       <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>{t('Gemstones')}</h1></header>
@@ -164,7 +164,7 @@ function GemFacts({ id }: { id: string }) {
   </section>;
 }
 
-function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
+function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:string,question:string)=>void; stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const {t}=useAtelierLanguage();
   const facts = GEMSTONE_FACTS[stone.id];
   const [setting, setSetting] = useState('ring');
@@ -173,7 +173,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const [cut, setCut] = useState('');
   const [metal,setMetal] = useState('silver');
   const [caseShape,setCaseShape] = useState('Original');
-  const sampleModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='gold'?'?metal=gold':''}`;
+  const sampleModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
   const src = modelCut
     ? `/ames-engine/gallery-cuts/${modelCut}/${stone.id}.glb?v=11`
@@ -208,8 +208,12 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
       <div className="flex items-baseline justify-between gap-3">
         <h2 style={{ fontFamily:'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
+      {setting !== 'loose' && <button type="button" className="ames-pill my-2 min-h-11 rounded-full px-4 text-sm" onClick={()=>{
+        const detail = setting==='watch'?caseShape+' case':setting==='necklace'?dropCut+' drop cut':setting==='ring'&&ringCut?ringCut+' cut':'';
+        onAskSame(stone.id, 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
+      }}>Ask SAME</button>}
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
-      {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold'}} onChange={setMetal}/>}
+      {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'watch' && <HouseChoices label="Case shape" value={caseShape} onChange={setCaseShape} choices={{Original:'Classic rectangle',Square:'Square',Slim:'Slim rectangle',Round:'Round'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}

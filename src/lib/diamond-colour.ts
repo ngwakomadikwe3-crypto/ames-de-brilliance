@@ -7,8 +7,8 @@ export function colourDiamondModel(raw:ArrayBuffer, hex:string, metal='silver') 
   for(const surface of doc.materials){
     if(!/white gold|yellow gold|platinum|silver|rhodium/i.test(surface.name??''))continue;
     const brushed=/brushed|satin/i.test(surface.name);
-    surface.name=(brushed?'Brushed ':'Polished ')+(metal==='gold'?'yellow gold':'silver');
-    surface.pbrMetallicRoughness={...surface.pbrMetallicRoughness,baseColorFactor:metal==='gold'?[1,.71,.30,1]:[.85,.85,.83,1]};
+    surface.name=(brushed?'Brushed ':'Polished ')+(metal==='gold'?'yellow gold':metal==='rose-gold'?'rose gold':'silver');
+    surface.pbrMetallicRoughness={...surface.pbrMetallicRoughness,baseColorFactor:metal==='rose-gold'?[.96,.47,.36,1]:metal==='gold'?[1,.71,.30,1]:[.85,.85,.83,1]};
   }
   if(hex){
   const rgb=[1,3,5].map(i=>{const x=parseInt(hex.slice(i,i+2),16)/255;return Math.max(.015,x<=.04045?x/12.92:((x+.055)/1.055)**2.4);});

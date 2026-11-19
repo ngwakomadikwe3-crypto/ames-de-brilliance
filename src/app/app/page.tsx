@@ -181,7 +181,7 @@ export default function AppPage() {
           <EngineMediaPanel key={`media-${refreshTokens[2]}`} active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
         </section>
         <section id="ames-page-3" data-panel="3" aria-label="Catalogue" hidden={activePanel !== 3 && turn?.from !== 3} aria-hidden={activePanel !== 3} data-curl-source={turn?.from === 3} style={curlPageStyle(turn, 3)} inert={activePanel !== 3} className="ames-magazine-page">
-          <EngineCataloguePanel key={`catalogue-${refreshTokens[3]}`} />
+          <EngineCataloguePanel onAskSame={(stoneId, question) => { setChatAssetId(stoneId); setChatDraft(question); turnTo(1); }} key={`catalogue-${refreshTokens[3]}`} />
         </section>
       </div>
       <PullToRefresh rootRef={magazineRef} disabled={!!turn || drawerOpen || !introDone} onRefresh={refreshActivePage} />

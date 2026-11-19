@@ -20,7 +20,7 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
   },[model,colour,metal,customised,key]);
-  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):metal==='gold'?model+(model.includes('?')?'&':'?')+'metal=gold':model,error:customised && error===key};
+  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):metal!=='silver'?model+(model.includes('?')?'&':'?')+'metal='+metal:model,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
   const {t}=useAtelierLanguage();
@@ -29,7 +29,7 @@ export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<
     <summary className="cursor-pointer py-3">{t('Personalise')}</summary>
     {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
     {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle',Round:'Round'}} onChange={design.setShape}/>}
-    <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold'}} onChange={design.setMetal}/>
+    <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={design.setMetal}/>
     <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>
   </details>;
 }
