@@ -5,8 +5,8 @@ import {HouseChoices} from './HouseChoices';
 const necklaces=['Prong Set','Rub Over Tennis','Bow Tie','Illusion','Cluster'];
 const bracelets=['Tennis','Prong Set','Bezel Set','Delicate'];
 const bangles=['Claw Set','Channel Set','Pavé Set','Fancy Bangles'];
-const womens=['Plain Metal','Diamond Set','Two Tone','Shaped','Vintage','Designer','Black Zirconium','Gemstone'];
-const mens=['Plain Metal','Diamond Set','Two Tone','Carved','Black Zirconium','Gemstone'];
+const womens=['Diamond Set','Gemstone'];
+const mens=['Diamond Set','Gemstone'];
 export function useCollectionStyles(id:string){
   const kind=({'demo-pave-solitaire':'ring','ames-pear-fringe-necklace':'necklace','ames-tennis-bracelet':'bracelet'} as Record<string,string>)[id];
   const [style,setStyle]=useState('Original'),[family,setFamily]=useState(kind==='ring'?'Women’s':'Bracelets');
@@ -27,7 +27,7 @@ export function useCollectionStyles(id:string){
   }
   const styles=kind==='necklace'?necklaces:kind==='bracelet'?(family==='Bangles'?bangles:bracelets):(family==='Men’s'?mens:womens);
   const controls=kind&&<div>
-    {kind!=='necklace'&&row(kind==='ring'?'Wedding rings':'Collection',family,kind==='ring'?['Women’s','Men’s']:['Bracelets','Bangles'],v=>{setFamily(v);setStyle(kind==='ring'?'Plain Metal':v==='Bangles'?bangles[0]:bracelets[0])})}
+    {kind!=='necklace'&&row(kind==='ring'?'Wedding rings':'Collection',family,kind==='ring'?['Women’s','Men’s']:['Bracelets','Bangles'],v=>{setFamily(v);setStyle(kind==='ring'?'Diamond Set':v==='Bangles'?bangles[0]:bracelets[0])})}
     {row(kind==='ring'?'Ring style':kind==='necklace'?'Necklace style':'Bracelet style',style,['Original',...styles],setStyle)}
     {style!=='Original'&&<>
       {style!=='Black Zirconium'&&row('Metal',metal,['Platinum','White Gold','Yellow Gold','Rose Gold','Palladium','Black Zirconium'],setMetal)}
