@@ -1,0 +1,443 @@
+[
+  {
+    "id": "stone-alexandrite",
+    "name": "Alexandrite",
+    "aliases": [
+      "chrysoberyl alexandrite"
+    ],
+    "category": "chrysoberyl",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": [
+      "green",
+      "bluish green",
+      "blue green"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "A static preview cannot demonstrate alexandrite's colour change under different lighting.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-amber",
+    "name": "Amber",
+    "aliases": [
+      "baltic amber"
+    ],
+    "category": "organic gem",
+    "form": "organic cabochon",
+    "cut": "freeform cabochon",
+    "defaultColors": [
+      "orange",
+      "amber",
+      "honey",
+      "yellow"
+    ],
+    "limitations": [
+      "Representative polished amber form; natural shape, inclusions, and transparency vary.",
+      "No geographic origin, age, treatment, or biological inclusion is claimed.",
+      "Exact dimensions, weight, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-amethyst",
+    "name": "Amethyst",
+    "aliases": [
+      "purple quartz"
+    ],
+    "category": "quartz",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": [
+      "purple",
+      "violet"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Colour zoning and natural inclusions are simplified.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-aquamarine",
+    "name": "Aquamarine",
+    "aliases": [
+      "aqua marine"
+    ],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": [
+      "blue",
+      "light blue",
+      "pale blue",
+      "blue green",
+      "bluish green"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Natural colour, transparency, and inclusions vary.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-black-opal",
+    "name": "Black opal",
+    "sourceId": "stone-opal",
+    "tint": "#39354c",
+    "aliases": [
+      "black opal"
+    ],
+    "category": "Black opal",
+    "form": "cabochon with play of color",
+    "cut": "oval cabochon",
+    "defaultColors": [
+      "dark body"
+    ]
+  },
+  {
+    "id": "stone-chrysoberyl",
+    "name": "Chrysoberyl",
+    "sourceId": "stone-alexandrite",
+    "tint": "#b9c851",
+    "aliases": [
+      "chrysoberyl"
+    ],
+    "category": "Chrysoberyl",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": [
+      "yellow green"
+    ]
+  },
+  {
+    "id": "stone-coral",
+    "name": "Coral",
+    "sourceId": "stone-pearl",
+    "tint": "#ef6653",
+    "aliases": [
+      "coral"
+    ],
+    "category": "Coral",
+    "form": "pearl",
+    "cut": "near-round pearl",
+    "defaultColors": [
+      "coral red"
+    ]
+  },
+  {
+    "id": "stone-demantoid-garnet",
+    "name": "Demantoid garnet",
+    "sourceId": "stone-garnet",
+    "tint": "#86c737",
+    "aliases": [
+      "demantoid garnet"
+    ],
+    "category": "Demantoid garnet",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": [
+      "yellow green"
+    ]
+  },
+  {
+    "id": "stone-iolite",
+    "name": "Iolite",
+    "aliases": [
+      "cordierite",
+      "water sapphire"
+    ],
+    "category": "cordierite",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": [
+      "violet",
+      "blue",
+      "violet blue",
+      "bluish violet"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Pleochroic colour changes with viewing direction are simplified.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-imperial-topaz",
+    "name": "Imperial topaz",
+    "sourceId": "stone-topaz",
+    "tint": "#f29346",
+    "aliases": [
+      "imperial topaz"
+    ],
+    "category": "Imperial topaz",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": [
+      "golden orange"
+    ]
+  },
+  {
+    "id": "stone-jadeite-jade",
+    "name": "Jadeite jade",
+    "sourceId": "stone-jade",
+    "tint": "#66ae79",
+    "aliases": [
+      "jadeite jade"
+    ],
+    "category": "Jadeite jade",
+    "form": "cabochon",
+    "cut": "oval cabochon",
+    "defaultColors": [
+      "green"
+    ]
+  },
+  {
+    "id": "stone-kunzite",
+    "name": "Kunzite",
+    "aliases": [
+      "pink spodumene"
+    ],
+    "category": "spodumene",
+    "form": "faceted",
+    "cut": "elongated emerald",
+    "defaultColors": [
+      "pink",
+      "pale pink",
+      "lilac",
+      "violet"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Pleochroism and colour response to light are simplified.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-lapis-lazuli",
+    "name": "Lapis lazuli",
+    "aliases": [
+      "lapis"
+    ],
+    "category": "rock",
+    "form": "cabochon with inclusions",
+    "cut": "cushion cabochon",
+    "defaultColors": [
+      "blue",
+      "deep blue",
+      "ultramarine"
+    ],
+    "limitations": [
+      "Representative polished lapis with procedural pale and gold-toned flecks.",
+      "Flecks are visual texture, not a chemical or mineralogical identification.",
+      "Exact dimensions, weight, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-moonstone",
+    "name": "Moonstone",
+    "aliases": [
+      "moon stone",
+      "rainbow moonstone"
+    ],
+    "category": "feldspar",
+    "form": "cabochon",
+    "cut": "oval cabochon",
+    "defaultColors": [
+      "white",
+      "milky white",
+      "colorless",
+      "colourless"
+    ],
+    "limitations": [
+      "Representative milky cabochon with a simplified blue-sheen treatment.",
+      "A static preview cannot reproduce adularescence accurately from every direction.",
+      "Exact dimensions, weight, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-morganite",
+    "name": "Morganite",
+    "aliases": [
+      "pink beryl"
+    ],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": [
+      "pink",
+      "peach",
+      "peach pink"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Natural colour and treatment are not identified by this preview.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-paraiba-tourmaline",
+    "name": "Paraíba tourmaline",
+    "sourceId": "stone-tourmaline",
+    "tint": "#22d5d2",
+    "aliases": [
+      "paraiba tourmaline"
+    ],
+    "category": "Paraíba tourmaline",
+    "form": "faceted",
+    "cut": "elongated emerald",
+    "defaultColors": [
+      "turquoise blue"
+    ]
+  },
+  {
+    "id": "stone-peridot",
+    "name": "Peridot",
+    "aliases": [
+      "olivine",
+      "green peridot"
+    ],
+    "category": "olivine",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": [
+      "green",
+      "yellow green",
+      "olive green"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Natural inclusions and colour variations are simplified.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-rhodolite-garnet",
+    "name": "Rhodolite garnet",
+    "sourceId": "stone-garnet",
+    "tint": "#b74278",
+    "aliases": [
+      "rhodolite garnet"
+    ],
+    "category": "Rhodolite garnet",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": [
+      "raspberry red"
+    ]
+  },
+  {
+    "id": "stone-spessartite-garnet",
+    "name": "Spessartite garnet",
+    "sourceId": "stone-garnet",
+    "tint": "#ef762b",
+    "aliases": [
+      "spessartite garnet"
+    ],
+    "category": "Spessartite garnet",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": [
+      "orange"
+    ]
+  },
+  {
+    "id": "stone-spinel",
+    "name": "Spinel",
+    "aliases": [
+      "violet spinel"
+    ],
+    "category": "spinel",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": [
+      "violet",
+      "purple",
+      "lavender"
+    ],
+    "limitations": [
+      "Representative violet spinel preview; spinel occurs in many other colours.",
+      "The preview is not a stock item or a species identification report.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-tanzanite",
+    "name": "Tanzanite",
+    "aliases": [
+      "blue zoisite",
+      "violet zoisite"
+    ],
+    "category": "zoisite",
+    "form": "faceted",
+    "cut": "trillion",
+    "defaultColors": [
+      "violet blue",
+      "blue",
+      "violet",
+      "bluish violet"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Pleochroic colour changes are simplified.",
+      "Exact dimensions, carat, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-tourmaline",
+    "name": "Tourmaline",
+    "aliases": [
+      "green tourmaline",
+      "verdelite"
+    ],
+    "category": "tourmaline",
+    "form": "faceted",
+    "cut": "elongated emerald",
+    "defaultColors": [
+      "green"
+    ],
+    "limitations": [
+      "Representative green tourmaline preview; tourmaline species and colours vary widely.",
+      "Pleochroism, zoning, and natural inclusions are simplified.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-tsavorite-garnet",
+    "name": "Tsavorite garnet",
+    "sourceId": "stone-garnet",
+    "tint": "#34ad65",
+    "aliases": [
+      "tsavorite garnet"
+    ],
+    "category": "Tsavorite garnet",
+    "form": "faceted",
+    "cut": "cushion",
+    "defaultColors": [
+      "green"
+    ]
+  },
+  {
+    "id": "stone-turquoise",
+    "name": "Turquoise",
+    "aliases": [
+      "blue turquoise",
+      "green turquoise"
+    ],
+    "category": "turquoise",
+    "form": "cabochon with matrix",
+    "cut": "freeform cabochon",
+    "defaultColors": [
+      "turquoise",
+      "blue",
+      "blue green",
+      "green"
+    ],
+    "limitations": [
+      "Representative polished turquoise with procedural dark matrix veins.",
+      "The pattern does not reproduce a particular stone or identify origin and treatment.",
+      "Exact dimensions, weight, stabilization, and certification are not claimed."
+    ]
+  }
+]

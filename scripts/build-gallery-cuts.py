@@ -107,7 +107,7 @@ def write_model(path, source, cut):
     path.write_bytes(struct.pack('<4sIIII',b'glTF',2,28+len(header)+len(data),len(header),0x4e4f534a)+header+struct.pack('<I4s',len(data),b'BIN\0')+data)
 
 
-for stone in json.loads((ROOT/'src/lib/gemstone-registry.json').read_text()):
+for stone in json.loads((ROOT/'src/lib/house-gemstones.json').read_text()):
     folder = ROOT/'public/ames-engine'/stone['id']/'web'
     raw = (folder/'jewelry.glb').read_bytes()
     source = json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])

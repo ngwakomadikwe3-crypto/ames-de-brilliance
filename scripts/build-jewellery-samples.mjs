@@ -10,7 +10,7 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const base = 'public/ames-engine';
 const output = base + '/jewellery-samples';
 await mkdir(output, { recursive: true });
-const registry = JSON.parse(await readFile('src/lib/gemstone-registry.json', 'utf8'));
+const registry = JSON.parse(await readFile('src/lib/house-gemstones.json', 'utf8'));
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'));
 function unpack(bytes) {
   const size = bytes.readUInt32LE(12);

@@ -9,7 +9,7 @@ import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
-import registry from '../lib/gemstone-registry.json';
+import registry from '../lib/house-gemstones.json';
 import { houseScript } from '../lib/script-font';
 import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 
@@ -18,7 +18,7 @@ type GalleryStone = { id: string; name: string; form: string; cut: string; categ
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
 const GALLERY_VERSION = '10';
-const GALLERY = [...(registry as GalleryStone[])].sort((a, b) => a.name.localeCompare(b.name));
+const GALLERY = registry as GalleryStone[];
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
@@ -40,7 +40,7 @@ export default function EngineCataloguePanel() {
       if (!response.ok) throw new Error('Catalogue unavailable');
       const body = await response.json();
       if (!Array.isArray(body.items)) throw new Error('Invalid catalogue');
-      if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished')); setState('ready'); }
+      if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished' && GALLERY.some(g => [item.species,item.title].some(value => String(value).toLowerCase().includes(g.name.toLowerCase()))))); setState('ready'); }
     }).catch(() => { if (!abort.signal.aborted) setState('error'); });
     return () => abort.abort();
   }, []);
