@@ -1001,9 +1001,12 @@ body:has(.ames-account-shell) > footer { display: none; }
 }
 
 
-.ames-app-shell { --ames-fabric-photo: url('/selected-cloth-wide.webp'); }
-@media (orientation: portrait) {
-  .ames-app-shell { --ames-fabric-photo: url('/selected-cloth.webp'); }
+.ames-app-shell { --ames-fabric-photo: url('/emerald-scales.png'); }
+.ames-app-shell::before,
+.ames-magazine-page[data-curl-source='true'],
+.ames-magazine-page[data-curl-source='true']::before {
+  background-size: 168px 466px;
+  background-repeat: repeat;
 }
 .ames-app-shell::before,
 .ames-magazine-page[data-curl-source='true']::before { filter: none; }
@@ -1012,8 +1015,8 @@ body:has(.ames-account-shell) > footer { display: none; }
   .ames-app-shell::before {
     inset: -4%;
     background-image: radial-gradient(ellipse at center, rgba(214,241,222,.12), transparent 60%), var(--ames-fabric-photo);
-    background-repeat: no-repeat;
-    background-size: 160% 150%, cover;
+    background-repeat: no-repeat, repeat;
+    background-size: 160% 150%, 168px 466px;
     animation: ames-fabric-swell 24s ease-in-out infinite;
     will-change: transform;
   }

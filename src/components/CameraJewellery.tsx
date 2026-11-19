@@ -9,7 +9,7 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
   const video=useRef<HTMLVideoElement>(null), dialog=useRef<HTMLDialogElement>(null);
   const [frame,setFrame]=useState(''),[ready,setReady]=useState(false),[error,setError]=useState('');
   const [aspect,setAspect]=useState(4/3),[points,setPoints]=useState<Point[]>([]),[centre,setCentre]=useState<Point>({x:.5,y:.5});
-  const [size,setSize]=useState(45),[angle,setAngle]=useState(0);
+  const [size,setSize]=useState(72),[angle,setAngle]=useState(0);
   const ring=category==='ring', measuring=mode==='size';
   useEffect(()=>{const d=dialog.current;d?.showModal();return ()=>d?.close();},[]);
   useEffect(()=>{
@@ -21,7 +21,7 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
         stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280}}});
         if(disposed){stream.getTracks().forEach(t=>t.stop());return;}
         if(video.current){video.current.srcObject=stream;await video.current.play();}
-      }catch{if(!disposed)setError('Camera unavailable. Check browser camera permission or use the manual sizing guide.');}
+      }catch{if(!disposed)setError('Camera unavailable. Allow camera access in your browser and reopen try-on.');}
     }
     void connect();return ()=>{disposed=true;stream?.getTracks().forEach(t=>t.stop());};
   },[frame]);
@@ -46,7 +46,7 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
     <div className="relative mx-auto overflow-hidden rounded-xl bg-black" style={{aspectRatio:aspect,maxWidth:`min(100%, ${aspect*50}dvh)`,touchAction:'none'}} onPointerDown={e=>{if(ring)return;e.currentTarget.setPointerCapture(e.pointerId);point(e);}} onPointerMove={e=>{if(!measuring && e.currentTarget.hasPointerCapture(e.pointerId))point(e);}}>
       {frame?<img src={frame} alt="Measurement frame" className="block h-full w-full"/>:<video ref={video} playsInline muted autoPlay className="block h-full w-full" onLoadedData={()=>{const v=video.current;if(v?.videoHeight){setAspect(v.videoWidth/v.videoHeight);setReady(true);}}}/>}
       {ring && ready && <TrackedRing video={video} model={model}/>}
-      {!ring && !measuring && ready && <div className="pointer-events-none absolute" style={{left:centre.x*100+'%',top:centre.y*100+'%',width:size+'%',aspectRatio:'1',transform:`translate(-50%,-50%) rotate(${angle}deg)`}}><EngineJewelryViewer src={model} alt="Selected piece" autoLoad opticsProfile="mounted-gem-studio" cameraPreset={studioCameraPreset(category)} turntableEnabled={false} style={{width:'100%',height:'100%'}}/></div>}
+      {!ring && !measuring && ready && <div className="pointer-events-none absolute [&_[data-bracelet-measure]]:hidden [&_.ames-presentation-frame]:hidden" style={{left:centre.x*100+'%',top:centre.y*100+'%',width:size+'%',aspectRatio:'1',transform:`translate(-50%,-50%) rotate(${angle}deg)`}}><EngineJewelryViewer src={model} alt="Selected piece" autoLoad opticsProfile="mounted-gem-studio" cameraPreset={category==='watch'?'front':studioCameraPreset(category)} turntableEnabled={false} style={{width:'100%',height:'100%'}}/></div>}
       {points.map((p,i)=><span key={i} className="pointer-events-none absolute h-3 w-3 rounded-full border-2 border-black" style={{left:p.x*100+'%',top:p.y*100+'%',background:i<2?'white':'#ffce65',transform:'translate(-50%,-50%)'}}/>)}
     </div>
     {error && <p role="alert">{error}</p>}

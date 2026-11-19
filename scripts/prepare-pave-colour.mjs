@@ -62,3 +62,16 @@ if(!viewer.includes(captureEnabled)){
   if(!viewer.includes(capture))throw Error('Viewer capture configuration has changed.');
   await writeFile(viewerFile,viewer.replace(capture,captureEnabled));
 }
+
+// Look down onto the stone along the finger instead of displaying the open shank.
+const framingFile=resolve(dirname(viewerFile),'cameraFraming.ts');
+const framing=await readFile(framingFile,'utf8');
+if(!framing.includes("wearing: [0, 4]")){
+  if(!framing.includes("setting: [35, 35]") || !framing.includes("| 'setting'"))throw Error('Ring fitting camera presets have changed.');
+  await writeFile(framingFile,framing.replace("| 'setting'", "| 'setting' | 'wearing'").replace("setting: [35, 35]", "setting: [35, 35], wearing: [0, 4]"));
+}
+const mounted=await readFile(file,'utf8');
+const stage='<StudioStage {...stage}/>';
+if(mounted.includes('    '+stage)){
+  await writeFile(file,mounted.replace('    '+stage, "    {!gl.domElement.closest('[data-ring-photo]') && "+stage+"}"));
+}

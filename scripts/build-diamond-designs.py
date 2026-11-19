@@ -159,3 +159,63 @@ for name, width in [('square', 1.19), ('slim', .81)]:
     head = next(n for n in watch['nodes'] if n['name'] == 'Watch head')
     head['scale'] = [width, 1, 1]
     save(folder/('watch-'+name+'.glb'), watch, binary)
+
+# A radial case shares the selected watch's movement, dial texture and bracelet.
+def round_case(doc, geometry, buffer_index):
+    head = next(n for n in doc['nodes'] if n['name'] == 'Watch head')
+    children = head['children']
+    parts = {doc['nodes'][i]['name']: doc['nodes'][i] for i in children}
+    def accessor(rows, kind):
+        offset = len(geometry)
+        for row in rows:
+            geometry.extend(struct.pack('<'+'f'*len(row), *row))
+        view = len(doc['bufferViews'])
+        doc['bufferViews'].append(dict(buffer=buffer_index, byteOffset=offset, byteLength=len(geometry)-offset))
+        index = len(doc['accessors'])
+        doc['accessors'].append(dict(bufferView=view, componentType=5126, count=len(rows), type=kind,
+                                     min=list(map(min,zip(*rows))), max=list(map(max,zip(*rows)))))
+        return index
+    def surface(name, radius, inner, depth):
+        node = parts[name]
+        pos, norm, uv = [], [], []
+        def vertex(r, angle, z, side=False):
+            x,y=math.cos(angle),math.sin(angle)
+            pos.append((r*x,r*y,z)); norm.append((x,y,0) if side else (0,0,1))
+            uv.append((.5+.5*r*x/radius,.5+.5*r*y/radius))
+        for k in range(96):
+            a,b=k*math.tau/96,(k+1)*math.tau/96
+            for r,t in [(inner,a),(radius,a),(radius,b),(inner,a),(radius,b),(inner,b)]:
+                vertex(r,t,0)
+            if depth:
+                for t,z in [(a,-depth),(b,-depth),(b,0),(a,-depth),(b,0),(a,0)]:
+                    vertex(radius,t,z,True)
+        primitive=doc['meshes'][node['mesh']]['primitives'][0]
+        mesh=dict(primitives=[dict(material=primitive['material'],attributes=dict(
+            POSITION=accessor(pos,'VEC3'),NORMAL=accessor(norm,'VEC3'),TEXCOORD_0=accessor(uv,'VEC2')))])
+        node['mesh']=len(doc['meshes']); doc['meshes'].append(mesh)
+        node['scale']=[1,1,1]
+    surface('Dial',14.5,0,0)
+    surface('Watch glass',14.5,0,0)
+    surface('Case and lugs',18.3,14.4,6)
+    parts['Case and lugs']['translation']=[0,0,7.25]
+    children[:]=[i for i in children if doc['nodes'][i]['name'] not in ('Pavé · bezel','Pavé · case side')]
+    for k in range(64):
+        a=k*math.tau/64
+        gem=copy.deepcopy(parts['Dial diamond 12'])
+        gem.update(name=f'Round bezel diamond {k}',translation=[16.4*math.cos(a),16.4*math.sin(a),7.55])
+        children.append(len(doc['nodes']));doc['nodes'].append(gem)
+
+watch_dir=base/'ames-iced-watch/web'
+doc,payload=read(watch_dir/'watch-pink-yellow.glb')
+geometry=bytearray(payload)
+round_case(doc,geometry,0)
+doc['buffers'][0]['byteLength']=len(geometry)
+save(watch_dir/'watch-round.glb',doc,bytes(geometry))
+samples=base/'jewellery-samples'
+for sample in samples.glob('stone-*-watch.gltf'):
+    doc=json.loads(sample.read_text())
+    geometry=bytearray()
+    round_case(doc,geometry,len(doc['buffers']))
+    doc['buffers'].append(dict(uri='watch-round.bin',byteLength=len(geometry)))
+    (samples/'watch-round.bin').write_bytes(geometry)
+    sample.with_name(sample.stem+'-round.gltf').write_text(json.dumps(doc,separators=(',',':')))

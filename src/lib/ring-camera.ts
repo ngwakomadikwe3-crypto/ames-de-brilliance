@@ -27,7 +27,7 @@ export function fingerPose(frame:Pixels,base:Point,joint:Point){
   const {width:w,height:h,data}=frame;
   const dx=(joint.x-base.x)*w,dy=(joint.y-base.y)*h,len=Math.hypot(dx,dy);
   if(len<9)return null;
-  const x=base.x*w+dx*.52,y=base.y*h+dy*.52,nx=-dy/len,ny=dx/len;
+  const x=base.x*w+dx*.43,y=base.y*h+dy*.43,nx=-dy/len,ny=dx/len;
   const sample=(s:number)=>{
     const px=Math.round(x+nx*s),py=Math.round(y+ny*s);
     if(px<0||px>=w||py<0||py>=h)return null;
@@ -43,5 +43,6 @@ export function fingerPose(frame:Pixels,base:Point,joint:Point){
     return score>45?best:0;
   }
   const left=edge(-1),right=edge(1), measured=left>0&&right>0&&Math.max(left,right)/Math.min(left,right)<1.65;
-  return {x:x/w,y:y/h,width:measured?left+right:len*.56,measured,angle:Math.atan2(dy,dx)*180/Math.PI+90};
+  const offset=measured?(right-left)/2:0;
+  return {x:(x+nx*offset)/w,y:(y+ny*offset)/h,width:measured?left+right:len*.56,measured,angle:Math.atan2(dy,dx)*180/Math.PI+90};
 }

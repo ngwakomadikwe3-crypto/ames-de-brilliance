@@ -28,7 +28,7 @@ export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<
   return <details className="mt-2 border-b border-white/15 pb-1 text-sm">
     <summary className="cursor-pointer py-3">{t('Personalise')}</summary>
     {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
-    {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle'}} onChange={design.setShape}/>}
+    {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle',Round:'Round'}} onChange={design.setShape}/>}
     <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold'}} onChange={design.setMetal}/>
     <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>
   </details>;

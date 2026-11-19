@@ -104,5 +104,12 @@ for (const [setting, asset] of Object.entries(templates)) {
       continue;
     }
     await writeFile(output + '/' + stone.id + '-' + setting + '.gltf', JSON.stringify(doc));
+    if (setting === 'watch') {
+      const head = doc.nodes.find(node => node.name === 'Watch head');
+      for (const [shape, width] of [['square', 1.19], ['slim', .81]]) {
+        head.scale = [width, 1, 1];
+        await writeFile(output + '/' + stone.id + '-watch-' + shape + '.gltf', JSON.stringify(doc));
+      }
+    }
   }
 }
