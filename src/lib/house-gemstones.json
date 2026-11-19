@@ -97,21 +97,6 @@
     ]
   },
   {
-    "id": "stone-coral",
-    "name": "Coral",
-    "sourceId": "stone-pearl",
-    "tint": "#ef6653",
-    "aliases": [
-      "coral"
-    ],
-    "category": "Coral",
-    "form": "pearl",
-    "cut": "near-round pearl",
-    "defaultColors": [
-      "coral red"
-    ]
-  },
-  {
     "id": "stone-demantoid-garnet",
     "name": "Demantoid garnet",
     "sourceId": "stone-garnet",
@@ -164,21 +149,6 @@
     ]
   },
   {
-    "id": "stone-jadeite-jade",
-    "name": "Jadeite jade",
-    "sourceId": "stone-jade",
-    "tint": "#66ae79",
-    "aliases": [
-      "jadeite jade"
-    ],
-    "category": "Jadeite jade",
-    "form": "cabochon",
-    "cut": "oval cabochon",
-    "defaultColors": [
-      "green"
-    ]
-  },
-  {
     "id": "stone-kunzite",
     "name": "Kunzite",
     "aliases": [
@@ -197,48 +167,6 @@
       "Representative educational visualization, not a stock item or an identification report.",
       "Pleochroism and colour response to light are simplified.",
       "Exact dimensions, carat, origin, treatment, and certification are not claimed."
-    ]
-  },
-  {
-    "id": "stone-lapis-lazuli",
-    "name": "Lapis lazuli",
-    "aliases": [
-      "lapis"
-    ],
-    "category": "rock",
-    "form": "cabochon with inclusions",
-    "cut": "cushion cabochon",
-    "defaultColors": [
-      "blue",
-      "deep blue",
-      "ultramarine"
-    ],
-    "limitations": [
-      "Representative polished lapis with procedural pale and gold-toned flecks.",
-      "Flecks are visual texture, not a chemical or mineralogical identification.",
-      "Exact dimensions, weight, origin, treatment, and certification are not claimed."
-    ]
-  },
-  {
-    "id": "stone-moonstone",
-    "name": "Moonstone",
-    "aliases": [
-      "moon stone",
-      "rainbow moonstone"
-    ],
-    "category": "feldspar",
-    "form": "cabochon",
-    "cut": "oval cabochon",
-    "defaultColors": [
-      "white",
-      "milky white",
-      "colorless",
-      "colourless"
-    ],
-    "limitations": [
-      "Representative milky cabochon with a simplified blue-sheen treatment.",
-      "A static preview cannot reproduce adularescence accurately from every direction.",
-      "Exact dimensions, weight, origin, treatment, and certification are not claimed."
     ]
   },
   {

@@ -209,9 +209,9 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
       <div className="flex items-baseline justify-between gap-3">
         <h2 style={{ fontFamily:'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
-      {setting !== 'loose' && <button type="button" className="ames-pill my-2 min-h-11 rounded-full px-4 text-sm" onClick={()=>{
+      {<button type="button" aria-label={'Ask SAME about '+stone.name} className="ames-pill my-2 min-h-11 rounded-full px-4 text-sm" onClick={()=>{
         const detail = setting==='watch'?caseShape+' case':setting==='necklace'?dropCut+' drop cut':setting==='ring'&&ringCut?ringCut+' cut':'';
-        onAskSame(stone.id, 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
+        onAskSame(stone.id, setting==='loose' ? 'Tell me about '+stone.name+' as a loose gemstone with the '+(cut||stone.cut)+' cut.' : 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
       }}>Ask SAME</button>}
       {setting==='watch' && <WatchMovement/>}
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>

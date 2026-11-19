@@ -324,8 +324,10 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
     onPrefillConsumed();
   }, [prefill]);
 
+  const stoneDraft=useRef<{question:string;id:string}|null>(null);
   useEffect(() => {
     if (!draft) return;
+    stoneDraft.current=assetId?.startsWith('stone-')?{question:draft,id:assetId}:null;
     queueMicrotask(() => setInput(draft));
     onDraftConsumed();
   }, [draft]);
@@ -359,7 +361,8 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
 
     // Visual intent is local and independent of Appwrite/Dify availability.
     const intent = parseAssetSelection(rawMsg, selectedAssetId);
-    const clarification = assetSelectionMessage(intent);
+    const catalogueId=stoneDraft.current?.question===rawMsg?stoneDraft.current.id:null;
+    const clarification = catalogueId?null:assetSelectionMessage(intent);
     if (clarification) {
       const stamp = Date.now();
       setInput('');
@@ -370,8 +373,8 @@ function ChatPanel({ stageActive, assetId, prefill, onPrefillConsumed, draft, on
       ]);
       return;
     }
-    const requestedAssetId = intent.kind === 'select' || intent.kind === 'ring' ? intent.assetId : selectedAssetId;
-    if (intent.kind === 'select' || intent.kind === 'ring') selectStageAsset(requestedAssetId);
+    const requestedAssetId = catalogueId ?? (intent.kind === 'select' || intent.kind === 'ring' ? intent.assetId : selectedAssetId);
+    if (catalogueId || intent.kind === 'select' || intent.kind === 'ring') selectStageAsset(requestedAssetId);
     const localViewerAction = parseViewerIntent(rawMsg);
     if (localViewerAction) setStageCommand({ id: Date.now(), value: localViewerAction });
     const requestSelectionVersion = selectionVersion.current;
