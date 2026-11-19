@@ -1026,3 +1026,6 @@ body:has(.ames-account-shell) > footer { display: none; }
 
 .ames-app-shell [data-gallery-stone] { background: #143830; border-color: rgb(240 237 218 / .18); box-shadow: none; }
 .ames-gem-thumbnail { padding: 5%; background: radial-gradient(ellipse at 42% 34%, #ece9df, #d2cfc2 90%); }
+.ames-gem-strip { display:flex; gap:.375rem; overflow-x:auto; padding:.25rem 0 .5rem; scrollbar-width:thin; }
+.ames-app-shell .ames-gem-strip button[data-gem-choice] { flex:none; min-height:44px; padding:0 1rem; background:transparent; border:1px solid rgb(255 255 255 / .24); border-radius:999px; box-shadow:none; text-decoration:none; }
+.ames-app-shell .ames-gem-strip button[aria-pressed=true] { background:#e3ece4; color:#11362c; }

@@ -8,7 +8,7 @@ export function colourDiamondModel(raw:ArrayBuffer, hex:string, metal='silver') 
     if(!/white gold|yellow gold|platinum|silver|rhodium/i.test(surface.name??''))continue;
     const brushed=/brushed|satin/i.test(surface.name);
     surface.name=(brushed?'Brushed ':'Polished ')+(metal==='gold'?'yellow gold':'silver');
-    surface.pbrMetallicRoughness={...surface.pbrMetallicRoughness,baseColorFactor:metal==='gold'?[.94,.62,.24,1]:[.85,.85,.83,1]};
+    surface.pbrMetallicRoughness={...surface.pbrMetallicRoughness,baseColorFactor:metal==='gold'?[1,.71,.30,1]:[.85,.85,.83,1]};
   }
   if(hex){
   const rgb=[1,3,5].map(i=>{const x=parseInt(hex.slice(i,i+2),16)/255;return Math.max(.015,x<=.04045?x/12.92:((x+.055)/1.055)**2.4);});
@@ -16,7 +16,7 @@ export function colourDiamondModel(raw:ArrayBuffer, hex:string, metal='silver') 
   doc.extensionsUsed=[...new Set([...(doc.extensionsUsed||[]),'KHR_materials_ior','KHR_materials_transmission','KHR_materials_volume'])];
   for(const node of doc.nodes) {
     if (!node.extras?.ames_gemstone_id?.includes('diamond')) continue;
-    node.extras.ames_gemstone_id='house-custom-diamond';
+    node.extras.ames_gemstone_id=/^(Riviera|Pear drop) diamond/i.test(node.name??'')?'house-necklace-diamond':'house-custom-diamond';
     const mesh=structuredClone(doc.meshes[node.mesh]);
     node.mesh=doc.meshes.push(mesh)-1;
     for(const primitive of mesh.primitives) primitive.material=material;

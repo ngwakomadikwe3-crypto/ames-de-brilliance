@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { studioCameraPreset } from '../lib/customer-jewelry-display';
 import {HouseChoices,diamondCuts} from './HouseChoices';
+import {useAtelierLanguage,LanguageSwitch} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
 import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
@@ -28,6 +29,7 @@ function matches(stone: CatalogueStone, term: string, species: string) {
 }
 
 export default function EngineCataloguePanel() {
+  const {t}=useAtelierLanguage();
   const [pieces, setPieces] = useState<CatalogueStone[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [query, setQuery] = useState(''), [species, setSpecies] = useState('');
@@ -58,9 +60,9 @@ export default function EngineCataloguePanel() {
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
   if (gem) return <GemDetail key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
-    <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 sm:px-12 sm:pt-28">
-      <header className="pb-4"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>Gemstones</h1></header>
-      <input type="search" aria-label="Search gemstones by name or reference" placeholder="Search gemstones" value={query} onChange={event => setQuery(event.target.value)} className={field} />
+    <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
+      <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily }}>{t('Gemstones')}</h1><LanguageSwitch/></header>
+      <input type="search" aria-label="Search gemstones by name or reference" placeholder={t('Search gemstones')} value={query} onChange={event => setQuery(event.target.value)} className={field} />
       <section aria-label="Available polished stones">
         {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
         {state === 'ready' && pieces.length > 0 && <>
@@ -89,13 +91,14 @@ export default function EngineCataloguePanel() {
 }
 
 function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:GalleryStone)=>void}){
+  const {t}=useAtelierLanguage();
   const [selected,setSelected]=useState('stone-amethyst');
   const stone=stones.find(item=>item.id===selected)??stones[0];
-  return <div className="mx-auto max-w-2xl py-4">
+  return <div className="mx-auto max-w-2xl py-1">
     <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(225px,38dvh,420px)'}}/>
-    <div className="flex items-center justify-between gap-4 py-3"><h2 className="text-4xl" style={{fontFamily:houseScript.style.fontFamily}}>{stone.name}</h2>
-      <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>Explore settings</button></div>
-    <div role="group" aria-label="Choose a gemstone" className="flex flex-wrap gap-x-4 border-t border-white/20 py-2">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{s.name}</button>)}</div>
+    <div className="flex items-center justify-between gap-2 py-1"><h2 className="text-4xl" style={{fontFamily:houseScript.style.fontFamily}}>{t(stone.name)}</h2>
+      <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>{t('Explore settings')}</button></div>
+    <div role="group" aria-label="Choose a gemstone" className="ames-gem-strip">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{t(s.name)}</button>)}</div>
   </div>;
 }
 
@@ -165,6 +168,7 @@ function GemFacts({ id }: { id: string }) {
 }
 
 function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
+  const {t}=useAtelierLanguage();
   const facts = GEMSTONE_FACTS[stone.id];
   const [setting, setSetting] = useState('ring');
   const [dropCut,setDropCut]=useState('Pear');
@@ -183,7 +187,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   useEffect(() => { top.current?.scrollTo({ top: 0 }); }, [stone.id]);
   const arrow = 'ames-pill absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full';
   return <div ref={top} className="h-full overflow-y-auto overscroll-contain pt-20 text-white" data-gem-detail={stone.id}>
-    <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 560px)' }}>
+    <div className="ames-jewelry-stage relative mx-auto w-full shrink-0" style={{ maxWidth: 720, height: 'clamp(225px, 43dvh, 450px)' }}>
       <button type="button" onClick={onClose} aria-label="Back to gallery" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
@@ -202,7 +206,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
       onTouchEnd={e => { const s0 = swipe.current, t = e.changedTouches[0]; swipe.current = null; if (!s0 || list.length < 2) return;
         const dx = t.clientX - s0.x, dy = t.clientY - s0.y; if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) onGo(dx < 0 ? next : prev); }}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className={houseScript.className} style={{ fontFamily:houseScript.style.fontFamily, fontSize: 38, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
+        <h2 className={houseScript.className} style={{ fontFamily:houseScript.style.fontFamily, fontSize: 38, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}

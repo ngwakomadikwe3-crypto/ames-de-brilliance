@@ -1,6 +1,7 @@
 """Mount the ten authored cuts and prepare the two-tone watch for the house collection."""
 import copy
 import json
+import math
 import struct
 from pathlib import Path
 
@@ -33,6 +34,8 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
         return accessor['max'][i] - accessor['min'][i]
     # Preserve the authored outline's proportions and seat the girdle at the original height.
     width = max(span(original, i) for i in (0, 2))
+    setting_width = width
+    width *= .90
     scale = [width/max(span(incoming, 0), span(incoming, 2))]*3
     scale[1] = span(original, 1)/span(incoming, 1)
     centre['scale'] = scale
@@ -44,6 +47,26 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
         struct.pack_into('<3f',data,k*12,*(xyz[i]+offset[i]/scale[i] for i in range(3)))
     for key in ('min','max'):
         incoming[key] = [v+offset[i]/scale[i] for i,v in enumerate(incoming[key])]
+    # Align the fancy cut with the shank. Seat the four claws on its actual
+    # silhouette on their respective diagonals, including the heart's shoulders.
+    def fit_setting(doc, node):
+        node.pop('rotation', None)
+        points = [struct.unpack_from('<3f', data, k*12) for k in range(incoming['count'])]
+        for claw in (n for n in doc['nodes'] if n.get('name','').startswith('Claw ')):
+            quadrant = int(claw['name'].split()[-1])
+            sx, sz = [(1,-1),(-1,-1),(-1,1),(1,1)][quadrant]
+            reach = 0
+            for k in range(0,len(points),3):
+                triangle = points[k:k+3]
+                for a,b in zip(triangle,triangle[1:]+triangle[:1]):
+                    u,v = sx*a[0]-sz*a[2], sx*b[0]-sz*b[2]
+                    if u*v>0 or abs(u-v)<1e-12: continue
+                    x = sx*(a[0]+u/(u-v)*(b[0]-a[0]))
+                    reach = max(reach, math.sqrt(2)*x*scale[0])
+            if reach:
+                factor = reach/(setting_width/2)
+                claw['scale']=[factor,1,factor]
+    fit_setting(ring,centre)
     start = len(ring['bufferViews'])
     for view in shape['bufferViews']:
         ring['bufferViews'].append(dict(view, byteOffset=len(binary)+view.get('byteOffset',0)))
@@ -70,6 +93,7 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
             if 'uri' in resource: resource['uri'] = '../'+resource['uri']
         n = next(n for n in variant['nodes'] if n['name']=='Solitaire diamond')
         n['scale'] = scale
+        fit_setting(variant,n)
         n['extras'].pop('ames_cut',None)
         buf = len(variant['buffers'])
         variant['buffers'].append(dict(uri='../'+cut+'.bin',byteLength=len(data)+len(uv)))

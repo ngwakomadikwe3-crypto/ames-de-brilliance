@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useState} from 'react';
 import {colourDiamondModel} from '../lib/diamond-colour';
+import {useAtelierLanguage} from './AtelierLanguage';
 import {diamondCuts,HouseChoices} from './HouseChoices';
 export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) {
   const [cut,setCut]=useState('Original'),[colour,setColour]=useState('');
@@ -22,9 +23,10 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
   return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):model,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
+  const {t}=useAtelierLanguage();
   const colours={'':watch?'Yellow & pink':'Original','#ffffff':'Colourless','#a6bcf4':'Blue','#f3cb43':'Yellow','#f18cad':'Pink','#88bc8c':'Green','#dc9253':'Orange','#a17baa':'Purple','#987358':'Brown'};
   return <details className="mt-2 border-b border-white/15 pb-1 text-sm">
-    <summary className="cursor-pointer py-3">Personalise</summary>
+    <summary className="cursor-pointer py-3">{t('Personalise')}</summary>
     {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
     {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle'}} onChange={design.setShape}/>}
     <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold'}} onChange={design.setMetal}/>

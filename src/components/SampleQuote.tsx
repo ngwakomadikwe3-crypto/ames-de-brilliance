@@ -1,7 +1,9 @@
 'use client';
+import {useAtelierLanguage} from './AtelierLanguage';
 import { useState, type FormEvent } from 'react';
 
 export default function SampleQuote({ stone, setting, cut }: {stone: string; setting: string; cut: string}) {
+  const {t}=useAtelierLanguage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [reference, setReference] = useState('');
@@ -24,7 +26,7 @@ export default function SampleQuote({ stone, setting, cut }: {stone: string; set
     finally { setBusy(false); }
   }
   return <details className="mt-3 border-t border-white/15 text-sm">
-    <summary className="cursor-pointer py-3">Request a made-to-order quote</summary>
+    <summary className="cursor-pointer py-3">{t('Request a made-to-order quote')}</summary>
     {reference ? <p role="status">Request {reference} received for your {stone} {setting}.</p> :
       <form onSubmit={submit} className="grid gap-3 py-2">
         <p>This {stone} {setting} is a design sample. AMES will request supplier pricing and a lead time for your approval.</p>

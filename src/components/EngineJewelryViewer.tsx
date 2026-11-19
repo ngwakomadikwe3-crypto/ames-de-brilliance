@@ -1,5 +1,6 @@
 "use client";
 
+import {hapticTap} from '../lib/customer-preferences';
 import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {useReducedMotion} from '@/lib/use-reduced-motion';
@@ -59,7 +60,9 @@ function SelectedViewer({
 }: ViewerProps) {
   const host = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
-  const effectiveTurntable = paused || reducedMotion ? false : turntableEnabled;
+  const [held,setHeld]=useState(false);
+  useEffect(()=>{const release=()=>setHeld(false);window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);window.addEventListener('blur',release);return ()=>{window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release)}},[]);
+  const effectiveTurntable = held || paused || reducedMotion ? false : turntableEnabled;
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'fallback'>(autoLoad ? 'loading' : 'idle');
   const [attempt, setAttempt] = useState(0);
   const [posterFailed, setPosterFailed] = useState(false);
@@ -126,7 +129,7 @@ function SelectedViewer({
   const modelUrl = attempt && !src.startsWith('blob:') ? `${src}${src.includes('?') ? '&' : '?'}ames_retry=${attempt}` : src;
   const showPoster = poster && !posterFailed && state !== 'ready';
   return (
-    <div ref={host} className="ames-object-display" data-ames-engine-host data-viewer-state={state} data-model-source={src} data-optics-profile={opticsProfile} data-camera-preset={cameraPreset} data-zoom={zoom} data-turntable-enabled={effectiveTurntable} aria-label={alt ?? 'Jewelry preview'} style={{ position: "relative", width: "100%", height: "100%", overflow: 'hidden', ...style }}>
+    <div ref={host} onPointerDownCapture={e=>{if((e.target as HTMLElement).tagName==="CANVAS"){setHeld(true);hapticTap();}}} className="ames-object-display" data-ames-engine-host data-viewer-state={state} data-model-source={src} data-optics-profile={opticsProfile} data-camera-preset={cameraPreset} data-zoom={zoom} data-turntable-enabled={effectiveTurntable} aria-label={alt ?? 'Jewelry preview'} style={{ position: "relative", width: "100%", height: "100%", overflow: 'hidden', ...style }}>
       <span aria-hidden="true" className="ames-presentation-frame" />
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
       {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><JewelryViewer
