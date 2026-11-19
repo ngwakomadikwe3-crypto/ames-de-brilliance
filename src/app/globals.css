@@ -1045,3 +1045,11 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-app-shell .ames-piece-name { line-height:1.12; }
 .ames-app-shell [data-catalogue-panel] > div > :is(header, section) { background:transparent; border:0; box-shadow:none; padding:0; margin:0; }
 .ames-app-shell [data-catalogue-panel] > div > section { margin-top:.4rem; }
+
+/* A single featured piece can use the panel height left after navigation. */
+[data-boutique-scroll][data-featured-piece] { flex: 1 1 0%; }
+[data-featured-piece] .ames-compact-collection { height:100%; display:flex; flex-direction:column; }
+[data-featured-piece] .ames-compact-collection > .grid { flex:1; min-height:0; grid-template-rows:minmax(0,1fr); }
+.ames-app-shell [data-featured-piece] .ames-piece-tile { height:100%; max-width:100% !important; }
+.ames-app-shell [data-featured-piece] .ames-piece-tile .ames-piece-image { flex:1 1 auto; height:auto; min-height:80px; }
+.ames-app-shell [data-featured-piece] .ames-piece-tile > div + div { flex:none; }
