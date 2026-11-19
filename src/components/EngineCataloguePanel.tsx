@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { studioCameraPreset } from '../lib/customer-jewelry-display';
 import {HouseChoices,diamondCuts} from './HouseChoices';
+import SizeGuide from './SizeGuide';
 import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
 import EngineJewelryViewer from './EngineJewelryViewer';
@@ -72,10 +73,7 @@ export default function EngineCataloguePanel() {
       </section>
       <section aria-label="Gemstone gallery" className="pt-4" data-gemstone-gallery>
         {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
-          <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="ames-gem-thumbnail aspect-square w-full object-contain" />
-          <span className={houseScript.className + " block px-4 py-3 text-3xl leading-snug"} style={{fontFamily:houseScript.style.fontFamily}}>{stone.name}</span>
-        </button>)}</div>}
+        <GemShowcase stones={gallery} onOpen={openGem}/>}
       </section>
     </div>
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
@@ -87,6 +85,17 @@ export default function EngineCataloguePanel() {
       </div>
     </div>}
     {buying && <BuyDialog piece={buying} onClose={() => setBuying(null)} />}
+  </div>;
+}
+
+function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:GalleryStone)=>void}){
+  const [selected,setSelected]=useState('stone-amethyst');
+  const stone=stones.find(item=>item.id===selected)??stones[0];
+  return <div className="mx-auto max-w-2xl py-4">
+    <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(225px,38dvh,420px)'}}/>
+    <div className="flex items-center justify-between gap-4 py-3"><h2 className="text-4xl" style={{fontFamily:houseScript.style.fontFamily}}>{stone.name}</h2>
+      <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>Explore settings</button></div>
+    <div role="group" aria-label="Choose a gemstone" className="flex flex-wrap gap-x-4 border-t border-white/20 py-2">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{s.name}</button>)}</div>
   </div>;
 }
 
@@ -158,6 +167,7 @@ function GemFacts({ id }: { id: string }) {
 function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const facts = GEMSTONE_FACTS[stone.id];
   const [setting, setSetting] = useState('ring');
+  const [dropCut,setDropCut]=useState('Pear');
   const [ringCut,setRingCut] = useState('');
   const [cut, setCut] = useState('');
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
@@ -181,7 +191,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      {setting !== 'loose' ? <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting}.gltf`} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
+      {setting !== 'loose' ? <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting}.gltf`} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
         poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`}
         autoRotate cameraControls ar={false} jewelryPresentation cameraOrbit="25deg 49deg auto"
         style={{ width: '100%', height: '100%' }} /> :
@@ -194,9 +204,12 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
       <div className="flex items-baseline justify-between gap-3">
         <h2 className={houseScript.className} style={{ fontFamily:houseScript.style.fontFamily, fontSize: 38, color: '#ffffff', lineHeight: 1.1 }}>{stone.name}</h2>
       </div>
-      <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',watch:'Watch',loose:'Loose gemstone'}}/>
+      <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
+      {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
-      {setting !== 'loose' && <SampleQuote key={setting + ringCut} stone={stone.name} setting={setting} cut={setting === "ring" ? ringCut : ""} />}
+      {['ring','bracelet','watch'].includes(setting) && <SizeGuide key={setting} wrist={setting!=='ring'}/>}
+      {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
+      {setting !== 'loose' && <SampleQuote key={setting + ringCut + dropCut} stone={stone.name} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
       {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>

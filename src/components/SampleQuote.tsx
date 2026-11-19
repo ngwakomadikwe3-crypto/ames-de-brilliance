@@ -14,7 +14,7 @@ export default function SampleQuote({ stone, setting, cut }: {stone: string; set
     data.set('type', 'Made-to-order jewellery');
     data.set('shape', setting);
     data.set('color', stone);
-    data.set('notes', [stone + ' ' + setting, cut && 'Centre cut: ' + cut, 'Please confirm supplier availability, total price, currency and lead time.', data.get('preferences')].filter(Boolean).join('\n'));
+    data.set('notes', [stone + ' ' + setting, cut && (setting==='necklace'?'Drop cut: ':'Centre cut: ') + cut, 'Please confirm supplier availability, total price, currency and lead time.', data.get('preferences')].filter(Boolean).join('\n'));
     try {
       const response = await fetch('/api/sourcing', {method:'POST', body:data});
       const result = await response.json();

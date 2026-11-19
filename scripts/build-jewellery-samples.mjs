@@ -17,9 +17,10 @@ function unpack(bytes) {
   return { doc: JSON.parse(bytes.subarray(20, 20 + size)), binary: bytes.subarray(28 + size) };
 }
 const templates = { ring: 'demo-pave-solitaire', bracelet: 'ames-tennis-bracelet', earrings: 'ames-pear-drop-earrings', watch: 'ames-iced-watch' };
+for (const cut of ['pear','round','oval','cushion']) templates['necklace-'+cut]='ames-pear-fringe-necklace';
 for (const [setting, asset] of Object.entries(templates)) {
   const record = await readJson(base + '/' + asset + '/app/boutique.json');
-  const input = base + '/' + asset + '/' + (setting === 'ring' ? 'web/solitaire-ice-blue.glb' : setting === 'watch' ? 'web/watch-v8.glb' : record.interactiveGlb);
+  const input = base + '/' + asset + '/' + (setting === 'ring' ? 'web/solitaire-ice-blue.glb' : setting === 'watch' ? 'web/watch-v8.glb' : setting.startsWith('necklace-') && setting !== 'necklace-pear' ? 'web/fringe-'+setting.slice(9)+'.glb' : record.interactiveGlb);
   const model = await io.read(input);
   const root = model.getRoot();
   const gems = root.listNodes().filter(n => n.getExtras().ames_gemstone_id);

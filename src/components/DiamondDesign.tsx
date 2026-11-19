@@ -7,17 +7,19 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
   const [shape,setShape]=useState('Original');
   const model=shape!=='Original' ? source.replace(/[^/]+\.glb.*$/,'watch-'+shape.toLowerCase()+'.glb') : necklace && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'fringe-'+cut.toLowerCase()+'.glb') : ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
   const [variant,setVariant]=useState({key:'',url:''}),[error,setError]=useState('');
-  const key=model+colour;
+  const [metal,setMetal]=useState('silver');
+  const customised=!!colour || metal==='gold';
+  const key=model+colour+metal;
   useEffect(()=>{
-    if(!colour)return;
+    if(!customised)return;
     const abort=new AbortController();let url='';
     fetch(model,{signal:abort.signal}).then(r=>{if(!r.ok)throw Error();return r.arrayBuffer();}).then(b=>{
       if(abort.signal.aborted)return;
-      url=URL.createObjectURL(colourDiamondModel(b,colour));setVariant({key,url});setError('');
+      url=URL.createObjectURL(colourDiamondModel(b,colour,metal));setVariant({key,url});setError('');
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
-  },[model,colour,key]);
-  return {shape,setShape,cut,setCut,colour,setColour,src:colour?(variant.key===key?variant.url:''):model,error:!!colour && error===key};
+  },[model,colour,metal,customised,key]);
+  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):model,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
   const colours={'':watch?'Yellow & pink':'Original','#ffffff':'Colourless','#a6bcf4':'Blue','#f3cb43':'Yellow','#f18cad':'Pink','#88bc8c':'Green','#dc9253':'Orange','#a17baa':'Purple','#987358':'Brown'};
@@ -25,6 +27,7 @@ export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<
     <summary className="cursor-pointer py-3">Personalise</summary>
     {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
     {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle'}} onChange={design.setShape}/>}
+    <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold'}} onChange={design.setMetal}/>
     <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>
   </details>;
 }

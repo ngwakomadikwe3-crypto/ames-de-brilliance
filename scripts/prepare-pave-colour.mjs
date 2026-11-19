@@ -6,16 +6,14 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const file=resolve(dirname(require.resolve('ames-engine')),'../jewelry/PhysicalStudioModel.tsx');
 const source=await readFile(file,'utf8');
-const anchor='mesh.material=material;materials.push(material);mesh.layers.enable(STAR_LAYER)';
-const fix=`if(typeof layout==='string' && id.includes('diamond') && id!=='stone-diamond'){
-        const record=atob(layout).slice(0,32)
-        if(record.length===32 && mesh.parent){
-          const diameter=new DataView(Uint8Array.from(record,c=>c.charCodeAt(0)).buffer).getFloat32(28,true)
-          const parentScale=mesh.parent.getWorldScale(new Vector3()).length()/Math.sqrt(3)
-          if(diameter>0) material.attenuationDistance=diameter*parentScale*scale*.40
-        }
-      }`;
-if(!source.includes(fix)){
+const anchor=`const material=createPhysicalStudioGem(mesh.geometry,id,source,id.includes('diamond')?studio.diamond:studio.environment,studio.radiance,worldScale,small)`;
+const replacement=`const colouredPave=typeof layout==='string' && id.includes('diamond') && id!=='stone-diamond'
+      const material=colouredPave ? new MeshPhysicalMaterial({
+        name:'AMES coloured pavé',color:source.attenuationColor.clone(),metalness:.10,
+        roughness:.16,ior:2.417,flatShading:true,envMap:studio.environment,envMapIntensity:.85,
+        emissive:source.attenuationColor.clone(),emissiveIntensity:.23,clearcoat:.28,clearcoatRoughness:.12
+      }) : createPhysicalStudioGem(mesh.geometry,id,source,id.includes('diamond')?studio.diamond:studio.environment,studio.radiance,worldScale,small)`;
+if(!source.includes(replacement)){
   if(!source.includes(anchor))throw Error('Mounted gemstone renderer has changed.');
-  await writeFile(file,source.replace(anchor,fix+'\n      '+anchor));
+  await writeFile(file,source.replace(anchor,replacement));
 }

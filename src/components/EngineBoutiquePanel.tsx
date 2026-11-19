@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
+import SizeGuide from './SizeGuide';
 import ModelViewer from './ModelViewer';
 
 import housePieces from '../lib/boutique-house-pieces.json';
@@ -56,13 +57,15 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        {customizable && !design.src ? <p role="status" className="p-8 text-center">{design.error ? "Colour preview unavailable. Choose Original to restore the design." : "Preparing your design…"}</p> : piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={design.src} src={design.src} poster={design.colour || design.cut !== "Original" ? undefined : piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
+        {customizable && !design.src ? <p role="status" className="p-8 text-center">{design.error ? "Colour preview unavailable. Choose Original to restore the design." : "Preparing your design…"}</p> : piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={design.src} src={design.src} poster={piece.assetId === "ames-iced-watch" || design.metal === "gold" || design.colour || design.cut !== "Original" ? undefined : piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
             autoRotate cameraControls ar={false} jewelryPresentation metalPreview={piece.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 105%' : '35deg 75deg 105%'}
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
         <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
+        {!piece.listing && <p className="mt-2 text-xs">Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.</p>}
+        {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide wrist={piece.category !== "ring"}/>}
         {customizable && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
