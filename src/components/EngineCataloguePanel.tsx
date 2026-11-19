@@ -171,6 +171,8 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
   const [dropCut,setDropCut]=useState('Pear');
   const [ringCut,setRingCut] = useState('');
   const [cut, setCut] = useState('');
+  const [metal,setMetal] = useState('silver');
+  const sampleModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting}.gltf${metal==='gold'?'?metal=gold':''}`;
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
   const src = modelCut
     ? `/ames-engine/gallery-cuts/${modelCut}/${stone.id}.glb?v=11`
@@ -192,7 +194,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      {setting !== 'loose' ? <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting}.gltf`} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
+      {setting !== 'loose' ? <EngineJewelryViewer src={sampleModel} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
         poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`}
         autoRotate cameraControls ar={false} jewelryPresentation cameraOrbit="25deg 49deg auto"
         style={{ width: '100%', height: '100%' }} /> :
@@ -206,11 +208,12 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         <h2 style={{ fontFamily:'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
+      {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
-      {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={`/ames-engine/jewellery-samples/${setting==="ring" && ringCut ? ringCut+"/" : ""}${stone.id}-${setting}.gltf`} key={setting} wrist={setting!=='ring'}/>}
+      {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={sampleModel} key={setting} wrist={setting!=='ring'}/>}
       {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
-      {setting !== 'loose' && <SampleQuote key={setting + ringCut + dropCut} stone={stone.name} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
+      {setting !== 'loose' && <SampleQuote key={setting + ringCut + dropCut} stone={stone.name} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
       {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>

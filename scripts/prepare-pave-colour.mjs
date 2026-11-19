@@ -22,7 +22,7 @@ if(!source.includes(replacement)){
 
 const polished=await readFile(file,'utf8');
 const polishAnchor='handPolish(p)}';
-const goldPolish="if(/yellow gold/i.test(p.name)){p.envMapIntensity=1.38;p.roughness=/brushed|satin/i.test(p.name) ? .22 : .085;}handPolish(p)}";
+const goldPolish="if(/yellow gold/i.test(p.name)||(new URL(url,window.location.origin).searchParams.get('metal')==='gold'&&/white gold|platinum|silver|rhodium/i.test(p.name))){p.color.setRGB(1,.59,.19);p.envMapIntensity=1.38;p.roughness=/brushed|satin/i.test(p.name) ? .22 : .085;}handPolish(p)}";
 if(!polished.includes(goldPolish)){
   if(!polished.includes(polishAnchor))throw Error('Studio polish has changed.');
   await writeFile(file,polished.replace(polishAnchor,goldPolish));

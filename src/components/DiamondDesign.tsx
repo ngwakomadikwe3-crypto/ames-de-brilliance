@@ -9,7 +9,7 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
   const model=shape!=='Original' ? source.replace(/[^/]+\.glb.*$/,'watch-'+shape.toLowerCase()+'.glb') : necklace && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'fringe-'+cut.toLowerCase()+'.glb') : ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
   const [variant,setVariant]=useState({key:'',url:''}),[error,setError]=useState('');
   const [metal,setMetal]=useState('silver');
-  const customised=!!colour || metal==='gold';
+  const customised=!!colour;
   const key=model+colour+metal;
   useEffect(()=>{
     if(!customised)return;
@@ -20,7 +20,7 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
   },[model,colour,metal,customised,key]);
-  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):model,error:customised && error===key};
+  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):metal==='gold'?model+(model.includes('?')?'&':'?')+'metal=gold':model,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
   const {t}=useAtelierLanguage();
