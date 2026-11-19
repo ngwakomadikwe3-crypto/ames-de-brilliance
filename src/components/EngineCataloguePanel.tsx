@@ -18,7 +18,7 @@ type GalleryStone = { id: string; name: string; form: string; cut: string; categ
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
 const GALLERY_VERSION = '10';
-const GALLERY = (registry as GalleryStone[]).filter(stone => !/diamond/.test(stone.id)).sort((a, b) => a.name.localeCompare(b.name));
+const GALLERY = [...(registry as GalleryStone[])].sort((a, b) => a.name.localeCompare(b.name));
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
@@ -91,13 +91,11 @@ export default function EngineCataloguePanel() {
 
 function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:GalleryStone)=>void}){
   const {t}=useAtelierLanguage();
-  const [selected,setSelected]=useState('stone-amethyst');
-  const stone=stones.find(item=>item.id===selected)??stones[0];
-  return <div className="mx-auto max-w-2xl py-1">
-    <EngineJewelryViewer src={`/ames-engine/jewellery-samples/${stone.id}-ring.gltf`} alt={stone.name+' HOUSEofAMES ring'} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" style={{height:'clamp(190px,29dvh,300px)'}}/>
-    <div className="flex items-center justify-between gap-2 py-1"><h2 className="text-2xl" style={{fontFamily:'var(--font-satoshi)'}}>{t(stone.name)}</h2>
-      <button className="ames-pill min-h-11 rounded-full px-4 text-sm" onClick={()=>onOpen(stone)}>{t('Explore settings')}</button></div>
-    <div role="group" aria-label="Choose a gemstone" className="ames-gem-strip">{stones.map(s=><button key={s.id} data-gem-choice={s.id} aria-pressed={stone.id===s.id} className="min-h-11 text-sm aria-pressed:underline underline-offset-4" onClick={()=>setSelected(s.id)}>{t(s.name)}</button>)}</div>
+  return <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4 lg:grid-cols-6" aria-label="Choose a gemstone">
+    {stones.map(stone=><button key={stone.id} type="button" className="ames-stone-option" onClick={()=>onOpen(stone)}>
+      <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" width={120} height={86} loading="lazy"/>
+      <span>{t(stone.name)}</span>
+    </button>)}
   </div>;
 }
 

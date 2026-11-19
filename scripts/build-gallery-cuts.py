@@ -108,7 +108,6 @@ def write_model(path, source, cut):
 
 
 for stone in json.loads((ROOT/'src/lib/gemstone-registry.json').read_text()):
-    if 'diamond' in stone['id']: continue
     folder = ROOT/'public/ames-engine'/stone['id']/'web'
     raw = (folder/'jewelry.glb').read_bytes()
     source = json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])

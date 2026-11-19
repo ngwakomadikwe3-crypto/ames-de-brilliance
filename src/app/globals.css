@@ -1053,3 +1053,7 @@ body:has(.ames-account-shell) > footer { display: none; }
 .ames-app-shell [data-featured-piece] .ames-piece-tile { height:100%; max-width:100% !important; }
 .ames-app-shell [data-featured-piece] .ames-piece-tile .ames-piece-image { flex:1 1 auto; height:auto; min-height:80px; }
 .ames-app-shell [data-featured-piece] .ames-piece-tile > div + div { flex:none; }
+
+.ames-app-shell [data-catalogue-panel] button.ames-stone-option { display:grid; justify-items:center; align-content:end; padding:.25rem; background:transparent; border:0; border-bottom:1px solid rgb(255 255 255 / .18); border-radius:0; box-shadow:none; font-family:var(--font-satoshi); }
+.ames-stone-option img { width:100%; height:clamp(72px,12dvh,110px); object-fit:contain; }
+.ames-stone-option span { padding-bottom:.35rem; font-size:.9rem; }

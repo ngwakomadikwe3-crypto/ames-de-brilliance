@@ -50,7 +50,7 @@ for (const [setting, asset] of Object.entries(templates)) {
   const { doc: template, binary } = unpack(Buffer.from(await io.writeBinary(model)));
   await writeFile(output + '/' + setting + '.bin', binary);
   template.buffers[0].uri = setting + '.bin';
-  for (const stone of [...registry.filter(s => !s.id.includes('diamond')), ...(setting === 'ring' ? [{ id: 'ice-blue' }] : [])]) {
+  for (const stone of [...registry, ...(setting === 'ring' ? [{ id: 'ice-blue' }] : [])]) {
     const blue = stone.id === 'ice-blue';
     const doc = blue ? unpack(await readFile(input)).doc : structuredClone(template);
     if(setting==='ring'){
