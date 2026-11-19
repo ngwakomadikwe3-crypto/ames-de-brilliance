@@ -21,7 +21,7 @@ export default function ChatVisualStage({ command, assetId, compact = false, act
 function SelectedChatVisualStage({ command, assetId, compact, active }: { command: Command; assetId?: string | null; compact: boolean; active: boolean }) {
   const [content, setContent] = useState<ChatStageContent | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [rotation, setRotation] = useState(false);
+  const [rotation, setRotation] = useState(true);
   const [view, setView] = useState('three_quarter');
   const [zoomed, setZoomed] = useState(false);
   const [resetToken, setResetToken] = useState(0);
@@ -32,7 +32,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
       if (!active) return;
       if (!showCustomerJewelry(result.contract.assetId)) throw new Error('This unfinished preview is not displayed.');
       setContent(result);
-      setRotation(result.contract.rotationEnabled);
+      setRotation(true);
       setView(result.contract.defaultView);
     }).catch(() => { if (active) { setContent(null); setLoadFailed(true); } });
     return () => { active = false; };
@@ -45,7 +45,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
       case 'rotate': setRotation(true); break;
       case 'stop_rotation': setRotation(false); break;
       case 'zoom': setZoomed(true); break;
-      case 'reset': setView(content?.contract.defaultView ?? 'three_quarter'); setZoomed(false); setRotation(!!content?.contract.rotationEnabled); setResetToken(value => value + 1); break;
+      case 'reset': setView(content?.contract.defaultView ?? 'three_quarter'); setZoomed(false); setRotation(true); setResetToken(value => value + 1); break;
       case 'hero_view': setView('hero'); break;
       case 'macro_view':
         // The ring's archived macro predates its current center geometry.

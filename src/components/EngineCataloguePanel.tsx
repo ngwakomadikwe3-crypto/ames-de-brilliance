@@ -79,7 +79,7 @@ export default function EngineCataloguePanel() {
     {viewing && <div role="dialog" aria-modal="true" aria-label={`${viewing.title} in 3D`} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setViewing(null)}>
       <div className="w-full max-w-xl space-y-3 rounded-3xl border border-white/15 bg-[#04201b] p-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[0.16em] text-white">{viewing.ref} · {viewing.species}</p><h3 className="text-lg">{viewing.title}</h3></div><button type="button" className="min-h-11 px-2 text-sm underline" onClick={() => setViewing(null)}>Close</button></div>
-        <EngineJewelryViewer key={viewing.model} src={viewing.model} poster={viewing.poster} alt={viewing.title} autoLoad opticsProfile="mounted-gem-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ height: 380 }} />
+        <EngineJewelryViewer key={viewing.model} src={viewing.model} poster={viewing.poster} alt={viewing.title} autoLoad opticsProfile="mounted-gem-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />
         <p className="text-xs text-white">Drag to turn the stone. {viewing.modelNote}</p>
         <button type="button" className="ames-pill min-h-11 rounded-full border border-white/25 px-5 text-sm" onClick={() => { setBuying(viewing); setViewing(null); }}>Request to buy</button>
       </div>
@@ -182,7 +182,7 @@ function GemDetail({ stone, list, onGo, onClose }: { stone: GalleryStone; list: 
         poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`}
         autoRotate cameraControls ar={false} jewelryPresentation cameraOrbit="25deg 49deg auto"
         style={{ width: '100%', height: '100%' }} /> :
-      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled={false} style={{ width: '100%', height: '100%' }} />}
+      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ width: '100%', height: '100%' }} />}
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
