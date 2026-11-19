@@ -46,3 +46,11 @@ export function fingerPose(frame:Pixels,base:Point,joint:Point){
   const offset=measured?(right-left)/2:0;
   return {x:(x+nx*offset)/w,y:(y+ny*offset)/h,width:measured?left+right:len*.56,measured,angle:Math.atan2(dy,dx)*180/Math.PI+90};
 }
+
+export function wristPose(frame:Pixels,wrist:Point,knuckle:Point){
+  // Search across the forearm just below the wrist landmark.
+  const dx=knuckle.x-wrist.x,dy=knuckle.y-wrist.y;
+  const base={x:wrist.x-.65*dx,y:wrist.y-.65*dy};
+  const joint={x:base.x+dx,y:base.y+dy};
+  return fingerPose(frame,base,joint);
+}

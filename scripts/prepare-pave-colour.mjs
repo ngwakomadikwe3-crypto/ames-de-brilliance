@@ -75,3 +75,19 @@ const stage='<StudioStage {...stage}/>';
 if(mounted.includes('    '+stage)){
   await writeFile(file,mounted.replace('    '+stage, "    {!gl.domElement.closest('[data-ring-photo]') && "+stage+"}"));
 }
+
+// The invisible surface writes depth only. Near-side stones remain visible
+// while the far side of the band passes behind the camera image of the limb.
+const fitFraming=await readFile(framingFile,'utf8');
+if(!fitFraming.includes('wrist_fit:')){
+  await writeFile(framingFile,fitFraming.replace("| 'wearing'", "| 'wearing' | 'wrist_fit'").replace('wearing: [0, 4]', 'wearing: [0, 4], wrist_fit: [0, 90]'));
+}
+const fitSource=await readFile(file,'utf8');
+const pivotTag='<group ref={pivot} name="ames-physical-turntable"';
+if(!fitSource.includes('name="ames-limb-depth"')){
+  if(!fitSource.includes(pivotTag))throw Error('Missing try-on turntable');
+  await writeFile(file,fitSource.replace(pivotTag,`{gl.domElement.closest('[data-fit-piece]') && <mesh name="ames-limb-depth" renderOrder={-100} rotation={gl.domElement.closest('[data-fit-piece="ring"]')?[-Math.PI/2,0,0]:[0,0,0]}>
+      <planeGeometry args={[5,5]}/><meshBasicMaterial colorWrite={false} depthWrite toneMapped={false}/>
+    </mesh>}
+    `+pivotTag));
+}
