@@ -93,3 +93,38 @@ if(!fitSource.includes('name="ames-limb-depth"')){
     </mesh>}
     `+pivotTag));
 }
+
+// The solitaire's band is authored in the XY plane, with its shoulders toward +Y.
+const ringStudio=await readFile(file,'utf8');
+const afterMaterials='materials.push(...assignment.materials)';
+const beforeCrystal='// A dielectric watch crystal';
+const goldRingFinish=`
+    if(root.getObjectByName('Solitaire_diamond') || gems.some(g=>/solitaire/i.test(g.name))){
+      const selectedGold=new URL(url,window.location.origin).searchParams.get('metal')==='gold';
+      root.traverse(object=>{
+        if(!(object instanceof Mesh) || !/comfort.*band|claw|gallery.*rail|head.*foot|pav.*bead/i.test(object.name))return
+        for(const material of Array.isArray(object.material)?object.material:[object.material]){
+          const p=material as MeshPhysicalMaterial
+          if(!p.isMeshPhysicalMaterial || p.metalness<.9 || !(selectedGold || /yellow gold/i.test(p.name)))continue
+          p.color.setRGB(.98,.64,.23);p.metalness=1;p.clearcoat=0;p.envMap=studio.metal;p.envMapIntensity=1.12;p.roughness=.075
+          if(!/comfort.*band/i.test(object.name))continue
+          const polish=p.onBeforeCompile.bind(p)
+          p.onBeforeCompile=(shader,renderer)=>{
+            polish(shader,renderer)
+            shader.fragmentShader=shader.fragmentShader.replace('#include <metalnessmap_fragment>', [
+              'float amesShoulder=smoothstep(.17,.75,vAmesPos.y/max(length(vAmesPos.xy),1.e-6));',
+              'float grainPhase=atan(vAmesPos.y,vAmesPos.x)*62.0+vAmesPos.z*8500.;',
+              'float brushedLine=.5+.5*sin(grainPhase)/(1.+fwidth(grainPhase));',
+              'roughnessFactor+=amesShoulder*(.065+.025*brushedLine);',
+              '#include <metalnessmap_fragment>'
+            ].join('\\n'))
+          }
+          p.customProgramCacheKey=()=>'ames-yellow-gold-band-v1'
+        }
+      })
+    }
+    `;
+if(!ringStudio.includes('ames-yellow-gold-band-v1')){
+  if(!ringStudio.includes(afterMaterials)||!ringStudio.includes(beforeCrystal))throw Error('Missing studio material pass');
+  await writeFile(file,ringStudio.replace(beforeCrystal,goldRingFinish+beforeCrystal));
+}
