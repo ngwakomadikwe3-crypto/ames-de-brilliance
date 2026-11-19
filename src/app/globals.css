@@ -1023,3 +1023,6 @@ body:has(.ames-account-shell) > footer { display: none; }
   48% { transform: translate3d(1.6%, 1%, 0) skewX(.65deg) rotate(.35deg); background-position: 82% 62%, center; }
   76% { transform: translate3d(.2%, -.8%, 0) skewX(-.3deg); background-position: 54% 44%, center; }
 }
+
+.ames-app-shell [data-gallery-stone] { background: #143830; border-color: rgb(240 237 218 / .18); box-shadow: none; }
+.ames-gem-thumbnail { padding: 5%; background: radial-gradient(ellipse at 42% 34%, #ece9df, #d2cfc2 90%); }

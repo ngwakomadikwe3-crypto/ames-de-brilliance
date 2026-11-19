@@ -104,3 +104,8 @@ for node in gems:
 for ext in ('KHR_materials_ior','KHR_materials_volume','KHR_materials_transmission'):
     if ext not in watch['extensionsUsed']: watch['extensionsUsed'].append(ext)
 save(folder/'watch-pink-yellow.glb',watch,binary)
+
+for name, width in [('square', 1.19), ('slim', .81)]:
+    head = next(n for n in watch['nodes'] if n['name'] == 'Watch head')
+    head['scale'] = [width, 1, 1]
+    save(folder/('watch-'+name+'.glb'), watch, binary)

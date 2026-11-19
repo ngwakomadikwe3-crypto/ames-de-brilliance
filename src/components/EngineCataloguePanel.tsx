@@ -29,7 +29,7 @@ function matches(stone: CatalogueStone, term: string, species: string) {
 export default function EngineCataloguePanel() {
   const [pieces, setPieces] = useState<CatalogueStone[]>([]);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [query, setQuery] = useState(''), [species, setSpecies] = useState(''), [attempt, setAttempt] = useState(0);
+  const [query, setQuery] = useState(''), [species, setSpecies] = useState('');
   const [viewing, setViewing] = useState<CatalogueStone | null>(null), [buying, setBuying] = useState<CatalogueStone | null>(null), [gem, setGem] = useState<GalleryStone | null>(null);
   useEffect(() => {
     const abort = new AbortController();
@@ -40,7 +40,7 @@ export default function EngineCataloguePanel() {
       if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished')); setState('ready'); }
     }).catch(() => { if (!abort.signal.aborted) setState('error'); });
     return () => abort.abort();
-  }, [attempt]);
+  }, []);
   // Opening a stone adds a history step, so the phone's back gesture returns to the gallery rather than leaving it.
   const openGem = (stone: GalleryStone) => { try { history.pushState({ amesGem: stone.id }, ''); } catch {} setGem(stone); };
   const closeGem = () => { if (history.state?.amesGem) history.back(); else setGem(null); };
@@ -62,7 +62,6 @@ export default function EngineCataloguePanel() {
       <input type="search" aria-label="Search gemstones by name or reference" placeholder="Search gemstones" value={query} onChange={event => setQuery(event.target.value)} className={field} />
       <section aria-label="Available polished stones">
         {state === 'loading' && <p role="status" className="py-12 text-sm text-white">Loading the catalogue…</p>}
-        {state === 'error' && <div role="status" className="py-12 text-sm text-white"><p>The catalogue is unavailable. Please try again.</p><button type="button" onClick={() => { setState('loading'); setAttempt(value => value + 1); }} className="mt-4 min-h-11 rounded-full border border-white/25 px-5">Try again</button></div>}
         {state === 'ready' && pieces.length > 0 && <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
             <label className="text-xs text-white">Gemstone type<select value={species} onChange={event => setSpecies(event.target.value)} className={field}><option value="">All gemstones</option>{speciesOptions.map(name => <option key={name} value={name}>{name}</option>)}</select></label>
@@ -74,7 +73,7 @@ export default function EngineCataloguePanel() {
       <section aria-label="Gemstone gallery" className="pt-4" data-gemstone-gallery>
         {gallery.length === 0 ? <p className="py-6 text-sm text-white">No gallery stones match your search.</p> :
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{gallery.map(stone => <button type="button" key={stone.id} data-gallery-stone={stone.id} onClick={() => openGem(stone)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/15 bg-emerald-950/20 text-left">
-          <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" loading="lazy" className="ames-gem-thumbnail aspect-square w-full object-contain" />
           <span className={houseScript.className + " block px-4 py-3 text-3xl leading-snug"} style={{fontFamily:houseScript.style.fontFamily}}>{stone.name}</span>
         </button>)}</div>}
       </section>

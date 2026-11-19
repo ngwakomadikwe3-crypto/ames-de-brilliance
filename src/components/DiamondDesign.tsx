@@ -2,9 +2,10 @@
 import {useEffect,useState} from 'react';
 import {colourDiamondModel} from '../lib/diamond-colour';
 import {diamondCuts,HouseChoices} from './HouseChoices';
-export function useDiamondDesign(source:string, ring:boolean) {
+export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) {
   const [cut,setCut]=useState('Original'),[colour,setColour]=useState('');
-  const model=ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
+  const [shape,setShape]=useState('Original');
+  const model=shape!=='Original' ? source.replace(/[^/]+\.glb.*$/,'watch-'+shape.toLowerCase()+'.glb') : necklace && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'fringe-'+cut.toLowerCase()+'.glb') : ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
   const [variant,setVariant]=useState({key:'',url:''}),[error,setError]=useState('');
   const key=model+colour;
   useEffect(()=>{
@@ -16,13 +17,14 @@ export function useDiamondDesign(source:string, ring:boolean) {
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
   },[model,colour,key]);
-  return {cut,setCut,colour,setColour,src:colour?(variant.key===key?variant.url:''):model,error:!!colour && error===key};
+  return {shape,setShape,cut,setCut,colour,setColour,src:colour?(variant.key===key?variant.url:''):model,error:!!colour && error===key};
 }
-export function DiamondControls({design,ring,watch}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean}) {
-  const colours:Record<string,string>={'':watch?'Yellow & pink':'Original','#a6bcf4':'Ice blue','#f8d65a':'Yellow','#f39fc0':'Pink','#ffffff':'White'};
-  if(!(design.colour in colours))colours[design.colour]='Custom';
-  return <div>{ring && <HouseChoices label="Centre cut" value={design.cut} choices={Object.fromEntries(['Original',...diamondCuts].map(c=>[c,c]))} onChange={design.setCut}/>}
-    <HouseChoices label="Diamond colour" value={design.colour} choices={colours} onChange={design.setColour}/>
-    <label className="inline-flex min-h-11 items-center gap-2 text-xs">Custom colour<input aria-label="Custom diamond colour" type="color" value={design.colour||'#a6bcf4'} onChange={e=>design.setColour(e.target.value)} /></label>
-  </div>;
+export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
+  const colours={'':watch?'Yellow & pink':'Original','#ffffff':'Colourless','#a6bcf4':'Blue','#f3cb43':'Yellow','#f18cad':'Pink','#88bc8c':'Green','#dc9253':'Orange','#a17baa':'Purple','#987358':'Brown'};
+  return <details className="mt-2 border-b border-white/15 pb-1 text-sm">
+    <summary className="cursor-pointer py-3">Personalise</summary>
+    {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
+    {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle'}} onChange={design.setShape}/>}
+    <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>
+  </details>;
 }

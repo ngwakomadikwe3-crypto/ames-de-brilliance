@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
 import ModelViewer from './ModelViewer';
-import { houseScript } from '../lib/script-font';
+
 import housePieces from '../lib/boutique-house-pieces.json';
 import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
@@ -31,7 +31,7 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       </div>
       <div className="pt-3 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
-          <p className={`ames-piece-name ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 24, color: '#ffffff' }}>{piece.name}</p>
+          <p className="ames-piece-name" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 24, color: '#ffffff' }}>{piece.name}</p>
           {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
@@ -46,7 +46,7 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
 function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onClose: () => void; onAskSame: () => void }) {
   const ring = piece.assetId === 'demo-pave-solitaire';
   const customizable = ring || ['ames-iced-watch','ames-pear-drop-earrings','ames-pear-fringe-necklace','ames-tennis-bracelet'].includes(piece.assetId);
-  const design = useDiamondDesign(piece.interactiveGlb, ring);
+  const design = useDiamondDesign(piece.interactiveGlb, ring, piece.assetId === "ames-pear-fringe-necklace");
   const price = boutiquePrice(piece.price);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
@@ -62,8 +62,8 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
             fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2 className={houseScript.className} style={{ fontFamily: houseScript.style.fontFamily, fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
-        {customizable && <DiamondControls design={design} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
+        <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 36, color: '#ffffff', lineHeight: 1.1 }}>{piece.name}</h2>
+        {customizable && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
@@ -119,7 +119,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="min-h-full px-4 sm:px-8 pb-8 pt-20 mx-auto"
             style={{ maxWidth: 880, scrollSnapAlign: 'start' }}>
-            <h2 className={`ames-collection-heading ames-script-title ${houseScript.className}`} style={{ fontFamily: houseScript.style.fontFamily }}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
+            <h2 className="ames-collection-heading" style={{ fontFamily: 'var(--font-satoshi)' }}>{boutiqueCategories(pieces).find(item => item.key === category)?.label}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-7 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>
