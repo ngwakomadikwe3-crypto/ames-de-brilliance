@@ -1133,3 +1133,12 @@ html:is([data-silk=white],[data-silk=dark],[data-silk=burgundy]) body:not(:has(.
  background-color:var(--site-surface)!important;color:var(--site-ink)!important
 }
 .ames-account-shell[data-silk=white] :focus-visible{outline-color:#343434}
+
+.house-navigation{position:relative;display:flex;align-items:center;gap:4px}
+.house-navigation summary{display:grid;place-items:center;width:38px;height:44px;cursor:pointer;list-style:none}
+.house-navigation summary::-webkit-details-marker{display:none}
+.house-navigation nav{position:absolute;z-index:90;top:100%;left:0;min-width:230px;display:grid;padding:12px;border-radius:12px;background:var(--site-surface,#102e27);color:var(--site-ink,#fff);box-shadow:0 6px 18px #0003}
+.house-navigation nav :is(a,label){padding:7px 8px}
+.house-navigation nav select{background:inherit;color:inherit}
+.ames-account-header:has(.house-navigation){position:relative;z-index:20;padding:0 16px;overflow:visible}
+html[data-silk]:not([data-silk=emerald]) header:has(.house-navigation){background:var(--site-surface)!important;color:var(--site-ink)!important}

@@ -2,12 +2,12 @@
 import {useSilk} from './SilkPreference';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import HouseWordmark from './HouseWordmark';
+import HouseNavigation from './HouseNavigation';
 
 export default function AppAccountShell({ title, children }: { title: string; children: ReactNode }) {
   const silk=useSilk();
   return <div data-silk={silk.toLowerCase()} className="ames-app-shell ames-account-shell">
-    <header className="ames-account-header"><Link href="/app" aria-label="HOUSEofAMES home"><HouseWordmark size={14} tone={silk==="White"?"ink":"light"} /></Link></header>
+    <header className="ames-account-header"><HouseNavigation/></header>
     <div className="ames-account-content">
       <Link href="/app" className="ames-account-back">← Back to HOUSEofAMES</Link>
       <h1>{title}</h1>

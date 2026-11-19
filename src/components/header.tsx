@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BrandMark } from "./BrandMark";
+import HouseNavigation from "./HouseNavigation";
 import { usePathname } from "next/navigation";
 
 const NAV = [
@@ -30,9 +30,7 @@ export default function Header() {
       }}
     >
       <div className="max-w-5xl mx-auto flex items-center justify-between px-4 md:px-6 py-3">
-        <a href="/app" className="flex items-center shrink-0">
-          <BrandMark variant="full" height={32} dark={isHome} />
-        </a>
+        <HouseNavigation light={!isHome}/>
 
         <nav className="hidden md:flex items-center gap-4 text-[11px] font-light">
           {NAV.map((link) => (

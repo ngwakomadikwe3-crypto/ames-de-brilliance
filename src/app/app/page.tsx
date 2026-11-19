@@ -142,7 +142,7 @@ export default function AppPage() {
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
           <div data-app-menu className="absolute top-14 left-4 right-auto w-64 rounded-2xl overflow-hidden" style={{ background: 'rgba(3,25,22,0.92)', border: '1px solid rgba(238,247,244,0.14)', backdropFilter: 'blur(18px)' }} onClick={e => e.stopPropagation()}>
             <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(238,247,244,0.12)' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: '0.08em', color: '#ffffff' }}>AMES</div>
+              <HouseWordmark size={14} tone={background === "White" ? "ink" : "light"} />
               <div className="mt-2 break-words text-sm text-white" data-customer-name>{displayName || 'Guest profile'}</div>
             </div>
             <label className="flex items-center justify-between gap-3 px-5 pt-3 text-sm">Silk background

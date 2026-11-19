@@ -27,7 +27,7 @@ export function BrandMark({ variant = "full", height, dark = false }: Props) {
           </defs>
           <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={silverGrad ? "url(#bm-pg-c)" : sub} strokeWidth="1.8" strokeLinejoin="round" fill="none" />
         </svg>
-        <HouseWordmark size={Math.round(h * 0.5)} tone={dark ? "silver" : "ink"} />
+        <HouseWordmark size={Math.round(h * 0.5)} tone={dark ? "light" : "ink"} />
       </span>
     );
   }
@@ -47,7 +47,7 @@ export function BrandMark({ variant = "full", height, dark = false }: Props) {
         </defs>
         <path d="M12 2L22 9L12 22L2 9L12 2Z" stroke={silverGrad ? "url(#bm-pg-f)" : sub} strokeWidth="1.8" strokeLinejoin="round" fill="none" />
       </svg>
-      <HouseWordmark size={Math.round(h * 0.4)} tone={dark ? "silver" : "ink"} />
+      <HouseWordmark size={Math.round(h * 0.4)} tone={dark ? "light" : "ink"} />
     </span>
   );
 }
