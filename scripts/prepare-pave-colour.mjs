@@ -128,3 +128,14 @@ if(!ringStudio.includes('ames-yellow-gold-band-v1')){
   if(!ringStudio.includes(afterMaterials)||!ringStudio.includes(beforeCrystal))throw Error('Missing studio material pass');
   await writeFile(file,ringStudio.replace(beforeCrystal,goldRingFinish+beforeCrystal));
 }
+
+// Reuse the articulated-chain solver on open necklaces and tennis bracelets.
+const chainSource=await readFile(file,'utf8');
+const foldSwitch="el.dataset.amesFoldable='false'";
+if(chainSource.includes(foldSwitch)){
+  const grab="if(k<0||!grab||k===pinned)return";
+  if(!chainSource.includes(grab))throw Error('Chain grab handler missing');
+  await writeFile(file,chainSource.replace(foldSwitch,`const flexibleChain=!hinged && links.length>2;
+    el.dataset.amesFoldable=flexibleChain?'unclasped':'false';
+    if(flexibleChain)host.addEventListener('pointerdown',onDown,{capture:true})`).replace(grab,"if(flatProgress.current!==1||k<0||!grab||k===pinned)return"));
+} else if(!chainSource.includes("const flexibleChain=!hinged"))throw Error('Chain interaction hook missing');

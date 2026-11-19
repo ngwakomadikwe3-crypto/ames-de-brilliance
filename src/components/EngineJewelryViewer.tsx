@@ -137,7 +137,7 @@ function SelectedViewer({
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
       {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><div className="ames-floating-piece" style={{animationPlayState: held || paused || flat || opened ? "paused" : "running"}}><JewelryViewer
         modelUrl={modelUrl}
-        cameraPreset={cameraPreset ?? 'three_quarter'} zoom={zoom ?? 1} turntableEnabled={effectiveTurntable} resetToken={resetToken ?? 0}
+        cameraPreset={cameraPreset ?? 'three_quarter'} zoom={zoom ?? 1} turntableEnabled={flat ? false : effectiveTurntable} resetToken={resetToken ?? 0}
         paused={paused}
         opticsProfile={opticsProfile}
         controlsEnabled
@@ -150,7 +150,7 @@ function SelectedViewer({
         {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
           {(bracelet.length_mm / 10).toFixed(1)} cm · {bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `fits a wrist up to ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}
         </span>}
-        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">Drag to rotate · pinch to zoom</span>}
+        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">{bracelet.kind==='watch'?'Drag to rotate · pinch to zoom':'Drag a link to fold · pinch to zoom'}</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
         <HandClasp onPose={open=>{if(open!==flat)toggleClasp()}} />
       </div>}

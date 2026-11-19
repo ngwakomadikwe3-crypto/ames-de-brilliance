@@ -1,5 +1,6 @@
 "use client";
 
+import {FollowJeweller} from './JewellerFavourites';
 import { useEffect, useRef, useState } from 'react';
 import {useCollectionStyles} from './CollectionStyles';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
@@ -87,7 +88,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {!price && piece.inquiryState && <p style={{ marginTop: 12, fontSize: 12, color: '#ffffff' }}>{piece.inquiryState}</p>}
         {piece.listing && stockLabel(piece.listing.stock) && <p data-stock style={{ marginTop: 4, fontSize: 12, color: piece.listing.stock === 0 ? '#f3c9c0' : '#ffffff' }}>{stockLabel(piece.listing.stock)}</p>}
         {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#ffffff' }}>{piece.availabilityState}</p>}
-        <div className="mt-4 space-y-3">{piece.listing?.price && piece.listing.stock !== 0 && <PurchaseActions assetId={piece.assetId} />}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
+        <div className="mt-4 space-y-3">{piece.listing?.price && piece.listing.stock !== 0 && <PurchaseActions assetId={piece.assetId} />}{piece.listing&&<FollowJeweller target={'listing:'+piece.listing.id}/>}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
         <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex items-center min-h-11 rounded-full px-5 text-[12px]">Ask SAME</button>
       </div>
     </div>

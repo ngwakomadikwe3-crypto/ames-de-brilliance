@@ -1,4 +1,5 @@
 "use client";
+import {FollowJeweller} from './JewellerFavourites';
 import { useEffect, useState } from 'react';
 import PieceComments from './PieceComments';
 import PurchaseActions from './PurchaseActions';
@@ -22,7 +23,7 @@ export default function PublicJewelleryDetails({ id }: { id: string }) {
     <p className="text-sm">Made in: {originLabel(listing.madeIn.country, listing.madeIn.verified)}</p>
     {listing.gemstones.map((g, i) => <p key={i} className="text-sm">{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}
     <p className="text-xs text-white">Business location, manufacturing country and gemstone origin are separate. An evidence review is not a laboratory certificate.</p>
-    {stockLabel(listing.stock) && <p className={listing.stock === 0 ? 'text-sm text-red-100' : 'text-sm text-emerald-200'} data-stock>{stockLabel(listing.stock)}</p>}{listing.price && listing.stock !== 0 && <PurchaseActions assetId={listing.assetId} />}<SavePiece assetId={listing.assetId} /><PieceComments assetId={listing.assetId} name={listing.name} /><AskJeweller listingId={listing.id} />
+    {stockLabel(listing.stock) && <p className={listing.stock === 0 ? 'text-sm text-red-100' : 'text-sm text-emerald-200'} data-stock>{stockLabel(listing.stock)}</p>}{listing.price && listing.stock !== 0 && <PurchaseActions assetId={listing.assetId} />}<FollowJeweller target={'listing:'+listing.id}/><SavePiece assetId={listing.assetId} /><PieceComments assetId={listing.assetId} name={listing.name} /><AskJeweller listingId={listing.id} />
     <a className="inline-block text-sm underline" href="/app">Return to Boutique / ask SAME</a>
   </article>;
 }

@@ -1,4 +1,5 @@
 "use client";
+import {FollowJeweller} from './JewellerFavourites';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { originLabel } from '@/lib/catalogue-content';
@@ -9,6 +10,6 @@ export default function MakerStorefront({ slug }: { slug: string }) {
   if (error) return <p role="alert">{error}</p>; if (!shop) return <p role="status">Loading storefront…</p>;
   return <article className="space-y-6" data-maker-storefront>
     <header className="space-y-3">{shop.logoUrl && <img src={shop.logoUrl} alt={shop.name} className="h-24 w-24 rounded-full object-cover" />}<h2 className="text-3xl">{shop.name}</h2><p className="whitespace-pre-wrap text-sm text-white">{shop.bio}</p>{shop.location && <p className="text-xs text-white">Business location: {shop.location}</p>}<p className="text-xs text-white">{shop.specialties.join(' · ')}</p></header>
-    <section className="space-y-4"><h3 className="text-xl">Collection</h3>{!shop.listings.length && <p className="text-sm text-white">The collection is being prepared. Please check back soon.</p>}<div className="grid grid-cols-1 gap-7 sm:grid-cols-2">{shop.listings.map(l => <Link key={l.id} href={`/jewellery/${l.id}`} className="block text-center"><div className="ames-piece-image"><img src={l.posterUrl} alt={l.name} loading="lazy" /></div><p className="mt-3">{l.name}</p><p className="mt-1 text-sm text-white">{l.price ? new Intl.NumberFormat(undefined, { style: 'currency', currency: l.price.currency }).format(l.price.amount) : 'Price on request'}</p><p className="mt-1 text-xs text-white">Made in: {originLabel(l.madeIn.country, l.madeIn.verified)}</p></Link>)}</div></section>
+    <FollowJeweller target={slug}/><section className="space-y-4"><h3 className="text-xl">Collection</h3>{!shop.listings.length && <p className="text-sm text-white">The collection is being prepared. Please check back soon.</p>}<div className="grid grid-cols-1 gap-7 sm:grid-cols-2">{shop.listings.map(l => <Link key={l.id} href={`/jewellery/${l.id}`} className="block text-center"><div className="ames-piece-image"><img src={l.posterUrl} alt={l.name} loading="lazy" /></div><p className="mt-3">{l.name}</p><p className="mt-1 text-sm text-white">{l.price ? new Intl.NumberFormat(undefined, { style: 'currency', currency: l.price.currency }).format(l.price.amount) : 'Price on request'}</p><p className="mt-1 text-xs text-white">Made in: {originLabel(l.madeIn.country, l.madeIn.verified)}</p></Link>)}</div></section>
   </article>;
 }

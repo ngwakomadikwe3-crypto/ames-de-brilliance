@@ -1,3 +1,4 @@
+import {JewellerUpdates} from '@/components/JewellerFavourites';
 import {SilkRoot} from '@/components/SilkPreference';
 import type { Metadata } from "next";
 import "./globals.css";
@@ -22,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap" />
       </head>
       <body className="min-h-full flex flex-col">
-        <SilkRoot />
+        <SilkRoot /><JewellerUpdates/>
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
