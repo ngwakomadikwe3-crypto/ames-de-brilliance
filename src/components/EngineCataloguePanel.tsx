@@ -85,8 +85,7 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
     <h2 className="mt-5 text-3xl">{gem.name}</h2>
     <p className="mt-2">Loose gemstone only. No jewellery available.</p>
     <p className="mt-2 text-sm">{gem.defaultColors.join(', ')}</p>
-    {loosePosters[gem.id] && <figure className="mt-6"><img src={loosePosters[gem.id]} alt={gem.name} width={384} height={256} className="mx-auto w-full max-w-md" /><figcaption className="text-center text-xs">Illustrated gemstone preview</figcaption></figure>}
-    {existingLooseIds.has(gem.id) && <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${gem.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />}
+    <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={loosePosters[gem.id] ?? `/ames-engine/${gem.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />
   </section>;
   if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
