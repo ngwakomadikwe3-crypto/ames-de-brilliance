@@ -1,3 +1,5 @@
+import {listProfiles} from '@/lib/jeweller-store';
+import {effectiveProfileStatus} from '@/lib/jeweller-profile';
 // Catalogue Room: "Request to buy" (signed-in buyers) and the Purchase desk list (staff).
 import { NextRequest, NextResponse } from 'next/server';
 import { customerSession } from '@/lib/customer-session';
@@ -13,7 +15,7 @@ export async function GET(req: NextRequest) {
     if (staff && !staffLevel(req)) throw new ChatError(403, 'Staff access required.');
     const owner = staff ? undefined : (await customerSession(req, true)).user.$id;
     const page = await listStoneRequests(owner, req.nextUrl.searchParams.get('cursor') || undefined);
-    return NextResponse.json({ requests: page.records.map(stoneRequestView), next: page.next || null }, { headers: privateHeaders });
+    return NextResponse.json({ ...(staff?{makers:(await listProfiles()).filter(p=>effectiveProfileStatus(p)==='verified'&&p.portalUserId).map(p=>({id:p.id,name:p.businessName}))}:{}), requests: page.records.map(r=>stoneRequestView(r,staff)), next: page.next || null }, { headers: privateHeaders });
   } catch (e) { return listingFailure(e); }
 }
 export async function POST(req: NextRequest) {

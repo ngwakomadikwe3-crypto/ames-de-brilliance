@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import ManufacturerQuotes from './ManufacturerQuotes';
 import Link from 'next/link';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import JewellerAutoConvert from './JewellerAutoConvert';
@@ -95,6 +96,7 @@ export default function JewellerStudio({ staff = false }: { staff?: boolean }) {
   const setField = <K extends keyof ListingInput>(key: K, value: ListingInput[K]) => setDetails(d => ({ ...d, [key]: value }));
   if (loading) return <p role="status">Checking studio access…</p>;
   return <div className="space-y-6" data-jeweller-studio>
+    {access && !staff && <ManufacturerQuotes/>}
     {!staff && access && <nav className="flex flex-wrap gap-4 text-sm"><Link href="/jeweller/onboarding" className="underline">Business setup &amp; storefront</Link><Link href="/jeweller/enquiries" className="underline">Customer enquiries</Link><Link href="/workspace" className="underline">My workspace</Link></nav>}
     <p className="text-sm text-white">{owner ? 'Pieces posted by staff and jewellers wait here for your approval. Nothing appears in the Boutique until you approve it.' : staff ? 'Post CAD designs for the jewellers who made them. Each piece is converted to 3D and sent to the Owner, who approves it before it appears in the Boutique.' : 'Save a piece as a private draft, then upload its CAD file for review. Only approved pieces appear in the Boutique.'}</p>
     {error && <p role="alert" className="rounded-xl border border-red-300/40 p-3 text-sm text-red-200">{error}</p>}

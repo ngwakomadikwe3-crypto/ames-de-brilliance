@@ -36,5 +36,5 @@ export function useCollectionStyles(id:string){
       {kind==='bracelet'&&row('Stone shape',shape,['Round','Princess','Pear'],setShape)}
     </>}
   </div>;
-  return {configuration:[kind!=='necklace'&&family,style,metal,kind==='ring'&&width+' mm',kind==='bracelet'&&stone,kind==='bracelet'&&shape].filter(Boolean).join(' · '),requestedSpecs:{style,metal,colour:({'Platinum':'White','Palladium':'White','White Gold':'White','Yellow Gold':'Yellow','Rose Gold':'Rose','Black Zirconium':'Black'} as Record<string,string>)[metal],width:kind==='ring'?width:'',stones:kind==='bracelet'?stone:style==='Gemstone'?'Gemstone':'Natural diamond'},controls,active:!!kind&&style!=='Original',src:model.key===key?model.url:'',error:model.key===key&&model.error,style};
+  return {metal,configuration:[kind!=='necklace'&&family,style,metal,kind==='ring'&&width+' mm',kind==='bracelet'&&stone,kind==='bracelet'&&shape].filter(Boolean).join(' · '),controls,active:!!kind&&style!=='Original',src:model.key===key?model.url:'',error:model.key===key&&model.error,style};
 }

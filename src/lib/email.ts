@@ -103,3 +103,9 @@ export async function sendSourcingNotification(req: SourcingRequestEmail): Promi
     return false;
   }
 }
+
+export async function sendMakerQuoteNotice(ref:string,maker:string){
+  const mail=transport();
+  if(mail) await mail.sendMail({from:NOTIFY_FROM,to:NOTIFY_TO,subject:'Manufacturer quote received · '+ref,
+    text:maker+' submitted a cost for '+ref+'. Review the dealer cost and add your markup at https://houseofames.com/dashboard/purchases'}).catch(()=>false);
+}

@@ -1,23 +1,21 @@
 "use client";
 
 import {FollowJeweller} from './JewellerFavourites';
-import SampleQuote from './SampleQuote';
-import PieceSpecifications from './PieceSpecifications';
 import { useEffect, useRef, useState } from 'react';
 import {useCollectionStyles} from './CollectionStyles';
+import ConfigurationPrice from './ConfigurationPrice';
+import SampleQuote from './SampleQuote';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
 import {useAtelierLanguage} from './AtelierLanguage';
 import {houseScript} from '../lib/script-font';
-import JewelleryActions from './JewelleryActions';
+import SizeGuide from './SizeGuide';
 import ModelViewer from './ModelViewer';
 
 import housePieces from '../lib/boutique-house-pieces.json';
 import PieceComments from './PieceComments';
-import ConfigurationPrice from './ConfigurationPrice';
 import PurchaseActions from './PurchaseActions';
 import { SavePiece } from './PieceAccountActions';
 import { loadPublishedBoutiqueContent, originLabel, stockLabel } from '@/lib/catalogue-content';
-import FittingHand from "./FittingHand";
 import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 
@@ -34,16 +32,17 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
     <button type="button" onClick={onOpen} data-boutique-tile={piece.assetId} aria-label={`Open ${piece.name}`}
       className="ames-piece-tile text-center flex flex-col min-h-0" style={{ width: '100%', maxWidth: single ? 480 : undefined, justifySelf: single ? 'center' : undefined, alignSelf: 'start', gridColumn: single ? '1 / -1' : undefined, gridRow: single ? '1 / -1' : undefined }}>
       <div className="ames-piece-image w-full flex items-center justify-center overflow-hidden">
-        <span aria-hidden="true" className="ames-glint" />
-        {piece.assetId === 'dev-test-earring-001' ? <ModelViewer src={piece.interactiveGlb} alt={piece.name}
-          autoRotate cameraControls={false} ar={false} jewelryPresentation metalPreview="yellow-gold" cameraOrbit="35deg 75deg 110%"
-          style={{ width: '100%', height: '100%', pointerEvents: 'none' }} /> :
-          <img src={piece.heroImage} alt={piece.name} className="w-full h-full object-contain" loading="eager" />}
+        <ModelViewer src={piece.interactiveGlb} alt={piece.name} autoRotate={false} cameraControls={false} ar={false}
+          jewelryPresentation shadowIntensity="0" metalPreview={piece.assetId==='dev-test-earring-001'?'yellow-gold':undefined}
+          cameraOrbit={piece.category==='ring'?'32deg 64deg 106%':piece.category==='watch'?'26deg 64deg 110%':'10deg 84deg 108%'}
+          style={{width:'100%',height:'100%',pointerEvents:'none',background:'transparent'}} />
+        <style>{`.ames-piece-tile .ames-piece-image,.ames-piece-tile .ames-object-display{background:transparent!important;box-shadow:none!important;border:none!important}.ames-piece-tile .ames-piece-image::before,.ames-piece-tile .ames-piece-image::after,.ames-piece-tile .ames-object-display::before,.ames-piece-tile .ames-object-display::after{content:none!important}`}</style>
       </div>
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
           <p className="ames-piece-name" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 22, color: '#ffffff' }}>{t(piece.name)}</p>
-          {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
+          {hasOptions && <><ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}/><SampleQuote key={options} configuration={options} stone={piece.name} setting={piece.category} cut={collection.active?'':design.cut} metal={collection.active?collection.metal:design.metal}/></>}
+        {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
         {piece.listing && <span className="text-[10px] text-white">Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</span>}
@@ -54,15 +53,14 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
   );
 }
 
-function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onClose: () => void; onAskSame: (question:string) => void }) {
+function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onClose: () => void; onAskSame: () => void }) {
   const collection=useCollectionStyles(piece.assetId);
   const ring = piece.assetId === 'demo-pave-solitaire';
   const customizable = ring || ['ames-iced-watch','ames-pear-drop-earrings','ames-pear-fringe-necklace','ames-tennis-bracelet'].includes(piece.assetId);
   const design = useDiamondDesign(piece.interactiveGlb, ring, piece.assetId === "ames-pear-fringe-necklace");
   const {t}=useAtelierLanguage();
-  const orderSpecs:import('../lib/piece-specs').PieceSpecs=piece.listing?{style:piece.name,stones:piece.listing.gemstones.map(g=>g.name).join(', '),...piece.listing.specifications}:collection.active?collection.requestedSpecs:{style:piece.name,colour:customizable?design.metal:undefined};
   const price = boutiquePrice(piece.price);
-  const options=collection.active?collection.configuration:[design.metal,design.colour||'Original stones',(ring||piece.category==='necklace')&&design.cut,design.bracelet&&design.braceletStyle,piece.category==='watch'&&design.shape,piece.category==='watch'&&design.strap,piece.category==='watch'&&design.strap==='leather'&&design.leather].filter(Boolean).join(' · ');
+  const options=collection.active?collection.configuration:[design.metal,design.colour||'Original stones',(ring||piece.category==='necklace')&&design.cut,piece.category==='watch'&&design.shape,piece.category==='watch'&&design.strap,piece.category==='watch'&&design.strap==='leather'&&design.leather].filter(Boolean).join(' · ');
   const hasOptions=!piece.listing&&(customizable||collection.active);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
@@ -72,23 +70,19 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute top-3 left-5 z-10 flex items-center justify-center w-11 h-11 rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>
-        <FittingHand category={piece.category??""} model={(collection.active?collection.src:design.src)||""}>{collection.active ? (collection.src ? <EngineJewelryViewer src={collection.src} alt={collection.style} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" cameraPreset={piece.category==="ring"?"three_quarter":"front"}/> : <p role="status">{collection.error?"Style preview unavailable":"Preparing your style…"}</p>) : customizable && !design.src ? <p role="status" className="p-8 text-center">{design.error ? "Colour preview unavailable. Choose Original to restore the design." : "Preparing your design…"}</p> : piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={design.src} src={design.src} poster={design.bracelet || piece.assetId === "ames-iced-watch" || design.metal !== "silver" || design.colour || design.cut !== "Original" ? undefined : piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
+        {collection.active ? (collection.src ? <EngineJewelryViewer src={collection.src} alt={collection.style} autoLoad turntableEnabled opticsProfile="mounted-gem-studio" cameraPreset={piece.category==="ring"?"three_quarter":"front"}/> : <p role="status">{collection.error?"Style preview unavailable":"Preparing your style…"}</p>) : customizable && !design.src ? <p role="status" className="p-8 text-center">{design.error ? "Colour preview unavailable. Choose Original to restore the design." : "Preparing your design…"}</p> : piece.listing || piece.assetId === 'demo-pave-solitaire' || piece.assetId === 'dev-test-candidate-ring' || AMES_STUDIO_PIECES.has(piece.assetId) ? <EngineJewelryViewer key={design.src} src={design.src} poster={piece.assetId === "ames-iced-watch" || design.metal !== "silver" || design.colour || design.cut !== "Original" ? undefined : piece.poster} alt={piece.name} cameraPreset={studioPiece(piece) ? studioCameraPreset(piece.category) : 'three_quarter'} zoom={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 1 : 0.78} autoLoad opticsProfile={piece.assetId === 'demo-pave-solitaire' || studioPiece(piece) ? 'mounted-gem-studio' : 'soft-studio'} turntableEnabled style={{ width: '100%', height: '100%' }} /> :
           <ModelViewer key={piece.interactiveGlb} src={piece.interactiveGlb} poster={hasUnfinishedJewelryImages(piece.assetId) ? undefined : piece.poster} alt={piece.name}
             autoRotate cameraControls ar={false} jewelryPresentation metalPreview={piece.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined} cameraOrbit={piece.category === 'ring' ? '35deg 40deg 105%' : '35deg 75deg 105%'}
-            fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}</FittingHand>
+            fallbackTitle={piece.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%' }} />}
       </div>
       <div className="shrink-0 px-6 pb-7 pt-3 mx-auto w-full" style={{ maxWidth: 620 }}>
-        <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(design.bracelet?(design.braceletStyle==='Bangle'?'Diamond pavé bangle':'Diamond tennis bracelet'):piece.name)}</h2>
-        {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
+        <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
         {piece.category==='watch' && <WatchMovement/>}
-        <JewelleryActions model={collection.active?collection.src:design.src} category={piece.category??''} name={piece.name} onAsk={onAskSame}>
-          {collection.controls}
+        {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
+        {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide category={piece.category} model={collection.active?collection.src:design.src} wrist={piece.category !== "ring"}/>}
+        {collection.controls}
         {customizable && !collection.active && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
-        </JewelleryActions>
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
-        <PieceSpecifications specs={orderSpecs}/>
-        {hasOptions&&<ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}/>}
-        {!piece.listing&&<SampleQuote key={options} configuration={options} stone={piece.name} setting={piece.category} cut={design.cut} metal={orderSpecs.metal??orderSpecs.colour??'To confirm'} specifications={orderSpecs}/>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
           {knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
@@ -100,12 +94,13 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {piece.listing && stockLabel(piece.listing.stock) && <p data-stock style={{ marginTop: 4, fontSize: 12, color: piece.listing.stock === 0 ? '#f3c9c0' : '#ffffff' }}>{stockLabel(piece.listing.stock)}</p>}
         {piece.availabilityState && <p style={{ marginTop: 4, fontSize: 11, color: '#ffffff' }}>{piece.availabilityState}</p>}
         <div className="mt-4 space-y-3">{piece.listing?.price && piece.listing.stock !== 0 && <PurchaseActions assetId={piece.assetId} />}{piece.listing&&<FollowJeweller target={'listing:'+piece.listing.id}/>}<SavePiece assetId={piece.assetId} /><PieceComments assetId={piece.assetId} name={piece.name} /></div>
+        <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex items-center min-h-11 rounded-full px-5 text-[12px]">Ask SAME</button>
       </div>
     </div>
   );
 }
 
-export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { highlightAssetId: string | null; onAskSame: (piece: BoutiquePiece, question?:string) => void }) {
+export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { highlightAssetId: string | null; onAskSame: (piece: BoutiquePiece) => void }) {
   const {t}=useAtelierLanguage();
   const [pieces, setPieces] = useState<BoutiquePiece[]>(() => (housePieces as BoutiquePiece[]).filter(piece => showCustomerJewelry(piece.assetId)));
   const [category, setCategory] = useState<BoutiqueCategory>('ring');
@@ -137,7 +132,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {catalogueError && !pieces.length && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
-      {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={question => onAskSame(selected,question)} /> : <>
+      {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-initial min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-featured-piece={groups.length === 1 && groups[0].length === 1 || undefined} data-boutique-scroll>
           {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}

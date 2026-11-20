@@ -182,7 +182,7 @@ export default function ModelViewer({
         field-of-view={fieldOfView}
         auto-rotate={controlledTurntable || reducedMotion ? false : autoRotate}
         camera-controls={cameraControls}
-        shadow-intensity={jewelryPresentation ? '0.55' : shadowIntensity}
+        shadow-intensity={shadowIntensity==='0'?'0':jewelryPresentation ? '0.55' : shadowIntensity}
         shadow-softness={jewelryPresentation ? '1' : '0.5'}
         exposure={jewelryPresentation ? '1' : '1.2'}
         min-camera-orbit={jewelryPresentation ? 'auto auto 45%' : undefined}
