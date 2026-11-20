@@ -6,12 +6,13 @@ import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshStandardMaterial,Quaternion,V
 import {MarchingCubes} from 'three/examples/jsm/objects/MarchingCubes.js';
 import {defaultJoints,poseJoints,type HandFit} from '../lib/fitting-hand';
 
-function Model({model,fit,wrist,watch,tone,curls}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;curls:number[]}){
+function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
  const {scene}=useGLTF(model),skin=useMemo(()=>new MeshStandardMaterial({roughness:.62}),[]);
  const points=useMemo(()=>poseJoints(fit?.joints||defaultJoints,curls),[fit,curls]);
  const finger=Math.max(.072,Math.min(.15,fit?.fingerRatio?fit.fingerRatio*.44:.098));
  const wristRadius=Math.max(.29,Math.min(.59,fit?.wristRatio?fit.wristRatio*.44:.39));
- skin.color.copy(new Color('#f4d3b7').lerp(new Color('#42271f'),tone/100));
+ if(colour)skin.color.set(colour).multiplyScalar(Math.pow(2,(50-tone)/50));
+ else skin.color.copy(new Color('#f4d3b7').lerp(new Color('#42271f'),tone/100));
  const hand=useMemo(()=>{
    const res=92,extent=2.45, surface=new MarchingCubes(res,skin,false,false,50000);
    surface.isolation=0;surface.field.fill(-1);
@@ -28,9 +29,9 @@ function Model({model,fit,wrist,watch,tone,curls}:{model:string;fit:HandFit|null
      const base=digit*4+1,knuckles=points.slice(base,base+4);
      const curve=new CatmullRomCurve3([points[0].clone().lerp(knuckles[0],.65),...knuckles]);
      const r=[.126,.107,.112,finger,.088][digit];
-     for(let i=0;i<=42;i++){const t=i/42,rad=r*(1.16-.40*t);blob(curve.getPointAt(t),rad,rad*1.05,rad*.87)}
+     for(let i=0;i<=42;i++){const t=i/42,rad=r*(1.12-.48*t+.055*Math.cos(6*Math.PI*t));blob(curve.getPointAt(t),rad,rad*1.05,rad*.87)}
    }
-   surface.update();surface.scale.setScalar(extent);return surface;
+   surface.update();surface.geometry.computeBoundingSphere();surface.scale.setScalar(extent);return surface;
  },[points,skin,finger,wristRadius]);
  useEffect(()=>()=>hand.geometry.dispose(),[hand]);useEffect(()=>()=>skin.dispose(),[skin]);
  const piece=useMemo(()=>{
@@ -53,6 +54,6 @@ function Model({model,fit,wrist,watch,tone,curls}:{model:string;fit:HandFit|null
  },[model,scene,points,wrist,watch,wristRadius,finger]);
  return <group scale={[fit?.mirror?-1:1,1,1]}><primitive object={hand}/><primitive object={piece}/></group>;
 }
-export default function FittingHandScene(props:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;curls:number[]}){
+export default function FittingHandScene(props:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
  return <Canvas frameloop="demand" dpr={[1,1.6]} camera={{position:[0,0,4.8],fov:40}}><ambientLight intensity={.65}/><directionalLight position={[-3,4,5]} intensity={2.3}/><Environment files="/ames-engine/environments/jewellery-tent-v3.hdr"/><Model {...props}/><OrbitControls enablePan={false} minDistance={1.3} maxDistance={6} target={[0,props.wrist?-.37:.35,0]}/></Canvas>;
 }

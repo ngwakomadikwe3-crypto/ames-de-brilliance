@@ -2,9 +2,11 @@
 import {useEffect, useRef, useState} from 'react';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
-export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture?:(points:{x:number;y:number;z:number}[],hex:string)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(false);
   const [message,setMessage]=useState('');
+  const capture=useRef(onCapture);
+  useEffect(()=>{capture.current=onCapture},[onCapture]);
   const fingers=useRef(onFingers);
   useEffect(()=>{fingers.current=onFingers},[onFingers]);
   const move=useRef(onMove);
@@ -61,7 +63,8 @@ export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:
       tracker=await HandLandmarker.createFromOptions(files,{baseOptions,runningMode:'VIDEO',numHands:1});
       if(stopped){stop();return}
       stage='tracking';
-      setMessage(fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      setMessage(capture.current?'Hold your hand flat, fingers apart, in even light.':fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function tick(now:number){
@@ -75,6 +78,20 @@ export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:
             if(hand){
               const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
               const ratios=[8,12,16,20].map(tip=>distance(tip,0)/Math.max(.001,distance(tip-2,0)));
+              if(capture.current){
+                openFrames=points?.every(p=>p.x>.015&&p.x<.985&&p.y>.015&&p.y<.985)&&ratios.every(r=>r>1.13)?openFrames+1:0;
+                if(openFrames>=5){
+                  const canvas=document.createElement('canvas');canvas.width=canvas.height=9;
+                  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Camera sample unavailable');
+                  const palm=[0,5,9,13,17].map(i=>points[i]);
+                  const x=palm.reduce((n,p)=>n+p.x,0)/5*player.videoWidth;
+                  const y=palm.reduce((n,p)=>n+p.y,0)/5*player.videoHeight;
+                  ctx.drawImage(player,x-4,y-4,9,9,0,0,9,9);
+                  const pixels=ctx.getImageData(0,0,9,9).data;
+                  const hex='#'+[0,1,2].map(c=>Array.from({length:81},(_,i)=>pixels[i*4+c]).sort((a,b)=>a-b)[40].toString(16).padStart(2,'0')).join('');
+                  if(capture.current(hand,hex)){setMessage('Hand fit saved on this device.');setActive(false);return}
+                }
+              }
               if(fingers.current){
                 const curls=[1,5,9,13,17].map(base=>{
                   let bend=0;
@@ -102,7 +119,7 @@ export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:
                 if(ratios.every(r=>r<.96))pose=false;
               }
             }
-            if(!hand)anchor=undefined;
+            if(!hand){anchor=undefined;openFrames=0};
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
             else if(now-since>=400 && emitted!==pose){emitted=pose;callback.current?.(pose)}
@@ -117,5 +134,5 @@ export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:
     document.addEventListener('visibilitychange',hide);
     return ()=>{stop();document.removeEventListener('visibilitychange',hide)};
   },[active]);
-  return <div className="text-center text-xs"><button type="button" aria-pressed={active} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop hand controls':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
+  return <div className="text-center text-xs"><button type="button" aria-pressed={active} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }
