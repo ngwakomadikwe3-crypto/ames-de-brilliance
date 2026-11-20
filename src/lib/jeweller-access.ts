@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { customerSession } from './customer-session';
+import { jewellerSession } from './jeweller-session';
 import type { NextRequest } from 'next/server';
 import { getSessionRole } from '@/lib/staff-session';
 import { ChatError, privateHeaders } from './chat-security';
@@ -16,7 +16,7 @@ export function staffLevel(req: NextRequest): 'owner' | 'staff' | null {
 }
 export const isStaff = (req: NextRequest) => staffLevel(req) !== null;
 export async function signedInJeweller(req: NextRequest) {
-  const { user } = await customerSession(req, true);
+  const { user } = await jewellerSession(req, true);
   const profiles = (await listProfiles()).filter(p => p.portalUserId === user.$id);
   if (profiles.length !== 1 || effectiveProfileStatus(profiles[0]) !== 'verified') throw new ChatError(403, 'Staff must verify your jeweller profile and enable access for this account.');
   return profiles[0];

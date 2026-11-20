@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { customerSession } from '@/lib/customer-session';
+import {randomBytes} from 'node:crypto';
+import {guestCookie, guestUser, jewellerSession} from '@/lib/jeweller-session';
 import { ownBusiness, selfProfile, checkStorefront } from '@/lib/jeweller-onboarding';
 import { createSelfProfile, mutateProfile, reserveStorefrontSlug } from '@/lib/jeweller-store';
 import { editProfile, reviewProfile, recordChange } from '@/lib/jeweller-profile';
@@ -7,12 +8,19 @@ import { listingFailure } from '@/lib/jeweller-access';
 import { checkChatOrigin, readChatJson, privateHeaders } from '@/lib/chat-security';
 export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
-  try { const { user, profile } = await ownBusiness(req, false); return NextResponse.json({ account: { id: user.$id, name: user.name, email: user.email, verified: user.emailVerification }, profile: profile ? selfProfile(profile) : null }, { headers: privateHeaders }); }
+  try {
+    if(!req.cookies.has('ames_customer_session') && !/^[a-f0-9]{64}$/.test(req.cookies.get(guestCookie)?.value||'')){
+      const token=randomBytes(32).toString('hex'),user=guestUser(token);
+      const response=NextResponse.json({account:{id:user.$id,name:user.name,email:'',guest:true,verified:false},profile:null},{headers:privateHeaders});
+      response.cookies.set(guestCookie,token,{httpOnly:true,secure:req.nextUrl.protocol==='https:',sameSite:'lax',path:'/',maxAge:365*24*60*60});
+      return response;
+    }
+    const { user, profile } = await ownBusiness(req, false); return NextResponse.json({ account: { id: user.$id, name: user.name, email: user.email, guest: !req.cookies.has('ames_customer_session'), verified: user.emailVerification }, profile: profile ? selfProfile(profile) : null }, { headers: privateHeaders }); }
   catch (e) { return listingFailure(e); }
 }
 export async function POST(req: NextRequest) {
   try {
-    checkChatOrigin(req); const body = await readChatJson(req), { user } = await customerSession(req, true);
+    checkChatOrigin(req); const body = await readChatJson(req), { user } = await jewellerSession(req, true);
     if (body.action === 'create') return NextResponse.json({ profile: selfProfile(await createSelfProfile(user.$id, body.details)) }, { status: 201, headers: privateHeaders });
     const { profile } = await ownBusiness(req); if (!profile) throw new Error('Create your business profile first');
     const actor = `account:${user.$id}`;

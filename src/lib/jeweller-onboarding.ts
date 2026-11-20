@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { NextRequest } from 'next/server';
-import { customerSession } from './customer-session';
+import { jewellerSession } from './jeweller-session';
 import { listProfiles } from './jeweller-store';
 import { profileInput, profileGaps, effectiveProfileStatus, type JewellerProfile } from './jeweller-profile';
 import { ChatError } from './chat-security';
@@ -10,7 +10,7 @@ export const storefrontInput = z.object({ slug: z.string().trim().toLowerCase().
   published: z.boolean().default(false), rightsConfirmed: z.boolean().default(false),
 }).strict();
 export async function ownBusiness(req: NextRequest, verifiedEmail = true) {
-  const { user } = await customerSession(req, verifiedEmail);
+  const { user } = await jewellerSession(req, verifiedEmail);
   const profiles = (await listProfiles()).filter(p => p.portalUserId === user.$id);
   if (profiles.length > 1) throw new ChatError(409, 'Ask staff to resolve duplicate business profiles.');
   return { user, profile: profiles[0] || null };
