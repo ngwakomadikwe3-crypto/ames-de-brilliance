@@ -61,21 +61,59 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
     scene.rotation.x=.42;
   }else{
     const necklace=kind==='necklace',rx=necklace?1.45:1.15,ry=necklace?1.65:.84;
-    const rail=circle(1,style==='Delicate'?.016:.031);rail.scale.set(rx,ry,1);
-    if(['Channel Set','Fancy Bangles','Pavé Set'].includes(style)){
-      for(const delta of [-.052,.052])circle(1,.022,style==='Fancy Bangles'?accent:main).scale.set(rx+delta,ry+delta,1);
-    }
     const count=style==='Delicate'?12:style==='Cluster'?22:necklace?60:style==='Prong Set'?36:46;
+    const step=2*Math.PI/count;
+    const point=(angle:number,offset=0)=>new T.Vector3((rx+offset)*Math.cos(angle),(ry+offset)*Math.sin(angle),0);
+    const nodes:T.Group[]=[];
+    let total=0;
     for(let i=0;i<count;i++){
-      const a=i*2*Math.PI/count,x=rx*Math.cos(a),y=ry*Math.sin(a);
-      if(style==='Cluster'&&i%2===0){circle(.1,.019,main,x,y);continue}
+      const angle=Math.PI/2+(i+.5)*step;
+      const start=point(angle-step/2),end=point(angle+step/2);
+      total+=start.distanceTo(end);
+      const link=new T.Group();
+      link.position.copy(point(angle));
+      const tangent=end.clone().sub(start).normalize(),normal=new T.Vector3(0,0,1);
+      link.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(tangent,normal,tangent.clone().cross(normal)));
+      link.userData.ames_link=i;
+      scene.add(link);nodes.push(link);
+      const offsets=['Channel Set','Fancy Bangles','Pavé Set'].includes(style)?[-.052,0,.052]:[0];
+      for(const offset of offsets){
+        const curve=new T.CatmullRomCurve3([point(angle-step/2,offset),point(angle,offset),point(angle+step/2,offset)]);
+        const tube=mesh(new T.TubeGeometry(curve,5,offset?.022:style==='Delicate'?.016:.031,8,false),offset&&style==='Fancy Bangles'?accent:main);
+        link.attach(tube);
+      }
+    }
+    const mm=(necklace?420:180)/total;
+    const length=total*mm;
+    scene.userData.ames_bracelet={kind,lay:'hang',links:count,pitch:length/count,length_mm:length,width_mm:Math.round(mm*.14),clasp:'Box clasp'};
+    for(let i=0;i<count;i++){
+      const a=Math.PI/2+(i+.5)*step,x=rx*Math.cos(a),y=ry*Math.sin(a);
+      if(style==='Cluster'&&i%2===0){nodes[i].attach(circle(.1,.019,main,x,y));continue}
+      const first=scene.children.length;
       const size=style==='Delicate'?.068:style==='Pavé Set'?.042:necklace?.055+.038*(1-Math.sin(a))/2:.063;
       jewel(x,y,.032,style==='Prong Set'?size*1.12:size);
       if(style==='Pavé Set')jewel(x*.945,y*.945,.032,size*.78);
       if(style==='Fancy Bangles'&&i%2===0)jewel(x*1.08,y*1.08,.03,.035);
+      for(const part of scene.children.slice(first))nodes[i].attach(part);
     }
     if(style==='Bow Tie')for(const side of [-1,1])for(let i=1;i<=(side===1?6:9);i++)jewel(side*.044+i*side*.012,-ry-i*.071,.03,.041);
     if(style==='Cluster'){for(const r of [.13,.22,.31]){circle(r,.017,main,0,-ry-.32);for(let i=0;i<24;i++){const a=i*Math.PI/12;jewel(r*Math.cos(a),-ry-.32+r*Math.sin(a),.02,.018)}}}
+    // Keep each stone, setting and pendant on its own section while the clasp opens.
+    for(const part of [...scene.children]){
+      if(part instanceof T.Group)continue;
+      const angle=(Math.atan2(part.position.y/ry,part.position.x/rx)-Math.PI/2+2*Math.PI)%(2*Math.PI);
+      const index=Math.min(count-1,Math.floor(angle/step));
+      nodes[index].attach(part);
+    }
+    for(const [index,span] of [[0,.10],[count-1,.065]]){
+      const clasp=mesh(new T.BoxGeometry(span,.075,.045),main,0,ry,.025);
+      clasp.position.x=index===0?-span/2:span/2;
+      nodes[index].attach(clasp);
+    }
+    for(const node of nodes){
+      node.position.multiplyScalar(mm);
+      for(const part of node.children){part.position.multiplyScalar(mm);part.scale.multiplyScalar(mm)}
+    }
   }
   try{
     const data=await new GLTFExporter().parseAsync(scene,{binary:true}) as ArrayBuffer;

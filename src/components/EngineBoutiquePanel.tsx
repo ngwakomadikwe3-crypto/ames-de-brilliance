@@ -32,10 +32,9 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
     <button type="button" onClick={onOpen} data-boutique-tile={piece.assetId} aria-label={`Open ${piece.name}`}
       className="ames-piece-tile text-center flex flex-col min-h-0" style={{ width: '100%', maxWidth: single ? 480 : undefined, justifySelf: single ? 'center' : undefined, alignSelf: 'start', gridColumn: single ? '1 / -1' : undefined, gridRow: single ? '1 / -1' : undefined }}>
       <div className="ames-piece-image w-full flex items-center justify-center overflow-hidden">
-        <ModelViewer src={piece.interactiveGlb} alt={piece.name} autoRotate={false} cameraControls={false} ar={false}
-          jewelryPresentation shadowIntensity="0" metalPreview={piece.assetId==='dev-test-earring-001'?'yellow-gold':undefined}
-          cameraOrbit={piece.category==='ring'?'32deg 64deg 106%':piece.category==='watch'?'26deg 64deg 110%':'10deg 84deg 108%'}
-          style={{width:'100%',height:'100%',pointerEvents:'none',background:'transparent'}} />
+        <img src={['demo-pave-solitaire','ames-pear-drop-earrings','ames-tennis-bracelet'].includes(piece.assetId)
+          ? '/ames-engine/'+piece.assetId+'/web/poster-v2.webp' : piece.thumbnail || piece.heroImage}
+          alt={piece.name} className="h-full w-full object-contain" style={{objectFit:'contain',objectViewBox:'inset(0)'}} />
         <style>{`.ames-piece-tile .ames-piece-image,.ames-piece-tile .ames-object-display{background:transparent!important;box-shadow:none!important;border:none!important}.ames-piece-tile .ames-piece-image::before,.ames-piece-tile .ames-piece-image::after,.ames-piece-tile .ames-object-display::before,.ames-piece-tile .ames-object-display::after{content:none!important}`}</style>
       </div>
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
