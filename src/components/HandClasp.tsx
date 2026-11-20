@@ -78,8 +78,9 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
 }
 
-export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints}:{onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
-  const [active,setActive]=useState(false);
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame}:{liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+  const [active,setActive]=useState(!!liveFrame);
+  const liveFrameRef=useRef(liveFrame);useEffect(()=>{liveFrameRef.current=liveFrame},[liveFrame]);
   const [message,setMessage]=useState('');
   const joints=useRef(onJoints);
   useEffect(()=>{joints.current=onJoints},[onJoints]);
@@ -104,7 +105,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     video.playsInline=true;
     function stop(){
       stopped=true;
-      joints.current?.(null);
+      joints.current?.(null);liveFrameRef.current?.(null,undefined);
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach(track=>track.stop());
       if(player.srcObject===stream)player.srcObject=null;
@@ -146,6 +147,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       stage='tracking';
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
       if(zoom.current)setMessage('Pinch thumb and index, then spread to zoom in or pinch closer to zoom out. Move a held pinch to rotate where supported.');
+      if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
       let zoomGap:number|undefined;
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
@@ -157,6 +159,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
           try{
             const result=tracker!.detectForVideo(player,now);
             const hand=result.worldLandmarks[0],points=result.landmarks[0];
+            liveFrameRef.current?.(player,points);
             joints.current?.(hand??null);
             let pose:boolean|undefined;
             if(hand){
@@ -225,5 +228,5 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     document.addEventListener('visibilitychange',hide);
     return ()=>{stop();document.removeEventListener('visibilitychange',hide)};
   },[active]);
-  return <div className="text-center text-xs"><button type="button" aria-pressed={active} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
+  return <div className="text-center text-xs"><button type="button" aria-pressed={active} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }

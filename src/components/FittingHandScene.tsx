@@ -2,13 +2,13 @@
 import {Canvas,useThree} from '@react-three/fiber';
 import {Environment,OrbitControls,useGLTF} from '@react-three/drei';
 import {useEffect,useMemo} from 'react';
-import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshStandardMaterial,Quaternion,SRGBColorSpace,TextureLoader,Vector3} from 'three';
+import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshBasicMaterial,MeshStandardMaterial,Quaternion,SRGBColorSpace,TextureLoader,Vector3} from 'three';
 import {MarchingCubes} from 'three/examples/jsm/objects/MarchingCubes.js';
 import {defaultJoints,poseJoints,trackedPose,type Joint,type HandFit} from '../lib/fitting-hand';
 
 function Model({model,fit,wrist,watch,tone,colour,curls,live}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;live:Joint[]|null;curls:number[]}){
  const invalidate=useThree(state=>state.invalidate);
- const {scene}=useGLTF(model),skin=useMemo(()=>new MeshStandardMaterial({roughness:.62}),[]);
+ const {scene}=useGLTF(model),skin=useMemo(()=>fit?.outline?.surface?new MeshBasicMaterial({toneMapped:false}):new MeshStandardMaterial({roughness:.62}),[fit?.outline?.surface]);
  const points=useMemo(()=>live?trackedPose(fit?.joints||defaultJoints,live):poseJoints(fit?.joints||defaultJoints,curls),[fit,curls,live]);
  const outline=fit?.outline;
  const finger=outline?outline.digits[3]*.44:Math.max(.072,Math.min(.15,fit?.fingerRatio && (fit.fingerRatio!==1 || (fit.mm>0 && !wrist))?fit.fingerRatio*.44:.098));
