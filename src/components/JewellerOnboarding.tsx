@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import JewellerStudioPreview from './JewellerStudioPreview';
 import { profileInput, specialties, fileKinds, type ProfileInput } from '@/lib/jeweller-profile';
 import type { selfProfile } from '@/lib/jeweller-onboarding';
 type SelfProfile = ReturnType<typeof selfProfile>;
@@ -33,7 +32,7 @@ export default function JewellerOnboarding() {
   return <div className="space-y-6" data-jeweller-onboarding>
     <p className="text-sm text-white">Add your business details, upload your evidence and submit your application for staff review. Once approved, you can upload your first piece.</p>
     {error && <p role="alert" className="rounded-xl border border-red-300/30 p-3 text-sm text-red-200">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-200">{notice}</p>}
-    {!account && <JewellerStudioPreview />}
+    <Link className="inline-flex rounded-full border px-4 py-2" href="/jeweller/onboarding/preview">Preview the next stage</Link>
     {!account ? <Link className="underline" href="/app/account">Create / sign in to your HOUSEofAMES account</Link> : <>
       <ol className="grid gap-3 text-sm sm:grid-cols-2" aria-label="Jeweller setup checklist">
         <li>{account.guest ? '1. Guest access is active. Return in this browser to resume your saved application.' : <>1. Account email: {account.verified ? 'verified' : 'verification required'} <Link href="/app/account" className="underline">Account settings</Link></>}</li>

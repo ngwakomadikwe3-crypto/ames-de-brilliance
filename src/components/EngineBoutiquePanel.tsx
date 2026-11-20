@@ -7,7 +7,6 @@ import ConfigurationPrice from './ConfigurationPrice';
 import SampleQuote from './SampleQuote';
 import {DiamondControls,useDiamondDesign} from './DiamondDesign';
 import {useAtelierLanguage} from './AtelierLanguage';
-import {houseScript} from '../lib/script-font';
 import SizeGuide from './SizeGuide';
 import ModelViewer from './ModelViewer';
 
@@ -137,7 +136,6 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="ames-compact-collection px-4 sm:px-8 mx-auto"
             style={{ maxWidth: 760 }}>
-            <h2 className="ames-collection-heading text-center" style={{ fontFamily:houseScript.style.fontFamily }}>{t(boutiqueCategories(pieces).find(item => item.key === category)?.label??'')}</h2>
             <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3 sm:gap-x-8">
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>

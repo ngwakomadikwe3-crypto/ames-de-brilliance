@@ -1,22 +1,22 @@
 'use client';
 import {useEffect, useState} from 'react';
 
-export default function JewellerStudioPreview() {
-  const [step, setStep] = useState(0);
-  const [maker,setMaker] = useState(''), [piece,setPiece] = useState(''), [details,setDetails] = useState('');
-  const [supplier,setSupplier] = useState(''), [quote,setQuote] = useState(''), [markup,setMarkup] = useState('');
-  const [image,setImage] = useState(''), [feedback,setFeedback] = useState('');
-  useEffect(() => () => { if(image) URL.revokeObjectURL(image); }, [image]);
+export default function JewellerStudioPreview({direct=false}:{direct?:boolean}) {
+  const [step, setStep] = useState(direct?1:0);
+  const [maker,setMaker] = useState(direct?"Sample atelier":''), [piece,setPiece] = useState(direct?"Pear drop earrings":''), [details,setDetails] = useState(direct?"White gold, pear-cut diamonds, 30 mm drop.":'');
+  const [supplier,setSupplier] = useState(direct?"Sample manufacturer":''), [quote,setQuote] = useState(direct?"4000":''), [markup,setMarkup] = useState(direct?"25":'');
+  const [image,setImage] = useState(direct?"/ames-engine/ames-pear-drop-earrings/web/poster-v2.webp":''), [feedback,setFeedback] = useState('');
+  useEffect(() => () => { if(image.startsWith("blob:")) URL.revokeObjectURL(image); }, [image]);
   const label = ['Your studio','Upload a piece','Staff review','Customer storefront'][step];
   const retail = new Intl.NumberFormat('en-BW',{style:'currency',currency:'BWP'}).format(Number(quote)*(1+Number(markup)/100));
   const field = 'block w-full mt-1 rounded-lg border bg-transparent p-2';
-  return <details className="rounded-xl border p-4"><summary className="cursor-pointer">Try the jeweller studio without signing in</summary>
-    <p className="my-3 text-sm">Practice with sample details. This preview stays in this tab. Live applications and listings use your verified account.</p>
+  return <details open={direct||undefined} className="rounded-xl border p-4"><summary className="cursor-pointer">Try the jeweller studio without signing in</summary>
+    <p className="my-3 text-sm">Practice with sample details. This preview stays in this tab. Sample prices are illustrative. Nothing here is submitted or published.</p>
     <form className="space-y-3" onSubmit={e=>{e.preventDefault();setStep(step+1);}}>
       <h2 aria-live="polite">{step+1} of 4 · {label}</h2>
       {step===0 && <label className="block">Trading name<input required maxLength={120} className={field} value={maker} onChange={e=>setMaker(e.target.value)} /></label>}
       {step===1 && <>
-        {feedback && <p role="status">{feedback}</p>}
+        {image && <img src={image} alt={piece} className="max-h-40 object-contain"/>}{feedback && <p role="status">{feedback}</p>}
         <label className="block">Piece name<input required maxLength={120} className={field} value={piece} onChange={e=>setPiece(e.target.value)}/></label>
         <label className="block">Materials, stones and measurements<textarea required className={field} value={details} onChange={e=>setDetails(e.target.value)}/></label>
         <label className="block">Product photo<input className={field} type="file" accept="image/jpeg,image/png,image/webp" required={!image} onChange={e=>{const f=e.target.files?.[0];if(f)setImage(URL.createObjectURL(f));}}/></label>
