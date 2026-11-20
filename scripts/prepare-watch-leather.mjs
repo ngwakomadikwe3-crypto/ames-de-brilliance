@@ -100,7 +100,7 @@ if(!source.includes('const curvedStrap')){
  await writeFile(file,source);
 }
 
-if(!source.includes('const railJoints=')){
+if(!source.includes('const railJoints:')){
  const anchor='    return {root,size:bounds.getSize';
  const insert=`    const railJoints: {from:Object3D;to:Object3D;end:Vector3;start:Vector3;bridge:Mesh}[]=[];
     const sortedLinks=[...links].sort((a,b)=>a.order-b.order);
