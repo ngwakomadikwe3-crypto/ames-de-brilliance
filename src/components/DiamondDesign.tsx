@@ -1,4 +1,5 @@
 'use client';
+import {WatchStrap} from './WatchStrap';
 import {useEffect,useState} from 'react';
 import {colourDiamondModel} from '../lib/diamond-colour';
 import {useAtelierLanguage} from './AtelierLanguage';
@@ -9,18 +10,21 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
   const model=shape!=='Original' ? source.replace(/[^/]+\.glb.*$/,'watch-'+shape.toLowerCase()+'.glb') : necklace && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'fringe-'+cut.toLowerCase()+'.glb') : ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
   const [variant,setVariant]=useState({key:'',url:''}),[error,setError]=useState('');
   const [metal,setMetal]=useState('silver');
+  const [strap,setStrap]=useState('metal'),[leather,setLeather]=useState('cognac');
+  const strapQuery=strap==='leather'?'leather='+leather:'';
+  const modelUrl=model+([metal!=='silver'?'metal='+metal:'',strapQuery].filter(Boolean).length?(model.includes('?')?'&':'?')+[metal!=='silver'?'metal='+metal:'',strapQuery].filter(Boolean).join('&'):'');
   const customised=!!colour;
-  const key=model+colour+metal;
+  const key=model+colour+metal+strapQuery;
   useEffect(()=>{
     if(!customised)return;
     const abort=new AbortController();let url='';
     fetch(model,{signal:abort.signal}).then(r=>{if(!r.ok)throw Error();return r.arrayBuffer();}).then(b=>{
       if(abort.signal.aborted)return;
-      url=URL.createObjectURL(colourDiamondModel(b,colour,metal));setVariant({key,url});setError('');
+      url=URL.createObjectURL(colourDiamondModel(b,colour,metal,strap==='leather'?leather:''));setVariant({key,url});setError('');
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
-  },[model,colour,metal,customised,key]);
-  return {metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):metal!=='silver'?model+(model.includes('?')?'&':'?')+'metal='+metal:model,error:customised && error===key};
+  },[model,colour,metal,customised,key,strap,leather]);
+  return {strap,setStrap,leather,setLeather,metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):modelUrl,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
   const {t}=useAtelierLanguage();
@@ -28,6 +32,7 @@ export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<
   return <details className="mt-2 border-b border-white/15 pb-1 text-sm">
     <summary className="cursor-pointer py-3">{t('Personalise')}</summary>
     {(ring || necklace) && <HouseChoices label={ring?'Centre cut':'Drop cut'} value={design.cut} choices={Object.fromEntries(['Original',...(ring?diamondCuts:['Round','Oval','Cushion'])].map(c=>[c,c]))} onChange={design.setCut}/>}
+    {watch && <WatchStrap strap={design.strap} setStrap={design.setStrap} colour={design.leather} setColour={design.setLeather}/>}
     {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle',Round:'Round'}} onChange={design.setShape}/>}
     <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={design.setMetal}/>
     <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>

@@ -1,9 +1,10 @@
 /** Reuse the original geometry bytes, including meshopt data and mounted pavé layouts. */
-export function colourDiamondModel(raw:ArrayBuffer, hex:string, metal='silver') {
+export function colourDiamondModel(raw:ArrayBuffer, hex:string, metal='silver',leather='') {
   if (hex && !/^#[a-f\d]{6}$/i.test(hex)) throw Error('Invalid diamond colour');
   const view=new DataView(raw);
   const size=view.getUint32(12,true);
   const doc=JSON.parse(new TextDecoder().decode(new Uint8Array(raw,20,size)));
+  if(leather)for(const n of doc.nodes)if(n.extras?.ames_bracelet?.kind==='watch')n.extras.ames_leather=leather;
   for(const surface of doc.materials){
     if(!/white gold|yellow gold|platinum|silver|rhodium/i.test(surface.name??''))continue;
     const brushed=/brushed|satin/i.test(surface.name);
