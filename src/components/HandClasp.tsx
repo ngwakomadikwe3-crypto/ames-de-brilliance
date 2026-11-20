@@ -2,7 +2,56 @@
 import {useEffect, useRef, useState} from 'react';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
-export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture?:(points:{x:number;y:number;z:number}[],hex:string)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+type PixelPoint = {x:number;y:number};
+type Outline = {digits:number[]; palm:number; wrist:number};
+
+function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.min(640,video.videoWidth);
+  canvas.height=Math.round(video.videoHeight*canvas.width/video.videoWidth);
+  const ctx=canvas.getContext('2d');
+  if(!ctx)return null;
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const points=landmarks.map(p=>({x:p.x*canvas.width,y:p.y*canvas.height}));
+  const span=Math.hypot(points[5].x-points[17].x,points[5].y-points[17].y);
+  if(span<42)return null;
+  const colour=(x:number,y:number)=>{
+    const i=4*(Math.round(y)*canvas.width+Math.round(x));
+    return [pixels[i],pixels[i+1],pixels[i+2]];
+  };
+  const median=(values:number[])=>values.sort((a,b)=>a-b)[Math.floor(values.length/2)];
+  function width(a:PixelPoint,b:PixelPoint,t:number,min:number,max:number){
+    const x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
+    const len=Math.hypot(b.x-a.x,b.y-a.y);
+    if(len<1)return 0;
+    const dx=(b.y-a.y)/len,dy=(a.x-b.x)/len;
+    const sample=colour(x,y);
+    const sides=[-1,1].map(sign=>{
+      let changed=0;
+      for(let d=1;d<=span*max;d++){
+        const px=x+dx*sign*d,py=y+dy*sign*d;
+        if(px<1||py<1||px>=canvas.width-1||py>=canvas.height-1)return 0;
+        const rgb=colour(px,py);
+        const distance=Math.hypot(...rgb.map((v,i)=>v-sample[i]));
+        changed=distance>48?changed+1:0;
+        if(changed===3)return d-2>=min*span?d-2:0;
+      }
+      return 0;
+    });
+    return sides.every(Boolean)?(sides[0]+sides[1])/span:0;
+  }
+  const digits=[2,5,9,13,17].map(i=>width(points[i],points[i+1],.64,.035,.26));
+  const palm=width(points[0],points[9],.55,.20,1);
+  const wrist=width(points[0],points[9],-.09,.15,.85);
+  if(!palm||!wrist||digits.some(v=>!v))return null;
+  const samples=[5,9,13,17].flatMap(i=>[.45,.65,.8].map(t=>colour(
+    points[0].x+(points[i].x-points[0].x)*t,points[0].y+(points[i].y-points[0].y)*t)));
+  const hex='#'+[0,1,2].map(i=>median(samples.map(c=>c[i])).toString(16).padStart(2,'0')).join('');
+  return {hex,outline:{digits,palm,wrist}};
+}
+
+export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(false);
   const [message,setMessage]=useState('');
   const capture=useRef(onCapture);
@@ -81,15 +130,10 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture
               if(capture.current){
                 openFrames=points?.every(p=>p.x>.015&&p.x<.985&&p.y>.015&&p.y<.985)&&ratios.every(r=>r>1.13)?openFrames+1:0;
                 if(openFrames>=5){
-                  const canvas=document.createElement('canvas');canvas.width=canvas.height=9;
-                  const ctx=canvas.getContext('2d');if(!ctx)throw Error('Camera sample unavailable');
-                  const palm=[0,5,9,13,17].map(i=>points[i]);
-                  const x=palm.reduce((n,p)=>n+p.x,0)/5*player.videoWidth;
-                  const y=palm.reduce((n,p)=>n+p.y,0)/5*player.videoHeight;
-                  ctx.drawImage(player,x-4,y-4,9,9,0,0,9,9);
-                  const pixels=ctx.getImageData(0,0,9,9).data;
-                  const hex='#'+[0,1,2].map(c=>Array.from({length:81},(_,i)=>pixels[i*4+c]).sort((a,b)=>a-b)[40].toString(16).padStart(2,'0')).join('');
-                  if(capture.current(hand,hex)){setMessage('Hand fit saved on this device.');setActive(false);return}
+                  const appearance=sampleAppearance(player,points);
+                  if(appearance && capture.current(hand,appearance.hex,appearance.outline)){setMessage('Your hand shape and colour are saved on this device.');setActive(false);return}
+                  openFrames=0;
+                  setMessage('Move closer. Spread your fingers against a plain, contrasting background and show your wrist.');
                 }
               }
               if(fingers.current){

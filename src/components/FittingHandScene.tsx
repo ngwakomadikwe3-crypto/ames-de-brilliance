@@ -9,8 +9,9 @@ import {defaultJoints,poseJoints,type HandFit} from '../lib/fitting-hand';
 function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
  const {scene}=useGLTF(model),skin=useMemo(()=>new MeshStandardMaterial({roughness:.62}),[]);
  const points=useMemo(()=>poseJoints(fit?.joints||defaultJoints,curls),[fit,curls]);
- const finger=Math.max(.072,Math.min(.15,fit?.fingerRatio && (fit.fingerRatio!==1 || (fit.mm>0 && !wrist))?fit.fingerRatio*.44:.098));
- const wristRadius=Math.max(.29,Math.min(.59,fit?.wristRatio && (fit.wristRatio!==1 || (fit.mm>0 && wrist))?fit.wristRatio*.44:.39));
+ const outline=fit?.outline;
+ const finger=outline?outline.digits[3]*.44:Math.max(.072,Math.min(.15,fit?.fingerRatio && (fit.fingerRatio!==1 || (fit.mm>0 && !wrist))?fit.fingerRatio*.44:.098));
+ const wristRadius=outline?outline.wrist*.44:Math.max(.29,Math.min(.59,fit?.wristRatio && (fit.wristRatio!==1 || (fit.mm>0 && wrist))?fit.wristRatio*.44:.39));
  if(colour)skin.color.set(colour).multiplyScalar(Math.pow(2,(50-tone)/50));
  else skin.color.copy(new Color('#f4d3b7').lerp(new Color('#42271f'),tone/100));
  const surface=useMemo(()=>new MarchingCubes(80,skin,false,false,20000),[skin]);
@@ -29,7 +30,7 @@ function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandF
    const knuckleCentre=points[5].clone().lerp(points[17],.5);
    for(let j=0;j<=12;j++){
      const t=j/12,c=points[0].clone().lerp(knuckleCentre,t);
-     const width=.32+.16*Math.sin(t*Math.PI*.75);
+     const width=outline?wristRadius+(outline.palm*.44-wristRadius)*Math.sin(t*Math.PI*.75):.32+.16*Math.sin(t*Math.PI*.75);
      blob(c,width,.23,.15+.055*Math.sin(t*Math.PI));
    }
    for(const base of [5,9,13,17]){
@@ -41,11 +42,11 @@ function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandF
    for(let digit=0;digit<5;digit++){
      const base=digit*4+1,knuckles=points.slice(base,base+4);
      const curve=new CatmullRomCurve3([points[0].clone().lerp(knuckles[0],.65),...knuckles]);
-     const r=[.126,.107,.112,finger,.088][digit];
+     const r=outline?outline.digits[digit]*.44:[.126,.107,.112,finger,.088][digit];
      for(let i=0;i<=42;i++){const t=i/42,rad=r*(1.12-.48*t+.055*Math.cos(6*Math.PI*t));blob(curve.getPointAt(t),rad,rad*1.05,rad*.87)}
    }
    surface.update();surface.geometry.computeBoundingSphere();surface.scale.setScalar(extent);return surface;
- },[points,surface,finger,wristRadius]);
+ },[points,surface,finger,wristRadius,outline]);
  useEffect(()=>()=>hand.geometry.dispose(),[hand]);useEffect(()=>()=>skin.dispose(),[skin]);
  const piece=useMemo(()=>{
    const group=new Group(),copy=scene.clone(true);

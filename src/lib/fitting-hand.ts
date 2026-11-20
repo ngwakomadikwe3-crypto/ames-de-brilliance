@@ -1,6 +1,7 @@
 import {Vector3} from 'three';
 export type Joint=[number,number,number];
-export type HandFit={joints:Joint[];ratio:number;mm:number;wrist:boolean;mirror?:boolean;fingerRatio?:number;wristRatio?:number};
+type Outline={digits:number[];palm:number;wrist:number};
+export type HandFit={outline?:Outline;joints:Joint[];ratio:number;mm:number;wrist:boolean;mirror?:boolean;fingerRatio?:number;wristRatio?:number};
 export const defaultJoints:Joint[]=[
  [0,-.66,0],[.38,-.47,0],[.66,-.28,.09],[.85,-.03,.12],[.99,.14,.11],
  [.43,.50,0],[.50,.93,.02],[.52,1.22,0],[.54,1.43,-.04],
@@ -18,7 +19,7 @@ export function fitFromCamera(points:{x:number;y:number;z:number}[],ratio:number
  return {joints,ratio,mm,wrist,mirror:across.x<0};
 }
 type Width={ratio:number;mm:number};
-type Profile={joints:Joint[];mirror?:boolean;finger?:Width;wrist?:Width};
+type Profile={outline?:Outline;joints:Joint[];mirror?:boolean;finger?:Width;wrist?:Width};
 const profileKey='ames-fitting-hand-v2';
 let current:Profile|null=null;
 function validJoints(j:Joint[]){return Array.isArray(j)&&j.length===21&&j.every(p=>Array.isArray(p)&&p.length===3&&p.every(v=>Number.isFinite(v)&&Math.abs(v)<=4))}
@@ -39,11 +40,11 @@ function readProfile():Profile|null{
 export function loadFit(wrist:boolean):HandFit|null{
  const p=readProfile();if(!p)return null;
  const width=p[wrist?'wrist':'finger'];
- return {joints:p.joints,mirror:p.mirror,wrist,ratio:width?.ratio??0,mm:width?.mm??0,fingerRatio:p.finger?.ratio,wristRatio:p.wrist?.ratio};
+ return {outline:p.outline,joints:p.joints,mirror:p.mirror,wrist,ratio:width?.ratio??0,mm:width?.mm??0,fingerRatio:p.finger?.ratio,wristRatio:p.wrist?.ratio};
 }
 export function saveFit(f:HandFit){
  const old=readProfile(), key=f.wrist?'wrist':'finger';
- const profile:Profile={...old,joints:f.joints,mirror:f.mirror??old?.mirror};
+ const profile:Profile={...old,outline:f.outline??old?.outline,joints:f.joints,mirror:f.mirror??old?.mirror};
  if(f.mm>0 || !old?.[key]?.mm)profile[key]={ratio:f.ratio,mm:f.mm};
  current=profile;try{localStorage.setItem(profileKey,JSON.stringify(profile))}catch{}
  window.dispatchEvent(new Event('ames-hand-fit'));

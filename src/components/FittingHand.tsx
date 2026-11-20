@@ -25,10 +25,10 @@ export default function FittingHand({category,model,children}:{category:string;m
  return <div className="flex h-full flex-col"><div className="min-h-0 flex-1">
  {on?<SceneBoundary key={model}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls}/></SceneBoundary>:children}</div>
  <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 text-xs">
- {on&&<HandClasp onCapture={(points,hex)=>{const captured=fitFromCamera(points,1,0,wrist);if(!captured)return false;saveFit(captured);setColour(hex);setTone(50);try{localStorage.setItem("ames-hand-colour",hex);localStorage.setItem("ames-hand-tone","50")}catch{}return true}}/>}
+ {on&&<HandClasp onCapture={(points,hex,outline)=>{const captured=fitFromCamera(points,1,0,wrist);if(!captured)return false;captured.outline=outline;saveFit(captured);setFit(loadFit(wrist));setColour(hex);setTone(50);try{localStorage.setItem("ames-hand-colour",hex);localStorage.setItem("ames-hand-tone","50")}catch{}return true}}/>}
  {on&&<><HandClasp onFingers={next=>setCurls(previous=>previous.every((v,i)=>v===next[i])?previous:next)}/><select aria-label="Fingers to move" value={digit} onChange={e=>setDigit(Number(e.target.value))}>{['Whole hand','Thumb','Index finger','Middle finger','Ring finger','Little finger'].map((label,i)=><option key={label} value={i-1}>{label}</option>)}</select>
  <button className="min-h-10 underline" onClick={()=>pose(0)}>Open</button><button className="min-h-10 underline" onClick={()=>pose(1)}>{digit===-1?'Clasp hand':'Bend finger'}</button></>}
  {on&&<label className="flex min-h-10 items-center gap-2">Skin tone<input aria-label="Skin tone" type="range" min="0" max="100" value={tone} onChange={e=>{const n=Number(e.target.value);setTone(n);try{localStorage.setItem('ames-hand-tone',String(n))}catch{}}}/></label>}
  <button className="min-h-10 underline" onClick={()=>setOn(!on)}>{on?'Piece only':'Try on my hand'}</button>
- {on&&fit&&<small>{fit.mm>0?`Camera width · ${fit.mm.toFixed(1)} mm`:'Camera proportions'}</small>}</div></div>;
+ {on&&fit&&<small>{fit.mm>0?`Camera width · ${fit.mm.toFixed(1)} mm`:fit.outline?'Personal hand shape':'Camera proportions'}</small>}</div></div>;
 }
