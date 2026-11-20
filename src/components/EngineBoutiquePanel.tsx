@@ -41,7 +41,6 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
           <p className="ames-piece-name" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 22, color: '#ffffff' }}>{t(piece.name)}</p>
-          {hasOptions && <><ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}/><SampleQuote key={options} configuration={options} stone={piece.name} setting={piece.category} cut={collection.active?'':design.cut} metal={collection.active?collection.metal:design.metal}/></>}
         {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
@@ -83,6 +82,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {collection.controls}
         {customizable && !collection.active && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
+          {hasOptions && <><ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}/><SampleQuote key={options} configuration={options} stone={piece.name} setting={piece.category} cut={collection.active?'':design.cut} metal={collection.active?collection.metal:design.metal}/></>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
           {knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
