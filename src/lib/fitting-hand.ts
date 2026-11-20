@@ -66,3 +66,15 @@ export function poseJoints(joints:Joint[],curls:number[]){
  }
  return points;
 }
+
+export function trackedPose(rest:Joint[],live:Joint[]){
+ const result=rest.map(p=>new Vector3(...p));
+ for(let base=1;base<21;base+=4){
+   for(let i=base+1;i<base+4;i++){
+     const direction=new Vector3(...live[i]).sub(new Vector3(...live[i-1]));
+     const length=new Vector3(...rest[i]).distanceTo(new Vector3(...rest[i-1]));
+     if(direction.lengthSq()>1e-8)result[i].copy(result[i-1]).addScaledVector(direction.normalize(),length);
+   }
+ }
+ return result;
+}

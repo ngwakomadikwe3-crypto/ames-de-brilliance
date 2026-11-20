@@ -4,12 +4,12 @@ import {Environment,OrbitControls,useGLTF} from '@react-three/drei';
 import {useEffect,useMemo} from 'react';
 import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshStandardMaterial,Quaternion,SRGBColorSpace,TextureLoader,Vector3} from 'three';
 import {MarchingCubes} from 'three/examples/jsm/objects/MarchingCubes.js';
-import {defaultJoints,poseJoints,type HandFit} from '../lib/fitting-hand';
+import {defaultJoints,poseJoints,trackedPose,type Joint,type HandFit} from '../lib/fitting-hand';
 
-function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
+function Model({model,fit,wrist,watch,tone,colour,curls,live}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;live:Joint[]|null;curls:number[]}){
  const invalidate=useThree(state=>state.invalidate);
  const {scene}=useGLTF(model),skin=useMemo(()=>new MeshStandardMaterial({roughness:.62}),[]);
- const points=useMemo(()=>poseJoints(fit?.joints||defaultJoints,curls),[fit,curls]);
+ const points=useMemo(()=>live?trackedPose(fit?.joints||defaultJoints,live):poseJoints(fit?.joints||defaultJoints,curls),[fit,curls,live]);
  const outline=fit?.outline;
  const finger=outline?outline.digits[3]*.44:Math.max(.072,Math.min(.15,fit?.fingerRatio && (fit.fingerRatio!==1 || (fit.mm>0 && !wrist))?fit.fingerRatio*.44:.098));
  const wristRadius=outline?outline.wrist*.44:Math.max(.29,Math.min(.59,fit?.wristRatio && (fit.wristRatio!==1 || (fit.mm>0 && wrist))?fit.wristRatio*.44:.39));
@@ -111,6 +111,6 @@ function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandF
  },[model,scene,points,wrist,watch,wristRadius,finger]);
  return <group scale={[fit?.mirror?-1:1,1,1]}><primitive object={hand}/><primitive object={piece}/></group>;
 }
-export default function FittingHandScene(props:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
+export default function FittingHandScene(props:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;live:Joint[]|null;curls:number[]}){
  return <Canvas frameloop="demand" dpr={[1,1.6]} camera={{position:[0,0,4.8],fov:40}}><ambientLight intensity={.65}/><directionalLight position={[-3,4,5]} intensity={2.3}/><Environment files="/ames-engine/environments/jewellery-tent-v3.hdr"/><Model {...props}/><OrbitControls enablePan={false} minDistance={1.3} maxDistance={6} target={[0,props.wrist?-.37:.35,0]}/></Canvas>;
 }

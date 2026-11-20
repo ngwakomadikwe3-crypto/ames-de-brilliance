@@ -78,9 +78,11 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
 }
 
-export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(false);
   const [message,setMessage]=useState('');
+  const joints=useRef(onJoints);
+  useEffect(()=>{joints.current=onJoints},[onJoints]);
   const capture=useRef(onCapture);
   useEffect(()=>{capture.current=onCapture},[onCapture]);
   const fingers=useRef(onFingers);
@@ -100,6 +102,7 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture
     video.playsInline=true;
     function stop(){
       stopped=true;
+      joints.current?.(null);
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach(track=>track.stop());
       if(player.srcObject===stream)player.srcObject=null;
@@ -139,7 +142,7 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture
       tracker=await HandLandmarker.createFromOptions(files,{baseOptions,runningMode:'VIDEO',numHands:1});
       if(stopped){stop();return}
       stage='tracking';
-      setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
@@ -150,6 +153,7 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture
           try{
             const result=tracker!.detectForVideo(player,now);
             const hand=result.worldLandmarks[0],points=result.landmarks[0];
+            joints.current?.(hand??null);
             let pose:boolean|undefined;
             if(hand){
               const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
