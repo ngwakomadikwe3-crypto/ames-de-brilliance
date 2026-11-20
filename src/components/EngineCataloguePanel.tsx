@@ -21,7 +21,24 @@ type GalleryStone = { id: string; name: string; form: string; cut: string; categ
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
 const GALLERY_VERSION = '10';
-const GALLERY = registry as GalleryStone[];
+const looseLibraryEntries: GalleryStone[] = [
+  { id: 'stone-malachite', name: "Malachite", defaultColors: ["banded green"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-onyx', name: "Onyx", defaultColors: ["black"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-tigers-eye', name: "Tiger’s eye", defaultColors: ["golden brown"], aliases: ["tiger\u0027s eye", "tiger eye"], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-labradorite', name: "Labradorite", defaultColors: ["grey with flashes of colour"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-chrysoprase', name: "Chrysoprase", defaultColors: ["apple green"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-carnelian', name: "Carnelian", defaultColors: ["orange red"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-rhodochrosite', name: "Rhodochrosite", defaultColors: ["pink"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-larimar', name: "Larimar", defaultColors: ["pale blue"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-rubellite-tourmaline', name: "Rubellite tourmaline", defaultColors: ["pink to red"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-padparadscha-sapphire', name: "Padparadscha sapphire", defaultColors: ["pink and orange"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-black-opal', name: "Black opal", defaultColors: ["dark body colour"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+  { id: 'stone-pearl', name: "Pearl", defaultColors: ["white to cream"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
+];
+const existingLooseIds = new Set(['stone-paraiba-tourmaline', 'stone-tsavorite-garnet', 'stone-demantoid-garnet']);
+const libraryOnlyIds = new Set(looseLibraryEntries.map(stone => stone.id));
+const looseOnly = (stone: GalleryStone) => existingLooseIds.has(stone.id) || libraryOnlyIds.has(stone.id);
+const GALLERY = [...registry, ...looseLibraryEntries].sort((a, b) => a.name.localeCompare(b.name));
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
@@ -61,6 +78,13 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-white';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
+  if (gem && looseOnly(gem)) return <section className="h-full overflow-y-auto px-6 pt-16 text-white">
+    <button type="button" className="min-h-11 underline" onClick={closeGem}>Back to Gemstones</button>
+    <h2 className="mt-5 text-3xl">{gem.name}</h2>
+    <p className="mt-2">Loose gemstone only. No jewellery available.</p>
+    <p className="mt-2 text-sm">{gem.defaultColors.join(', ')}</p>
+    {existingLooseIds.has(gem.id) && <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${gem.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />}
+  </section>;
   if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
@@ -96,8 +120,9 @@ function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:Galler
   const {t}=useAtelierLanguage();
   return <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4 lg:grid-cols-6" aria-label="Choose a gemstone">
     {stones.map(stone=><button key={stone.id} type="button" className="ames-stone-option" onClick={()=>onOpen(stone)}>
-      <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" width={120} height={86} loading="lazy"/>
+      {!libraryOnlyIds.has(stone.id) && <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" width={120} height={86} loading="lazy"/>}
       <span>{t(stone.name)}</span>
+      {looseOnly(stone) && <small>Loose gemstone only</small>}
     </button>)}
   </div>;
 }
