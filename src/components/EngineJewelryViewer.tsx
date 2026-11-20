@@ -129,6 +129,9 @@ function SelectedViewer({
     canvas.dispatchEvent(new CustomEvent('ames:bracelet', { detail: { flat: next } }));
     if (next) { const check = setInterval(() => { if (canvas.dataset.amesBraceletState === 'flat') { setMeasured(true); clearInterval(check); } }, 100); setTimeout(() => clearInterval(check), 4000); }
   }, [flat]);
+  const moveJewellery=useCallback((x:number,y:number)=>{
+    host.current?.querySelector('canvas')?.dispatchEvent(new CustomEvent('ames:hand-orbit',{detail:{x,y}}));
+  },[]);
   const modelUrl = attempt && !src.startsWith('blob:') ? `${src}${src.includes('?') ? '&' : '?'}ames_retry=${attempt}` : src;
   const showPoster = poster && !posterFailed && state !== 'ready';
   return (
@@ -154,11 +157,11 @@ function SelectedViewer({
         </span>}
         {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">{bracelet.kind==='watch'?'Drag to rotate · pinch to zoom':'Drag a link to fold · pinch to zoom'}</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 rounded-full px-2 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
-        <HandClasp onPose={open=>{if(open!==flat)toggleClasp()}} />
+        <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==flat)toggleClasp()}} />
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:"min(30%, 112px)",justifyContent:"safe center"}}>
         <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
-        <HandClasp onPose={open=>{if(open!==opened)toggleOpen()}} />
+        <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==opened)toggleOpen()}} />
       </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-white">Loading interactive 3D…</span>}

@@ -134,3 +134,27 @@ if(!source.includes('const railJoints:')){
  source="import {CylinderGeometry} from 'three'\nimport {useFrame} from '@react-three/fiber'\n"+source.replace(anchor,insert+'    return {root,updateJoints,size:bounds.getSize').replace('  const flatProgress=', '  useFrame(()=>built.updateJoints());\n  const flatProgress=');
  await writeFile(file,source);
 }
+
+if(!source.includes("'ames:hand-orbit'")){
+ const anchor='  const flatProgress=';
+ if(!source.includes(anchor))throw Error('Jewellery interaction hook changed');
+ const hook=`  useEffect(()=>{
+    const canvas=gl.domElement;
+    const offset=new Vector3(),angles=new Spherical();
+    const turn=(event:Event)=>{
+      const {x,y}=(event as CustomEvent<{x:number;y:number}>).detail;
+      if(!controls||!Number.isFinite(x)||!Number.isFinite(y))return;
+      offset.copy(camera.position).sub(controls.target);
+      angles.setFromVector3(offset);
+      angles.theta-=x*4;
+      angles.phi=Math.max(.10,Math.min(Math.PI-.10,angles.phi+y*3));
+      camera.position.copy(controls.target).add(offset.setFromSpherical(angles));
+      controls.update();invalidate();
+    };
+    canvas.addEventListener('ames:hand-orbit',turn);
+    return ()=>canvas.removeEventListener('ames:hand-orbit',turn);
+  },[gl,camera,controls,invalidate]);
+`;
+ source="import {Spherical} from 'three'\n"+source.replace(anchor,hook+anchor);
+ await writeFile(file,source);
+}
