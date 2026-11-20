@@ -61,7 +61,7 @@ export function profileGaps(profile: JewellerProfile, now = new Date().toISOStri
     if (!latest) gaps.push(`${kind === 'identity' ? 'Identity' : 'Business registration'} evidence`);
     else if (latest.expiresOn && (!dateValid(latest.expiresOn) || latest.expiresOn < today)) gaps.push(`Current ${kind} evidence`);
   }
-  if (new Set(profile.files.filter(file => file.kind === 'portfolio').map(file => file.sha256)).size < 3) gaps.push('Three distinct portfolio images');
+  if (new Set(profile.files.filter(file => file.kind === 'portfolio' && file.mime.startsWith('image/')).map(file => file.sha256)).size < 3) gaps.push('Three distinct portfolio images');
   if (profile.qualifications) {
     const qualification = profile.files.filter(file => file.kind === 'qualification').sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))[0];
     if (!qualification || (qualification.expiresOn && (!dateValid(qualification.expiresOn) || qualification.expiresOn < today))) gaps.push('Current evidence for stated qualifications');

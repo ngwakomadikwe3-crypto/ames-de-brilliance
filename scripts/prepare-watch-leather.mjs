@@ -5,19 +5,19 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const file=resolve(dirname(require.resolve('ames-engine')),'../jewelry/PhysicalStudioModel.tsx');
 let source=await readFile(file,'utf8');
-if(source.includes('const leatherPalette')&&!source.includes('const photoGrainStrap')){
- const start=source.includes('    const embossedStrap')?source.indexOf('    const embossedStrap'):source.indexOf('    const leatherPalette'),end=source.indexOf('    return {root,size:bounds.getSize',start);
+if(source.includes('const leatherPalette')&&!source.includes('const curvedStrap')){
+ const start=source.includes('    const photoGrainStrap')?source.indexOf('    const photoGrainStrap'):source.includes('    const embossedStrap')?source.indexOf('    const embossedStrap'):source.indexOf('    const leatherPalette'),end=source.indexOf('    return {root,size:bounds.getSize',start);
  if(start<0||end<0)throw Error('Leather renderer changed');
  source=source.slice(0,start)+source.slice(end);
 }
-if(!source.includes('const photoGrainStrap')){
+if(!source.includes('const curvedStrap')){
  const anchor='    return {root,size:bounds.getSize';
  if(!source.includes(anchor))throw Error('Watch renderer changed');
- source=(source.includes('import {CanvasTexture, RepeatWrapping}')?'':"import {CanvasTexture, RepeatWrapping} from 'three'\n")+(source.includes('import {CapsuleGeometry}')?'':"import {CapsuleGeometry} from 'three'\n")+source.replace(anchor,`    const photoGrainStrap=true;\n    const leatherPalette:Record<string,string>={black:'#292624',cognac:'#be7850',espresso:'#83563f',burgundy:'#732d40',navy:'#273b53',forest:'#344c39'};
+ source=(source.includes('import {CanvasTexture, RepeatWrapping}')?'':"import {CanvasTexture, RepeatWrapping} from 'three'\n")+(source.includes('import {CapsuleGeometry}')?'':"import {CapsuleGeometry} from 'three'\n")+source.replace(anchor,`    const curvedStrap=true;\n    const leatherPalette:Record<string,string>={black:'#292624',cognac:'#be7850',espresso:'#83563f',burgundy:'#732d40',navy:'#273b53',forest:'#344c39'};
     const query=new URL(url,window.location.href).searchParams;
     let leather=query.get('leather')??'';
     root.traverse(o=>{if(o.userData.ames_leather)leather=String(o.userData.ames_leather)});
-    if(photoGrainStrap && info?.kind==='watch' && Object.hasOwn(leatherPalette,leather)){
+    if(curvedStrap && info?.kind==='watch' && Object.hasOwn(leatherPalette,leather)){
       const hide: Object3D[]=[];
       const skin=new MeshPhysicalMaterial({color:leatherPalette[leather],metalness:0,roughness:.39,clearcoat:.34,clearcoatRoughness:.30});
       const grain=document.createElement('canvas');grain.width=56;grain.height=188;
@@ -53,6 +53,9 @@ if(!source.includes('const photoGrainStrap')){
           const along=order+positions.getX(i)/pitch;
           const taper=.82+.18*Math.min(1,Math.max(0,1-Math.abs(along-links.length/2)/(links.length/2)));
           const tip=order===links.length-1?1-.48*Math.pow(Math.max(0,positions.getX(i)/pitch+.5),2):1;
+          const lateral=Math.abs(positions.getZ(i))/(width*.49);
+          if(order===links.length-1 && i>=33)positions.setX(i,positions.getX(i)+pitch*.45*(1-lateral*lateral));
+          if(order===0)positions.setX(i,positions.getX(i)*.28+pitch*.39);
           positions.setZ(i,positions.getZ(i)*taper*tip);
           coords.setY(i,coords.getY(i)+order*pitch/(width*3.36));
         }
@@ -72,16 +75,23 @@ if(!source.includes('const photoGrainStrap')){
           geometries.push(geo);const part=new Mesh(geo,m);part.position.copy(a).lerp(b,.5);
           part.quaternion.setFromUnitVectors(new Vector3(0,1,0),dir.normalize());object.add(part)};
         if(order===0){
-          const a=pitch*.55,b=width*.53,y=2.35;
+          const a=pitch*.69,b=width*.435,y=1.45;
           for(const sign of [-1,1]){
             bar(new Vector3(-a,y,sign*b),new Vector3(a,y,sign*b),.8,hardware);
             bar(new Vector3(sign*a,y,-b),new Vector3(sign*a,y,b),.8,hardware)}
           bar(new Vector3(-a,y,0),new Vector3(a+.2,y+.5,0),.55,hardware);
         }else if(order===1||order===2){
-          const geo=new BoxGeometry(2.9,1.25,width*1.02);geometries.push(geo);
-          const loop=new Mesh(geo,skin);loop.position.y=1.85;object.add(loop);
+          const ring=new BufferGeometry(),points:number[]=[],loopUV:number[]=[],indices:number[]=[];
+          for(let i=0;i<=40;i++)for(let j=0;j<=10;j++){
+            const a=i*Math.PI/20,b=j*Math.PI/5,c=Math.cos(a),s=Math.sin(a);
+            points.push(1.65*Math.sin(b),Math.sign(s)*Math.pow(Math.abs(s),.42)*2.02+.5*s*Math.cos(b),Math.sign(c)*Math.pow(Math.abs(c),.42)*width*.425+.5*c*Math.cos(b));
+            loopUV.push(i/40,j/10);
+            if(i&&j){const k=i*11+j;indices.push(k-12,k-1,k,k-12,k,k-11)}
+          }
+          ring.setAttribute('position',new BufferAttribute(new Float32Array(points),3));ring.setAttribute('uv',new BufferAttribute(new Float32Array(loopUV),2));ring.setIndex(indices);ring.computeVertexNormals();geometries.push(ring);
+          object.add(new Mesh(ring,skin));
         }
-        for(const side of [-1,1])for(const x of [-.33,0,.33]){
+        if(order!==0)for(const side of [-1,1])for(const x of [-.33,0,.33]){
           const seam=new Mesh(stitch,thread);const edge=section.getAttribute('position').getZ(x>0?33:0);seam.position.set(x*pitch,1.55,side*edge*.85);seam.rotation.y=side*.09;object.add(seam)}
       }
       hide.forEach(o=>{o.visible=false});
