@@ -99,3 +99,38 @@ if(!source.includes('const curvedStrap')){
 `+anchor);
  await writeFile(file,source);
 }
+
+if(!source.includes('const railJoints=')){
+ const anchor='    return {root,size:bounds.getSize';
+ const insert=`    const railJoints: {from:Object3D;to:Object3D;end:Vector3;start:Vector3;bridge:Mesh}[]=[];
+    const sortedLinks=[...links].sort((a,b)=>a.order-b.order);
+    for(let i=1;i<sortedLinks.length;i++){
+      const from=sortedLinks[i-1].object,to=sortedLinks[i].object;
+      const rails=(link:Object3D)=>link.children.filter((o):o is Mesh=>o instanceof Mesh && !!o.userData.ames_rail_joint);
+      const nextRails=rails(to);
+      rails(from).forEach((rail,k)=>{
+        if(!nextRails[k]||!from.parent)return;
+        const a=rail.userData.ames_rail_joint,b=nextRails[k].userData.ames_rail_joint;
+        const geo=new CylinderGeometry(a.radius,a.radius,1,10);
+        const bridge=new Mesh(geo,rail.material);
+        bridge.visible=false;geometries.push(geo);from.parent.add(bridge);
+        railJoints.push({from,to,end:new Vector3().fromArray(a.end),start:new Vector3().fromArray(b.start),bridge});
+      });
+    }
+    const a=new Vector3(),b=new Vector3(),up=new Vector3(0,1,0);
+    const updateJoints=()=>{
+      for(const j of railJoints){
+        a.copy(j.end).applyQuaternion(j.from.quaternion).add(j.from.position);
+        b.copy(j.start).applyQuaternion(j.to.quaternion).add(j.to.position);
+        const distance=a.distanceTo(b);
+        j.bridge.visible=distance>.001;
+        if(!j.bridge.visible)continue;
+        j.bridge.position.copy(a).lerp(b,.5);j.bridge.scale.y=distance;
+        j.bridge.quaternion.setFromUnitVectors(up,b.sub(a).normalize());
+      }
+    };
+`;
+ if(!source.includes(anchor)||!source.includes('  const flatProgress='))throw Error('Chain renderer changed');
+ source="import {CylinderGeometry} from 'three'\nimport {useFrame} from '@react-three/fiber'\n"+source.replace(anchor,insert+'    return {root,updateJoints,size:bounds.getSize').replace('  const flatProgress=', '  useFrame(()=>built.updateJoints());\n  const flatProgress=');
+ await writeFile(file,source);
+}

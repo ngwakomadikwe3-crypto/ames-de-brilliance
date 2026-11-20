@@ -110,7 +110,15 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
       clasp.position.x=index===0?-span/2:span/2;
       nodes[index].attach(clasp);
     }
-    for(const node of nodes){
+    for(const [index,node] of nodes.entries()){
+      const angle=Math.PI/2+(index+.5)*step;
+      const anchor=(a:number,offset:number)=>node.worldToLocal(point(a,offset)).multiplyScalar(mm).toArray();
+      for(const [railIndex,part] of node.children.entries()){
+        const offsets=['Channel Set','Fancy Bangles','Pavé Set'].includes(style)?[-.052,0,.052]:[0];
+        if(railIndex>=offsets.length)break;
+        const offset=offsets[railIndex];
+        part.userData.ames_rail_joint={start:anchor(angle-step/2,offset),end:anchor(angle+step/2,offset),radius:mm*(offset?.022:style==='Delicate'?.016:.031)};
+      }
       node.position.multiplyScalar(mm);
       for(const part of node.children){part.position.multiplyScalar(mm);part.scale.multiplyScalar(mm)}
     }
