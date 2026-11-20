@@ -1,20 +1,32 @@
 'use client';
-import {Canvas} from '@react-three/fiber';
+import {Canvas,useThree} from '@react-three/fiber';
 import {Environment,OrbitControls,useGLTF} from '@react-three/drei';
 import {useEffect,useMemo} from 'react';
-import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshStandardMaterial,Quaternion,Vector3} from 'three';
+import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshStandardMaterial,Quaternion,SRGBColorSpace,TextureLoader,Vector3} from 'three';
 import {MarchingCubes} from 'three/examples/jsm/objects/MarchingCubes.js';
 import {defaultJoints,poseJoints,type HandFit} from '../lib/fitting-hand';
 
 function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;curls:number[]}){
+ const invalidate=useThree(state=>state.invalidate);
  const {scene}=useGLTF(model),skin=useMemo(()=>new MeshStandardMaterial({roughness:.62}),[]);
  const points=useMemo(()=>poseJoints(fit?.joints||defaultJoints,curls),[fit,curls]);
  const outline=fit?.outline;
  const finger=outline?outline.digits[3]*.44:Math.max(.072,Math.min(.15,fit?.fingerRatio && (fit.fingerRatio!==1 || (fit.mm>0 && !wrist))?fit.fingerRatio*.44:.098));
  const wristRadius=outline?outline.wrist*.44:Math.max(.29,Math.min(.59,fit?.wristRatio && (fit.wristRatio!==1 || (fit.mm>0 && wrist))?fit.wristRatio*.44:.39));
- if(colour)skin.color.set(colour).multiplyScalar(Math.pow(2,(50-tone)/50));
+ const photo=outline?.surface;
+ useEffect(()=>{
+   if(!photo)return;
+   let active=true;
+   const texture=new TextureLoader().load(photo.image,loaded=>{
+     if(!active)return;
+     loaded.colorSpace=SRGBColorSpace;skin.map=loaded;skin.needsUpdate=true;invalidate();
+   });
+   return ()=>{active=false;skin.map=null;skin.needsUpdate=true;texture.dispose()};
+ },[photo,skin,invalidate]);
+ if(photo)skin.color.setScalar(Math.pow(2,(50-tone)/50));
+ else if(colour)skin.color.set(colour).multiplyScalar(Math.pow(2,(50-tone)/50));
  else skin.color.copy(new Color('#f4d3b7').lerp(new Color('#42271f'),tone/100));
- const surface=useMemo(()=>new MarchingCubes(80,skin,false,false,20000),[skin]);
+ const surface=useMemo(()=>new MarchingCubes(80,skin,true,false,20000),[skin]);
  const hand=useMemo(()=>{
    const res=surface.resolution,extent=2.45;
    surface.reset();
@@ -45,8 +57,39 @@ function Model({model,fit,wrist,watch,tone,colour,curls}:{model:string;fit:HandF
      const r=outline?outline.digits[digit]*.44:[.126,.107,.112,finger,.088][digit];
      for(let i=0;i<=42;i++){const t=i/42,rad=r*(1.12-.48*t+.055*Math.cos(6*Math.PI*t));blob(curve.getPointAt(t),rad,rad*1.05,rad*.87)}
    }
-   surface.update();surface.geometry.computeBoundingSphere();surface.scale.setScalar(extent);return surface;
- },[points,surface,finger,wristRadius,outline]);
+   surface.update();
+   if(photo && fit && photo.uv.length===21){
+     const geometry=surface.geometry,positions=geometry.getAttribute('position'),uv=geometry.getAttribute('uv');
+     const edges=[[0,9],...Array.from({length:5},(_,d)=>Array.from({length:3},(_,k)=>[1+4*d+k,2+4*d+k])).flat()];
+     const bones=edges.map(([a,b])=>{
+       const axis=points[b].clone().sub(points[a]),length=axis.length();axis.normalize();
+       const rest=new Vector3(...fit.joints[b]).sub(new Vector3(...fit.joints[a])).normalize();
+       const inverse=new Quaternion().setFromUnitVectors(axis,rest);
+       const [u,v]=photo.uv[a],du=photo.uv[b][0]-u,dv=photo.uv[b][1]-v;
+       return {a,b,axis,length,inverse,rest,u,v,du,dv};
+     });
+     const p=new Vector3(),delta=new Vector3(),off=new Vector3();
+     for(let i=0;i<surface.count;i++){
+       p.fromBufferAttribute(positions,i).multiplyScalar(extent);
+       let best=bones[0],bestDist=Infinity,t=0;
+       for(const bone of bones){
+         delta.copy(p).sub(points[bone.a]);
+         const along=Math.max(0,Math.min(bone.length,delta.dot(bone.axis)));
+         const distance=delta.addScaledVector(bone.axis,-along).lengthSq();
+         if(distance<bestDist){bestDist=distance;best=bone;t=along}
+       }
+       off.copy(p).sub(points[best.a]).addScaledVector(best.axis,-t).applyQuaternion(best.inverse);
+       const along=t/Math.max(.001,best.length);
+       const side=(off.y*best.rest.x-off.x*best.rest.y)/Math.max(.001,best.length);
+       const sign=fit.mirror?-1:1;
+       // The far side and forearm were outside the photographed hand surface.
+       if(off.z<-.06 || p.y<points[0].y-.06)uv.setXY(i,.001,.001);
+       else uv.setXY(i,best.u+along*best.du-sign*side*best.dv/photo.aspect,best.v+along*best.dv+sign*side*best.du*photo.aspect);
+     }
+     uv.needsUpdate=true;
+   }
+   surface.geometry.computeBoundingSphere();surface.scale.setScalar(extent);return surface;
+ },[points,surface,finger,wristRadius,outline,photo,fit]);
  useEffect(()=>()=>hand.geometry.dispose(),[hand]);useEffect(()=>()=>skin.dispose(),[skin]);
  const piece=useMemo(()=>{
    const group=new Group(),copy=scene.clone(true);

@@ -1,6 +1,6 @@
 import {Vector3} from 'three';
 export type Joint=[number,number,number];
-type Outline={digits:number[];palm:number;wrist:number};
+type Outline={digits:number[];palm:number;wrist:number;surface?:{image:string;uv:[number,number][];aspect:number}};
 export type HandFit={outline?:Outline;joints:Joint[];ratio:number;mm:number;wrist:boolean;mirror?:boolean;fingerRatio?:number;wristRatio?:number};
 export const defaultJoints:Joint[]=[
  [0,-.66,0],[.38,-.47,0],[.66,-.28,.09],[.85,-.03,.12],[.99,.14,.11],
@@ -26,6 +26,7 @@ function validJoints(j:Joint[]){return Array.isArray(j)&&j.length===21&&j.every(
 function readProfile():Profile|null{
  try{
    const saved=JSON.parse(localStorage.getItem(profileKey)||'null');
+   if(current)return current;
    if(saved && validJoints(saved.joints))return saved;
    let migrated:Profile|null=null;
    for(const wrist of [false,true]){

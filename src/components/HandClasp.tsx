@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
 type PixelPoint = {x:number;y:number};
-type Outline = {digits:number[]; palm:number; wrist:number};
+type Outline = {digits:number[]; palm:number; wrist:number; surface?:{image:string; uv:[number,number][]; aspect:number}};
 
 function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   const canvas=document.createElement('canvas');
@@ -48,7 +48,34 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   const samples=[5,9,13,17].flatMap(i=>[.45,.65,.8].map(t=>colour(
     points[0].x+(points[i].x-points[0].x)*t,points[0].y+(points[i].y-points[0].y)*t)));
   const hex='#'+[0,1,2].map(i=>median(samples.map(c=>c[i])).toString(16).padStart(2,'0')).join('');
-  return {hex,outline:{digits,palm,wrist}};
+  // Keep only hand pixels. The rest of the saved map is the sampled skin colour.
+  const atlas=document.createElement('canvas');
+  atlas.width=canvas.width; atlas.height=canvas.height;
+  const paint=atlas.getContext('2d');
+  if(!paint)return null;
+  paint.fillStyle=hex; paint.fillRect(0,0,atlas.width,atlas.height);
+  paint.save();
+  const region=new Path2D();
+  const palmLoop=[0,1,2,5,9,13,17];
+  palmLoop.forEach((i,n)=>n?region.lineTo(points[i].x,points[i].y):region.moveTo(points[i].x,points[i].y));
+  region.closePath();
+  for(let d=0;d<5;d++){
+    for(let k=0;k<3;k++){
+      const a=points[1+d*4+k],b=points[2+d*4+k];
+      const angle=Math.atan2(b.y-a.y,b.x-a.x);
+      const radius=span*digits[d]*(.45-.045*k);
+      const nx=-Math.sin(angle)*radius,ny=Math.cos(angle)*radius;
+      const strip=new Path2D();
+      strip.moveTo(a.x+nx,a.y+ny);strip.lineTo(b.x+nx,b.y+ny);
+      strip.arc(b.x,b.y,radius,angle+Math.PI/2,angle-Math.PI/2,true);
+      strip.lineTo(a.x-nx,a.y-ny);strip.closePath();
+      // Clip each strip independently so overlaps cannot cancel.
+      paint.save();paint.clip(strip);paint.drawImage(canvas,0,0);paint.restore();
+    }
+  }
+  paint.clip(region);paint.drawImage(canvas,0,0);paint.restore();
+  const uv=landmarks.map(p=>[p.x,1-p.y] as [number,number]);
+  return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
 }
 
 export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
@@ -112,7 +139,7 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture}:{onCapture
       tracker=await HandLandmarker.createFromOptions(files,{baseOptions,runningMode:'VIDEO',numHands:1});
       if(stopped){stop();return}
       stage='tracking';
-      setMessage(capture.current?'Hold your hand flat, fingers apart, in even light.':fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
