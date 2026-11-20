@@ -96,7 +96,6 @@ export default function AppPage() {
   const NAV_ITEMS = [
     { label: "My workspace", href: "/workspace" },
     { label: "Profile & settings", href: "/app/account" },
-    { label: "Jeweller studio", href: "/jeweller" },
     { label: "My cart", href: "/cart" },
     { label: "Purchases & invoices", href: "/app/billing" },
   ];

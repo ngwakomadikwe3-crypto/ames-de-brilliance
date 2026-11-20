@@ -53,6 +53,14 @@ function getSessionCookie(request: NextRequest): string | undefined {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // The House is managing the collection while the jeweller studio is paused.
+  if (pathname === "/jeweller" || pathname.startsWith("/jeweller/")) {
+    return NextResponse.redirect(new URL("/app", request.url));
+  }
+  if (pathname === "/api/jeweller" || pathname.startsWith("/api/jeweller/")) {
+    return NextResponse.json({ error: "Jeweller studio is paused." }, { status: 503 });
+  }
+
   // Allow login page and auth API through
   if (pathname.startsWith("/login") || pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
@@ -81,5 +89,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/requests/:path*", "/api/traders/:path*"],
+  matcher: ["/jeweller/:path*", "/api/jeweller/:path*", "/dashboard/:path*", "/api/requests/:path*", "/api/traders/:path*"],
 };
