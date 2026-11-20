@@ -12,6 +12,7 @@ import ModelViewer from './ModelViewer';
 import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
+import illustratedPosters from '../lib/loose-gemstone-posters.json';
 import registry from '../lib/house-gemstones.json';
 import { houseScript } from '../lib/script-font';
 import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
@@ -36,6 +37,7 @@ const looseLibraryEntries: GalleryStone[] = [
   { id: 'stone-pearl', name: "Pearl", defaultColors: ["white to cream"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
 ];
 const existingLooseIds = new Set(['stone-paraiba-tourmaline', 'stone-tsavorite-garnet', 'stone-demantoid-garnet']);
+const loosePosters: Record<string, string> = illustratedPosters;
 const libraryOnlyIds = new Set(looseLibraryEntries.map(stone => stone.id));
 const looseOnly = (stone: GalleryStone) => existingLooseIds.has(stone.id) || libraryOnlyIds.has(stone.id);
 const GALLERY = [...registry, ...looseLibraryEntries].sort((a, b) => a.name.localeCompare(b.name));
@@ -83,6 +85,7 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
     <h2 className="mt-5 text-3xl">{gem.name}</h2>
     <p className="mt-2">Loose gemstone only. No jewellery available.</p>
     <p className="mt-2 text-sm">{gem.defaultColors.join(', ')}</p>
+    {loosePosters[gem.id] && <figure className="mt-6"><img src={loosePosters[gem.id]} alt={gem.name} width={384} height={256} className="mx-auto w-full max-w-md" /><figcaption className="text-center text-xs">Illustrated gemstone preview</figcaption></figure>}
     {existingLooseIds.has(gem.id) && <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={`/ames-engine/${gem.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />}
   </section>;
   if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
@@ -120,7 +123,7 @@ function GemShowcase({stones,onOpen}:{stones:GalleryStone[];onOpen:(stone:Galler
   const {t}=useAtelierLanguage();
   return <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-4 lg:grid-cols-6" aria-label="Choose a gemstone">
     {stones.map(stone=><button key={stone.id} type="button" className="ames-stone-option" onClick={()=>onOpen(stone)}>
-      {!libraryOnlyIds.has(stone.id) && <img src={`/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" width={120} height={86} loading="lazy"/>}
+      <img src={loosePosters[stone.id] ?? `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt="" width={120} height={86} loading="lazy"/>
       <span>{t(stone.name)}</span>
       {looseOnly(stone) && <small>Loose gemstone only</small>}
     </button>)}
