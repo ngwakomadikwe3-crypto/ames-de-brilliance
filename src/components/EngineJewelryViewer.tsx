@@ -28,6 +28,7 @@ type ViewerProps = {
   zoom?: number;
   turntableEnabled?: boolean;
   paused?: boolean;
+  chatGestures?: boolean;
   opticsProfile?: JewelryOpticsProfile;
   resetToken?: number;
   autoLoad?: boolean;
@@ -57,7 +58,7 @@ function SelectedViewer({
   poster,
   alt,
   style,
-  cameraPreset, zoom, turntableEnabled, resetToken, paused = false, opticsProfile = "soft-studio", autoLoad = false,
+  cameraPreset, zoom, turntableEnabled, resetToken, paused = false, chatGestures = false, opticsProfile = "soft-studio", autoLoad = false,
 }: ViewerProps) {
   const host = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -150,6 +151,7 @@ function SelectedViewer({
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></div></ViewerBoundary>}
       </div>
+      {chatGestures && !paused && state==='ready' && !bracelet && !openable && <div className="absolute right-1 bottom-1 z-20 max-w-32 text-xs"><HandClasp onMove={moveJewellery}/></div>}
       {state === 'ready' && bracelet && <div data-side-controls className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:'min(30%, 112px)', justifyContent:'safe center'}}>
         {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
         {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
@@ -157,11 +159,11 @@ function SelectedViewer({
         </span>}
         {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">{bracelet.kind==='watch'?'Drag to rotate · pinch to zoom':'Drag a link to fold · pinch to zoom'}</span>}
         <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 rounded-full px-2 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
-        <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==flat)toggleClasp()}} />
+        {!paused && <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==flat)toggleClasp()}} />}
       </div>}
       {state === 'ready' && openable && !bracelet && <div className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:"min(30%, 112px)",justifyContent:"safe center"}}>
         <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
-        <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==opened)toggleOpen()}} />
+        {!paused && <HandClasp onMove={moveJewellery} onPose={open=>{if(open!==opened)toggleOpen()}} />}
       </div>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-white">Loading interactive 3D…</span>}
