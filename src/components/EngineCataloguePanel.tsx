@@ -6,8 +6,10 @@ import {HouseChoices,diamondCuts} from './HouseChoices';
 import {useAtelierLanguage} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
 import {WatchStrap} from './WatchStrap';
+import ConfigurationPrice from './ConfigurationPrice';
 import SampleQuote from './SampleQuote';
 import ModelViewer from './ModelViewer';
+import FittingHand from "./FittingHand";
 import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import type { PublicStoneRecord } from '../lib/stone-verification';
@@ -16,7 +18,7 @@ import { houseScript } from '../lib/script-font';
 import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 
 /** The AMES gemstone gallery: the house's own 3D stones (the same ones SAME shows in chat), diamonds aside. */
-type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
+type GalleryStone = { settings?:string[]; id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
 const GALLERY_VERSION = '10';
@@ -24,7 +26,14 @@ const GALLERY = registry as GalleryStone[];
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
-type CatalogueStone = PublicStoneRecord & { photo: string; model: string; poster: string; modelNote: string };
+type CatalogueStone = PublicStoneRecord & { dealer?:string; photo: string; model: string; poster: string; modelNote: string };
+
+function gemstoneId(piece:CatalogueStone){
+  const words=(s:string)=>' '+s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()+' ';
+  const description=words(piece.species+' '+piece.title);
+  return GALLERY.flatMap(g=>[g.name,...g.aliases].map(name=>({id:g.id,name:words(name)})))
+    .filter(candidate=>description.includes(candidate.name)).sort((a,b)=>b.name.length-a.name.length)[0]?.id;
+}
 
 function matches(stone: CatalogueStone, term: string, species: string) {
   return (!species || stone.species === species) && (!term || `${stone.ref} ${stone.title} ${stone.species}`.toLocaleLowerCase().includes(term));
@@ -42,7 +51,7 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
       if (!response.ok) throw new Error('Catalogue unavailable');
       const body = await response.json();
       if (!Array.isArray(body.items)) throw new Error('Invalid catalogue');
-      if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished' && GALLERY.some(g => [item.species,item.title].some(value => String(value).toLowerCase().includes(g.name.toLowerCase()))))); setState('ready'); }
+      if (!abort.signal.aborted) { setPieces(body.items.filter((item: CatalogueStone) => item.form === 'polished' && gemstoneId(item))); setState('ready'); }
     }).catch(() => { if (!abort.signal.aborted) setState('error'); });
     return () => abort.abort();
   }, []);
@@ -60,10 +69,11 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
   const field = 'mt-2 min-h-11 w-full rounded-xl border border-white/20 bg-[#061d19]/70 px-4 py-3 text-base text-white';
   const grid = (list: CatalogueStone[]) => <div className="grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">{list.map(piece => <StoneCard key={piece.stoneId} piece={piece} onView={() => setViewing(piece)} onBuy={() => setBuying(piece)} />)}</div>;
   // A gallery stone opens like a Boutique piece: the stone large in 3D with a back arrow on it, its details below.
-  if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
+  if (gem) return <GemDetail offers={pieces.filter(p=>gemstoneId(p)===gem.id)} availability={state} onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
     <div className="mx-auto max-w-6xl px-6 pb-16 pt-16 sm:px-12 sm:pt-20">
       <header className="flex items-center justify-between pb-1"><h1 className={`${houseScript.className} text-[52px] font-normal leading-[1.1] tracking-normal sm:text-7xl`} style={{ fontFamily: houseScript.style.fontFamily, padding: "0.32em 0.18em 0.05em", lineHeight: 1.25 }}>{t('Gemstones')}</h1></header>
+      <Link className="inline-block py-2 text-sm underline" href="/partner">Apply as a gemstone dealer</Link> <Link href="/app/account/stone-quotes" className="ml-3 text-sm underline">My gemstone quotes</Link>
       <input type="search" aria-label="Search gemstones by name or reference" placeholder={t('Search gemstones')} value={query} onChange={event => setQuery(event.target.value)} className={field} />
       {state==='ready' && pieces.length>0 && <section aria-label="Available polished stones">
         {state === 'ready' && pieces.length > 0 && <>
@@ -124,12 +134,12 @@ function StoneCard({ piece, onView, onBuy }: { piece: CatalogueStone; onView: ()
   </article>;
 }
 
-function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => void }) {
+function BuyDialog({ piece, setting='loose', metal='', configuration='', onClose }: { configuration?:string;setting?:string;metal?:string;piece: CatalogueStone; onClose: () => void }) {
   const [phone, setPhone] = useState(''), [message, setMessage] = useState(''), [state, setState] = useState<'idle' | 'sending' | 'sent' | 'signin' | 'error'>('idle'), [error, setError] = useState('');
   async function send(event: React.FormEvent) {
     event.preventDefault(); setState('sending'); setError('');
     try {
-      const response = await fetch('/api/catalogue-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stoneId: piece.stoneId, phone, message }) });
+      const response = await fetch('/api/catalogue-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stoneId: piece.stoneId, setting,metal,configuration,phone,message }) });
       const body = await response.json().catch(() => ({}));
       if (response.status === 401 || response.status === 403) { setState('signin'); setError(body.error || ''); return; }
       if (!response.ok) throw new Error(body.error || 'The request could not be sent.');
@@ -139,11 +149,11 @@ function BuyDialog({ piece, onClose }: { piece: CatalogueStone; onClose: () => v
   const field = 'mt-1 w-full rounded-xl border border-white/20 bg-[#061d19] px-3 py-2.5 text-base text-white';
   return <div role="dialog" aria-modal="true" aria-label={`Request to buy ${piece.ref}`} className="fixed inset-0 z-[85] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
     <div className="w-full max-w-md space-y-4 rounded-3xl border border-white/15 bg-[#04201b] p-5 text-sm" onClick={e => e.stopPropagation()}>
-      <div><p className="text-[10px] uppercase tracking-[0.16em] text-white">{piece.ref} · {piece.carats} ct</p><h3 className="text-lg">Request to buy {piece.title}</h3></div>
+      <div><p className="text-[10px] uppercase tracking-[0.16em] text-white">{piece.ref} · {piece.carats} ct</p><h3 className="text-lg">Request a quote for {piece.title}</h3>{configuration && <p>{configuration}</p>}<ConfigurationPrice key={piece.stoneId+setting+configuration} piece={piece.stoneId} setting={setting} options={configuration}/></div>
       {state === 'sent' ? <><p role="status" className="text-emerald-200">Your request has been sent. HOUSEofAMES will contact you to agree the price and complete the buyer checks.</p><button type="button" className="ames-pill min-h-11 rounded-full border border-white/25 px-5" onClick={onClose}>Close</button></>
         : state === 'signin' ? <><p>Sign in to your HOUSEofAMES account (with a verified email) to ask to buy this stone.</p><div className="flex gap-3"><Link href="/app/account" className="ames-pill inline-flex min-h-11 items-center rounded-full border border-white/25 px-5">Sign in</Link><button type="button" className="min-h-11 underline" onClick={onClose}>Not now</button></div></>
         : <form onSubmit={send} className="space-y-3">
-          <p className="text-xs text-white">HOUSEofAMES confirms the price with you directly. As a licensed dealer we complete buyer identity (KYC) checks before any sale.</p>
+          <p className="text-xs text-white">{setting==='loose'?'HOUSEofAMES will confirm availability and pricing with the dealer.':'HOUSEofAMES will confirm the stone cost with the dealer and the '+metal+' '+setting+' cost with the manufacturer before quoting you.'}</p>
           <label className="block text-xs">WhatsApp or phone (optional)<input value={phone} onChange={e => setPhone(e.target.value)} maxLength={40} inputMode="tel" className={field} /></label>
           <label className="block text-xs">Message (optional)<textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={1000} rows={3} className={field} placeholder="Questions, or how you would like to view the stone" /></label>
           {error && <p role="alert" className="text-xs text-red-200">{error}</p>}
@@ -166,18 +176,22 @@ function GemFacts({ id }: { id: string }) {
   </section>;
 }
 
-function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:string,question:string)=>void; stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
+function GemDetail({ offers,availability, stone, list, onGo, onClose, onAskSame }: { offers:CatalogueStone[];availability:string;onAskSame:(id:string,question:string)=>void; stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const {t}=useAtelierLanguage();
+  const [chosen,setChosen]=useState<CatalogueStone|null>(null);
   const facts = GEMSTONE_FACTS[stone.id];
-  const [setting, setSetting] = useState('ring');
+  const labels:Record<string,string> = {ring:'Ring',pendant:'Pendant',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'};
+  const available = stone.settings ?? ['ring','bracelet','earrings','necklace','watch','loose'];
+  const [setting, setSetting] = useState(available[0]);
   const [dropCut,setDropCut]=useState('Pear');
   const [ringCut,setRingCut] = useState('');
   const [cut, setCut] = useState('');
   const [metal,setMetal] = useState('silver');
   const [caseShape,setCaseShape] = useState('Original');
   const [strap,setStrap]=useState('metal'),[leather,setLeather]=useState('cognac');
-  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
+  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf?v=12${metal==='silver'?'':'&metal='+metal}`;
   const sampleModel=setting==='watch' && strap==='leather'?baseModel+(baseModel.includes('?')?'&':'?')+'leather='+leather:baseModel;
+  const configuration=[setting==='loose'?cut||stone.cut:metal,setting==='ring'&&(ringCut||'Original'),setting==='necklace'&&dropCut,setting==='watch'&&caseShape,setting==='watch'&&strap,setting==='watch'&&strap==='leather'&&leather].filter(Boolean).join(' · ');
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
   const src = modelCut
     ? `/ames-engine/gallery-cuts/${modelCut}/${stone.id}.glb?v=11`
@@ -199,11 +213,11 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
         <button type="button" onClick={() => onGo(prev)} aria-label={`Previous: ${prev.name}`} className={`${arrow} left-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>
         <button type="button" onClick={() => onGo(next)} aria-label={`Next: ${next.name}`} className={`${arrow} right-3`}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M9 6l6 6-6 6" /></svg></button>
       </>}
-      {setting !== 'loose' ? <EngineJewelryViewer src={sampleModel} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
+      <FittingHand category={setting} model={(sampleModel)||""}>{setting !== 'loose' ? <EngineJewelryViewer src={sampleModel} alt={`${stone.name} ${setting}`} autoLoad cameraPreset={studioCameraPreset(setting)} opticsProfile="mounted-gem-studio" turntableEnabled style={{width:'100%',height:'100%'}} /> : stone.id === 'stone-amber' ? <ModelViewer key={src} src={cut ? src : "/ames-engine/stone-amber/web/interactive.glb?v=1"} alt={stone.name}
         poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`}
         autoRotate cameraControls ar={false} jewelryPresentation cameraOrbit="25deg 49deg auto"
         style={{ width: '100%', height: '100%' }} /> :
-      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ width: '100%', height: '100%' }} />}
+      <EngineJewelryViewer key={src} src={src} poster={cut ? undefined : `/ames-engine/${stone.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={stone.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ width: '100%', height: '100%' }} />}</FittingHand>
     </div>
     <div className="mx-auto w-full px-6 pb-8 pt-2" style={{ maxWidth: 620 }}
       onTouchStart={e => { const t = e.touches[0]; swipe.current = { x: t.clientX, y: t.clientY }; }}
@@ -217,7 +231,7 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
         onAskSame(stone.id, setting==='loose' ? 'Tell me about '+stone.name+' as a loose gemstone with the '+(cut||stone.cut)+' cut.' : 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
       }}>Ask SAME</button>}
       {setting==='watch' && <WatchMovement/>}
-      <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
+      <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={Object.fromEntries(available.map(key=>[key,labels[key]]))}/>
       {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'watch' && <WatchStrap strap={strap} setStrap={setStrap} colour={leather} setColour={setLeather}/>}
@@ -225,7 +239,15 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
       {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={sampleModel} key={setting} wrist={setting!=='ring'}/>}
       {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
-      {setting !== 'loose' && <SampleQuote key={setting + ringCut + dropCut + caseShape + metal} stone={stone.name} caseShape={setting==='watch'?caseShape+(strap==='leather'?' · '+leather+' leather strap':' · metal bracelet'):undefined} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
+      <section className="my-5 space-y-3" aria-label="Dealer catalogue"><h3>{stone.name} dealer catalogue</h3>
+        {availability==='loading'?<p>Loading dealer stones…</p>:availability==='error'?<p>Dealer inventory is unavailable.</p>:!offers.length?<p className="text-sm">No dealer stones are currently listed.</p>:offers.map(p=><article key={p.stoneId} className="flex items-center gap-3 border-b border-white/15 py-3">
+          {(p.photo||p.poster)&&<img src={p.photo||p.poster} alt={p.title} className="h-16 w-16 rounded object-cover"/>}
+          <div><p>{p.title} · {p.carats} ct</p><p className="text-xs">{p.dealer} · {p.ref} · {p.measurements}</p><button className="min-h-11 underline" onClick={()=>setChosen(p)}>{setting==='loose'?'Request stone price':'Use this stone in my '+setting}</button></div>
+        </article>)}
+      </section>
+      {chosen&&<BuyDialog configuration={configuration} piece={chosen} setting={setting} metal={setting==='loose'?'':metal} onClose={()=>setChosen(null)}/>}
+      <ConfigurationPrice key={stone.id+setting+configuration} piece={stone.id} setting={setting} options={configuration}/>
+      {setting !== 'loose' && <SampleQuote configuration={configuration} key={stone.id+setting+configuration} stone={stone.name} caseShape={setting==='watch'?caseShape+(strap==='leather'?' · '+leather+' leather strap':' · metal bracelet'):undefined} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
       {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>
