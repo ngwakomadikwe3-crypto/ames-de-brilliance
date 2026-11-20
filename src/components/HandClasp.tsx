@@ -2,9 +2,11 @@
 import {useEffect, useRef, useState} from 'react';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
-export default function HandClasp({onPose,onMove}:{onPose?:(open:boolean)=>void;onMove:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onFingers}:{onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(false);
   const [message,setMessage]=useState('');
+  const fingers=useRef(onFingers);
+  useEffect(()=>{fingers.current=onFingers},[onFingers]);
   const move=useRef(onMove);
   useEffect(()=>{move.current=onMove},[onMove]);
   const callback=useRef(onPose);
@@ -59,7 +61,7 @@ export default function HandClasp({onPose,onMove}:{onPose?:(open:boolean)=>void;
       tracker=await HandLandmarker.createFromOptions(files,{baseOptions,runningMode:'VIDEO',numHands:1});
       if(stopped){stop();return}
       stage='tracking';
-      setMessage((callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      setMessage(fingers.current?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function tick(now:number){
@@ -73,13 +75,25 @@ export default function HandClasp({onPose,onMove}:{onPose?:(open:boolean)=>void;
             if(hand){
               const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
               const ratios=[8,12,16,20].map(tip=>distance(tip,0)/Math.max(.001,distance(tip-2,0)));
+              if(fingers.current){
+                const curls=[1,5,9,13,17].map(base=>{
+                  let bend=0;
+                  for(const joint of [base+1,base+2]){
+                    const a=distance(joint-1,joint),b=distance(joint,joint+1),c=distance(joint-1,joint+1);
+                    if(a*b<1e-9)return 0;
+                    bend+=Math.acos(Math.max(-1,Math.min(1,(c*c-a*a-b*b)/(2*a*b))));
+                  }
+                  return Math.round(10*Math.max(0,Math.min(1,(bend-.15)/(base===1?1.65:2.65))))/10;
+                });
+                fingers.current(curls);
+              }
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
               const steering=points && pinch<(anchor ? .43 : .30) && ratios.slice(1).some(r=>r>1.05);
               if(steering){
                 const x=(points[4].x+points[8].x)/2,y=(points[4].y+points[8].y)/2;
                 if(anchor){
                   const dx=anchor.x-x,dy=y-anchor.y;
-                  if(Math.hypot(dx,dy)>.004 && Math.hypot(dx,dy)<.22)move.current(dx,dy);
+                  if(Math.hypot(dx,dy)>.004 && Math.hypot(dx,dy)<.22)move.current?.(dx,dy);
                 }
                 anchor={x,y};
               }else{
