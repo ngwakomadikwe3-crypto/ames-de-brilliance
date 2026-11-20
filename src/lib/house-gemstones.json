@@ -330,27 +330,5 @@
     "defaultColors": [
       "green"
     ]
-  },
-  {
-    "id": "stone-turquoise",
-    "name": "Turquoise",
-    "aliases": [
-      "blue turquoise",
-      "green turquoise"
-    ],
-    "category": "turquoise",
-    "form": "cabochon with matrix",
-    "cut": "freeform cabochon",
-    "defaultColors": [
-      "turquoise",
-      "blue",
-      "blue green",
-      "green"
-    ],
-    "limitations": [
-      "Representative polished turquoise with procedural dark matrix veins.",
-      "The pattern does not reproduce a particular stone or identify origin and treatment.",
-      "Exact dimensions, weight, stabilization, and certification are not claimed."
-    ]
   }
 ]
