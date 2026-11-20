@@ -86,6 +86,11 @@ export default function EngineCataloguePanel({onAskSame}:{onAskSame:(id:string,q
     <p className="mt-2">Loose gemstone only. No jewellery available.</p>
     <p className="mt-2 text-sm">{gem.defaultColors.join(', ')}</p>
     <EngineJewelryViewer key={gem.id} src={`/ames-engine/${gem.id}/web/jewelry.glb?v=${GALLERY_VERSION}`} poster={loosePosters[gem.id] ?? `/ames-engine/${gem.id}/web/poster.webp?v=${GALLERY_VERSION}`} alt={gem.name} autoLoad opticsProfile="gemstone-studio" cameraPreset="gemstone" turntableEnabled style={{ height: 380 }} />
+    <button type="button" className="ames-pill my-2 min-h-11 rounded-full px-4 text-sm"
+      aria-label={`Ask SAME about ${gem.name}`}
+      onClick={() => onAskSame(gem.id, `Tell me about ${gem.name} as a loose gemstone.`)}>
+      Ask SAME
+    </button>
   </section>;
   if (gem) return <GemDetail onAskSame={onAskSame} key={gem.id} stone={gem} list={gallery.length ? gallery : GALLERY} onGo={setGem} onClose={closeGem} />;
   return <div data-catalogue-panel className="h-full overflow-y-auto overscroll-contain text-white">
