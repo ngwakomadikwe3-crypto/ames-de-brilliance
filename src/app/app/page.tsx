@@ -26,7 +26,7 @@ const VideoIntro = dynamic(() => import("../../components/VideoIntro"), { ssr: f
    MAIN PAGE
    ═══════════════════════════════════════════ */
 
-const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Catalogue"] as const;
+const PANEL_LABELS = ["Boutique", "Chat", "Videos", "Gemstones"] as const;
 
 export default function AppPage() {
   const displayName = useSyncExternalStore(subscribeCustomerPreferences, readCustomerDisplayName, () => '');
@@ -187,7 +187,7 @@ export default function AppPage() {
         <section id="ames-page-2" data-panel="2" aria-label="Videos" hidden={activePanel !== 2 && turn?.from !== 2} aria-hidden={activePanel !== 2} data-curl-source={turn?.from === 2} style={curlPageStyle(turn, 2)} inert={activePanel !== 2} className="ames-magazine-page">
           <EngineMediaPanel key={`media-${refreshTokens[2]}`} active={activePanel === 2} onBuy={handleSeePiece} onAskSame={handleAskMedia} />
         </section>
-        <section id="ames-page-3" data-panel="3" aria-label="Catalogue" hidden={activePanel !== 3 && turn?.from !== 3} aria-hidden={activePanel !== 3} data-curl-source={turn?.from === 3} style={curlPageStyle(turn, 3)} inert={activePanel !== 3} className="ames-magazine-page">
+        <section id="ames-page-3" data-panel="3" aria-label="Gemstones" hidden={activePanel !== 3 && turn?.from !== 3} aria-hidden={activePanel !== 3} data-curl-source={turn?.from === 3} style={curlPageStyle(turn, 3)} inert={activePanel !== 3} className="ames-magazine-page">
           <EngineCataloguePanel onAskSame={(stoneId, question) => { setChatAssetId(stoneId); setChatDraft(question); turnTo(1); }} key={`catalogue-${refreshTokens[3]}`} />
         </section>
       </div>
