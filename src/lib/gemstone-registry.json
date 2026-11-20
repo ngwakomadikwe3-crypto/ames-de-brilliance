@@ -170,16 +170,6 @@
     "limitations": ["Representative white opal with procedural play-of-colour patches.", "The patches do not reproduce a particular stone or guarantee play-of-colour quality.", "Exact dimensions, weight, origin, treatment, and certification are not claimed."]
   },
   {
-    "id": "stone-pearl",
-    "name": "Pearl",
-    "aliases": ["white pearl", "cultured pearl"],
-    "category": "organic gem",
-    "form": "pearl",
-    "cut": "near-round pearl",
-    "defaultColors": ["white", "cream", "ivory"],
-    "limitations": ["Representative near-round pearl with procedural nacre-like reflections.", "Natural versus cultured origin, mollusc type, and nacre thickness are not identified.", "Exact dimensions, weight, lustre grade, surface grade, and certification are not claimed."]
-  },
-  {
     "id": "stone-peridot",
     "name": "Peridot",
     "aliases": ["olivine", "green peridot"],
