@@ -64,6 +64,11 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
   useEffect(() => { if (command) queueMicrotask(() => applyAction(command.value)); }, [command, applyAction]);
 
   const stage=useRef<HTMLDivElement>(null);
+  function zoomFallback(factor:number){
+    const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {getCameraOrbit?:()=>{theta:number;phi:number;radius:number};cameraOrbit:string})|null;
+    const orbit=viewer?.getCameraOrbit?.();
+    if(viewer && orbit)viewer.cameraOrbit=`${orbit.theta}rad ${orbit.phi}rad ${orbit.radius/factor}m`;
+  }
   function turnFallback(x:number,y:number){
     const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {getCameraOrbit?:()=>{theta:number;phi:number;radius:number};cameraOrbit:string})|null;
     const orbit=viewer?.getCameraOrbit?.();
@@ -94,7 +99,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
             style={{ width: '100%', height: '100%', borderRadius: 14 }} /> :
           <><ModelViewer key={stageSrc} src={stageSrc!} poster={hasUnfinishedJewelryImages(content.contract.assetId) ? undefined : content.posterUrl} alt={content.name} jewelryPresentation metalPreview={content.contract.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined}
             autoRotate={false} controlledTurntable turntableEnabled={rotation && active} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}
-            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onMove={turnFallback}/></div>}</>) :
+            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onZoom={zoomFallback} onMove={turnFallback}/></div>}</>) :
           <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#ffffff' }}>
             {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
           </div>}

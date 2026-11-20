@@ -78,7 +78,7 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
 }
 
-export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints}:{onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(false);
   const [message,setMessage]=useState('');
   const joints=useRef(onJoints);
@@ -87,6 +87,8 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{
   useEffect(()=>{capture.current=onCapture},[onCapture]);
   const fingers=useRef(onFingers);
   useEffect(()=>{fingers.current=onFingers},[onFingers]);
+  const zoom=useRef(onZoom);
+  useEffect(()=>{zoom.current=onZoom},[onZoom]);
   const move=useRef(onMove);
   useEffect(()=>{move.current=onMove},[onMove]);
   const callback=useRef(onPose);
@@ -143,6 +145,8 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{
       if(stopped){stop();return}
       stage='tracking';
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
+      if(zoom.current)setMessage('Pinch thumb and index, then spread to zoom in or pinch closer to zoom out. Move a held pinch to rotate where supported.');
+      let zoomGap:number|undefined;
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
@@ -180,7 +184,19 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{
                 fingers.current(curls);
               }
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
-              const steering=points && pinch<(anchor ? .43 : .30) && ratios.slice(1).some(r=>r>1.05);
+              let zooming=false;
+              if(zoom.current){
+                if(zoomGap===undefined && pinch<.30)zoomGap=pinch;
+                else if(zoomGap!==undefined){
+                  const change=pinch-zoomGap;
+                  if(Math.abs(change)>.035){
+                    zoom.current(Math.exp(Math.max(-.25,Math.min(.25,change*1.5))));
+                    zoomGap=pinch;zooming=true;
+                  }
+                  if(pinch>.95 || ratios.every(r=>r<.96))zoomGap=undefined;
+                }
+              }
+              const steering=!zooming && points && pinch<(anchor ? .43 : .30) && ratios.slice(1).some(r=>r>1.05);
               if(steering){
                 const x=(points[4].x+points[8].x)/2,y=(points[4].y+points[8].y)/2;
                 if(anchor){
@@ -194,7 +210,7 @@ export default function HandClasp({onPose,onMove,onFingers,onCapture,onJoints}:{
                 if(ratios.every(r=>r<.96))pose=false;
               }
             }
-            if(!hand){anchor=undefined;openFrames=0};
+            if(!hand){zoomGap=undefined;anchor=undefined;openFrames=0};
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
             else if(now-since>=400 && emitted!==pose){emitted=pose;callback.current?.(pose)}
