@@ -10,18 +10,5 @@ if(!source.includes("from './useViewGesture'")){
  writeFileSync(file,"import {useViewGesture} from './useViewGesture'\n"+source.replace(marker,'  useViewGesture(controls,cameraPreset,zoom)\n'+marker));
 }
 
-// Animate the model pivot as well as the orbit when a reset token changes.
-const turnFile=path.join(dir,'useControlledTurntable.ts');
-const turn=readFileSync(turnFile,'utf8');
-const snap='    if (pivot.current) pivot.current.rotation.y = 0';
-if(turn.includes(snap))writeFileSync(turnFile,turn.replace(snap,`    let restoring=0
-    const start=performance.now()
-    const angle=pivot.current?.rotation.y??0
-    const shortest=Math.atan2(Math.sin(angle),Math.cos(angle))
-    const restore=(now:number)=>{
-      const t=Math.min(1,(now-start)/240)
-      if(pivot.current)pivot.current.rotation.y=shortest*(1-t*t*(3-2*t))
-      invalidate()
-      if(t<1)restoring=requestAnimationFrame(restore)
-    }
-    if(shortest)restoring=requestAnimationFrame(restore)`).replace('  }, [pivot, resetToken, invalidate])','    return ()=>cancelAnimationFrame(restoring)\n  }, [pivot, resetToken, invalidate])'));
+copyFileSync(new URL('../src/lib/showcase-motion.ts',import.meta.url),path.join(dir,'showcase-motion.ts'));
+copyFileSync(new URL('../src/engine-adapters/showcase-turntable.ts.txt',import.meta.url),path.join(dir,'useControlledTurntable.ts'));

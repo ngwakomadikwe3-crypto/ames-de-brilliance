@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import {useReducedMotion} from '@/lib/use-reduced-motion';
+import {showcaseMotion} from '../lib/showcase-motion';
 import { createTurntable, turntableEnabled, turntablePointerDown, turntablePointerUp, turntableReady, turntableReset, turntableTick } from '../lib/chat-turntable';
 
 const guardedArRenderers = new WeakSet<object>();
@@ -85,31 +86,7 @@ export default function ModelViewer({
       setError(true);
       turntableState.current = { ...turntableState.current, ready: false };
     };
-    const onPointerDown = () => { turntableState.current = turntablePointerDown(turntableState.current, performance.now()); };
-    const onPointerUp = () => { turntableState.current = turntablePointerUp(turntableState.current, performance.now()); };
-    let frame = 0;
-    const animate = (now: number) => {
-      if (controlledTurntable) {
-        const bounds = el.getBoundingClientRect();
-        const onScreen = bounds.right > 0 && bounds.left < window.innerWidth && bounds.bottom > 0 && bounds.top < window.innerHeight;
-        if (onScreen) {
-          const previous = turntableState.current.angleDeg;
-          const next = turntableTick(turntableState.current, now);
-          turntableState.current = next;
-          if (next.ready && next.angleDeg !== previous && (el as HTMLElement & { modelIsVisible?: boolean }).modelIsVisible) el.setAttribute('orientation', `0deg ${next.angleDeg.toFixed(3)}deg 0deg`);
-        } else turntableState.current = { ...turntableState.current, lastFrameMs: now };
-      }
-      frame = requestAnimationFrame(animate);
-    };
-
-    el.addEventListener("load", onLoad);
-    el.addEventListener("error", onError);
-    if (controlledTurntable) {
-      el.addEventListener('pointerdown', onPointerDown);
-      el.addEventListener('pointerup', onPointerUp);
-      el.addEventListener('pointercancel', onPointerUp);
-      frame = requestAnimationFrame(animate);
-    }
+    el.addEventListener("load",onLoad);el.addEventListener("error",onError);
     Promise.all([import('@google/model-viewer'), import('@google/model-viewer/lib/model-viewer-base.js')])
       .then(([, { $renderer }]) => {
         if (!controlledTurntable) return;
@@ -124,15 +101,21 @@ export default function ModelViewer({
         guardedArRenderers.add(arRenderer);
       }).catch(onError);
     return () => {
-      cancelAnimationFrame(frame);
       el.removeEventListener("load", onLoad);
       el.removeEventListener("error", onError);
-      el.removeEventListener('pointerdown', onPointerDown);
-      el.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('pointercancel', onPointerUp);
     };
   }, [src, controlledTurntable, metalPreview]);
 
+  const [manualPause,setManualPause]=useState(false);
+  useEffect(()=>{
+    const el=viewerRef.current,host=el?.closest<HTMLElement>('.ames-jewelry-stage')??containerRef.current;
+    if(!el||!host||!controlledTurntable||!loaded||!turntableEnabledProp||manualPause||reducedMotion)return;
+    const angles=(el.getAttribute('orientation')??'0 0 0').split(' ').map(parseFloat);
+    return showcaseMotion(host,(yaw,pitch,roll)=>{
+      angles[0]+=roll*180/Math.PI;angles[1]+=pitch*180/Math.PI;angles[2]+=yaw*180/Math.PI;
+      el.setAttribute('orientation',angles.map(a=>a+'deg').join(' '));
+    });
+  },[loaded,controlledTurntable,turntableEnabledProp,manualPause,reducedMotion,src]);
   if (error) {
     return (
       <div
@@ -200,6 +183,7 @@ export default function ModelViewer({
           opacity: loaded ? 1 : 0,
         }}
       />
+      {controlledTurntable&&loaded&&!reducedMotion&&turntableEnabledProp&&<button type="button" className="absolute left-2 bottom-2 z-20 ames-pill px-3 py-2 text-xs" onClick={()=>setManualPause(v=>!v)}>{manualPause?'Play showcase':'Pause showcase'}</button>}
       {/* Loading shimmer — shown while model loads */}
       {!loaded && !error && (
         <div

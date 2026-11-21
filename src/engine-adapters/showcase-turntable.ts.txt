@@ -1,0 +1,20 @@
+import {useEffect,useRef,type RefObject} from 'react';
+import {useThree} from '@react-three/fiber';
+import type {Group} from 'three';
+import {showcaseMotion} from './showcase-motion';
+export const CONTROLLED_TURN_SPEED=Math.PI/6;
+export const CONTROLLED_RESUME_DELAY=5000;
+export function useControlledTurntable(pivot:RefObject<Group|null>,enabled:boolean,ready:boolean,interacting:boolean,token:number|undefined,invalidate:()=>void){
+ const {gl}=useThree();const last=useRef(token);
+ useEffect(()=>{
+   const p=pivot.current;if(last.current===token||!p)return;last.current=token;
+   const from=p.rotation.clone(),start=performance.now(),yaw=Math.atan2(Math.sin(from.y),Math.cos(from.y));let raf=0;
+   const tick=(now:number)=>{const t=Math.min(1,(now-start)/240),s=1-t*t*(3-2*t);p.rotation.set(from.x*s,yaw*s,from.z*s,'YXZ');invalidate();if(t<1)raf=requestAnimationFrame(tick)};
+   raf=requestAnimationFrame(tick);return ()=>cancelAnimationFrame(raf);
+ },[token,pivot,invalidate]);
+ useEffect(()=>{
+   const host=gl.domElement.closest<HTMLElement>('[data-ames-engine-host]');
+   if(!host||!enabled||!ready||interacting)return;
+   return showcaseMotion(host,(yaw,pitch,roll)=>{const p=pivot.current;if(p){p.rotation.order='YXZ';p.rotation.y+=yaw;p.rotation.x+=pitch;p.rotation.z+=roll;invalidate()}});
+ },[gl,enabled,ready,interacting,pivot,invalidate]);
+}

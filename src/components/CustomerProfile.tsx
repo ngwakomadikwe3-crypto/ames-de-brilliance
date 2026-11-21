@@ -1,4 +1,5 @@
 "use client";
+import SavedHandPanel from './SavedHandPanel';
 
 import {LanguageSetting} from './AtelierLanguage';
 import { useState, useSyncExternalStore, useCallback } from 'react';
@@ -123,6 +124,7 @@ export default function CustomerProfile() {
       </form>
       </details>
 
+      <SavedHandPanel/>
       {user && <nav aria-label="Profile links" className="flex flex-wrap gap-5 text-sm"><Link href="/app/billing" className="underline">Billing information</Link></nav>}
 
 

@@ -20,35 +20,54 @@ export function fitFromCamera(points:{x:number;y:number;z:number}[],ratio:number
 }
 type Width={ratio:number;mm:number};
 type Profile={outline?:Outline;joints:Joint[];mirror?:boolean;finger?:Width;wrist?:Width};
-const profileKey='ames-fitting-hand-v2';
-let current:Profile|null=null;
+export const savedHandKey='ames-saved-hand';
+const legacy=['ames-fitting-hand-v2','ames-hand-fit-false','ames-hand-fit-true','ames-hand-tone','ames-hand-colour'];
+type SavedHand=Profile & {colour?:string;tone?:number};
 function validJoints(j:Joint[]){return Array.isArray(j)&&j.length===21&&j.every(p=>Array.isArray(p)&&p.length===3&&p.every(v=>Number.isFinite(v)&&Math.abs(v)<=4))}
-function readProfile():Profile|null{
+function writeProfile(profile:SavedHand){
+ localStorage.setItem(savedHandKey,JSON.stringify(profile));
+ legacy.forEach(key=>localStorage.removeItem(key));
+ window.dispatchEvent(new Event('ames-hand-fit'));
+}
+export function readSavedHand():SavedHand|null{
  try{
-   const saved=JSON.parse(localStorage.getItem(profileKey)||'null');
-   if(current)return current;
-   if(saved && validJoints(saved.joints))return saved;
-   let migrated:Profile|null=null;
+   const saved=JSON.parse(localStorage.getItem(savedHandKey)||'null');
+   if(saved&&validJoints(saved.joints))return saved;
+   let profile=JSON.parse(localStorage.getItem(legacy[0])||'null') as SavedHand|null;
+   if(!profile||!validJoints(profile.joints))profile=null;
    for(const wrist of [false,true]){
      const old=JSON.parse(localStorage.getItem('ames-hand-fit-'+wrist)||'null');
-     if(old&&validJoints(old.joints)&&Number.isFinite(old.ratio)&&old.ratio>0){
-       migrated??={joints:old.joints};migrated[wrist?'wrist':'finger']={ratio:old.ratio,mm:old.mm||0};
-     }
+     if(!old||!validJoints(old.joints))continue;
+     profile??={joints:old.joints,mirror:old.mirror};
+     profile[wrist?'wrist':'finger']??={ratio:old.ratio,mm:old.mm||0};
    }
-   return current||migrated;
- }catch{return current}
+   if(profile){
+     profile.colour=localStorage.getItem('ames-hand-colour')??undefined;
+     profile.tone=Number(localStorage.getItem('ames-hand-tone')??50);
+     localStorage.setItem(savedHandKey,JSON.stringify(profile));
+     legacy.forEach(key=>localStorage.removeItem(key));
+   }else legacy.forEach(key=>localStorage.removeItem(key));
+   return profile;
+ }catch{return null}
+}
+export function deleteSavedHand(){
+ legacy.forEach(key=>localStorage.removeItem(key));
+ localStorage.removeItem(savedHandKey);
+ window.dispatchEvent(new Event('ames-hand-deleted'));
+ window.dispatchEvent(new Event('ames-hand-fit'));
 }
 export function loadFit(wrist:boolean):HandFit|null{
- const p=readProfile();if(!p)return null;
+ const p=readSavedHand();if(!p)return null;
  const width=p[wrist?'wrist':'finger'];
  return {outline:p.outline,joints:p.joints,mirror:p.mirror,wrist,ratio:width?.ratio??0,mm:width?.mm??0,fingerRatio:p.finger?.ratio,wristRatio:p.wrist?.ratio};
 }
+export function replaceSavedHand(f:HandFit,colour:string){writeProfile({joints:f.joints,outline:f.outline,mirror:f.mirror,colour,tone:50,[f.wrist?'wrist':'finger']:{ratio:f.ratio,mm:f.mm}})}
+export function saveHandTone(tone:number){const p=readSavedHand();if(p)writeProfile({...p,tone})}
 export function saveFit(f:HandFit){
- const old=readProfile(), key=f.wrist?'wrist':'finger';
- const profile:Profile={...old,outline:f.outline??old?.outline,joints:f.joints,mirror:f.mirror??old?.mirror};
- if(f.mm>0 || !old?.[key]?.mm)profile[key]={ratio:f.ratio,mm:f.mm};
- current=profile;try{localStorage.setItem(profileKey,JSON.stringify(profile))}catch{}
- window.dispatchEvent(new Event('ames-hand-fit'));
+ const old=readSavedHand(),key=f.wrist?'wrist':'finger';
+ const profile:SavedHand={...old,joints:f.joints,outline:f.outline??old?.outline,mirror:f.mirror??old?.mirror};
+ if(f.mm>0||!old?.[key]?.mm)profile[key]={ratio:f.ratio,mm:f.mm};
+ writeProfile(profile);
 }
 export function poseJoints(joints:Joint[],curls:number[]){
  const points=joints.map(p=>new Vector3(...p));

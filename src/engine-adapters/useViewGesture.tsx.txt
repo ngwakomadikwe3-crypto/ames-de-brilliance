@@ -29,8 +29,8 @@ export function useViewGesture(ref:RefObject<OrbitControls|null>,preset:CameraPr
        }
        raf=requestAnimationFrame(tick);return
      }
-     orbit.theta-=(d.x??0)*4
-     orbit.phi=Math.max(ctl.minPolarAngle,Math.min(ctl.maxPolarAngle,orbit.phi+(d.y??0)*3))
+     orbit.theta-=(d.x??0)*Math.PI
+     orbit.phi=Math.max(ctl.minPolarAngle,Math.min(ctl.maxPolarAngle,orbit.phi+(d.y??0)*Math.PI))
      orbit.radius=Math.max(ctl.minDistance,Math.min(ctl.maxDistance,orbit.radius/(d.zoom??1)))
      camera.position.copy(new Vector3().setFromSpherical(orbit)).add(ctl.target);ctl.update();invalidate()
    }

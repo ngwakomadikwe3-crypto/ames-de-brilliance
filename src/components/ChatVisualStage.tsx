@@ -73,8 +73,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
     const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {getCameraOrbit?:()=>{theta:number;phi:number;radius:number};cameraOrbit:string})|null;
     const orbit=viewer?.getCameraOrbit?.();
     if(!viewer||!orbit)return;
-    setRotation(false);
-    viewer.cameraOrbit=`${orbit.theta-x*4}rad ${Math.max(.1,Math.min(Math.PI-.1,orbit.phi+y*3))}rad ${orbit.radius}m`;
+    viewer.cameraOrbit=`${orbit.theta-x*Math.PI}rad ${Math.max(.1,Math.min(Math.PI-.1,orbit.phi+y*Math.PI))}rad ${orbit.radius}m`;
   }
   const image = content && !hasUnfinishedJewelryImages(content.contract.assetId) && (view === 'hero' ? content.heroUrl : view === 'macro' ? content.macroUrl : null);
   const ringView = content?.category === 'ring';

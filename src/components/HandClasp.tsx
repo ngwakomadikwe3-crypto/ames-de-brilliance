@@ -100,7 +100,7 @@ function trackingAssets(){
   return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
 }
 
-export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset}:{onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel}:{captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const reset=useRef(onReset);useEffect(()=>{reset.current=onReset},[onReset]);
   const control=useRef<HTMLDivElement>(null);
   const [feedback,setFeedback]=useState<ReturnType<ViewGesture['step']>|null>(null);
@@ -136,7 +136,10 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     video.muted=true;
     video.playsInline=true;
     let expiry:ReturnType<typeof setTimeout>|undefined;
+    const host=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
+    function presence(hand:boolean){if(host && host.dataset.handPresent!==String(hand)){host.dataset.handPresent=String(hand);host.dispatchEvent(new Event('ames:hand-presence'))}}
     function stop(){
+      presence(false);
       clearTimeout(expiry);
       stopped=true;
       setFeedback(null);
@@ -186,10 +189,10 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       const commands=new ViewGesture();
       if(reset.current)setMessage('');
       const gate=new DetectionGate();
-      let liveGap:number|undefined,panX:number|undefined;
-      let zoomGap:number|undefined;
+
+
       let openFrames=0;
-      let anchor:{x:number;y:number}|undefined;
+
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function schedule(){
         if(stopped)return;
@@ -202,7 +205,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
           last=now; time=player.currentTime;
           try{
             const result=tracker!.detectForVideo(player,now);
-            const raw=result.worldLandmarks[0],image=result.landmarks[0];
+            const raw=result.worldLandmarks[0],image=result.landmarks[0];presence(!!raw);
             const hand=raw?worldFilter.update(raw,now):undefined;
             const points=image?imageFilter.update(image,now):undefined;
             if(!hand){imageFilter.reset();worldFilter.reset()}
@@ -213,19 +216,13 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 const mirrored=points.map(p=>({x:1-p.x,y:p.y,z:p.z}));
                 liveFrameRef.current(player,mirrored);
                 clearTimeout(expiry);
-                expiry=setTimeout(()=>{liveFrameRef.current?.(null,undefined);liveGap=panX=undefined},500);
+                expiry=setTimeout(()=>{liveFrameRef.current?.(null,undefined);commands.lost(performance.now())},500);
                 const dist=(a:number,b:number)=>Math.hypot(raw[a].x-raw[b].x,raw[a].y-raw[b].y,raw[a].z-raw[b].z);
                 const ratios=[8,12,16,20].map(t=>dist(t,0)/Math.max(.001,dist(t-2,0)));
-                if(ratios.slice(1).every(r=>r<1.03)&&ratios[0]>.96){
-                  const gap=dist(4,8)/Math.max(.001,dist(5,17));
-                  if(liveGap!==undefined)zoom.current?.(Math.exp(Math.max(-.2,Math.min(.2,(gap-liveGap)*1.4))));
-                  liveGap=gap;
-                }else liveGap=undefined;
-                if(ratios.every(r=>r>1.13)){
-                  const x=[0,5,9,13,17].reduce((sum,i)=>sum+mirrored[i].x,0)/5;
-                  if(panX!==undefined && Math.abs(x-panX)>.004){move.current?.(x-panX,0);panX=x}
-                  panX??=x;
-                }else panX=undefined;
+                const input={x:mirrored[0].x,y:mirrored[0].y,aspect:player.videoWidth/player.videoHeight,gap:dist(4,8)/Math.max(.001,dist(5,17)),open:ratios.every(r=>r>1.13),curled:ratios.slice(1).every(r=>r<1.03),fist:false};
+                const event=commands.step(input,now);
+                if(event.zoom!==1)zoom.current?.(event.zoom);
+                if(event.dx)move.current?.(-event.dx,0);
               }else{
                 liveGap=panX=undefined;
                 if(state==='hide')liveFrameRef.current(null,undefined);
@@ -267,35 +264,16 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 if(event.dx||event.dy)move.current?.(event.dx,event.dy);
                 if(event.zoom!==1)zoom.current?.(event.zoom);
               }else{
-              let zooming=false;
-              if(zoom.current){
-                if(zoomGap===undefined && pinch<.38)zoomGap=pinch;
-                else if(zoomGap!==undefined){
-                  const change=pinch-zoomGap;
-                  if(Math.abs(change)>.035){
-                    zoom.current(Math.exp(Math.max(-.25,Math.min(.25,change*1.5))));
-                    zoomGap=pinch;zooming=true;
-                  }
-                  if(pinch>.95 || ratios.every(r=>r<.96))zoomGap=undefined;
+                if(points && zoom.current){
+                  const event=commands.step({x:points[0].x,y:points[0].y,aspect:player.videoWidth/player.videoHeight,gap:pinch,open:ratios.every(r=>r>1.13),fist:false,curled:ratios.slice(1).every(r=>r<1.03)},now);
+                  if(event.zoom!==1)zoom.current(event.zoom);
                 }
-              }
-              const steering=!zooming && points && pinch<(anchor ? .50 : .38);
-              if(steering){
-                const x=(points[4].x+points[8].x)/2,y=(points[4].y+points[8].y)/2;
-                if(anchor){
-                  const dx=anchor.x-x,dy=y-anchor.y;
-                  if(Math.hypot(dx,dy)>.002 && Math.hypot(dx,dy)<.22)move.current?.(dx,dy);
-                }
-                anchor={x,y};
-              }else{
-                anchor=undefined;
                 if(ratios.every(r=>r>1.13))pose=true;
                 if(ratios.every(r=>r<.96))pose=false;
-              }
             }
             }
-            if(!hand && reset.current){commands.clear();setFeedback(null)}
-            if(!hand){zoomGap=undefined;anchor=undefined;openFrames=0};
+            if(!hand){commands.lost(now);if(reset.current)setFeedback(null)}
+            if(!hand)openFrames=0;
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
             else if(now-since>=180 && emitted!==pose){emitted=pose;callback.current?.(pose)}
@@ -321,5 +299,5 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     {feedback && <div aria-hidden="true" style={{position:'absolute',pointerEvents:'none',zIndex:18,left:`${feedback.x*100}%`,top:`${feedback.y*100}%`,transform:'translate(-50%,-50%)',borderRadius:24,padding:3,background:feedback.state==='Reset'?`conic-gradient(#eedba8 ${feedback.progress*360}deg,transparent 0)`:'transparent'}}><span className="block rounded-full bg-black/65 px-2 py-1 text-xs text-white">{feedback.state}{feedback.state==='Pinch'?` ${Math.round(100*feedback.progress)}%`:''}</span></div>}
     {feedback?.active && <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{boxShadow:'inset 0 0 26px #ead39c26'}}/>}
     {guide && <div className="absolute left-2 top-2 z-30 max-w-56 rounded-xl bg-black/85 p-3 text-left text-xs text-white">Curl three fingers and pinch to zoom. Move an open palm to rotate. Hold it still for one second to lock, then move to unlock. Hold a fist for half a second to reset.<button type="button" className="block min-h-9 underline" onClick={()=>{setGuide(false);try{localStorage.setItem('ames-view-guide-v1','1')}catch{}}}>Got it</button></div>}
-  </>,target)}<button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
+  </>,target)}<button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?(captureLabel??'Capture my hand'):'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }

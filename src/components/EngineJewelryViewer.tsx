@@ -62,9 +62,10 @@ function SelectedViewer({
 }: ViewerProps) {
   const host = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  const [showcasePaused,setShowcasePaused]=useState(false);
   const [held,setHeld]=useState(false);
   useEffect(()=>{const release=()=>setHeld(false);window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);window.addEventListener('blur',release);return ()=>{window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release)}},[]);
-  const effectiveTurntable = held || paused || reducedMotion ? false : turntableEnabled;
+  const effectiveTurntable = held || paused || reducedMotion || showcasePaused ? false : (turntableEnabled??true);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'fallback'>(autoLoad ? 'loading' : 'idle');
   const [attempt, setAttempt] = useState(0);
   const [posterFailed, setPosterFailed] = useState(false);
@@ -149,7 +150,7 @@ function SelectedViewer({
       <div style={{position:'absolute',inset:0,right:state==='ready'&&(bracelet||openable)?'min(30%, 112px)':0,overflow:'hidden'}}>
       <span aria-hidden="true" className="ames-presentation-frame" />
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
-      {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><div className="ames-floating-piece" style={{animationPlayState: held || paused || flat || opened ? "paused" : "running"}}><JewelryViewer
+      {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><div className="ames-floating-piece" style={{animationPlayState: "paused"}}><JewelryViewer
         modelUrl={modelUrl}
         cameraPreset={cameraPreset ?? 'three_quarter'} zoom={zoom ?? 1} turntableEnabled={flat ? false : effectiveTurntable} resetToken={(resetToken ?? 0)+gestureReset}
         paused={paused}
@@ -160,6 +161,7 @@ function SelectedViewer({
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></div></ViewerBoundary>}
       </div>
+      {state==='ready' && !reducedMotion && turntableEnabled!==false && <button type="button" className="absolute left-2 bottom-2 z-20 ames-pill px-3 py-2 text-xs" aria-pressed={showcasePaused} onClick={()=>setShowcasePaused(v=>!v)}>{showcasePaused?'Play showcase':'Pause showcase'}</button>}
       {chatGestures && !paused && state==='ready' && !bracelet && !openable && <div className="absolute right-1 bottom-1 z-20 max-w-32 text-xs"><HandClasp onReset={resetJewellery} onZoom={zoomJewellery} onMove={moveJewellery}/></div>}
       {state === 'ready' && bracelet && <div data-side-controls className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:'min(30%, 112px)', justifyContent:'safe center'}}>
         {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
