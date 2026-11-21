@@ -1,5 +1,7 @@
 "use client";
 import {useEffect, useRef, useState} from 'react';
+import {createPortal} from 'react-dom';
+import {ViewGesture} from '../lib/view-gesture';
 import {OneEuroHand} from '../lib/one-euro-hand';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
@@ -97,9 +99,18 @@ function trackingAssets(){
   return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
 }
 
-export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable}:{onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset}:{onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+  const reset=useRef(onReset);useEffect(()=>{reset.current=onReset},[onReset]);
+  const control=useRef<HTMLDivElement>(null);
+  const [feedback,setFeedback]=useState<ReturnType<ViewGesture['step']>|null>(null);
+  const [guide,setGuide]=useState(false);
+  const target=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
   const failureRef=useRef(onUnavailable);useEffect(()=>{failureRef.current=onUnavailable},[onUnavailable]);
   const [active,setActive]=useState(!!liveFrame);
+  useEffect(()=>{
+    if(!active||!onReset)return;
+    try{if(!localStorage.getItem('ames-view-guide-v1'))setGuide(true)}catch{setGuide(true)}
+  },[active,!!onReset]);
   const liveFrameRef=useRef(liveFrame);useEffect(()=>{liveFrameRef.current=liveFrame},[liveFrame]);
   const [message,setMessage]=useState('');
   const joints=useRef(onJoints);
@@ -125,6 +136,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     video.playsInline=true;
     function stop(){
       stopped=true;
+      setFeedback(null);
       joints.current?.(null);liveFrameRef.current?.(null,undefined);
       cancelAnimationFrame(frame);
       stream?.getTracks().forEach(track=>track.stop());
@@ -167,6 +179,8 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       if(zoom.current)setMessage('Pinch thumb and index, then spread to zoom in or pinch closer to zoom out. Move a held pinch to rotate where supported.');
       if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
       const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
+      const commands=new ViewGesture();
+      if(reset.current)setMessage('');
       let zoomGap:number|undefined;
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
@@ -209,6 +223,15 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 fingers.current(curls);
               }
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
+              if(reset.current && points){
+                const palm=[0,5,9,13,17];
+                const x=palm.reduce((sum,i)=>sum+points[i].x,0)/5,y=palm.reduce((sum,i)=>sum+points[i].y,0)/5;
+                const event=commands.step({x,y,aspect:player.videoWidth/player.videoHeight,gap:pinch,open:ratios.every(r=>r>1.13),fist:ratios.every(r=>r<.96),curled:ratios.slice(1).every(r=>r<1.03)},now);
+                setFeedback(event);
+                if(event.reset)reset.current();
+                if(event.dx||event.dy)move.current?.(event.dx,event.dy);
+                if(event.zoom!==1)zoom.current?.(event.zoom);
+              }else{
               let zooming=false;
               if(zoom.current){
                 if(zoomGap===undefined && pinch<.38)zoomGap=pinch;
@@ -235,6 +258,8 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 if(ratios.every(r=>r<.96))pose=false;
               }
             }
+            }
+            if(!hand && reset.current){commands.clear();setFeedback(null)}
             if(!hand){zoomGap=undefined;anchor=undefined;openFrames=0};
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
@@ -250,5 +275,16 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     document.addEventListener('visibilitychange',hide);
     return ()=>{stop();document.removeEventListener('visibilitychange',hide)};
   },[active]);
-  return <div className="text-center text-xs"><button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
+  useEffect(()=>{
+    if(!target || !onReset)return;
+    const canvas=target.querySelector('canvas');if(!canvas)return;
+    const previous=canvas.style.filter;
+    if(active && feedback?.active)canvas.style.filter='drop-shadow(0 0 3px rgba(232,207,151,.30))';
+    return ()=>{canvas.style.filter=previous};
+  },[target,active,feedback?.active,!!onReset]);
+  return <div ref={control} className="text-center text-xs">{active && target && onReset && createPortal(<>
+    {feedback && <div aria-hidden="true" style={{position:'absolute',pointerEvents:'none',zIndex:18,left:`${feedback.x*100}%`,top:`${feedback.y*100}%`,transform:'translate(-50%,-50%)',borderRadius:24,padding:3,background:feedback.state==='Reset'?`conic-gradient(#eedba8 ${feedback.progress*360}deg,transparent 0)`:'transparent'}}><span className="block rounded-full bg-black/65 px-2 py-1 text-xs text-white">{feedback.state}{feedback.state==='Pinch'?` ${Math.round(100*feedback.progress)}%`:''}</span></div>}
+    {feedback?.active && <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{boxShadow:'inset 0 0 26px #ead39c26'}}/>}
+    {guide && <div className="absolute left-2 top-2 z-30 max-w-56 rounded-xl bg-black/85 p-3 text-left text-xs text-white">Curl three fingers and pinch to zoom. Move an open palm to rotate. Hold it still for one second to lock, then move to unlock. Hold a fist for half a second to reset.<button type="button" className="block min-h-9 underline" onClick={()=>{setGuide(false);try{localStorage.setItem('ames-view-guide-v1','1')}catch{}}}>Got it</button></div>}
+  </>,target)}<button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }

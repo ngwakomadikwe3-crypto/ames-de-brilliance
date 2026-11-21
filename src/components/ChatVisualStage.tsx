@@ -99,7 +99,11 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
             style={{ width: '100%', height: '100%', borderRadius: 14 }} /> :
           <><ModelViewer key={stageSrc} src={stageSrc!} poster={hasUnfinishedJewelryImages(content.contract.assetId) ? undefined : content.posterUrl} alt={content.name} jewelryPresentation metalPreview={content.contract.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined}
             autoRotate={false} controlledTurntable turntableEnabled={rotation && active} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}
-            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onZoom={zoomFallback} onMove={turnFallback}/></div>}</>) :
+            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onReset={()=>{
+              const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {cameraOrbit:string})|null;
+              if(viewer)viewer.cameraOrbit=`${ringView?"35deg 40deg":"35deg 75deg"} 105%`;
+              setView(content.contract.defaultView??'three_quarter');setZoomed(false);setResetToken(value=>value+1);
+            }} onZoom={zoomFallback} onMove={turnFallback}/></div>}</>) :
           <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#ffffff' }}>
             {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
           </div>}
