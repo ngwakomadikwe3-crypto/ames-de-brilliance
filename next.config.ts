@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   // Private jobs, editable art and review evidence are not runtime website assets.
   outputFileTracingExcludes: { "/*": [
     "./.ames-cad/**/*", "./source-assets/**/*", "./docs/qa/**/*", "./share/**/*",
+    // Server code reads only JSON under public/ (Chat, Boutique and media contracts); models, pictures, light
+    // and video are served as static files, so they stay out of the functions (Hobby allows 12 functions).
+    "./public/**/*.{glb,gltf,bin,webp,png,jpg,jpeg,hdr,mp4,webm,task,wasm}",
   ] },
   // Models, posters and studio light change by new file names (watch-v2.glb ...), so
   // browsers may keep them a week and refresh in the background after that. The JSON
