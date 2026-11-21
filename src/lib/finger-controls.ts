@@ -24,7 +24,12 @@ export function fingerPose(p:Point[],pinching:boolean):Pose{
  // A folded index can touch the thumb in both a fist and a pinch.
  const pinchShape=indexReach>.96||thumbReach>.62;
  if(key==='down,down,down,down'&&!pinchShape)return 'Reset';
- if(fingers.slice(1).every(x=>x==='down')&&(gap<.33||pinching&&gap<1.5))return 'Pinch';
+ // Require the thumb to reach toward the index tip. A tucked thumb ends a pinch
+ // immediately, even when the previous frame was classified as a pinch.
+ const opposed=dist(4,8)<dist(2,8)&&dist(4,5)>.42*span;
+ const contact=gap<.22&&opposed;
+ const spreading=pinching&&opposed&&gap<1.35;
+ if(fingers.slice(1).every(x=>x==='down')&&(contact||spreading))return 'Pinch';
  if(key==='down,down,down,down')return 'Reset';
  if(key==='up,down,down,down')return 'Yaw';
  if(key==='up,up,down,down'&&dist(8,12)<.8*span)return 'Tumble';
@@ -32,7 +37,7 @@ export function fingerPose(p:Point[],pinching:boolean):Pose{
 }
 export class FingerControls{
  candidate:Pose='None';mode:Pose='None';frames=0;since=0;last=0;absent=0;cooldown=0;
- frozen=false;fired=false;velocity=0;axis:Pose='None';anchor=0;previous=0;gap=0;moving=false;previousGap=0;
+ frozen=false;fired=false;velocity=0;axis:Pose='None';anchor=0;previous=0;gap=0;moving=false;previousGap=0;filteredGap=0;
  step(pose:Pose,x:number,y:number,gap:number,aspect:number,now:number){
    const dt=Math.max(.001,Math.min(.08,(now-this.last)/1000));this.last=now;
    const result={state:this.frozen?'Frozen':'Ready',x,y,dx:0,dy:0,zoom:1,progress:0,reset:false,active:false};
@@ -59,16 +64,25 @@ export class FingerControls{
        if(this.axis==='Yaw')result.dx=this.velocity*dt;else result.dy=this.velocity*dt;
      }else this.velocity=0;
      if(pose==='None'||this.frames<3||now-this.since<250||((this.absent||now<this.cooldown)&&!(this.frozen&&pose==='Pinch')))return result;
-     this.mode=pose;this.absent=0;this.anchor=this.previous=pos;this.gap=this.previousGap=gap;this.velocity=0;this.moving=false;
+     this.mode=pose;this.absent=0;this.anchor=this.previous=pos;this.gap=this.previousGap=this.filteredGap=gap;this.velocity=0;this.moving=false;
      if(pose==='Yaw'||pose==='Tumble')this.frozen=false;
    }
    if(pose==='Pinch'){
      result.state='Pinch';result.progress=Math.max(0,Math.min(1,gap));result.active=true;
-     const spike=Math.abs(gap-this.previousGap)>Math.max(.12,Math.min(.45,dt*6));this.previousGap=gap;
-     if(spike){this.gap=gap;return result}
-     const delta=gap-this.gap;if(Math.abs(delta)<.04/SENSITIVITY)return result;
-     const limit=Math.log(1.15)*dt,log=Math.max(-limit,Math.min(limit,delta*.30*SENSITIVITY*SENSITIVITY));
-     this.gap+=log/SENSITIVITY;result.zoom=Math.exp(log);return result;
+     const change=gap-this.previousGap;this.previousGap=gap;
+     if(Math.abs(change)>Math.max(.12,Math.min(.45,dt*6))){
+       this.filteredGap=this.gap=gap;this.moving=false;return result;
+     }
+     this.filteredGap+=(gap-this.filteredGap)*(.30*SENSITIVITY);
+     if(!this.moving){
+       if(Math.abs(this.filteredGap-this.gap)<.04/SENSITIVITY)return result;
+       this.moving=true;
+     }
+     // Consume actual finger travel once. A stationary pinch has no zoom backlog.
+     if(Math.abs(change)<.002)return result;
+     const limit=Math.log(1.15)*dt;
+     result.zoom=Math.exp(Math.max(-limit,Math.min(limit,change*SENSITIVITY)));
+     return result;
    }
    const delta=pos-this.previous;this.previous=pos;result.state=pose;
    if(Math.abs(delta)>Math.max(.045,Math.min(.15,2.5*dt))){this.velocity=0;this.moving=false;this.anchor=pos;return result}
