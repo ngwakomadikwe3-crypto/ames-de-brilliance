@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import HandClasp from './HandClasp';
 import {readSavedHand,replaceSavedHand,deleteSavedHand,fitFromCamera} from '../lib/fitting-hand';
-export default function SavedHandPanel({wrist=false}:{wrist?:boolean}){
+export default function SavedHandPanel({wrist=false,onScanning}:{wrist?:boolean;onScanning?:(active:boolean)=>void}){
  const [saved,setSaved]=useState(false),[confirm,setConfirm]=useState(false),[notice,setNotice]=useState(''),[version,setVersion]=useState(0);
  useEffect(()=>{
    const refresh=()=>{setSaved(!!readSavedHand());setConfirm(false);setVersion(v=>v+1)};
@@ -15,7 +15,7 @@ export default function SavedHandPanel({wrist=false}:{wrist?:boolean}){
  {confirm?<div role="group" aria-label="Confirm hand deletion"><p>This removes your saved hand. You can scan a new one anytime.</p>
  <button type="button" className="min-h-10 px-2 underline" onClick={()=>{try{deleteSavedHand();setNotice('Saved hand deleted.')}catch{setNotice('Deletion failed. Try again.')}}}>Confirm delete</button>
  <button autoFocus type="button" className="min-h-10 px-2 underline" onClick={()=>setConfirm(false)}>Cancel</button></div>:<>
- <HandClasp key={version} captureLabel={saved?'Re-scan hand':'Scan your hand'} onCapture={(points,colour,outline)=>{
+ <HandClasp onActivity={onScanning} key={version} captureLabel={saved?'Re-scan hand':'Scan your hand'} onCapture={(points,colour,outline)=>{
    const fit=fitFromCamera(points,1,0,wrist);if(!fit)return false;fit.outline=outline;
    try{replaceSavedHand(fit,colour);setNotice('New hand saved.');return true}catch{setNotice('Could not save this scan. Check device storage.');return false}
  }}/>
