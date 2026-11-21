@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ACESFilmicToneMapping, AmbientLight, DirectionalLight, Group, Material, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
-  PerspectiveCamera, Quaternion, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, type Bone, type Texture,
+  PerspectiveCamera, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, type Bone, type Texture,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
@@ -78,12 +78,14 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     new HDRLoader().load('/ames-engine/environments/jewellery-tent-v3.hdr', hdr => {
       if (stopped) { hdr.dispose(); return; }
       const env = pmrem.fromEquirectangular(hdr); hdr.dispose(); scene.environment = env.texture; disposables.push(env);
+      if (skinMat) { skinMat.envMap = env.texture; skinMat.envMapIntensity = 0.38; skinMat.needsUpdate = true; }   // skin: same tent light, softer
     });
     const key = new DirectionalLight('#fff6ee', 2.4); key.position.set(-120, 260, 420); key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = key.shadow.camera.bottom = -170; key.shadow.camera.right = key.shadow.camera.top = 170;
     key.shadow.camera.near = 50; key.shadow.camera.far = 1200; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 4;
     scene.add(key, new AmbientLight('#ffffff', 0.25));
     const metalStudio = createMetalStudioEnvironment(renderer); disposables.push(metalStudio);
+    let skinMat: import('three').MeshPhysicalMaterial | null = null;
 
     // view (gestures + showcase) > hand (follows the live wrist) > mirror > skinned hand + jewellery
     const view = new Group(), hand = new Group(), mirror = new Group();
@@ -97,9 +99,13 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     let built: { mesh: import('three').SkinnedMesh; bones: Bone[]; rest: Vector3[] };
     if (real) {
       // Realistic hand: sculpted template fitted to the customer, lit by the same studio as the metal.
-      const sk = realisticSkin(tone, metalStudio.texture, real.chainS, photoTexture), nailMat = realisticNails(tone, metalStudio.texture);
+      const detail = new TextureLoader().load('/hand-twin/skin-detail.jpg');
+      detail.wrapS = detail.wrapT = RepeatWrapping; detail.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); disposables.push(detail);
+      // skin takes the boutique tent light (the scene environment), like the stones
+      const sk = realisticSkin(tone, null, real.chainS, photoTexture, detail), nailMat = realisticNails(tone, metalStudio.texture);
       const r = buildRealHand(real, shape, sk.material, nailMat, profile?.texture?.uv);
-      skinUniforms = sk.uniforms; relaxed = r.relaxed; built = r;
+      skinUniforms = sk.uniforms; relaxed = r.relaxed; built = r; skinMat = sk.material;
+      if (scene.environment) { skinMat.envMap = scene.environment; skinMat.envMapIntensity = 0.38; }
       disposables.push(sk.material, nailMat, r.mesh.geometry, r.nails.geometry);
     } else {
       const skin = skinMaterial(tone, photoTexture); disposables.push(skin);

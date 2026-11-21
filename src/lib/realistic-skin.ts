@@ -37,6 +37,26 @@ const PALM_LINES = [
   [[-31, 67], [-25, 55], [-21, 42], [-16, 28], [-10, 14]],
   [[4, 14], [5, 30], [6, 46]],
 ];
+// superficial veins on the back of the hand (dorsal arch, branches between the knuckles, the two wrist trunks)
+const VEINS = [
+  [[-24, 40], [-10, 48], [6, 50], [22, 44], [30, 36]],
+  [[-17, 80], [-14, 64], [-12, 49]], [[3, 80], [3, 64], [4, 50]], [[21, 74], [20, 60], [18, 46]],
+  [[-24, 40], [-26, 20], [-22, 0], [-16, -30], [-12, -70]],
+  [[30, 36], [26, 18], [20, 0], [14, -30], [10, -70]],
+];
+const WRIST_VEINS = [[[-8, 10], [-7, -20], [-6, -60]], [[9, 8], [8, -22], [7, -60]]];
+const glslPolylines = (name: string, lines: number[][][], width: number) => {
+  let code = `float ${name}(vec2 p) {\n  float g = 0.0, d;\n`;
+  lines.forEach(line => {
+    code += '  d = 1e3;\n';
+    for (let k = 0; k < line.length - 1; k++) {
+      const [a, b] = [line[k], line[k + 1]];
+      code += `  { vec2 a = vec2(${a[0].toFixed(1)}, ${a[1].toFixed(1)}), ab = vec2(${(b[0] - a[0]).toFixed(1)}, ${(b[1] - a[1]).toFixed(1)}); float t = clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0); d = min(d, length(p - a - ab * t)); }\n`;
+    }
+    code += `  g = max(g, exp(-d * d / ${(2 * width * width).toFixed(2)}));\n`;
+  });
+  return code + '  return g;\n}\n';
+};
 const glslLines = () => {
   let code = 'float amesPalmLines(vec2 p) {\n  float g = 0.0, d;\n';
   PALM_LINES.forEach((line, li) => {
@@ -50,11 +70,12 @@ const glslLines = () => {
   return code + '  return g;\n}\n';
 };
 
-export function realisticSkin(tone: string, env: Texture | null, chainS: number[][], photo?: Texture) {
+export function realisticSkin(tone: string, env: Texture | null, chainS: number[][], photo?: Texture, detail?: Texture) {
   const m = new MeshPhysicalMaterial({
     color: '#ffffff', roughness: 0.5, metalness: 0, ior: 1.4, specularIntensity: 0.55,
     sheen: 0.3, sheenRoughness: 0.55, sheenColor: new Color(tone).lerp(new Color('#ffffff'), 0.45),
-    envMap: env, envMapIntensity: 0.85, transparent: true, side: FrontSide,
+    envMap: env, envMapIntensity: env ? 0.85 : 0.42, transparent: true, side: FrontSide,
+    clearcoat: 0.25, clearcoatRoughness: 0.42,                         // the second, oilier highlight of real skin
   });
   if (photo) { photo.colorSpace = SRGBColorSpace; m.map = photo; }
   const toneColor = new Color(tone);
@@ -65,14 +86,14 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
     contactSize: { value: [new Vector4(), new Vector4()] }, contactCount: { value: 0 },
   };
   m.onBeforeCompile = shader => {
-    Object.assign(shader.uniforms, uniforms, { toneColor: { value: toneColor }, hasPhoto: { value: photo ? 1 : 0 }, chainS: { value: chains } });
+    Object.assign(shader.uniforms, uniforms, { toneColor: { value: toneColor }, hasPhoto: { value: photo ? 1 : 0 }, chainS: { value: chains }, skinDetail: { value: detail ?? null }, hasDetail: { value: detail ? 1 : 0 } });
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
         attribute vec4 aFinger; attribute vec4 aSkin; attribute vec4 aPalm;
-        varying vec4 vFinger; varying vec4 vSkin; varying vec4 vPalm; varying vec3 vRest; varying vec3 vAmesWorld; varying float vBendA; varying float vBendB; varying float vBendC;
+        varying vec4 vFinger; varying vec4 vSkin; varying vec4 vPalm; varying vec3 vRest; varying vec3 vRestN; varying vec3 vAmesWorld; varying float vBendA; varying float vBendB; varying float vBendC;
         uniform float bends[21];`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vFinger = aFinger; vSkin = aSkin; vPalm = aPalm; vRest = position;
+        vFinger = aFinger; vSkin = aSkin; vPalm = aPalm; vRest = position; vRestN = normal;
         { int f = int(floor(aFinger.y * 8.0 + 0.5)); int k = f == 0 ? 2 : 1 + 4 * f;
           vBendA = f < 5 ? bends[k] : 0.0; vBendB = f < 5 ? bends[k + 1] : 0.0; vBendC = f < 5 && f > 0 ? bends[k + 2] : 0.0; }`)
       .replace('#include <project_vertex>', `#include <project_vertex>
@@ -81,10 +102,18 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
       .replace('#include <common>', `#include <common>
         uniform vec3 toneColor; uniform float hasPhoto; uniform vec4 chainS[5];
         uniform vec3 contactCentre[2]; uniform vec3 contactAxis[2]; uniform vec4 contactSize[2]; uniform int contactCount;
-        varying vec4 vFinger; varying vec4 vSkin; varying vec4 vPalm; varying vec3 vRest; varying vec3 vAmesWorld; varying float vBendA; varying float vBendB; varying float vBendC;
-        float amesCrease; float amesAO; float amesThin; float amesDorsal;
+        varying vec4 vFinger; varying vec4 vSkin; varying vec4 vPalm; varying vec3 vRest; varying vec3 vRestN; varying vec3 vAmesWorld; varying float vBendA; varying float vBendB; varying float vBendC;
+        uniform sampler2D skinDetail; uniform float hasDetail;
+        float amesCrease; float amesAO; float amesThin; float amesDorsal; vec3 amesD; float amesVein;
         ${NOISE}
         ${glslLines()}
+        ${glslPolylines('amesVeins', VEINS, 1.5)}
+        ${glslPolylines('amesWristVeins', WRIST_VEINS, 1.0)}
+        // skin micro-relief, sampled three ways and blended by the surface direction (10 mm per tile)
+        vec3 amesTri(vec2 scale) {
+          vec3 w = pow(abs(normalize(vRestN)), vec3(4.0)); w /= w.x + w.y + w.z;
+          return texture2D(skinDetail, vRest.yz * scale).rgb * w.x + texture2D(skinDetail, vRest.xz * scale).rgb * w.y + texture2D(skinDetail, vRest.xy * scale).rgb * w.z;
+        }
         float amesGroove(float d, float spacing, float width) { float x = abs(fract(d / spacing + 0.5) - 0.5) * spacing; return 1.0 - smoothstep(0.0, width, x); }
         float amesLine(float d, float w) { return exp(-d * d / (2.0 * w * w)); }
         // crease depth field (mm, positive = into the skin) and its darkening mask
@@ -100,7 +129,7 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
             float wr = amesGroove(dA, 1.35, 0.32) * amesLine(dA, 3.4) * 0.45 * (1.0 - 0.5 * bA)
                      + amesGroove(dB, 1.05, 0.26) * amesLine(dB, 2.6) * (f == 0 ? 0.6 : 1.0) * (1.0 - 0.55 * bB)
                      + amesGroove(dC, 0.95, 0.24) * amesLine(dC, 2.0) * 0.7 * (1.0 - 0.55 * bC);
-            g += wr * back * 0.07;
+            g += wr * back * 0.11; cr += wr * back * 0.35;
             // flexion creases on the pad side: sharp lines that deepen as the joint closes
             float base = f == 0 ? 0.0 : cs.y * 0.3;
             float fl = (amesLine(s - base - 0.6, 0.2) + amesLine(s - base + 0.6, 0.2)) * (0.7 + 0.8 * bA)
@@ -117,14 +146,23 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           float wrist = (amesLine(pp.y - 3.0, 0.35) + 0.7 * amesLine(pp.y + 3.5, 0.35)) * palmSide * smoothstep(34.0, 20.0, abs(pp.x - 2.0));
           wrist += 0.3 * amesLine(pp.y - 1.0, 0.6) * vPalm.z * smoothstep(30.0, 18.0, abs(pp.x));
           g += pl * 0.12 + wrist * 0.08; cr += pl + wrist * 0.8;
-          // pores and fine skin lines
-          float n1 = amesNoise(vRest * 2.6), n2 = amesNoise(vRest * 7.0 + 3.1);
-          g += (n1 - 0.5) * 0.010 + smoothstep(0.75, 0.95, n2) * 0.010 + amesGroove(dot(vRest, vec3(0.7, 0.4, 0.6)) + n1 * 2.0, 0.55, 0.06) * 0.004;
+          // skin micro-relief: furrows and pores on the back, dermal ridges on the palm and the pads
+          float ridged = max(palmSide * step(-4.0, pp.y), (f < 5 ? smoothstep(0.5, 0.88, abs(vFinger.z)) : 0.0));
+          float micro = mix(1.0 - amesD.r, 1.0 - amesD.g, ridged);
+          g += micro * mix(0.036, 0.022, ridged) * hasDetail;
+          float n1 = amesNoise(vRest * 2.6);
+          g += (n1 - 0.5) * mix(0.010, 0.004, hasDetail);
+          // raised veins on the back of the hand
+          g -= amesVein * 0.16;
           mask = clamp(cr, 0.0, 1.0);
           return g;
         }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         amesDorsal = vPalm.z; amesThin = exp(-vSkin.x * 40.0 / 5.5); amesAO = vSkin.y;
+        amesD = hasDetail > 0.5 ? amesTri(vec2(0.1)) : vec3(0.5);
+        { vec2 vp = vec2(vPalm.x * 128.0, vPalm.y * 256.0);
+          float vnoise = amesNoise(vec3(vp * 0.08, 1.0));
+          amesVein = amesVeins(vp + vec2(amesNoise(vec3(vp * 0.12, 4.0)) - 0.5, amesNoise(vec3(vp * 0.12, 9.0)) - 0.5) * 3.0) * smoothstep(0.3, 0.8, amesDorsal) * smoothstep(0.25, 0.75, vnoise + 0.3) * smoothstep(90.0, 70.0, vp.y); }
         float knuckle = vFinger.w, tip = vSkin.z, fore = vSkin.w;
         float lum = dot(toneColor, vec3(0.299, 0.587, 0.114));
         vec3 tone = toneColor;
@@ -139,6 +177,14 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
         float mot = amesNoise(vRest * 0.35) - 0.5, mot2 = amesNoise(vRest * 1.3 + 7.0) - 0.5;
         skinCol *= 1.0 + mot * 0.06 + mot2 * 0.03;
         skinCol = mix(skinCol, skinCol * vec3(1.04, 0.95, 0.96), smoothstep(0.1, 0.4, mot) * 0.4);
+        // veins: a faint blue-green cast under the skin (more visible on fairer skin)
+        { vec2 vp = vec2(vPalm.x * 128.0, vPalm.y * 256.0);
+          float wv = amesWristVeins(vp) * (1.0 - smoothstep(0.15, 0.55, amesDorsal)) * smoothstep(12.0, -4.0, vp.y);
+          float vis = mix(0.07, 0.2, smoothstep(0.08, 0.35, lum));
+          skinCol = mix(skinCol, skinCol * vec3(0.80, 0.90, 1.08), clamp((amesVein * 1.2 + wv * 0.8) * vis * 2.2, 0.0, 0.6)); }
+        // large-scale mottling from the texture's third channel, finer redness in the furrows
+        skinCol *= 1.0 + (amesTri(vec2(0.033)).b - 0.5) * 0.10 * hasDetail;
+        skinCol = mix(skinCol, skinCol * vec3(0.97, 0.90, 0.90), (1.0 - amesD.r) * 0.25 * hasDetail);
         diffuseColor.rgb = skinCol;
         float creaseMask; float amesH = amesHeight(creaseMask);
         diffuseColor.rgb *= 1.0 - 0.22 * creaseMask;
@@ -154,14 +200,15 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           roughnessFactor = mix(roughnessFactor, 0.56, pad * smoothstep(0.3, 1.0, vSkin.z));
           roughnessFactor += 0.08 * creaseR + 0.04 * (amesNoise(vRest * 3.0) - 0.5); }`)
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
-        material.sheenColor *= mix(0.35, 1.0, smoothstep(0.1, 0.75, vPalm.z));`)
+        material.sheenColor *= mix(0.35, 1.0, smoothstep(0.1, 0.75, vPalm.z));
+        material.clearcoat *= mix(0.25, 1.0, smoothstep(0.1, 0.75, vPalm.z)) * (1.0 - 0.6 * (1.0 - amesD.r) * hasDetail);`)
       .replace('#include <lights_fragment_begin>', ShaderChunk.lights_fragment_begin
         .replaceAll('RE_Direct( directLight,', 'amesScatter( directLight, geometryNormal, geometryViewDir ); RE_Direct( directLight,')
         .replace('vec3 geometryPosition', `vec3 amesSSS = vec3(0.0);
           #define amesScatter(dl, n, v) { float ndl = dot(n, dl.direction); \\
             float wrapL = clamp((ndl + 0.55) / 1.55, 0.0, 1.0) - clamp(ndl, 0.0, 1.0); \\
             vec3 H = normalize(dl.direction + n * 0.4); float back = pow(clamp(dot(v, -H), 0.0, 1.0), 3.0); \\
-            amesSSS += dl.color * (wrapL * 0.5 + (back * 2.2 + 0.12) * amesThin); }
+            amesSSS += dl.color * (wrapL * 0.36 + (back * 2.2 + 0.08) * amesThin); }
           vec3 geometryPosition`))
       .replace('#include <aomap_fragment>', `#include <aomap_fragment>
         { float contact = 0.0;
@@ -172,11 +219,11 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           float occ = amesAO * (1.0 - 0.55 * contact);
           reflectedLight.indirectDiffuse *= occ; reflectedLight.indirectSpecular *= mix(1.0, occ, 0.8);
           reflectedLight.directDiffuse *= 1.0 - 0.35 * contact;
-          vec3 sssTint = vec3(1.0, 0.30, 0.20);
+          vec3 sssTint = vec3(1.0, 0.38, 0.28);
           reflectedLight.directDiffuse += amesSSS * diffuseColor.rgb * sssTint;
           reflectedLight.indirectDiffuse += diffuseColor.rgb * sssTint * amesThin * 0.35 * occ; }`);
   };
-  m.customProgramCacheKey = () => 'ames-real-skin-' + (photo ? 1 : 0);
+  m.customProgramCacheKey = () => 'ames-real-skin-' + (photo ? 1 : 0) + (detail ? 1 : 0);
   return { material: m, uniforms };
 }
 
