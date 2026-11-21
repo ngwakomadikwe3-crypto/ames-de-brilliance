@@ -445,16 +445,17 @@ def fancy_brilliant(name, outline, half_width, material=None, **proportions):
     return obj, {k: v * half_width for k, v in info.items()}
 
 
-def claw_setting(name, outline, half_width, info, angles, material, wire=.36e-3, rail_drop=.82, girdle=.06, tip_in=.2, wide=None):
+def claw_setting(name, outline, half_width, info, angles, material, wire=.36e-3, rail_drop=.82, girdle=.06, tip_in=.2, wide=None, sides=16, rail_sides=12):
     """Claws and a gallery wire for a fancy stone (stone at the origin, table +Z, as fancy_brilliant makes it).
-    angles: where round the outline the claws stand (radians). wide: angles whose claw is a broad V tip."""
+    angles: where round the outline the claws stand (radians). wide: angles whose claw is a broad V tip.
+    sides / rail_sides: wire sections round the claws and the gallery (fewer for small stones seen at arm's length)."""
     parts = []
     top = girdle * half_width / 2                      # girdle top above the origin
     rail_z = top - info['depth'] * rail_drop
     shrink = 1 - rail_drop * .78                       # the pavilion narrows going down
     loop = [(p.x * half_width * shrink, p.y * half_width * shrink, rail_z) for p in outline[::2]]
     # A fine under-rail low on the pavilion: high up it would show through the stone as a bright frame.
-    parts.append(sweep(name + ' gallery', loop, wire * .55, material, sides=12, closed=True))
+    parts.append(sweep(name + ' gallery', loop, wire * .55, material, sides=rail_sides, closed=True))
     for i, angle in enumerate(angles):
         g, _ = _on_outline(outline, angle)
         g = g * half_width
@@ -473,7 +474,7 @@ def claw_setting(name, outline, half_width, info, angles, material, wire=.36e-3,
         broad = wide and any(abs((angle - w + math.pi) % TAU - math.pi) < 1e-6 for w in wide)
         radius = lambda t: wire * (1 - .22 * t)
         flat = (lambda t: (1 + (.9 if broad else .25) * max(0, (t - .55) / .45), 1 - .3 * max(0, (t - .8) / .2)))
-        parts.append(sweep('%s claw %d' % (name, i), path, radius, material, sides=16, flatten=flat, round_start=True))
+        parts.append(sweep('%s claw %d' % (name, i), path, radius, material, sides=sides, flatten=flat, round_start=True))
     return parts
 
 

@@ -6,8 +6,8 @@
   "visualApproval": "pending",
   "type": "jewelry",
   "presentation": "interactive",
-  "stageAsset": "web/pear-fringe-necklace-v2.glb",
-  "poster": "web/poster.webp",
+  "stageAsset": "web/pear-fringe-necklace-v3.glb",
+  "poster": "web/poster-v3.webp",
   "rotationEnabled": false,
   "defaultView": "front",
   "supportedViewerActions": [
@@ -23,8 +23,8 @@
     "unitMeaning": "Authored concept; not measured inventory.",
     "manufacturingReady": false
   },
-  "heroImage": "web/poster.webp",
-  "macroImage": "web/poster.webp",
+  "heroImage": "web/poster-v3.webp",
+  "macroImage": "web/poster-v3.webp",
   "visualModes": [
     "interactive",
     "side"

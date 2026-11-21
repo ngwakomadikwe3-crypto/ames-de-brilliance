@@ -7,7 +7,7 @@ await Promise.all([MeshoptDecoder.ready,MeshoptEncoder.ready]);
 const io=new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({'meshopt.decoder':MeshoptDecoder,'meshopt.encoder':MeshoptEncoder});
 const base='public/ames-engine', folder=base+'/ames-pear-fringe-necklace/web';
 for(const cut of ['Round','Oval','Cushion']){
-  const necklace=await io.read(folder+'/pear-fringe-necklace-v2.glb');
+  const necklace=await io.read(folder+'/pear-fringe-necklace-v3.glb');
   const template=await io.read(base+'/gallery-cuts/'+cut+'/stone-amethyst.glb');
   const source=template.getRoot().listMeshes()[0].listPrimitives()[0];
   const pos=source.getAttribute('POSITION'), normal=source.getAttribute('NORMAL');
