@@ -14,7 +14,7 @@ function Redraw({signal}:{signal:React.MutableRefObject<()=>void>}){
 export default function LiveHand({model,wrist,watch,fit,initialTone,onUnavailable}:{model:string;wrist:boolean;watch:boolean;fit:HandFit|null;initialTone?:string;onUnavailable:()=>void}){
  const canvas=useRef<HTMLCanvasElement>(null),frame=useRef<RigFrame|null>(null),redraw=useRef(()=>{});
  const [clone,setClone]=useState(false),[aspect,setAspect]=useState(4/3),[zoom,setZoom]=useState(1);
- const [settings,setSettings]=useState<TryFit>({finger:3,diameter:18,reference:fit&&!wrist&&fit.mm>0?fit.mm:18,wrist:1,size:1,length:1,tone:initialTone??'#9b6754'});
+ const [settings,setSettings]=useState<TryFit>({finger:3,diameter:18,reference:fit&&!wrist&&fit.mm>0?fit.mm:18,wrist:1,clasp:1,size:1,length:1,tone:initialTone??'#9b6754'});
  const sampled=useRef(!!initialTone);
  function draw(video:HTMLVideoElement|null,points:CameraPoint[]|undefined){
    const layer=canvas.current,ctx=layer?.getContext('2d',{willReadFrequently:true});
@@ -65,7 +65,7 @@ export default function LiveHand({model,wrist,watch,fit,initialTone,onUnavailabl
  <button type="button" aria-pressed={clone} onClick={()=>setClone(!clone)}>{clone?'AR overlay on real hand':'Clone hand'}</button>
  {!wrist&&<label>Finger <select value={settings.finger} onChange={e=>setSettings({...settings,finger:Number(e.target.value)})}>{['Thumb','Index','Middle','Ring','Little'].map((n,i)=><option key={n} value={i}>{n}</option>)}</select></label>}
  <details><summary>Adjust fit</summary>
- {([['size','Hand size',.8,1.2],['length','Finger length',.8,1.2],...(wrist?[['wrist','Clasp fit',.8,1.25]]:[['reference','Measured finger diameter (mm)',12,25],['diameter','Ring inner diameter (mm)',12,25]])] as const).map(([key,label,min,max])=><label key={key} className="block">{label} <input type="range" min={Number(min)} max={Number(max)} step={(key==='diameter'||key==='reference')?.1:.01} value={Number(settings[key as keyof TryFit])} onChange={e=>setSettings({...settings,[key]:Number(e.target.value)})}/> {Number(settings[key as keyof TryFit]).toFixed((key==='diameter'||key==='reference')?1:2)}</label>)}
+ {([['size','Hand size',.8,1.2],['length','Finger length',.8,1.2],...(wrist?[['wrist','Wrist width',.8,1.25],['clasp','Clasp fit',.9,1.2]]:[['reference','Measured finger diameter (mm)',12,25],['diameter','Ring inner diameter (mm)',12,25]])] as const).map(([key,label,min,max])=><label key={key} className="block">{label} <input type="range" min={Number(min)} max={Number(max)} step={(key==='diameter'||key==='reference')?.1:.01} value={Number(settings[key as keyof TryFit])} onChange={e=>setSettings({...settings,[key]:Number(e.target.value)})}/> {Number(settings[key as keyof TryFit]).toFixed((key==='diameter'||key==='reference')?1:2)}</label>)}
  <label>Clone skin tone <input type="color" value={settings.tone} onChange={e=>{sampled.current=true;setSettings({...settings,tone:e.target.value})}}/></label></details></div>
  <HandClasp liveFrame={draw} onUnavailable={onUnavailable} onZoom={factor=>setZoom(z=>Math.max(.65,Math.min(2,z*factor)))}/>
  </div>;

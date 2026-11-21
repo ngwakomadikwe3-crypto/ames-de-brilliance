@@ -2,12 +2,12 @@
 import {useMemo,useEffect,useRef} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import {useGLTF} from '@react-three/drei';
-import {Bone,Box3,Group,Matrix4,Mesh,MeshPhysicalMaterial,MeshStandardMaterial,SphereGeometry,Vector3} from 'three';
+import {Bone,Box3,Group,Matrix4,Mesh,MeshPhysicalMaterial,MeshStandardMaterial,Quaternion,ShadowMaterial,SphereGeometry,Vector3} from 'three';
 import type {RefObject} from 'react';
 import {defaultJoints,type HandFit} from '../lib/fitting-hand';
 import type {CameraPoint} from '../lib/one-euro-hand';
 
-export type TryFit={finger:number;diameter:number;reference:number;wrist:number;size:number;length:number;tone:string};
+export type TryFit={finger:number;diameter:number;reference:number;wrist:number;clasp:number;size:number;length:number;tone:string};
 export type RigFrame={points:CameraPoint[];aspect:number};
 export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefObject<RigFrame|null>;clone:boolean;model:string;wrist:boolean;watch:boolean;fit:HandFit|null;settings:TryFit}){
  const {scene}=useGLTF(model);
@@ -22,18 +22,27 @@ export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefO
      reflectedLight.indirectDiffuse+=diffuseColor.rgb*vec3(.19,.066,.045)*rim;`);};
    const nail=new MeshPhysicalMaterial({color:'#dfb3a8',roughness:.37,clearcoat:.45});
    const crease=new MeshStandardMaterial({roughness:.82});
+   const shadow=new ShadowMaterial({opacity:.24});
+   shadow.depthWrite=false;
    const materials=[skin,nail,crease];
    for(const m of materials){m.colorWrite=clone;m.depthWrite=true}
    function mesh(parent:Group|Bone,material=skin){
      const part=new Mesh(sphere,material);part.castShadow=clone;part.receiveShadow=clone;part.renderOrder=-1;parent.add(part);return part;
    }
    const palm=mesh(group),forearm=mesh(group);
+   function receiveContact(part:Mesh){
+     if(clone)return;
+     const receiver=new Mesh(sphere,shadow);
+     receiver.scale.setScalar(1.003);receiver.receiveShadow=true;receiver.renderOrder=1;
+     part.add(receiver);
+   }
+   receiveContact(palm);receiveContact(forearm);
    const bones=Array.from({length:21},()=>new Bone());
    const segments:Mesh[]=[];
    for(let i=0;i<21;i++){
      if(i%4===1||i===0)group.add(bones[i]);else bones[i-1].add(bones[i]);
      if(i%4===0)continue;
-     segments[i]=mesh(bones[i]);
+     segments[i]=mesh(bones[i]);receiveContact(segments[i]);
      if(i%4===3){
        const tip=mesh(bones[i],nail);tip.name='nail';tip.position.set(0,.70,.72);tip.scale.set(.72,.27,.21);
        segments[i].add(tip);
@@ -49,10 +58,24 @@ export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefO
    else if(size.z<=size.x&&size.z<=size.y)oriented.rotation.x=Math.PI/2;
    else if(size.x<=size.y)oriented.rotation.z=-Math.PI/2;
    oriented.scale.setScalar(1/Math.max(size.x,size.y,size.z,.00001));mount.add(oriented);group.add(mount);
-   return {group,palm,forearm,bones,segments,skin,crease,mount,sphere,materials};
- },[scene,clone,watch]);
- useEffect(()=>()=>{rig.sphere.dispose();rig.materials.forEach(m=>m.dispose())},[rig]);
- const scratch=useMemo(()=>({p:defaultJoints.map(()=>new Vector3()),x:new Vector3(),y:new Vector3(),z:new Vector3(),v:new Vector3(),matrix:new Matrix4()}),[]);
+   // Estimate the band bore from its vertices in the plane perpendicular to its axis.
+   // A low percentile rejects isolated engraving and inner prong vertices.
+   const radial:number[]=[],vertex=new Vector3();
+   oriented.updateMatrixWorld(true);
+   if(!wrist)piece.traverse(o=>{
+     if(!(o instanceof Mesh))return;
+     const pos=o.geometry.getAttribute('position');if(!pos)return;
+     for(let i=0;i<pos.count;i+=Math.max(1,Math.ceil(pos.count/6000))){
+       vertex.fromBufferAttribute(pos,i).applyMatrix4(o.matrixWorld);
+       if(Math.abs(vertex.y)<.12)radial.push(Math.hypot(vertex.x,vertex.z));
+     }
+   });
+   radial.sort((a,b)=>a-b);
+   const bore=2*(radial[Math.floor(radial.length*.06)]??0);
+   return {group,palm,forearm,bones,segments,skin,crease,mount,sphere,materials,shadow,bore:bore>.25&&bore<1?bore:1/1.17};
+ },[scene,clone,watch,wrist]);
+ useEffect(()=>()=>{rig.sphere.dispose();rig.shadow.dispose();rig.materials.forEach(m=>m.dispose())},[rig]);
+ const scratch=useMemo(()=>({p:defaultJoints.map(()=>new Vector3()),x:new Vector3(),y:new Vector3(),z:new Vector3(),v:new Vector3(),side:new Vector3(),normal:new Vector3(),orientation:new Quaternion(),matrix:new Matrix4()}),[]);
  useFrame(()=>{
    const data=frame.current;
    if(!root.current)return;
@@ -87,18 +110,18 @@ export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefO
        const len=v.subVectors(p[i+1],p[i]).length();
        if(len<.0001)continue;
        const dir=v.normalize();
-       const side=new Vector3().crossVectors(dir,z).normalize(),normal=new Vector3().crossVectors(side,dir).normalize();
+       const side=scratch.side.crossVectors(dir,z).normalize(),normal=scratch.normal.crossVectors(side,dir).normalize();
        matrix.makeBasis(side,dir,normal);bone.quaternion.setFromRotationMatrix(matrix);
-       bone.quaternion.premultiply(parent.getWorldQuaternion(rig.forearm.quaternion.clone()).invert());
+       bone.quaternion.premultiply(parent.getWorldQuaternion(scratch.orientation).invert());
        const radius=width*(fit?.outline?.digits[d]??[.25,.21,.22,.20,.17][d])*.5*(1-k*.10);
        const part=rig.segments[i];part.position.set(0,len*.5,0);part.scale.set(radius,len*.59,radius*.89);
      }
    }
    const base=1+4*settings.finger;
-   if(wrist){rig.mount.position.copy(p[0]).addScaledVector(y,-width*.21);rig.mount.quaternion.copy(rig.palm.quaternion);rig.mount.scale.setScalar(wristWidth*1.18)}
+   if(wrist){rig.mount.position.copy(p[0]).addScaledVector(y,-width*.21);rig.mount.quaternion.copy(rig.palm.quaternion);rig.mount.scale.setScalar(wristWidth*1.18*settings.clasp)}
    else{rig.mount.position.copy(p[base]).lerp(p[base+1],.36);rig.bones[base].getWorldQuaternion(rig.mount.quaternion);
      const ratio=fit?.outline?.digits[settings.finger]??[.25,.21,.22,.20,.17][settings.finger];
-     rig.mount.scale.setScalar(width*ratio*1.17*settings.diameter/settings.reference);}
+     rig.mount.scale.setScalar(width*ratio/rig.bore*settings.diameter/settings.reference);}
  });
  return <group ref={root}><primitive object={rig.group}/></group>;
 }
