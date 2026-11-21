@@ -1,13 +1,32 @@
 'use client';
 import {Canvas,useThree} from '@react-three/fiber';
 import {Environment,OrbitControls,useGLTF} from '@react-three/drei';
-import {useEffect,useMemo} from 'react';
+import {useEffect,useMemo,useRef} from 'react';
 import {Box3,CatmullRomCurve3,Color,Group,Mesh,MeshBasicMaterial,MeshStandardMaterial,Quaternion,SRGBColorSpace,TextureLoader,Vector3} from 'three';
 import {MarchingCubes} from 'three/examples/jsm/objects/MarchingCubes.js';
 import {defaultJoints,poseJoints,trackedPose,type Joint,type HandFit} from '../lib/fitting-hand';
 
 function Model({model,fit,wrist,watch,tone,colour,curls,live}:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;live:Joint[]|null;curls:number[]}){
- const invalidate=useThree(state=>state.invalidate);
+ const {invalidate,gl,camera}=useThree();
+ const pivot=useRef<Group>(null);
+ useEffect(()=>{
+   const canvas=gl.domElement,home=camera.position.clone(),target=new Vector3(0,wrist?-.37:.35,0);
+   let animation=0;
+   function command(event:Event){
+     const group=pivot.current;if(!group)return;
+     const d=(event as CustomEvent<{x?:number;y?:number;zoom?:number;reset?:boolean}>).detail;
+     cancelAnimationFrame(animation);
+     if(d.reset){
+       const orientation=group.quaternion.clone(),identity=new Quaternion(),position=camera.position.clone(),start=performance.now();
+       const tick=(now:number)=>{const t=Math.min(1,(now-start)/1000),ease=t*t*(3-2*t);group.quaternion.slerpQuaternions(orientation,identity,ease);camera.position.lerpVectors(position,home,ease);invalidate();if(t<1)animation=requestAnimationFrame(tick)};
+       animation=requestAnimationFrame(tick);return;
+     }
+     if(d.x||d.y){const axis=new Vector3(d.y?1:0,d.x?1:0,0).applyQuaternion(camera.quaternion);group.quaternion.premultiply(new Quaternion().setFromAxisAngle(axis,(d.x||d.y||0)*Math.PI))}
+     if(d.zoom){const offset=camera.position.clone().sub(target);camera.position.copy(target).add(offset.setLength(Math.max(1.3,Math.min(6,offset.length()/d.zoom))))}
+     invalidate();
+   }
+   canvas.addEventListener('ames:saved-gesture',command);return ()=>{cancelAnimationFrame(animation);canvas.removeEventListener('ames:saved-gesture',command)};
+ },[camera,gl,invalidate,wrist]);
  const {scene}=useGLTF(model),skin=useMemo(()=>fit?.outline?.surface?new MeshBasicMaterial({toneMapped:false}):new MeshStandardMaterial({roughness:.62}),[fit?.outline?.surface]);
  const points=useMemo(()=>live?trackedPose(fit?.joints||defaultJoints,live):poseJoints(fit?.joints||defaultJoints,curls),[fit,curls,live]);
  const outline=fit?.outline;
@@ -109,7 +128,7 @@ function Model({model,fit,wrist,watch,tone,colour,curls,live}:{model:string;fit:
    if(!wrist)mount.quaternion.copy(new Quaternion().setFromUnitVectors(new Vector3(0,1,0),points[14].clone().sub(points[13]).normalize()));
    return mount;
  },[model,scene,points,wrist,watch,wristRadius,finger]);
- return <group scale={[fit?.mirror?-1:1,1,1]}><primitive object={hand}/><primitive object={piece}/></group>;
+ return <group ref={pivot} scale={[fit?.mirror?-1:1,1,1]}><primitive object={hand}/><primitive object={piece}/></group>;
 }
 export default function FittingHandScene(props:{model:string;fit:HandFit|null;wrist:boolean;watch:boolean;tone:number;colour?:string;live:Joint[]|null;curls:number[]}){
  return <Canvas frameloop="demand" dpr={[1,1.6]} camera={{position:[0,0,4.8],fov:40}}><ambientLight intensity={.65}/><directionalLight position={[-3,4,5]} intensity={2.3}/><Environment files="/ames-engine/environments/jewellery-tent-v3.hdr"/><Model {...props}/><OrbitControls enablePan={false} minDistance={1.3} maxDistance={6} target={[0,props.wrist?-.37:.35,0]}/></Canvas>;

@@ -3,7 +3,7 @@ import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {DetectionGate} from '../lib/detection-gate';
 import {FingerControls,fingerPose} from '../lib/finger-controls';
-import {ViewGesture} from '../lib/view-gesture';
+
 import {OneEuroHand} from '../lib/one-euro-hand';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
@@ -104,7 +104,7 @@ function trackingAssets(){
 export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel,onActivity}:{onActivity?:(active:boolean)=>void;captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const reset=useRef(onReset);useEffect(()=>{reset.current=onReset},[onReset]);
   const control=useRef<HTMLDivElement>(null);
-  const [feedback,setFeedback]=useState<ReturnType<ViewGesture['step']>|null>(null);
+  const [feedback,setFeedback]=useState<ReturnType<FingerControls['step']>|null>(null);
   const [guide,setGuide]=useState(false);
   const target=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
   const failureRef=useRef(onUnavailable);useEffect(()=>{failureRef.current=onUnavailable},[onUnavailable]);
@@ -188,15 +188,15 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       if(stopped){stop();return}
       stage='tracking';
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
-      if(zoom.current)setMessage('Pinch thumb and index, then spread to zoom in or pinch closer to zoom out. Move a held pinch to rotate where supported.');
+      if(zoom.current)setMessage('Point and move sideways to turn. Use two fingers to tilt. Pinch and spread to zoom.');
       if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
       const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
-      const commands=new ViewGesture(),viewer=new FingerControls();
+      const viewer=new FingerControls();
       if(reset.current)setMessage('Camera ready. Show your whole hand.');
       const gate=new DetectionGate();
 
 
-      let openFrames=0;
+      let openFrames=0,lastLabel='';
 
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function schedule(){
@@ -210,7 +210,10 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
           last=now; time=player.currentTime;
           try{
             const result=tracker!.detectForVideo(player,now);
-            const raw=result.worldLandmarks[0],image=result.landmarks[0];presence(!!raw);
+            const image=result.landmarks?.[0],world=result.worldLandmarks?.[0];
+            const aspect=player.videoWidth/player.videoHeight;
+            const raw=world?.length===21?world:image?.length===21?image.map(p=>({x:p.x,y:p.y/aspect,z:p.z,visibility:p.visibility})):undefined;
+            presence(!!raw);
             const hand=raw?worldFilter.update(raw,now):undefined;
             const points=image?imageFilter.update(image,now):undefined;
             if(!hand){imageFilter.reset();worldFilter.reset()}
@@ -221,15 +224,9 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 const mirrored=points.map(p=>({x:1-p.x,y:p.y,z:p.z}));
                 liveFrameRef.current(player,mirrored);
                 clearTimeout(expiry);
-                expiry=setTimeout(()=>{liveFrameRef.current?.(null,undefined);commands.lost(performance.now())},500);
-                const dist=(a:number,b:number)=>Math.hypot(raw[a].x-raw[b].x,raw[a].y-raw[b].y,raw[a].z-raw[b].z);
-                const ratios=[8,12,16,20].map(t=>dist(t,0)/Math.max(.001,dist(t-2,0)));
-                const input={x:mirrored[0].x,y:mirrored[0].y,aspect:player.videoWidth/player.videoHeight,gap:dist(4,8)/Math.max(.001,dist(5,17)),open:ratios.every(r=>r>1.13),curled:ratios.slice(1).every(r=>r<1.03),fist:false};
-                const event=commands.step(input,now);
-                if(event.zoom!==1)zoom.current?.(event.zoom);
-                if(event.dx)move.current?.(-event.dx,0);
+                expiry=setTimeout(()=>{liveFrameRef.current?.(null,undefined);},500);
               }else{
-                commands.lost(performance.now());
+                ;
                 if(state==='hide')liveFrameRef.current(null,undefined);
               }
             }
@@ -259,9 +256,16 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 });
                 fingers.current(curls);
               }
+              if(!move.current&&!zoom.current&&!reset.current){
+                if(ratios.every(r=>r>1.13))pose=true;
+                if(ratios.every(r=>r<.96))pose=false;
+            }
+            }
+            if(hand && points && !capture.current){
+              const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
-              if(reset.current && points){
-                const pose=fingerPose(raw??hand,viewer.mode==='Pinch'||viewer.candidate==='Pinch');
+              if(points && !capture.current && (move.current||zoom.current||reset.current)){
+                const pose=fingerPose(hand,viewer.mode==='Pinch'||viewer.candidate==='Pinch');
                 const tip=points[8],middle=points[12];
                 const x=1-(pose==='Tumble'?(tip.x+middle.x)/2:tip.x);
                 const y=pose==='Tumble'?(tip.y+middle.y)/2:tip.y;
@@ -270,25 +274,19 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                   host.dataset.gestureFrozen=String(viewer.frozen);host.dispatchEvent(new Event('ames:showcase-toggle'));
                   if(viewer.frozen)host.dispatchEvent(new Event('ames:freeze'));
                 }
-                setFeedback(event);
-                if(event.reset)reset.current();
-                if(event.dx||event.dy)move.current?.(event.dx,event.dy);
+                if(reset.current)setFeedback(event);
+                if(lastLabel!==event.state){lastLabel=event.state;setMessage(event.state==='Ready'?'Hand detected. Hold a gesture briefly.':event.state==='Yaw'?(liveFrameRef.current?'Point detected · jewelry follows your hand':'Point detected · horizontal rotation'):event.state==='Tumble'?(liveFrameRef.current?'Two fingers detected · jewelry follows your hand':'Two fingers detected · vertical rotation'):event.state)}
+                if(event.reset)reset.current?.();
+                if(!liveFrameRef.current&&(event.dx||event.dy))move.current?.(event.dx,event.dy);
                 if(event.zoom!==1)zoom.current?.(event.zoom);
-              }else{
-                if(points && zoom.current){
-                  const event=commands.step({x:points[0].x,y:points[0].y,aspect:player.videoWidth/player.videoHeight,gap:pinch,open:ratios.every(r=>r>1.13),fist:false,curled:ratios.slice(1).every(r=>r<1.03)},now);
-                  if(event.zoom!==1)zoom.current(event.zoom);
-                }
-                if(ratios.every(r=>r>1.13))pose=true;
-                if(ratios.every(r=>r<.96))pose=false;
+              }
             }
-            }
-            if(!hand){commands.lost(now);if(reset.current){
+            if(!hand){if(reset.current||zoom.current||move.current){
               const drift=viewer.step('None',0,0,0,1,now);
-              if(drift.dx||drift.dy)move.current?.(drift.dx,drift.dy);
+              if(!liveFrameRef.current&&(drift.dx||drift.dy))move.current?.(drift.dx,drift.dy);
               setFeedback(null);
             }}
-            if(!hand)openFrames=0;
+            if(!hand){openFrames=0;lastLabel=''}
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
             else if(now-since>=180 && emitted!==pose){emitted=pose;callback.current?.(pose)}

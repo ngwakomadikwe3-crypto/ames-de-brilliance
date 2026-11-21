@@ -19,8 +19,13 @@ export function fingerPose(p:Point[],pinching:boolean):Pose{
  });
  const key=fingers.join(','),gap=dist(4,8)/span;
  if(key==='up,up,up,up')return 'Freeze';
+ const thumbReach=dist(4,5)/span;
+ const indexReach=dist(8,0)/Math.max(.001,dist(6,0));
+ // A folded index can touch the thumb in both a fist and a pinch.
+ const pinchShape=indexReach>.96||thumbReach>.62;
+ if(key==='down,down,down,down'&&!pinchShape)return 'Reset';
+ if(fingers.slice(1).every(x=>x==='down')&&(gap<.33||pinching&&gap<1.5))return 'Pinch';
  if(key==='down,down,down,down')return 'Reset';
- if(fingers.slice(1).every(x=>x==='down')&&(gap<.33||pinching&&(fingers[0]!=='up'||gap<.8)&&gap<1.20))return 'Pinch';
  if(key==='up,down,down,down')return 'Yaw';
  if(key==='up,up,down,down'&&dist(8,12)<.8*span)return 'Tumble';
  return 'None';
