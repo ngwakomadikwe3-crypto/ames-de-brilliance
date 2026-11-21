@@ -1,5 +1,6 @@
 "use client";
 import {useEffect, useRef, useState} from 'react';
+import {OneEuroHand} from '../lib/one-euro-hand';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
 type PixelPoint = {x:number;y:number};
@@ -96,7 +97,8 @@ function trackingAssets(){
   return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
 }
 
-export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame}:{liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable}:{onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+  const failureRef=useRef(onUnavailable);useEffect(()=>{failureRef.current=onUnavailable},[onUnavailable]);
   const [active,setActive]=useState(!!liveFrame);
   const liveFrameRef=useRef(liveFrame);useEffect(()=>{liveFrameRef.current=liveFrame},[liveFrame]);
   const [message,setMessage]=useState('');
@@ -132,6 +134,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     }
     function fail(error?:unknown){
       if(stopped)return;
+      failureRef.current?.();
       const name=error instanceof Error?error.name:'';
       if(stage==='camera'){
         const messages:Record<string,string>={
@@ -163,24 +166,28 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
       if(zoom.current)setMessage('Pinch thumb and index, then spread to zoom in or pinch closer to zoom out. Move a held pinch to rotate where supported.');
       if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
+      const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
       let zoomGap:number|undefined;
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function tick(now:number){
         if(stopped)return;
-        if(player.readyState>=2 && now-last>=40 && time!==player.currentTime){
+        if(player.readyState>=2 && now-last>=1000/30-2 && time!==player.currentTime){
           last=now; time=player.currentTime;
           try{
             const result=tracker!.detectForVideo(player,now);
-            const hand=result.worldLandmarks[0],points=result.landmarks[0];
+            const raw=result.worldLandmarks[0],image=result.landmarks[0];
+            const hand=raw?worldFilter.update(raw,now):undefined;
+            const points=image?imageFilter.update(image,now):undefined;
+            if(!hand){imageFilter.reset();worldFilter.reset()}
             liveFrameRef.current?.(player,points);
             joints.current?.(hand??null);
             let pose:boolean|undefined;
             if(hand){
               const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
               const ratios=[8,12,16,20].map(tip=>distance(tip,0)/Math.max(.001,distance(tip-2,0)));
-              if(capture.current){
+              if(capture.current && points){
                 openFrames=points?.every(p=>p.x>.015&&p.x<.985&&p.y>.015&&p.y<.985)&&ratios.every(r=>r>1.13)?openFrames+1:0;
                 if(openFrames>=5){
                   const appearance=sampleAppearance(player,points);

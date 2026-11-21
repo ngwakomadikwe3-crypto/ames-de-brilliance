@@ -1,35 +1,33 @@
 'use client';
-import {useMemo,useRef,useState} from 'react';
-import {Canvas} from '@react-three/fiber';
-import {Environment,useGLTF} from '@react-three/drei';
-import {Box3,Vector3} from 'three';
+import {useRef,useState} from 'react';
+import {Canvas,useThree} from '@react-three/fiber';
+import {Environment} from '@react-three/drei';
+import {ACESFilmicToneMapping,PCFSoftShadowMap} from 'three';
+import {HandRig,type RigFrame,type TryFit} from './HandRig';
 import HandClasp from './HandClasp';
+import type {HandFit} from '../lib/fitting-hand';
+import type {CameraPoint} from '../lib/one-euro-hand';
 
-type Point={x:number;y:number;z:number};
-function Piece({model,watch}:{model:string;watch:boolean}){
- const {scene}=useGLTF(model);
- const shape=useMemo(()=>{
-   const copy=scene.clone(true),bounds=new Box3().setFromObject(copy),size=bounds.getSize(new Vector3());
-   copy.position.sub(bounds.getCenter(new Vector3()));
-   const scale=1.72/Math.max(size.x,size.y,size.z,.001);
-   const tilt=watch?0:size.y<=size.z?.45:1.12;
-   return <group scale={scale} rotation={[tilt,0,0]}><primitive object={copy}/></group>;
- },[scene,watch]);
- return shape;
+function Redraw({signal}:{signal:React.MutableRefObject<()=>void>}){
+ signal.current=useThree(state=>state.invalidate);return null;
 }
-export default function LiveHand({model,wrist,watch}:{model:string;wrist:boolean;watch:boolean}){
- const canvas=useRef<HTMLCanvasElement>(null),mount=useRef<HTMLDivElement>(null);
- const [aspect,setAspect]=useState(4/3),[zoom,setZoom]=useState(1);
- function draw(video:HTMLVideoElement|null,points:Point[]|undefined){
-   const layer=canvas.current,holder=mount.current,ctx=layer?.getContext('2d');
-   if(!layer||!ctx||!holder)return;
-   ctx.clearRect(0,0,layer.width,layer.height);holder.style.visibility='hidden';
+export default function LiveHand({model,wrist,watch,fit,initialTone,onUnavailable}:{model:string;wrist:boolean;watch:boolean;fit:HandFit|null;initialTone?:string;onUnavailable:()=>void}){
+ const canvas=useRef<HTMLCanvasElement>(null),frame=useRef<RigFrame|null>(null),redraw=useRef(()=>{});
+ const [clone,setClone]=useState(false),[aspect,setAspect]=useState(4/3),[zoom,setZoom]=useState(1);
+ const [settings,setSettings]=useState<TryFit>({finger:3,diameter:18,reference:fit&&!wrist&&fit.mm>0?fit.mm:18,wrist:1,size:1,length:1,tone:initialTone??'#9b6754'});
+ const sampled=useRef(!!initialTone);
+ function draw(video:HTMLVideoElement|null,points:CameraPoint[]|undefined){
+   const layer=canvas.current,ctx=layer?.getContext('2d',{willReadFrequently:true});
+   if(!layer||!ctx)return;
+   ctx.clearRect(0,0,layer.width,layer.height);
+   frame.current=null;redraw.current();
    if(!video||points?.length!==21||!video.videoWidth)return;
    const w=video.videoWidth,h=video.videoHeight;
    if(layer.width!==w||layer.height!==h){layer.width=w;layer.height=h;setAspect(w/h)}
    const p=points.map(v=>({x:v.x*w,y:v.y*h}));
    const span=Math.hypot(p[5].x-p[17].x,p[5].y-p[17].y);
    if(span<20)return;
+   if(!clone||!sampled.current){
    const mask=new Path2D();
    // Clip the camera image before drawing it into the visible canvas.
    const palm=new Path2D();const loop=[0,1,2,5,9,13,17];
@@ -46,22 +44,29 @@ export default function LiveHand({model,wrist,watch}:{model:string;wrist:boolean
    const wristEnd={x:p[0].x+(p[0].x-p[9].x)*.32,y:p[0].y+(p[0].y-p[9].y)*.32};
    strip(p[0],wristEnd,span*.32);
    for(const region of [palm,mask]){ctx.save();ctx.clip(region);ctx.drawImage(video,0,0,w,h);ctx.restore()}
-   const a=wrist?p[0]:p[13],b=wrist?wristEnd:p[14],t=wrist?.4:.35;
-   const width=span*(wrist?1.04:.29);
-   holder.style.left=(100*(a.x+(b.x-a.x)*t)/w)+'%';
-   holder.style.top=(100*(a.y+(b.y-a.y)*t)/h)+'%';
-   holder.style.width=(100*width/w)+'%';
-   holder.style.transform='translate(-50%,-50%) rotate('+(Math.atan2(b.y-a.y,b.x-a.x)+(wrist?-1:1)*Math.PI/2)+'rad)';
-   holder.style.visibility='visible';
+
+   if(!sampled.current){
+     const centre=p[0],knuckle=p[9],colour=ctx.getImageData((centre.x+knuckle.x)/2,(centre.y+knuckle.y)/2,1,1).data;
+     if(colour[3]){sampled.current=true;setSettings(s=>({...s,tone:'#'+Array.from(colour.slice(0,3),v=>v.toString(16).padStart(2,'0')).join('')}))}
+   }}
+   frame.current={points,aspect:w/h};redraw.current();
  }
  return <div className="flex h-full flex-col">
  <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{containerType:'size'}}>
  <div className="relative" style={{width:`min(100cqw, ${aspect*100}cqh)`,aspectRatio:aspect,transform:`scale(${zoom})`}}>
- <canvas ref={canvas} className="block h-full w-full" aria-label="Live hand try-on"/>
- <div ref={mount} className="pointer-events-none absolute" style={{aspectRatio:1,visibility:'hidden'}}>
- <Canvas camera={{position:[0,0,3],fov:38}} frameloop="demand" resize={{debounce:0}}>
- <ambientLight intensity={.8}/><directionalLight position={[2,4,4]} intensity={2}/><Environment files="/ames-engine/environments/jewellery-tent-v3.hdr"/><Piece model={model} watch={watch}/></Canvas></div>
+ <canvas ref={canvas} className="block h-full w-full" style={{visibility:clone?'hidden':'visible'}} aria-label="Live hand try-on"/>
+ <div className="absolute inset-0">
+ <Canvas orthographic camera={{position:[0,0,8],zoom:100,near:.01,far:100}} dpr={[1,1.5]} shadows gl={{alpha:true,antialias:true,toneMapping:ACESFilmicToneMapping}} onCreated={({gl})=>{gl.shadowMap.type=PCFSoftShadowMap}} frameloop="demand">
+ <Redraw signal={redraw}/><ambientLight intensity={.8}/><directionalLight position={[2,4,5]} intensity={2} castShadow shadow-mapSize-width={512} shadow-mapSize-height={512} shadow-normalBias={.008}/>
+ <Environment files="/ames-engine/environments/jewellery-tent-v3.hdr"/>
+ <HandRig frame={frame} clone={clone} model={model} wrist={wrist} watch={watch} fit={fit} settings={settings}/></Canvas></div>
  </div></div>
- <HandClasp liveFrame={draw} onZoom={factor=>setZoom(z=>Math.max(.65,Math.min(2,z*factor)))}/>
+ <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+ <button type="button" aria-pressed={clone} onClick={()=>setClone(!clone)}>{clone?'AR overlay on real hand':'Clone hand'}</button>
+ {!wrist&&<label>Finger <select value={settings.finger} onChange={e=>setSettings({...settings,finger:Number(e.target.value)})}>{['Thumb','Index','Middle','Ring','Little'].map((n,i)=><option key={n} value={i}>{n}</option>)}</select></label>}
+ <details><summary>Adjust fit</summary>
+ {([['size','Hand size',.8,1.2],['length','Finger length',.8,1.2],...(wrist?[['wrist','Clasp fit',.8,1.25]]:[['reference','Measured finger diameter (mm)',12,25],['diameter','Ring inner diameter (mm)',12,25]])] as const).map(([key,label,min,max])=><label key={key} className="block">{label} <input type="range" min={Number(min)} max={Number(max)} step={(key==='diameter'||key==='reference')?.1:.01} value={Number(settings[key as keyof TryFit])} onChange={e=>setSettings({...settings,[key]:Number(e.target.value)})}/> {Number(settings[key as keyof TryFit]).toFixed((key==='diameter'||key==='reference')?1:2)}</label>)}
+ <label>Clone skin tone <input type="color" value={settings.tone} onChange={e=>{sampled.current=true;setSettings({...settings,tone:e.target.value})}}/></label></details></div>
+ <HandClasp liveFrame={draw} onUnavailable={onUnavailable} onZoom={factor=>setZoom(z=>Math.max(.65,Math.min(2,z*factor)))}/>
  </div>;
 }

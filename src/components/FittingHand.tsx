@@ -27,7 +27,7 @@ export default function FittingHand({category,model,children}:{category:string;m
  },[category,wrist]);
  if(!['ring','bracelet','watch'].includes(category)||!model)return <>{children}</>;
  return <div className="flex h-full flex-col"><div ref={fittingViewer} className="min-h-0 flex-1">
- {on&&cameraView?<SceneBoundary key={model}><LiveHand model={model} wrist={wrist} watch={watch}/></SceneBoundary>:on?<SceneBoundary key={model}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
+ {on&&cameraView?<SceneBoundary key={model}><LiveHand model={model} wrist={wrist} watch={watch} fit={fit} initialTone={colour} onUnavailable={()=>setCameraView(false)}/></SceneBoundary>:on?<SceneBoundary key={model}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
  <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 text-xs">
  {on&&!cameraView&&<small>{fit?.outline?.surface?'Your captured hand texture':'Capture your hand to apply your own skin and nail detail. The hand texture is saved on this device.'}</small>}
  {on&&!cameraView&&<HandClasp onCapture={(points,hex,outline)=>{const captured=fitFromCamera(points,1,0,wrist);if(!captured)return false;captured.outline=outline;saveFit(captured);setFit(loadFit(wrist));setColour(hex);setTone(50);try{localStorage.setItem("ames-hand-colour",hex);localStorage.setItem("ames-hand-tone","50")}catch{}return true}}/>}
