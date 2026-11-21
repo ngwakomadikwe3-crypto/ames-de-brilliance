@@ -2,7 +2,8 @@
 import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
 import {DetectionGate} from '../lib/detection-gate';
-import {FingerControls,fingerPose} from '../lib/finger-controls';
+import {GestureController,gestureDebugEnabled,type GestureOutput} from '../lib/gesture-controller';
+import GestureDebug from './GestureDebug';
 
 import {OneEuroHand} from '../lib/one-euro-hand';
 import {trackingAssets} from '../lib/hand-tracking-assets';
@@ -87,7 +88,9 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
 export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel,onActivity}:{onActivity?:(active:boolean)=>void;captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const reset=useRef(onReset);useEffect(()=>{reset.current=onReset},[onReset]);
   const control=useRef<HTMLDivElement>(null);
-  const [feedback,setFeedback]=useState<ReturnType<FingerControls['step']>|null>(null);
+  type Feedback={x:number;y:number;label:string;progress:number;active:boolean;debug:GestureOutput|null};
+  const [feedback,setFeedback]=useState<Feedback|null>(null);
+  const [debugOn]=useState(()=>typeof window!=='undefined'&&gestureDebugEnabled());
   const [guide,setGuide]=useState(false);
   const target=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
   const failureRef=useRef(onUnavailable);useEffect(()=>{failureRef.current=onUnavailable},[onUnavailable]);
@@ -174,7 +177,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       if(zoom.current)setMessage('Point and move sideways to turn. Use two fingers to tilt. Pinch and spread to zoom.');
       if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
       const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
-      const viewer=new FingerControls();
+      const viewer=new GestureController(gestureDebugEnabled());
       if(reset.current)setMessage('Camera ready. Show your whole hand.');
       const gate=new DetectionGate();
 
@@ -245,29 +248,27 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
             }
             }
             if(hand && points && !capture.current){
-              const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
-              const pinch=distance(4,8)/Math.max(.001,distance(5,17));
               if(points && !capture.current && (move.current||zoom.current||reset.current)){
-                const pose=fingerPose(hand,viewer.mode==='Pinch'||viewer.candidate==='Pinch');
-                const tip=points[8],middle=points[12];
-                const x=1-(pose==='Tumble'?(tip.x+middle.x)/2:tip.x);
-                const y=pose==='Tumble'?(tip.y+middle.y)/2:tip.y;
-                const event=viewer.step(pose,x,y,pinch,player.videoWidth/player.videoHeight,now);
-                if(host && host.dataset.gestureFrozen!==String(viewer.frozen)){
-                  host.dataset.gestureFrozen=String(viewer.frozen);host.dispatchEvent(new Event('ames:showcase-toggle'));
-                  if(viewer.frozen)host.dispatchEvent(new Event('ames:freeze'));
+                // The moving point: index tip (turn), or between index and middle tips (tilt). Mirrored for selfie.
+                const two=viewer.pose==='two',tip=points[8],middle=points[12];
+                const x=1-(two?(tip.x+middle.x)/2:tip.x),y=two?(tip.y+middle.y)/2:tip.y;
+                const event=viewer.step(hand,x,y,now);
+                if(viewer.debug){const w=window as unknown as {__gestureTrace?:unknown[]};(w.__gestureTrace??=[]).push({t:Math.round(now),x:+x.toFixed(3),pose:event.pose,held:event.held,dx:+event.dx.toFixed(4),moved:!!(event.dx||event.dy)});if(w.__gestureTrace.length>400)w.__gestureTrace.shift()}   // TEMPORARY trace
+                const frozen=event.state==='FROZEN';
+                if(host && host.dataset.gestureFrozen!==String(frozen)){
+                  host.dataset.gestureFrozen=String(frozen);host.dispatchEvent(new Event('ames:showcase-toggle'));
+                  if(frozen)host.dispatchEvent(new Event('ames:freeze'));
                 }
-                if(reset.current)setFeedback(event);
-                if(lastLabel!==event.state){lastLabel=event.state;setMessage(event.state==='Ready'?'Hand detected. Hold a gesture briefly.':event.state==='Yaw'?(liveFrameRef.current?'Point detected · jewelry follows your hand':'Point detected · horizontal rotation'):event.state==='Tumble'?(liveFrameRef.current?'Two fingers detected · jewelry follows your hand':'Two fingers detected · vertical rotation'):event.state)}
+                const label=event.pose==='point'?'Turning':event.pose==='two'?'Tilting':event.pose==='pinch'?'Zoom':event.pose==='palm'?'Frozen':event.pose==='fist'?'Reset':'Ready';
+                if(reset.current)setFeedback({x,y,label,progress:event.pose==='fist'?event.resetProgress:0,active:event.pose!=='none'&&event.pose!=='palm',debug:viewer.debug?event:null});
+                if(lastLabel!==label){lastLabel=label;setMessage(label==='Ready'?'Hand detected. Hold a gesture briefly.':label==='Turning'?(liveFrameRef.current?'Point detected · jewelry follows your hand':'Point detected · horizontal rotation'):label==='Tilting'?(liveFrameRef.current?'Two fingers detected · jewelry follows your hand':'Two fingers detected · vertical rotation'):label==='Frozen'?'Frozen · lower your palm to continue':label)}
                 if(event.reset)reset.current?.();
                 if(!liveFrameRef.current&&(event.dx||event.dy))move.current?.(event.dx,event.dy);
                 if(event.zoom!==1)zoom.current?.(event.zoom);
               }
             }
             if(!hand){if(reset.current||zoom.current||move.current){
-              const drift=viewer.step('None',0,0,0,1,now);
-              if(!liveFrameRef.current&&(drift.dx||drift.dy))move.current?.(drift.dx,drift.dy);
-              setFeedback(null);
+              if(viewer.state!=='SHOWCASE'){const ev=viewer.lost(now);if(host&&host.dataset.gestureFrozen==='true'){host.dataset.gestureFrozen='false';host.dispatchEvent(new Event('ames:showcase-toggle'))}setFeedback(viewer.debug?{x:.5,y:.5,label:'',progress:0,active:false,debug:ev}:null)}
             }}
             if(!hand){openFrames=0;lastLabel=''}
             if(pose!==candidate){candidate=pose;since=now}
@@ -292,8 +293,9 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     return ()=>{canvas.style.filter=previous};
   },[target,active,feedback?.active,!!onReset]);
   return <div ref={control} className="text-center text-xs">{active && target && onReset && createPortal(<>
-    {feedback && <div aria-hidden="true" style={{position:'absolute',pointerEvents:'none',zIndex:18,left:`${feedback.x*100}%`,top:`${feedback.y*100}%`,transform:'translate(-50%,-50%)',borderRadius:24,padding:3,background:feedback.state==='Reset'?`conic-gradient(#eedba8 ${feedback.progress*360}deg,transparent 0)`:'transparent'}}><span className="block rounded-full bg-black/65 px-2 py-1 text-xs text-white">{feedback.state}{feedback.state==='Pinch'?` ${Math.round(100*feedback.progress)}%`:''}</span></div>}
+    {feedback && feedback.label && <div aria-hidden="true" style={{position:'absolute',pointerEvents:'none',zIndex:18,left:`${feedback.x*100}%`,top:`${feedback.y*100}%`,transform:'translate(-50%,-50%)',borderRadius:24,padding:3,background:feedback.label==='Reset'?`conic-gradient(#ffffff ${feedback.progress*360}deg,transparent 0)`:'transparent'}}><span className="block rounded-full bg-black/65 px-2 py-1 text-xs text-white">{feedback.label}</span></div>}
+    {debugOn && feedback?.debug && <GestureDebug g={feedback.debug}/>}
     {feedback?.active && <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[inherit]" style={{boxShadow:'inset 0 0 26px #ead39c26'}}/>}
-    {guide && <div className="absolute left-2 top-2 z-30 max-w-56 rounded-xl bg-black/85 p-3 text-left text-xs text-white">Point and move sideways to spin. Hold index and middle together and move up or down to tumble. Open your palm to freeze. Pinch to zoom, even while frozen. Hold a fist for half a second to reset.<button type="button" className="block min-h-9 underline" onClick={()=>{setGuide(false);try{localStorage.setItem('ames-view-guide-v2','1')}catch{}}}>Got it</button></div>}
+    {guide && <div data-gesture-guide className="absolute left-2 top-2 z-30 max-w-56 rounded-xl bg-black/85 p-3 text-left text-xs text-white">Point with your index finger and move sideways to turn. Hold up index and middle and move up or down to tilt. Pinch, then spread or close, to zoom. Show an open palm to freeze; lower it to carry on. Hold a fist for half a second to reset.<button type="button" className="block min-h-9 underline" onClick={()=>{setGuide(false);try{localStorage.setItem('ames-view-guide-v2','1')}catch{}}}>Got it</button></div>}
   </>,target)}<button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?(captureLabel??'Capture my hand'):'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }

@@ -25,7 +25,7 @@ import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, 
 import { fitLoop, type LoopFit } from '../lib/ar/model-fit';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
 import { dress } from '../lib/ar/jewel-dress';
-import { fingerPose } from '../lib/finger-controls';
+import { classifyPose } from '../lib/gesture-controller';
 import { SENSITIVITY } from '../lib/view-gesture';
 import type { HandFit } from '../lib/fitting-hand';
 
@@ -226,7 +226,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
           pose(lifted.points, label?.categoryName === 'Left' ? 1 : -1, now);
           const palm = length(sub(lifted.points[5], lifted.points[17]));
           const hand = lifted.points.map(p => ({ x: p[0], y: p[1], z: p[2] }));
-          const z = pinch.step(fingerPose(hand, pinch.zoom > 1) === 'Pinch', length(sub(lifted.points[4], lifted.points[8])) / palm, now);
+          const z = pinch.step(classifyPose(hand, pinch.zoom > 1) === 'pinch', length(sub(lifted.points[4], lifted.points[8])) / palm, now);
           camera.zoom = z.zoom; camera.updateProjectionMatrix(); (backdrop.material as ShaderMaterial).uniforms.zoom.value = z.zoom;
         }
       } else if (state === 'hidden') {

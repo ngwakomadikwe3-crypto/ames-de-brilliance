@@ -26,7 +26,8 @@ import { fitLoop } from '../lib/ar/model-fit';
 import { fittingFor, handAnchor, fitScale } from '../lib/atelier/fitting-registry';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
-import { FingerControls, fingerPose } from '../lib/finger-controls';
+import { GestureController, gestureDebugEnabled, type GestureOutput } from '../lib/gesture-controller';
+import GestureDebug from './GestureDebug';
 import HandScan, { type ScanResult } from './HandScan';
 
 const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little'];
@@ -38,6 +39,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   const [profile, setProfile] = useState<HandProfileV2 | null>(null);
   const [scanning, setScanning] = useState(false), [confirmDelete, setConfirmDelete] = useState(false);
   const [tracking, setTracking] = useState(false), [status, setStatus] = useState(''), [gesture, setGesture] = useState('');
+  const [debugReadout, setDebugReadout] = useState<GestureOutput | null>(null);       // TEMPORARY gesture debug
   const [finger, setFinger] = useState(3), [paused, setPaused] = useState(false), [photo, setPhoto] = useState('');
   const [notice, setNotice] = useState('');
   const api = useRef<{ snap: () => Promise<Blob | null>; finger: (f: number) => void; pause: (p: boolean) => void; track: (on: boolean) => void } | null>(null);
@@ -159,7 +161,9 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     let stream: MediaStream | undefined, tracker: HandLandmarker | undefined, frameHandle = 0;
     const video = document.createElement('video'); video.muted = true; video.playsInline = true;
     const worldFilter = new OneEuro(1.1, 4), imageFilter = new OneEuro(1.1, 18);
-    const gate = new TrackingGate(), dorsalSide = new DorsalSide(), controls = new FingerControls();
+    const gate = new TrackingGate(), dorsalSide = new DorsalSide(), controls = new GestureController(gestureDebugEnabled());
+    let debugAt = 0;
+    const setDebug = (g: GestureOutput) => { const t = performance.now(); if (t - debugAt > 100) { debugAt = t; setDebugReadout(g); } };   // TEMPORARY
     let previous: { x: number; y: number; size: number } | null = null, lastTime = 0, flipped = false, lastGesture = '';
     const resetFrom = new Quaternion(); let resetDistance = DEFAULT_DISTANCE;
 
@@ -192,27 +196,24 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
           // Follow the hand across the frame, gently (the view stays centred on the piece).
           handTarget.set((pts[0].x + pts[9].x) / 2 * 0.35, (pts[0].y + pts[9].y) / 2 * 0.35, 0);
           // Gestures: fingertips, mirrored image coordinates.
-          const pose = fingerPose(lifted.points.map(p => ({ x: p[0], y: p[1], z: p[2] })), controls.mode === 'Pinch' || controls.candidate === 'Pinch');
-          const tipIndex = img[8], tipMiddle = img[12];
-          const x = 1 - (pose === 'Tumble' ? (tipIndex.x + tipMiddle.x) / 2 : tipIndex.x), y = pose === 'Tumble' ? (tipIndex.y + tipMiddle.y) / 2 : tipIndex.y;
-          const palm = Math.hypot(lifted.points[5][0] - lifted.points[17][0], lifted.points[5][1] - lifted.points[17][1], lifted.points[5][2] - lifted.points[17][2]);
-          const pinch = Math.hypot(lifted.points[4][0] - lifted.points[8][0], lifted.points[4][1] - lifted.points[8][1], lifted.points[4][2] - lifted.points[8][2]) / palm;
-          const g = controls.step(pose, x, y, pinch, cam.width / cam.height, now);
-          frozen = controls.frozen;
+          const world = lifted.points.map(p => ({ x: p[0], y: p[1], z: p[2] }));
+          const two = controls.pose === 'two', tipIndex = img[8], tipMiddle = img[12];
+          const x = 1 - (two ? (tipIndex.x + tipMiddle.x) / 2 : tipIndex.x), y = two ? (tipIndex.y + tipMiddle.y) / 2 : tipIndex.y;
+          const g = controls.step(world, x, y, now);
+          frozen = g.state === 'FROZEN';
           if (g.dx) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), g.dx * Math.PI));
           if (g.dy) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), g.dy * Math.PI));
           if (g.zoom !== 1) targetDistance = Math.max(160, Math.min(900, targetDistance / g.zoom));
           if (g.reset) { resetting = now; resetFrom.copy(viewTurn); resetDistance = distance; }
-          const label2 = g.state === 'Ready' ? '' : g.state;
-          if (label2 !== lastGesture) { lastGesture = label2; setGesture(label2 === 'Yaw' ? 'Turning' : label2 === 'Tumble' ? 'Tilting' : label2 === 'Pinch' ? 'Zoom' : label2 === 'Frozen' ? 'Frozen · pinch still zooms' : label2 === 'Reset' ? 'Resetting…' : ''); }
+          if (controls.debug) setDebug(g);
+          const label2 = g.pose === 'point' ? 'Turning' : g.pose === 'two' ? 'Tilting' : g.pose === 'pinch' ? 'Zoom' : g.pose === 'palm' ? 'Frozen' : g.pose === 'fist' ? 'Resetting…' : '';
+          if (label2 !== lastGesture) { lastGesture = label2; setGesture(label2); }
         }
         handSeen = true; quietUntil = now + 5000;
       } else if (state === 'hidden') {
         imageFilter.reset(); worldFilter.reset(); dorsalSide.reset();
         targets.forEach((q, i) => q.copy(restQuats[i]));                  // hand gone: settle back to the relaxed pose
-        const drift = controls.step('None', 0, 0, 0, 1, now);           // let a flick finish
-        if (drift.dx) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), drift.dx * Math.PI));
-        if (drift.dy) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), drift.dy * Math.PI));
+        if (controls.state !== 'SHOWCASE') { const g = controls.lost(now); frozen = false; if (controls.debug) setDebug(g); }
         if (handSeen) { handSeen = false; quietUntil = now + 5000; if (lastGesture) { lastGesture = ''; setGesture(''); } }
       }
     }
@@ -342,6 +343,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   return <div className="flex flex-col text-white">
     <div ref={box} className="relative w-full" style={{ height: 'clamp(300px, 52svh, 640px)' }}>
       <canvas ref={canvasRef} className="block h-full w-full touch-none" aria-label={profile ? 'Your 3D hand wearing the piece' : 'A 3D hand wearing the piece'} />
+      {debugReadout && <GestureDebug g={debugReadout} />}
       {(status || gesture) && <p role="status" className="pointer-events-none absolute inset-x-0 top-2 text-center text-xs drop-shadow">{status || gesture}</p>}
       <button type="button" className="ames-pill absolute bottom-2 left-2 rounded-full px-3 py-1 text-xs" aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? 'Play showcase' : 'Pause showcase'}</button>
     </div>

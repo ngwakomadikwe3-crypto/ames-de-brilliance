@@ -26,7 +26,8 @@
     "cad:listing": "node --env-file=.env.cad-worker.local scripts/cad/listing-operator.mjs",
     "test:atelier-physics": "node --experimental-strip-types scripts/test-atelier-physics.mjs",
     "test:realistic-hand": "node --experimental-strip-types scripts/test-realistic-hand.mjs",
-    "designs:images": "node scripts/build-design-images.mjs"
+    "designs:images": "node scripts/build-design-images.mjs",
+    "test:gestures": "node --experimental-strip-types scripts/test-gestures.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",
