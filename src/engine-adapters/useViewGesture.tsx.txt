@@ -15,17 +15,18 @@ export function useViewGesture(ref:RefObject<OrbitControls|null>,preset:CameraPr
    function receive(input:Event){
      const ctl=ref.current;if(!ctl)return
      const d=(input as CustomEvent<{x?:number;y?:number;zoom?:number;reset?:boolean}>).detail
+     if(d.x||d.y)return
      cancel()
      const orbit=new Spherical().setFromVector3(camera.position.clone().sub(ctl.target))
      if(d.reset){
        const goal=cameraFraming(config.current.preset??'three_quarter',config.current.zoom??1)
        const start=performance.now(),target=ctl.target.clone(),turn=Math.atan2(Math.sin(goal.theta-orbit.theta),Math.cos(goal.theta-orbit.theta))
        const tick=(now:number)=>{
-         const t=Math.min(1,(now-start)/320),s=t*t*(3-2*t)
+         const t=Math.min(1,(now-start)/1000),s=t*t*(3-2*t)
          ctl.target.copy(target).multiplyScalar(1-s)
          camera.position.setFromSpherical(new Spherical(orbit.radius+(goal.radius-orbit.radius)*s,orbit.phi+(goal.phi-orbit.phi)*s,orbit.theta+turn*s)).add(ctl.target)
          ctl.update();invalidate()
-         if(t<1)raf=requestAnimationFrame(tick);else canvas.dispatchEvent(new Event('ames:view-restored',{bubbles:true}))
+         if(t<1)raf=requestAnimationFrame(tick);else raf=0
        }
        raf=requestAnimationFrame(tick);return
      }
@@ -34,8 +35,9 @@ export function useViewGesture(ref:RefObject<OrbitControls|null>,preset:CameraPr
      orbit.radius=Math.max(ctl.minDistance,Math.min(ctl.maxDistance,orbit.radius/(d.zoom??1)))
      camera.position.copy(new Vector3().setFromSpherical(orbit)).add(ctl.target);ctl.update();invalidate()
    }
+   const host=canvas.closest('[data-ames-engine-host]');host?.addEventListener('ames:freeze',cancel)
    canvas.addEventListener('ames:view-gesture',receive)
    canvas.addEventListener('pointerdown',cancel);canvas.addEventListener('wheel',cancel)
-   return ()=>{cancel();canvas.removeEventListener('ames:view-gesture',receive);canvas.removeEventListener('pointerdown',cancel);canvas.removeEventListener('wheel',cancel)}
+   return ()=>{cancel();host?.removeEventListener("ames:freeze",cancel);canvas.removeEventListener('ames:view-gesture',receive);canvas.removeEventListener('pointerdown',cancel);canvas.removeEventListener('wheel',cancel)}
  },[ref,camera,gl,invalidate])
 }

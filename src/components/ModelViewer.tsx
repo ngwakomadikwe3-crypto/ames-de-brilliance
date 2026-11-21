@@ -110,8 +110,8 @@ export default function ModelViewer({
   useEffect(()=>{
     const el=viewerRef.current,host=el?.closest<HTMLElement>('.ames-jewelry-stage')??containerRef.current;
     if(!el||!host||!controlledTurntable||!loaded||!turntableEnabledProp||manualPause||reducedMotion)return;
-    const angles=(el.getAttribute('orientation')??'0 0 0').split(' ').map(parseFloat);
     return showcaseMotion(host,(yaw,pitch,roll)=>{
+      const angles=(el.getAttribute('orientation')??'0 0 0').split(' ').map(parseFloat);
       angles[0]+=roll*180/Math.PI;angles[1]+=pitch*180/Math.PI;angles[2]+=yaw*180/Math.PI;
       el.setAttribute('orientation',angles.map(a=>a+'deg').join(' '));
     });

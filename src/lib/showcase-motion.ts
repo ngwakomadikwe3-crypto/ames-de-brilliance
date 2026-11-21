@@ -4,7 +4,7 @@ export function showcaseMotion(host:HTMLElement,step:(yaw:number,pitch:number,ro
  const media=matchMedia('(prefers-reduced-motion: reduce)');
  const stop=()=>{cancelAnimationFrame(raf);clearTimeout(timer);last=0;start=0};
  const schedule=()=>{
-   stop();if(!AUTO_ROTATE||document.hidden||media.matches||down||hand||host.dataset.showcasePaused==='true')return;
+   stop();if(!AUTO_ROTATE||document.hidden||media.matches||down||hand||(host.dataset.showcasePaused==='true'||host.dataset.gestureFrozen==='true'))return;
    const wait=quietUntil-performance.now();
    if(wait>0){timer=window.setTimeout(schedule,wait+1);return}
    raf=requestAnimationFrame(tick);

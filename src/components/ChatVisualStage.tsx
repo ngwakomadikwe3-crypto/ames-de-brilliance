@@ -65,15 +65,36 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
 
   const stage=useRef<HTMLDivElement>(null);
   function zoomFallback(factor:number){
+    cancelAnimationFrame(fallbackAnimation.current);
     const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {getCameraOrbit?:()=>{theta:number;phi:number;radius:number};cameraOrbit:string})|null;
     const orbit=viewer?.getCameraOrbit?.();
     if(viewer && orbit)viewer.cameraOrbit=`${orbit.theta}rad ${orbit.phi}rad ${orbit.radius/factor}m`;
   }
   function turnFallback(x:number,y:number){
-    const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {getCameraOrbit?:()=>{theta:number;phi:number;radius:number};cameraOrbit:string})|null;
-    const orbit=viewer?.getCameraOrbit?.();
-    if(!viewer||!orbit)return;
-    viewer.cameraOrbit=`${orbit.theta-x*Math.PI}rad ${Math.max(.1,Math.min(Math.PI-.1,orbit.phi+y*Math.PI))}rad ${orbit.radius}m`;
+    cancelAnimationFrame(fallbackAnimation.current);const el=stage.current?.querySelector('model-viewer');if(!el)return;
+    const angles=(el.getAttribute('orientation')??'0 0 0').split(' ').map(parseFloat);
+    angles[1]+=y*180;angles[2]+=x*180;
+    el.setAttribute('orientation',angles.map(a=>a+'deg').join(' '));
+  }
+  const fallbackAnimation=useRef(0);
+  useEffect(()=>()=>cancelAnimationFrame(fallbackAnimation.current),[content?.contract.assetId]);
+  useEffect(()=>{
+    const host=stage.current;const stop=()=>cancelAnimationFrame(fallbackAnimation.current);
+    host?.addEventListener('ames:freeze',stop);return ()=>host?.removeEventListener('ames:freeze',stop);
+  },[]);
+  function resetFallback(){
+    const el=stage.current?.querySelector('model-viewer') as (HTMLElement&{cameraOrbit:string;getCameraOrbit:()=>{theta:number;phi:number;radius:number};jumpCameraToGoal:()=>void})|null;
+    if(!el)return;
+    cancelAnimationFrame(fallbackAnimation.current);
+    const start=performance.now(),from=el.getCameraOrbit(),angles=(el.getAttribute('orientation')??'0 0 0').split(' ').map(parseFloat);
+    el.cameraOrbit=`35deg ${ringView?'40deg':'75deg'} 105%`;el.jumpCameraToGoal();const goal=el.getCameraOrbit();
+    const tick=(now:number)=>{
+      const t=Math.min(1,(now-start)/1000),s=t*t*(3-2*t);
+      el.cameraOrbit=`${from.theta+s*Math.atan2(Math.sin(goal.theta-from.theta),Math.cos(goal.theta-from.theta))}rad ${from.phi+s*(goal.phi-from.phi)}rad ${from.radius+s*(goal.radius-from.radius)}m`;
+      el.jumpCameraToGoal();el.setAttribute('orientation',angles.map(a=>(Math.atan2(Math.sin(a*Math.PI/180),Math.cos(a*Math.PI/180))*(1-s)*180/Math.PI)+'deg').join(' '));
+      if(t<1)fallbackAnimation.current=requestAnimationFrame(tick);
+    };
+    tick(start);
   }
   const image = content && !hasUnfinishedJewelryImages(content.contract.assetId) && (view === 'hero' ? content.heroUrl : view === 'macro' ? content.macroUrl : null);
   const ringView = content?.category === 'ring';
@@ -98,11 +119,7 @@ function SelectedChatVisualStage({ command, assetId, compact, active }: { comman
             style={{ width: '100%', height: '100%', borderRadius: 14 }} /> :
           <><ModelViewer key={stageSrc} src={stageSrc!} poster={hasUnfinishedJewelryImages(content.contract.assetId) ? undefined : content.posterUrl} alt={content.name} jewelryPresentation metalPreview={content.contract.assetId === 'dev-test-earring-001' ? 'yellow-gold' : undefined}
             autoRotate={false} controlledTurntable turntableEnabled={rotation && active} turntableResetToken={resetToken} cameraControls cameraOrbit={orbit} fieldOfView={content.category === 'ring' ? undefined : zoomed ? '25deg' : undefined} ar={false}
-            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onReset={()=>{
-              const viewer=stage.current?.querySelector('model-viewer') as (HTMLElement & {cameraOrbit:string})|null;
-              if(viewer)viewer.cameraOrbit=`${ringView?"35deg 40deg":"35deg 75deg"} 105%`;
-              setView(content.contract.defaultView??'three_quarter');setZoomed(false);setResetToken(value=>value+1);
-            }} onZoom={zoomFallback} onMove={turnFallback}/></div>}</>) :
+            fallbackTitle={content.name} fallbackSubtitle="3D preview unavailable" style={{ width: '100%', height: '100%', borderRadius: 14 }} />{active && <div className="absolute right-1 bottom-1 z-20 max-w-32"><HandClasp onReset={resetFallback} onZoom={zoomFallback} onMove={turnFallback}/></div>}</>) :
           <div role="status" data-chat-stage-placeholder style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: '#ffffff' }}>
             {loadFailed ? 'Preview unavailable' : 'Loading selected piece…'}
           </div>}

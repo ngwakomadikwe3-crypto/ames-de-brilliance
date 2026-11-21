@@ -1,11 +1,33 @@
 import {useEffect,useRef,type RefObject} from 'react';
 import {useThree} from '@react-three/fiber';
-import type {Group} from 'three';
+import {Quaternion,Vector3,type Group} from 'three';
 import {showcaseMotion} from './showcase-motion';
 export const CONTROLLED_TURN_SPEED=Math.PI/6;
 export const CONTROLLED_RESUME_DELAY=5000;
 export function useControlledTurntable(pivot:RefObject<Group|null>,enabled:boolean,ready:boolean,interacting:boolean,token:number|undefined,invalidate:()=>void){
- const {gl}=useThree();const last=useRef(token);
+ const {gl,camera}=useThree();const last=useRef(token);
+ useEffect(()=>{
+   const canvas=gl.domElement,host=canvas.closest('[data-ames-engine-host]');
+   let raf=0;
+   const cancel=()=>cancelAnimationFrame(raf);
+   function command(ev:Event){
+     const p=pivot.current;if(!p)return;
+     const {x,y,reset}=(ev as CustomEvent<{x?:number;y?:number;reset?:boolean}>).detail;
+     cancel();
+     if(reset){
+       const from=p.quaternion.clone(),identity=new Quaternion(),start=performance.now();
+       const tick=(now:number)=>{const t=Math.min(1,(now-start)/1000);p.quaternion.slerpQuaternions(from,identity,t*t*(3-2*t));invalidate();if(t<1)raf=requestAnimationFrame(tick)};
+       raf=requestAnimationFrame(tick);return;
+     }
+     if(!x&&!y)return;
+     const basis=camera.getWorldQuaternion(new Quaternion());
+     if(p.parent)basis.premultiply(p.parent.getWorldQuaternion(new Quaternion()).invert());
+     const axis=new Vector3(y?1:0,x?1:0,0).applyQuaternion(basis);
+     p.quaternion.premultiply(new Quaternion().setFromAxisAngle(axis,(x||y||0)*Math.PI)).normalize();invalidate();
+   }
+   canvas.addEventListener('ames:view-gesture',command);host?.addEventListener('ames:freeze',cancel);
+   return ()=>{cancel();canvas.removeEventListener('ames:view-gesture',command);host?.removeEventListener('ames:freeze',cancel)};
+ },[gl,camera,pivot,invalidate]);
  useEffect(()=>{
    const p=pivot.current;if(last.current===token||!p)return;last.current=token;
    const from=p.rotation.clone(),start=performance.now(),yaw=Math.atan2(Math.sin(from.y),Math.cos(from.y));let raf=0;
