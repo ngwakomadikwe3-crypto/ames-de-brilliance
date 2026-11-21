@@ -101,7 +101,7 @@ function trackingAssets(){
   return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
 }
 
-export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel}:{captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
+export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel,onActivity}:{onActivity?:(active:boolean)=>void;captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const reset=useRef(onReset);useEffect(()=>{reset.current=onReset},[onReset]);
   const control=useRef<HTMLDivElement>(null);
   const [feedback,setFeedback]=useState<ReturnType<ViewGesture['step']>|null>(null);
@@ -109,6 +109,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
   const target=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
   const failureRef=useRef(onUnavailable);useEffect(()=>{failureRef.current=onUnavailable},[onUnavailable]);
   const [active,setActive]=useState(!!liveFrame);
+  useEffect(()=>{onActivity?.(active);return ()=>onActivity?.(false)},[active,onActivity]);
   useEffect(()=>{
     if(!active||!onReset)return;
     try{if(!localStorage.getItem('ames-view-guide-v2'))setGuide(true)}catch{setGuide(true)}
@@ -129,7 +130,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
   useEffect(()=>{callback.current=onPose},[onPose]);
   useEffect(()=>{
     if(!active)return;
-    let stopped=false, frame=0, videoFrame=0, stream:MediaStream|undefined, tracker:HandLandmarker|undefined;
+    let stopped=false, frame=0, stream:MediaStream|undefined, tracker:HandLandmarker|undefined;
     const video=document.createElement('video');
     video.disablePictureInPicture=true;
     const player=video;
@@ -138,7 +139,10 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     video.playsInline=true;
     let expiry:ReturnType<typeof setTimeout>|undefined;
     const host=control.current?.closest<HTMLElement>('[data-ames-engine-host],.ames-jewelry-stage');
-    function presence(hand:boolean){if(host && host.dataset.handPresent!==String(hand)){host.dataset.handPresent=String(hand);host.dispatchEvent(new Event('ames:hand-presence'))}}
+    let seen:boolean|undefined;
+    function presence(hand:boolean){
+      if(reset.current&&seen!==hand){seen=hand;setMessage(hand?'Hand detected. Point with one finger to spin.':'Camera ready. Show your whole hand.')}
+      if(host && host.dataset.handPresent!==String(hand)){host.dataset.handPresent=String(hand);host.dispatchEvent(new Event('ames:hand-presence'))}}
     function stop(){
       presence(false);
       if(host){delete host.dataset.gestureFrozen;host.dispatchEvent(new Event('ames:showcase-toggle'))}
@@ -147,7 +151,6 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       setFeedback(null);
       joints.current?.(null);liveFrameRef.current?.(null,undefined);
       cancelAnimationFrame(frame);
-      if(videoFrame)player.cancelVideoFrameCallback?.(videoFrame);
       stream?.getTracks().forEach(track=>track.stop());
       if(player.srcObject===stream)player.srcObject=null;
       tracker?.close();
@@ -189,7 +192,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       if(liveFrameRef.current)setMessage('Show your hand and wrist against a plain background. Spread a pinch to zoom in.');
       const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
       const commands=new ViewGesture(),viewer=new FingerControls();
-      if(reset.current)setMessage('');
+      if(reset.current)setMessage('Camera ready. Show your whole hand.');
       const gate=new DetectionGate();
 
 
@@ -198,8 +201,8 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function schedule(){
         if(stopped)return;
-        if(typeof player.requestVideoFrameCallback==='function')videoFrame=player.requestVideoFrameCallback(tick);
-        else frame=requestAnimationFrame(tick);
+        // The private video has no visible compositor surface. Poll its decoded time.
+        frame=requestAnimationFrame(tick);
       }
       function tick(now:number){
         if(stopped)return;
@@ -258,7 +261,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
               }
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
               if(reset.current && points){
-                const pose=fingerPose(hand,viewer.mode==='Pinch'||viewer.candidate==='Pinch');
+                const pose=fingerPose(raw??hand,viewer.mode==='Pinch'||viewer.candidate==='Pinch');
                 const tip=points[8],middle=points[12];
                 const x=1-(pose==='Tumble'?(tip.x+middle.x)/2:tip.x);
                 const y=pose==='Tumble'?(tip.y+middle.y)/2:tip.y;
