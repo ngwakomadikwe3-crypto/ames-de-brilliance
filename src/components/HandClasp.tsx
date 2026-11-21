@@ -224,7 +224,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                 if(event.zoom!==1)zoom.current?.(event.zoom);
                 if(event.dx)move.current?.(-event.dx,0);
               }else{
-                liveGap=panX=undefined;
+                commands.lost(performance.now());
                 if(state==='hide')liveFrameRef.current(null,undefined);
               }
             }
