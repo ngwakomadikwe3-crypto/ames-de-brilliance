@@ -114,7 +114,7 @@ for path in sorted((base/'gallery-cuts').glob('*/stone-amethyst.glb')):
         (cut_folder/sample.name).write_text(json.dumps(variant,separators=(',',':')))
 
 folder = base/'ames-iced-watch/web'
-watch, binary = read(folder/'watch-v8.glb')
+watch, binary = read(folder/'watch-v9.glb')
 gems = [n for n in watch['nodes'] if n.get('extras',{}).get('ames_gemstone_id')]
 # Preserve the printed face while giving the case, bracelet and hands their own finishes.
 for m in watch['materials']:

@@ -20,7 +20,7 @@ const templates = { ring: 'demo-pave-solitaire', bracelet: 'ames-tennis-bracelet
 for (const cut of ['pear','round','oval','cushion']) templates['necklace-'+cut]='ames-pear-fringe-necklace';
 for (const [setting, asset] of Object.entries(templates)) {
   const record = await readJson(base + '/' + asset + '/app/boutique.json');
-  const input = base + '/' + asset + '/' + (setting === 'ring' ? 'web/solitaire-ice-blue.glb' : setting === 'watch' ? 'web/watch-v8.glb' : setting.startsWith('necklace-') && setting !== 'necklace-pear' ? 'web/fringe-'+setting.slice(9)+'.glb' : record.interactiveGlb);
+  const input = base + '/' + asset + '/' + (setting === 'ring' ? 'web/solitaire-ice-blue.glb' : setting === 'watch' ? 'web/watch-v9.glb' : setting.startsWith('necklace-') && setting !== 'necklace-pear' ? 'web/fringe-'+setting.slice(9)+'.glb' : record.interactiveGlb);
   const model = await io.read(input);
   const root = model.getRoot();
   if(setting==='watch'){
