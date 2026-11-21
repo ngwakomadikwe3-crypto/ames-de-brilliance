@@ -78,6 +78,24 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
 }
 
+async function loadTrackingAssets(){
+  const model=async()=>{
+    let response=await fetch('/hand-tracking/hand-v1.task');
+    if(!response.ok || response.headers.get('content-type')?.includes('text/html'))response=await fetch('/api/hand-model');
+    if(!response.ok)throw Error('Tracking model unavailable');
+    return new Uint8Array(await response.arrayBuffer());
+  };
+  const [runtime,bytes]=await Promise.all([
+    import('@mediapipe/tasks-vision').then(async module=>({HandLandmarker:module.HandLandmarker,files:await module.FilesetResolver.forVisionTasks('/hand-tracking/wasm')})),
+    model()
+  ]);
+  return {...runtime,bytes};
+}
+let pendingAssets:ReturnType<typeof loadTrackingAssets>|undefined;
+function trackingAssets(){
+  return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
+}
+
 export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame}:{liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {
   const [active,setActive]=useState(!!liveFrame);
   const liveFrameRef=useRef(liveFrame);useEffect(()=>{liveFrameRef.current=liveFrame},[liveFrame]);
@@ -128,21 +146,18 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       setActive(false);
     }
     async function start(){
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+      const assets=trackingAssets();
+      void assets.catch(()=>{}); // Camera permission can take longer than the download.
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30}},audio:false});
       if(stopped){stop();return}
       player.srcObject=stream;
       await player.play();
       if(stopped)return;
       stage='loading';
       setMessage('Loading hand tracking…');
-      const {FilesetResolver,HandLandmarker}=await import('@mediapipe/tasks-vision');
-      const files=await FilesetResolver.forVisionTasks('/hand-tracking/wasm');
+      const {HandLandmarker,files,bytes}=await assets;
       if(stopped)return;
-      const local=await fetch('/api/hand-model').catch(()=>null);
-      if(stopped)return;
-      const baseOptions=local?.ok ? {modelAssetBuffer:new Uint8Array(await local.arrayBuffer())} : {modelAssetPath:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'};
-      if(stopped)return;
-      tracker=await HandLandmarker.createFromOptions(files,{baseOptions,runningMode:'VIDEO',numHands:1});
+      tracker=await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetBuffer:bytes.slice()},runningMode:'VIDEO',numHands:1,minTrackingConfidence:.45,minHandPresenceConfidence:.45});
       if(stopped){stop();return}
       stage='tracking';
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
@@ -154,7 +169,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
       function tick(now:number){
         if(stopped)return;
-        if(player.readyState>=2 && now-last>=100 && time!==player.currentTime){
+        if(player.readyState>=2 && now-last>=40 && time!==player.currentTime){
           last=now; time=player.currentTime;
           try{
             const result=tracker!.detectForVideo(player,now);
@@ -189,7 +204,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
               const pinch=distance(4,8)/Math.max(.001,distance(5,17));
               let zooming=false;
               if(zoom.current){
-                if(zoomGap===undefined && pinch<.30)zoomGap=pinch;
+                if(zoomGap===undefined && pinch<.38)zoomGap=pinch;
                 else if(zoomGap!==undefined){
                   const change=pinch-zoomGap;
                   if(Math.abs(change)>.035){
@@ -199,12 +214,12 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
                   if(pinch>.95 || ratios.every(r=>r<.96))zoomGap=undefined;
                 }
               }
-              const steering=!zooming && points && pinch<(anchor ? .43 : .30) && ratios.slice(1).some(r=>r>1.05);
+              const steering=!zooming && points && pinch<(anchor ? .50 : .38);
               if(steering){
                 const x=(points[4].x+points[8].x)/2,y=(points[4].y+points[8].y)/2;
                 if(anchor){
                   const dx=anchor.x-x,dy=y-anchor.y;
-                  if(Math.hypot(dx,dy)>.004 && Math.hypot(dx,dy)<.22)move.current?.(dx,dy);
+                  if(Math.hypot(dx,dy)>.002 && Math.hypot(dx,dy)<.22)move.current?.(dx,dy);
                 }
                 anchor={x,y};
               }else{
@@ -216,7 +231,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
             if(!hand){zoomGap=undefined;anchor=undefined;openFrames=0};
             if(pose!==candidate){candidate=pose;since=now}
             if(pose===undefined)emitted=undefined;
-            else if(now-since>=400 && emitted!==pose){emitted=pose;callback.current?.(pose)}
+            else if(now-since>=180 && emitted!==pose){emitted=pose;callback.current?.(pose)}
           }catch{fail();return}
         }
         frame=requestAnimationFrame(tick);
@@ -228,5 +243,5 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
     document.addEventListener('visibilitychange',hide);
     return ()=>{stop();document.removeEventListener('visibilitychange',hide)};
   },[active]);
-  return <div className="text-center text-xs"><button type="button" aria-pressed={active} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
+  return <div className="text-center text-xs"><button type="button" aria-pressed={active} onPointerEnter={()=>{void trackingAssets().catch(()=>{})}} onFocus={()=>{void trackingAssets().catch(()=>{})}} className="ames-pill rounded-full px-3 py-2" onClick={()=>{setMessage(active?'':'Starting camera…');setActive(!active)}}>{active?'Stop camera':liveFrame?'Start live hand':onCapture?'Capture my hand':'Use hand gestures'}</button>{message&&<div role="status">{message}</div>}</div>;
 }
