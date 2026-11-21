@@ -22,11 +22,14 @@ for (const [name, mesh] of Object.entries(patch)) {
   const target = node.getMesh();
   if (done.has(target)) continue; done.add(target);
   const old = target.listPrimitives()[0];
-  const prim = doc.createPrimitive().setMaterial(old.getMaterial())
-    .setAttribute('POSITION', doc.createAccessor().setType(Accessor.Type.VEC3).setArray(floats(mesh.positions)).setBuffer(buffer))
-    .setAttribute('NORMAL', doc.createAccessor().setType(Accessor.Type.VEC3).setArray(floats(mesh.normals)).setBuffer(buffer));
+  const named = n => root.listMaterials().find(m => m.getName() === n);
+  // Two finishes when the rework split them: polished tops and flanks, satin sides and back.
+  const finishes = mesh.brushed ? { polished: named('White gold | visual study') ?? old.getMaterial(), brushed: named('Brushed white gold | satin bracelet') ?? old.getMaterial() } : { polished: old.getMaterial() };
+  const prims = Object.entries(finishes).filter(([k]) => mesh[k]).map(([k, material]) => doc.createPrimitive().setMaterial(material)
+    .setAttribute('POSITION', doc.createAccessor().setType(Accessor.Type.VEC3).setArray(floats(mesh[k].positions)).setBuffer(buffer))
+    .setAttribute('NORMAL', doc.createAccessor().setType(Accessor.Type.VEC3).setArray(floats(mesh[k].normals)).setBuffer(buffer)));
   for (const p of target.listPrimitives()) { target.removePrimitive(p); p.dispose(); }
-  target.addPrimitive(prim);
+  prims.forEach(p => target.addPrimitive(p));
   console.log('replaced', name, mesh.count / 3, 'triangles');
 }
 await io.write(output, doc);

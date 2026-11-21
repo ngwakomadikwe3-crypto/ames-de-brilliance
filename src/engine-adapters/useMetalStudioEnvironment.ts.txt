@@ -1,0 +1,16 @@
+import { useEffect, useState } from 'react'
+import { useThree } from '@react-three/fiber'
+import type { CubeTexture } from 'three'
+import { createMetalStudioEnvironment } from './metalStudioEnvironment'
+/** HDR softbox studio for polished metal (HOUSEofAMES): bright strips and dark flags, so metal reads as metal. */
+export function useMetalStudioEnvironment(enabled: boolean): CubeTexture | null {
+  const gl = useThree(state => state.gl)
+  const [env, setEnv] = useState<CubeTexture | null>(null)
+  useEffect(() => {
+    if (!enabled) return
+    const studio = createMetalStudioEnvironment(gl)
+    setEnv(studio.texture as unknown as CubeTexture)
+    return () => { studio.dispose(); setEnv(null) }
+  }, [gl, enabled])
+  return enabled ? env : null
+}

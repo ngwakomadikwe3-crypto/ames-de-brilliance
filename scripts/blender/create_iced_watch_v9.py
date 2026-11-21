@@ -7,6 +7,8 @@ What changes (everything else in watch-v8.glb is kept byte for byte by scripts/a
   * Hands. The hour and minute hands become faceted dauphine hands (a raised centre ridge, so each half catches the
     light differently) with a pierced boss at the pivot; the seconds hand a fine needle with a round counterweight.
     Same length, width, thickness and pivot as before, so the movement and try-on code see the same hands.
+  * Finish and edges: every hard edge of the case and links gets a small two-step chamfer that catches a thin
+    line of light; link tops and case flanks are polished, link sides and the case back satin (separate materials).
   * Winding crown stone. The placeholder becomes a true 57-facet round brilliant (ames_jewel_kit) of the same size.
 
 The script works directly in each mesh's own glTF coordinates (no axis conversion): it reads the dequantized watch,
@@ -112,10 +114,15 @@ def seat(p, q, d, n=14):
     return verts, faces
 
 
-def drill(name, stones):
+def drill(name, stones, bevel):
     bm = mesh_of(name)
     mesh = bpy.data.meshes.new(name); bm.to_mesh(mesh); bm.free()
     obj = bpy.data.objects.new(name, mesh); bpy.context.scene.collection.objects.link(obj)
+    # A small chamfer on every hard edge, so each edge catches a thin bright line of light (bevel in mesh units).
+    bev = obj.modifiers.new('Edge chamfer', 'BEVEL')
+    bev.width = bevel; bev.segments = 2; bev.limit_method = 'ANGLE'; bev.angle_limit = math.radians(35); bev.harden_normals = False
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=bev.name)
     verts, faces = [], []
     for p, q, d in stones:
         v, f = seat(p, q, d)
@@ -175,7 +182,8 @@ def needle(width, thick, pivot, weight, n=20):
     return bm
 
 
-def finish(name, bm_or_mesh, smooth_angle=None):
+def finish(name, bm_or_mesh, smooth_angle=None, brushed=None):
+    """brushed(normal) -> True for faces with a satin finish (link sides, case back); the rest stay polished."""
     if isinstance(bm_or_mesh, bmesh.types.BMesh):
         mesh = bpy.data.meshes.new(name); bm_or_mesh.to_mesh(mesh); bm_or_mesh.free()
     else:
@@ -183,24 +191,29 @@ def finish(name, bm_or_mesh, smooth_angle=None):
     bm = bmesh.new(); bm.from_mesh(mesh)
     bmesh.ops.triangulate(bm, faces=bm.faces)
     bm.normal_update()
-    pos, nor = [], []
+    groups = {'polished': ([], []), 'brushed': ([], [])}
     for f in bm.faces:
+        pos, nor = groups['brushed' if brushed and brushed(f.normal) else 'polished']
         # Flat facets for stones and hands; the case keeps soft normals where the surface is smooth.
         for loop in f.loops:
             n_ = f.normal if smooth_angle is None or loop.edge.calc_face_angle(0) > smooth_angle else loop.vert.normal
             pos.append(tuple(loop.vert.co)); nor.append(tuple(n_.normalized()))
     bm.free()
     pack = lambda rows: base64.b64encode(b''.join(struct.pack('<3f', *r) for r in rows)).decode()
-    return {'positions': pack(pos), 'normals': pack(nor), 'count': len(pos)}
+    out = {k: {'positions': pack(p), 'normals': pack(n), 'count': len(p)} for k, (p, n) in groups.items() if p}
+    out['count'] = sum(v['count'] for k, v in out.items() if isinstance(v, dict))
+    return out
 
 
 result = {}
 # --- drilled pavé ---------------------------------------------------------------------------------------------------
 case_stones = to_local(layout('Pavé · bezel') + layout('Pavé · case side') + layout('Pavé · lugs'), 'Case and lugs')
-result['Case and lugs'] = finish('Case and lugs', drill('Case and lugs', case_stones), smooth_angle=math.radians(30))
+# Polished flanks, bezel and lugs; satin case back.
+result['Case and lugs'] = finish('Case and lugs', drill('Case and lugs', case_stones, 0.05 / 24.62), smooth_angle=math.radians(30), brushed=lambda n: n.z < -0.6)
 link_stones = layout('Pavé · bracelet 1') + shoulder_stones()
-result['Bracelet link 1 metal'] = finish('Bracelet link 1 metal', drill('Bracelet link 1 metal', to_local(link_stones, 'Bracelet link 1 metal')), smooth_angle=math.radians(30))
-result['Bracelet link 10 metal'] = finish('Bracelet link 10 metal', drill('Bracelet link 10 metal', to_local(layout('Pavé · bracelet 10') + shoulder_stones(), 'Bracelet link 10 metal')), smooth_angle=math.radians(30))
+# Polished link tops, satin sides and undersides.
+result['Bracelet link 1 metal'] = finish('Bracelet link 1 metal', drill('Bracelet link 1 metal', to_local(link_stones, 'Bracelet link 1 metal'), 0.06 / 9.895), smooth_angle=math.radians(30), brushed=lambda n: n.y < 0.55)
+result['Bracelet link 10 metal'] = finish('Bracelet link 10 metal', drill('Bracelet link 10 metal', to_local(layout('Pavé · bracelet 10') + shoulder_stones(), 'Bracelet link 10 metal'), 0.06 / 9.895), smooth_angle=math.radians(30), brushed=lambda n: n.y < 0.55)
 
 # --- hands: same box, pivot where the movement turns them ------------------------------------------------------------
 for name, width, thick, kind in (('Hour hand mesh', .172, .032, 'dauphine'), ('Minute hand mesh', .089, .022, 'dauphine'), ('Second hand mesh', .026, .008, 'needle')):

@@ -10,6 +10,7 @@
     "test:ames-chat": "node --experimental-strip-types --test scripts/test-ames-chat.mjs",
     "test:ames-boutique": "node --experimental-strip-types --test scripts/test-ames-boutique.mjs",
     "test:ames-media": "node --experimental-strip-types --test scripts/test-ames-media.mjs",
+    "test:clone-hand": "node --experimental-strip-types --test scripts/test-clone-hand.mjs",
     "test:ar-try-on": "node --experimental-strip-types --test scripts/test-ar-try-on.mjs",
     "test:jewelry-onboarding": "node --experimental-strip-types --test scripts/test-jewelry-onboarding.mjs scripts/test-jewelry-pack.mjs",
     "predev": "node scripts/prepare-view-gestures.mjs && mkdir -p public/hand-tracking && cp -R node_modules/@mediapipe/tasks-vision/wasm public/hand-tracking/ && node scripts/prepare-house-gemstones.mjs && python3 scripts/build-gallery-cuts.py && node scripts/build-necklace-cuts.mjs && node scripts/build-jewellery-samples.mjs && python3 scripts/build-diamond-designs.py && python3 scripts/build-pearl-watch.py && node scripts/prepare-pave-colour.mjs && node scripts/prepare-watch-leather.mjs && node scripts/prepare-amber-viewer.mjs && node --experimental-strip-types scripts/prepare-boutique.mjs",

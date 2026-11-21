@@ -24,7 +24,7 @@ import { PinchZoom } from '../lib/ar/pinch-zoom';
 import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, normalize, orthogonal, cross, lerp, type V3 } from '../lib/ar/hand-pose';
 import { fitLoop, type LoopFit } from '../lib/ar/model-fit';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
-import { brilliantGeometry } from '../lib/ar/brilliant';
+import { dress } from '../lib/ar/jewel-dress';
 import { fingerPose } from '../lib/finger-controls';
 import { SENSITIVITY } from '../lib/view-gesture';
 import type { HandFit } from '../lib/fitting-hand';
@@ -49,51 +49,6 @@ const contactShadow = () => new ShaderMaterial({
   fragmentShader: 'varying float v; uniform float strength; void main(){ float d=(v-0.5)/0.3; gl_FragColor=vec4(0.0,0.0,0.0,strength*exp(-d*d)); }',
   transparent: true, depthWrite: false, side: DoubleSide,
 });
-
-function dress(piece: Object3D) {
-  const gems: MeshPhysicalMaterial[] = [];
-  const stone = (from: Material | Material[]) => {
-    const src = (Array.isArray(from) ? from[0] : from) as MeshPhysicalMaterial;
-    const m = src instanceof MeshPhysicalMaterial ? src.clone() : new MeshPhysicalMaterial({ color: (src as MeshStandardMaterial).color ?? new Color('#fff') });
-    m.metalness = 0; m.roughness = 0; m.transmission = 1; m.ior = m.ior > 1.6 ? m.ior : 2.417;
-    m.dispersion = 0.6; m.specularIntensity = 1; m.envMapIntensity = 1.8; m.side = DoubleSide;
-    // Thin-walled refraction: tint coloured stones through their base colour, never by absorption depth (which
-    // depends on scale and turns small stones black).
-    if (m.attenuationColor && m.attenuationColor.getHex() !== 0xffffff) m.color.copy(m.attenuationColor).lerp(new Color('#ffffff'), 0.25);
-    m.attenuationDistance = Infinity; m.thickness = 0;
-    gems.push(m); return m;
-  };
-  const brilliant = brilliantGeometry();
-  const pave: Mesh[] = [];
-  piece.traverse(o => {
-    const mesh = o as Mesh; if (!mesh.isMesh) return;
-    const data = mesh.userData ?? {};
-    if (data.ames_gemstone_id || /diamond|sapphire|gem/i.test(String((mesh.material as Material).name))) mesh.material = stone(mesh.material);
-    else if (data.ames_glass) { const g = (mesh.material as MeshStandardMaterial).clone(); g.transparent = true; g.opacity = 0.12; g.depthWrite = false; mesh.material = g; }
-    else {
-      const m = (mesh.material as MeshStandardMaterial).clone();
-      if (m.metalness > 0.5) { m.envMapIntensity = 1.25; if (!/brushed/i.test(m.name)) m.roughness = Math.min(m.roughness, 0.09); }
-      mesh.material = m;
-    }
-    if (typeof data.ames_pave_layout === 'string') pave.push(mesh);
-  });
-  // Pavé is stored as a layout (position, rotation, size per stone); set each stone as an instance.
-  for (const mesh of pave) {
-    const bytes = Uint8Array.from(atob(mesh.userData.ames_pave_layout), c => c.charCodeAt(0));
-    const rec = new Float32Array(bytes.buffer, 0, Math.floor(bytes.length / 4));
-    const count = Math.floor(rec.length / 8);
-    const inst = new InstancedMesh(brilliant, mesh.material as Material, count);
-    const m = new Matrix4(), q = new Quaternion(), p = new Vector3(), s = new Vector3();
-    for (let i = 0; i < count; i++) {
-      const r = i * 8;
-      p.set(rec[r], rec[r + 1], rec[r + 2]); q.set(rec[r + 3], rec[r + 4], rec[r + 5], rec[r + 6]); s.setScalar(rec[r + 7] / 2);
-      inst.setMatrixAt(i, m.compose(p, q, s));
-    }
-    inst.instanceMatrix.needsUpdate = true;
-    mesh.parent?.add(inst); mesh.visible = false;
-  }
-  return gems;
-}
 
 // --- component -----------------------------------------------------------------------------------------------------
 export default function ArTryOn({ model, category, fit, onUnavailable }: Props) {
