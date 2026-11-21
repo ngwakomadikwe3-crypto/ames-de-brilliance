@@ -139,3 +139,33 @@ if(chainSource.includes(foldSwitch)){
     el.dataset.amesFoldable=flexibleChain?'unclasped':'false';
     if(flexibleChain)host.addEventListener('pointerdown',onDown,{capture:true})`).replace(grab,"if(flatProgress.current!==1||k<0||!grab||k===pinned)return"));
 } else if(!chainSource.includes("const flexibleChain=!hinged"))throw Error('Chain interaction hook missing');
+
+// Keep small printed numerals sharp through the crystal at Boutique thumbnail scale.
+const watchStudio = await readFile(file, 'utf8');
+if (!watchStudio.includes('const watchFaceMeshes =')) {
+  const materialPass = 'const assignment=applyJewelryMaterials';
+  const preserve = 'preserveMesh:mesh=>gems.includes(mesh)';
+  const crystal = 'envMap:studio.metal,envMapIntensity:1,transmission:1,thickness:0,ior:1.77,clearcoat:0';
+  for (const anchor of [materialPass, preserve, crystal]) {
+    if (!watchStudio.includes(anchor)) throw Error('Watch face renderer changed: ' + anchor);
+  }
+  const faceMaterials = `
+    const watchFaceMeshes = new Set<Mesh>()
+    if (hands.length) root.traverse(object => {
+      if (!(object instanceof Mesh)) return
+      const original = object.material as MeshPhysicalMaterial
+      let finish: Material
+      if (object.name === 'Dial' && original.map) {
+        finish = new MeshBasicMaterial({ map: original.map, color: 0xf5f2ec, toneMapped: false })
+      } else if (/^(Hour|Minute|Second)[_ ]hand[_ ]mesh$/i.test(object.name)) {
+        finish = new MeshPhysicalMaterial({ color: 0x142743, metalness: .22, roughness: .38 })
+      } else return
+      object.material = finish
+      watchFaceMeshes.add(object)
+      materials.push(finish)
+    })
+    `;
+  await writeFile(file, watchStudio.replace(materialPass, faceMaterials + materialPass)
+    .replace(preserve, preserve + ' || watchFaceMeshes.has(mesh)')
+    .replace(crystal, 'envMap:studio.metal,envMapIntensity:.25,transparent:true,opacity:.035,depthWrite:false,clearcoat:0'));
+}
