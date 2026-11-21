@@ -21,6 +21,7 @@ import { OneEuro } from '../lib/ar/one-euro';
 import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
 import { cameraFor, liftHand, DorsalSide } from '../lib/ar/hand-pose';
 import { fitLoop } from '../lib/ar/model-fit';
+import { fittingFor, handAnchor, fitScale } from '../lib/atelier/fitting-registry';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
 import { FingerControls, fingerPose } from '../lib/finger-controls';
@@ -97,25 +98,12 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     const attach = () => {
       if (!piece || !loop) return;
       mount.parent?.remove(mount);
-      const J = built.rest, B = new Matrix4(), S = new Matrix4(), A = new Matrix4(), T = new Matrix4();
-      let at: Vector3, axis: Vector3, ra: number, rb: number, bone: Bone;
-      if (wrist) {
-        bone = built.bones[0];
-        axis = J[0].clone().sub(J[9]).normalize().negate();         // along the arm toward the fingers
-        at = new Vector3(0, 0, 0).addScaledVector(axis, -26);        // on the wrist, just above the hand (bone 0 sits at joint 0)
-        ra = shape.wrist / 2 * 1.02; rb = shape.wristDepth / 2 * 1.03;
-      } else {
-        const b = 1 + 4 * fingerIndex; bone = built.bones[b];
-        axis = J[b + 1].clone().sub(J[b]).normalize();
-        at = J[b + 1].clone().sub(J[b]).multiplyScalar(0.38);
-        ra = rb = shape.fingers[fingerIndex] / 2 * 1.02;
-      }
-      const up = new Vector3(0, 0, 1).addScaledVector(axis, -axis.z).normalize(), side = new Vector3().crossVectors(axis, up);
-      let sSide = ra / loop.innerSide, sUp = rb / loop.innerUp;
-      if (!wrist) sSide = sUp = (sSide + sUp) / 2;
-      else { const g = Math.sqrt(sSide * sUp), k = Math.min(1.3, Math.max(0.78, sSide / sUp)); sSide = g * Math.sqrt(k); sUp = g / Math.sqrt(k); }
+      const entry = fittingFor(category) ?? fittingFor(wrist ? 'watch' : 'ring')!;
+      const frame = handAnchor(entry, shape, built.rest, fingerIndex);
+      const [sSide, sAlong, sUp] = fitScale(entry, frame, loop);
+      const B = new Matrix4(), S = new Matrix4(), A = new Matrix4(), T = new Matrix4(), bone: Bone = built.bones[frame.bone];
       A.makeBasis(loop.side, loop.axis, loop.up).transpose().multiply(new Matrix4().makeTranslation(-loop.centre.x, -loop.centre.y, -loop.centre.z));
-      mount.matrix.copy(T.makeTranslation(at.x, at.y, at.z)).multiply(B.makeBasis(side, axis, up)).multiply(S.makeScale(sSide, Math.sqrt(sSide * sUp), sUp)).multiply(A);
+      mount.matrix.copy(T.makeTranslation(frame.at.x, frame.at.y, frame.at.z)).multiply(B.makeBasis(frame.side, frame.axis, frame.up)).multiply(S.makeScale(sSide, sAlong, sUp)).multiply(A);
       bone.add(mount);
     };
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
