@@ -4,7 +4,7 @@ import HandClasp from './HandClasp';
 import dynamic from 'next/dynamic';
 import {Component,useEffect,useRef,useState,type ReactNode} from 'react';
 import {saveHandTone,readSavedHand,fitFromCamera,loadFit,type Joint,type HandFit} from '../lib/fitting-hand';
-const LiveHand=dynamic(()=>import('./LiveHand'),{ssr:false});
+const ArTryOn=dynamic(()=>import('./ArTryOn'),{ssr:false});
 const Scene=dynamic(()=>import('./FittingHandScene'),{ssr:false});
 class SceneBoundary extends Component<{children:ReactNode},{failed:boolean}>{
  state={failed:false};static getDerivedStateFromError(){return {failed:true}}
@@ -32,7 +32,7 @@ export default function FittingHand({category,model,children}:{category:string;m
  },[category,wrist]);
  if(!['ring','bracelet','watch'].includes(category)||!model)return <>{children}</>;
  return <div className={on?"flex min-h-full flex-col":"flex h-full flex-col"}><div ref={fittingViewer} className="min-h-0 flex-1">
- {on&&scanning?<p role="status" className="p-6 text-center">Hold your hand flat for the scan.</p>:on&&cameraView?<SceneBoundary key={model}><LiveHand model={model} wrist={wrist} watch={watch} fit={fit} initialTone={colour} onUnavailable={()=>setCameraView(false)}/></SceneBoundary>:on?<SceneBoundary key={model+(fit?":saved":":default")}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
+ {on&&scanning?<p role="status" className="p-6 text-center">Hold your hand flat for the scan.</p>:on&&cameraView?<SceneBoundary key={model}><ArTryOn model={model} category={category} fit={fit} onUnavailable={()=>setCameraView(false)}/></SceneBoundary>:on?<SceneBoundary key={model+(fit?":saved":":default")}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
  <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 text-xs">
  {on&&!cameraView&&<small>{fit?.outline?.surface?'Your captured hand texture':'Capture your hand to apply your own skin and nail detail. The hand texture is saved on this device.'}</small>}
  {on&&<SavedHandPanel onScanning={setScanning} wrist={wrist}/>}

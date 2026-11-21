@@ -5,6 +5,7 @@ import {DetectionGate} from '../lib/detection-gate';
 import {FingerControls,fingerPose} from '../lib/finger-controls';
 
 import {OneEuroHand} from '../lib/one-euro-hand';
+import {trackingAssets} from '../lib/hand-tracking-assets';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
 
 type PixelPoint = {x:number;y:number};
@@ -81,24 +82,6 @@ function sampleAppearance(video:HTMLVideoElement, landmarks:PixelPoint[]) {
   paint.clip(region);paint.drawImage(canvas,0,0);paint.restore();
   const uv=landmarks.map(p=>[p.x,1-p.y] as [number,number]);
   return {hex,outline:{digits,palm,wrist,surface:{image:atlas.toDataURL('image/jpeg',.90),uv,aspect:canvas.width/canvas.height}}};
-}
-
-async function loadTrackingAssets(){
-  const model=async()=>{
-    let response=await fetch('/hand-tracking/hand-v1.task');
-    if(!response.ok || response.headers.get('content-type')?.includes('text/html'))response=await fetch('/api/hand-model');
-    if(!response.ok)throw Error('Tracking model unavailable');
-    return new Uint8Array(await response.arrayBuffer());
-  };
-  const [runtime,bytes]=await Promise.all([
-    import('@mediapipe/tasks-vision').then(async module=>({HandLandmarker:module.HandLandmarker,files:await module.FilesetResolver.forVisionTasks('/hand-tracking/wasm')})),
-    model()
-  ]);
-  return {...runtime,bytes};
-}
-let pendingAssets:ReturnType<typeof loadTrackingAssets>|undefined;
-function trackingAssets(){
-  return pendingAssets??=(loadTrackingAssets().catch(error=>{pendingAssets=undefined;throw error}));
 }
 
 export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJoints,liveFrame,onUnavailable,onReset,captureLabel,onActivity}:{onActivity?:(active:boolean)=>void;captureLabel?:string;onReset?:()=>void;onUnavailable?:()=>void;liveFrame?:(video:HTMLVideoElement|null,points:{x:number;y:number;z:number}[]|undefined)=>void;onZoom?:(factor:number)=>void;onJoints?:(points:{x:number;y:number;z:number}[]|null)=>void;onCapture?:(points:{x:number;y:number;z:number}[],hex:string,outline:Outline)=>boolean;onFingers?:(values:number[])=>void;onPose?:(open:boolean)=>void;onMove?:(x:number,y:number)=>void}) {

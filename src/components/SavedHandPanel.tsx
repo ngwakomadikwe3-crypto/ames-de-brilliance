@@ -11,8 +11,8 @@ export default function SavedHandPanel({wrist=false,onScanning}:{wrist?:boolean;
    return ()=>{window.removeEventListener('ames-hand-fit',refresh);window.removeEventListener('storage',storage)};
  },[]);
  return <section aria-label="Your hand" className="space-y-1 p-2 text-center text-xs"><strong>Your hand</strong>
- <p>Your hand scan stays on this device and is only used for try-on.</p>
- {confirm?<div role="group" aria-label="Confirm hand deletion"><p>This removes your saved hand. You can scan a new one anytime.</p>
+ <p>Your hand scan stays on this device and is only used for try-on. A re-scan replaces it only once the new scan succeeds.</p>
+ {confirm?<div role="group" aria-label="Confirm hand deletion"><p>This removes your saved hand: its measurements, calibration and captured photo, from this device. You can scan a new one anytime.</p>
  <button type="button" className="min-h-10 px-2 underline" onClick={()=>{try{deleteSavedHand();setNotice('Saved hand deleted.')}catch{setNotice('Deletion failed. Try again.')}}}>Confirm delete</button>
  <button autoFocus type="button" className="min-h-10 px-2 underline" onClick={()=>setConfirm(false)}>Cancel</button></div>:<>
  <HandClasp onActivity={onScanning} key={version} captureLabel={saved?'Re-scan hand':'Scan your hand'} onCapture={(points,colour,outline)=>{

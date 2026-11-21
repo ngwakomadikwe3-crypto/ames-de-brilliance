@@ -51,8 +51,11 @@ export function readSavedHand():SavedHand|null{
  }catch{return null}
 }
 export function deleteSavedHand(){
+ // One profile holds the measurements, calibration, captured hand texture and colour; remove it and anything
+ // older versions kept beside it, then tell every view to drop its cached meshes and photos.
  legacy.forEach(key=>localStorage.removeItem(key));
  localStorage.removeItem(savedHandKey);
+ for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&/^ames-(saved-hand|hand-|fitting-hand)/.test(key))localStorage.removeItem(key)}
  window.dispatchEvent(new Event('ames-hand-deleted'));
  window.dispatchEvent(new Event('ames-hand-fit'));
 }

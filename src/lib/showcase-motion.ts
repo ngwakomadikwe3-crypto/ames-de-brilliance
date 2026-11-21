@@ -15,7 +15,8 @@ export function showcaseMotion(host:HTMLElement,step:(yaw:number,pitch:number,ro
    const blend=Math.min(1,(now-start)/1000);
    const old=elapsed;elapsed+=dt*blend*blend*(3-2*blend);
    const phase=(t:number)=>t*Math.PI/6+.09*Math.sin(t*Math.PI/6);
-   const pitch=(t:number)=>Math.PI/6*Math.sin(2*Math.PI*t/20.37);
+   // 12 s per turn, a 20 s tilt cycle (±10°) and a slower ±5° sway, so every angle comes round.
+   const pitch=(t:number)=>Math.PI/18*Math.sin(2*Math.PI*t/20);
    const roll=(t:number)=>Math.PI/36*Math.sin(2*Math.PI*t/29.3);
    step(phase(elapsed)-phase(old),pitch(elapsed)-pitch(old),roll(elapsed)-roll(old));raf=requestAnimationFrame(tick);
  };
@@ -24,8 +25,8 @@ export function showcaseMotion(host:HTMLElement,step:(yaw:number,pitch:number,ro
  const presence=()=>{hand=host.dataset.handPresent==='true';delay()};
  const visibility=()=>{if(document.hidden)stop();else delay()};
  host.addEventListener('pointerdown',press,true);window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);window.addEventListener('blur',release);
- host.addEventListener('wheel',delay,{passive:true,capture:true});host.addEventListener('ames:hand-presence',presence);host.addEventListener('ames:showcase-toggle',schedule);
+ host.addEventListener('wheel',delay,{passive:true,capture:true});host.addEventListener('ames:view-gesture',delay,true);host.addEventListener('ames:saved-gesture',delay,true);host.addEventListener('ames:hand-presence',presence);host.addEventListener('ames:showcase-toggle',schedule);
  document.addEventListener('visibilitychange',visibility);media.addEventListener('change',schedule);
  quietUntil=Math.max(0,Number(host.dataset.showcaseResume)||0);schedule();
- return ()=>{host.dataset.showcaseTime=String(elapsed);host.dataset.showcaseResume=String(Math.max(quietUntil,performance.now()+5000));stop();host.removeEventListener('pointerdown',press,true);window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release);host.removeEventListener('wheel',delay,true);host.removeEventListener('ames:hand-presence',presence);host.removeEventListener('ames:showcase-toggle',schedule);document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',schedule)};
+ return ()=>{host.dataset.showcaseTime=String(elapsed);host.dataset.showcaseResume=String(Math.max(quietUntil,performance.now()+5000));stop();host.removeEventListener('pointerdown',press,true);host.removeEventListener('ames:view-gesture',delay,true);host.removeEventListener('ames:saved-gesture',delay,true);window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release);host.removeEventListener('wheel',delay,true);host.removeEventListener('ames:hand-presence',presence);host.removeEventListener('ames:showcase-toggle',schedule);document.removeEventListener('visibilitychange',visibility);media.removeEventListener('change',schedule)};
 }

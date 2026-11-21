@@ -2,6 +2,8 @@
 import {useEffect,useRef,useState} from 'react';
 import TrackedRing from './TrackedRing';
 import EngineJewelryViewer from './EngineJewelryViewer';
+import dynamic from 'next/dynamic';
+const ArTryOn=dynamic(()=>import('./ArTryOn'),{ssr:false});
 import {studioCameraPreset} from '../lib/customer-jewelry-display';
 type Point={x:number;y:number};
 type Mode='size'|'wear';
@@ -11,9 +13,10 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
   const [aspect,setAspect]=useState(4/3),[points,setPoints]=useState<Point[]>([]),[centre,setCentre]=useState<Point>({x:.5,y:.5});
   const [size,setSize]=useState(72),[angle,setAngle]=useState(0);
   const ring=category==='ring', tracked=ring || category==='watch', measuring=mode==='size';
+  const ar=!measuring && ['ring','watch','bracelet'].includes(category);
   useEffect(()=>{const d=dialog.current;d?.showModal();return ()=>d?.close();},[]);
   useEffect(()=>{
-    if(frame)return;
+    if(frame||ar)return;
     let disposed=false,stream:MediaStream|undefined;
     setReady(false);setError('');
     async function connect(){
@@ -24,7 +27,7 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
       }catch{if(!disposed)setError('Camera unavailable. Allow camera access in your browser and reopen try-on.');}
     }
     void connect();return ()=>{disposed=true;stream?.getTracks().forEach(t=>t.stop());};
-  },[frame]);
+  },[frame,ar]);
   function freeze(){
     const v=video.current;if(!v?.videoWidth)return;
     const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
@@ -39,6 +42,11 @@ export default function CameraJewellery({mode,category,model,onClose}:{mode:Mode
   const reference=points.length>=2?distance(points[0],points[1]):0;
   const mm=points.length===4 && reference>.02?20*distance(points[2],points[3])/reference:0;
   const plausible=ring?mm>=8 && mm<=35:mm>=60 && mm<=400;
+  if(ar)return <dialog ref={dialog} onCancel={onClose} className="m-auto max-h-[95dvh] w-[min(94vw,620px)] overflow-y-auto rounded-2xl bg-[#08251f] p-4 text-white backdrop:bg-black/70">
+    <div className="flex items-center justify-between"><h2>Virtual try-on</h2><button onClick={onClose} className="min-h-11 px-3">Close</button></div>
+    <p className="mb-2 text-sm">{ring?'Hold up the back of your hand. The ring fits to your finger.':'Hold up the back of your hand and wrist. The piece wraps your wrist.'} The camera picture stays on this device.</p>
+    <ArTryOn model={model} category={category}/>
+  </dialog>;
   return <dialog ref={dialog} onCancel={onClose} className="m-auto max-h-[95dvh] w-[min(94vw,620px)] overflow-y-auto rounded-2xl bg-[#08251f] p-4 text-white backdrop:bg-black/70">
     <div className="flex items-center justify-between"><h2>{ring?'Try on & measure':measuring?'Camera sizer':'Virtual try-on'}</h2><button onClick={onClose} className="min-h-11 px-3">Close</button></div>
     {tracked && <a className="block underline" href="/ring-scale.svg" target="_blank" rel="noreferrer">Open printable 20 mm scale</a>}

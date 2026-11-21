@@ -56,7 +56,7 @@ export class FingerControls{
    }
    if(this.mode!==pose&&['Yaw','Tumble','Pinch'].includes(this.mode)){
      this.absent||=now;
-     if(now-this.absent>=300){this.cooldown=this.absent+700;this.mode='None';this.absent=0}
+     if(now-this.absent>=300){this.cooldown=this.absent+400;this.mode='None';this.absent=0}
    }else this.absent=0;
    if(pose==='None'||pose!==this.mode){
      if(!this.frozen&&this.velocity&&pose!=='Pinch'){

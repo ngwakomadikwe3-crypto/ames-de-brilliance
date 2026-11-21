@@ -13,7 +13,7 @@ export class ViewGesture {
  clear(){Object.assign(this,new ViewGesture())}
  lost(now:number){
    this.previous=this.anchor=this.still=null;this.candidate=null;this.fistAt=null;this.fired=false;this.locked=false;
-   if(this.mode){this.absent??=now;if(now-this.absent>=300){this.mode=null;this.cooldown=this.absent+700;this.absent=null}}
+   if(this.mode){this.absent??=now;if(now-this.absent>=300){this.mode=null;this.cooldown=this.absent+400;this.absent=null}}
  }
  step(p:PalmInput,now:number){
    const result={state:'Ready',progress:0,dx:0,dy:0,zoom:1,reset:false,x:p.x,y:p.y,active:false};
@@ -29,7 +29,7 @@ export class ViewGesture {
    if(this.locked){if(this.still&&distance(this.still)<=zone){result.state='Locked';return result}this.locked=false;this.anchor=this.still=null;}
    if(this.mode&&pose!==this.mode){
      this.absent??=now;this.anchor=this.still=null;
-     if(now-this.absent>=300){this.mode=null;this.cooldown=this.absent+700;this.absent=null;this.candidate=null}
+     if(now-this.absent>=300){this.mode=null;this.cooldown=this.absent+400;this.absent=null;this.candidate=null}
      return result;
    }
    if(now<this.cooldown)return result;
