@@ -3,19 +3,26 @@ type Point={x:number;y:number;z:number};
 export type Pose='None'|'Yaw'|'Tumble'|'Pinch'|'Freeze'|'Reset';
 export function fingerPose(p:Point[],pinching:boolean):Pose{
  const dist=(a:number,b:number)=>Math.hypot(p[a].x-p[b].x,p[a].y-p[b].y,p[a].z-p[b].z);
+ if(p.length!==21||!p.every(v=>Number.isFinite(v.x+v.y+v.z)))return 'None';
  const span=Math.max(.001,dist(5,17));
+ // Joint angles distinguish curled fingers even when the palm is tilted.
+ function alignment(a:number,b:number,c:number){
+   const u=p[a],v=p[b],w=p[c],denom=dist(a,b)*dist(b,c);
+   return denom>1e-9?((v.x-u.x)*(w.x-v.x)+(v.y-u.y)*(w.y-v.y)+(v.z-u.z)*(w.z-v.z))/denom:0;
+ }
  const fingers=[5,9,13,17].map(b=>{
-   const length=dist(b,b+1)+dist(b+1,b+2)+dist(b+2,b+3);
-   const straight=dist(b,b+3)/Math.max(.001,length), reach=dist(0,b+3)/Math.max(.001,dist(0,b+1));
-   return straight>.88&&reach>1.13?'up':straight<.79||reach<1.01?'down':'unknown';
+   const pip=alignment(b,b+1,b+2),dip=alignment(b+1,b+2,b+3);
+   const chord=dist(b,b+3)/Math.max(.001,dist(b,b+1)+dist(b+1,b+2)+dist(b+2,b+3));
+   if(pip>.55&&dip>.4&&chord>.84)return 'up';
+   if(pip<.30||chord<.78)return 'down';
+   return 'unknown';
  });
  const key=fingers.join(','),gap=dist(4,8)/span;
- const thumbOut=dist(4,5)/span>.73&&dist(4,17)>dist(3,17)*1.06;
- if(key==='up,up,up,up'&&thumbOut)return 'Freeze';
- if(key==='down,down,down,down'&&!thumbOut&&(!pinching||gap>.34))return 'Reset';
- if(fingers.slice(1).every(x=>x==='down')&&(gap<.33||pinching&&gap<1.20))return 'Pinch';
- if(!thumbOut&&key==='up,down,down,down')return 'Yaw';
- if(!thumbOut&&key==='up,up,down,down'&&dist(8,12)<.68*span)return 'Tumble';
+ if(key==='up,up,up,up')return 'Freeze';
+ if(key==='down,down,down,down')return 'Reset';
+ if(fingers.slice(1).every(x=>x==='down')&&(gap<.33||pinching&&(fingers[0]!=='up'||gap<.8)&&gap<1.20))return 'Pinch';
+ if(key==='up,down,down,down')return 'Yaw';
+ if(key==='up,up,down,down'&&dist(8,12)<.8*span)return 'Tumble';
  return 'None';
 }
 export class FingerControls{
