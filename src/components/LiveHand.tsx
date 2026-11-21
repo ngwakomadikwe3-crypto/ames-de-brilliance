@@ -26,43 +26,39 @@ export default function LiveHand({model,wrist,watch,fit,initialTone,onUnavailabl
  const [clone,setClone]=useState(false),[aspect,setAspect]=useState(4/3);
  const [settings,setSettings]=useState<TryFit>({finger:3,diameter:18,reference:fit&&!wrist&&fit.mm>0?fit.mm:18,wrist:1,clasp:1,size:1,length:1,tone:initialTone??'#9b6754'});
  const view=useRef<View>({zoom:1,pan:0,targetZoom:1,targetPan:0});
+ const crop=useRef<{x:number;y:number;width:number}|null>(null);
  const sampled=useRef(!!initialTone);
  function draw(video:HTMLVideoElement|null,points:CameraPoint[]|undefined){
    const layer=canvas.current,ctx=layer?.getContext('2d',{willReadFrequently:true});
    if(!layer||!ctx)return;
    ctx.clearRect(0,0,layer.width,layer.height);
-   if(!video||points?.length!==21||!video.videoWidth){frame.current=null;redraw.current();return}
+   if(!video||points?.length!==21||!video.videoWidth){crop.current=null;frame.current=null;redraw.current();return}
    const w=video.videoWidth,h=video.videoHeight;
-   if(layer.width!==w||layer.height!==h){layer.width=w;layer.height=h;setAspect(w/h)}
-   const p=points.map(v=>({x:v.x*w,y:v.y*h}));
-   const span=Math.hypot(p[5].x-p[17].x,p[5].y-p[17].y);
-   if(span<20)return;
+   const dstW=560,dstH=480,ratio=dstW/dstH;
+   if(layer.width!==dstW){layer.width=dstW;layer.height=dstH;setAspect(ratio)}
+   const pixels=points.map(v=>({x:v.x*w,y:v.y*h}));
+   const wristPoint=pixels[0],middle=pixels[9];
+   const bounds=pixels.concat({x:wristPoint.x+(wristPoint.x-middle.x)*.55,y:wristPoint.y+(wristPoint.y-middle.y)*.55});
+   const xs=bounds.map(p=>p.x),ys=bounds.map(p=>p.y);
+   const left=Math.min(...xs),right=Math.max(...xs),top=Math.min(...ys),bottom=Math.max(...ys);
+   const target={x:(left+right)/2,y:(top+bottom)/2,width:Math.max(right-left,(bottom-top)*ratio,32)*1.3};
+   const box=crop.current??target;
+   for(const key of ['x','y','width'] as const)box[key]+=(target[key]-box[key])*.35;
+   crop.current=box;
+   const height=box.width/ratio,x0=box.x-box.width/2,y0=box.y-height/2;
    if(!clone||!sampled.current){
-   const mask=new Path2D();
-   // Clip the camera image before drawing it into the visible canvas.
-   const palm=new Path2D();const loop=[0,1,2,5,9,13,17];
-   loop.forEach((i,n)=>n?palm.lineTo(p[i].x,p[i].y):palm.moveTo(p[i].x,p[i].y));palm.closePath();
-   function strip(a:{x:number;y:number},b:{x:number;y:number},radius:number){
-     const angle=Math.atan2(b.y-a.y,b.x-a.x),nx=-Math.sin(angle)*radius,ny=Math.cos(angle)*radius;
-     mask.moveTo(a.x+nx,a.y+ny);mask.lineTo(b.x+nx,b.y+ny);
-     mask.arc(b.x,b.y,radius,angle+Math.PI/2,angle-Math.PI/2,true);
-     mask.lineTo(a.x-nx,a.y-ny);mask.arc(a.x,a.y,radius,angle-Math.PI/2,angle-3*Math.PI/2,true);mask.closePath();
+     ctx.save();ctx.translate(dstW,0);ctx.scale(-1,1);
+     ctx.drawImage(video,w-x0-box.width,y0,box.width,height,0,0,dstW,dstH);ctx.restore();
+     if(!sampled.current){
+       const sx=((wristPoint.x+middle.x)/2-x0)*dstW/box.width,sy=((wristPoint.y+middle.y)/2-y0)*dstH/height;
+       const colour=ctx.getImageData(sx,sy,1,1).data;
+       if(colour[3]){sampled.current=true;setSettings(s=>({...s,tone:'#'+Array.from(colour.slice(0,3),v=>v.toString(16).padStart(2,'0')).join('')}))}
+     }
    }
-   for(let digit=0;digit<5;digit++)for(let k=0;k<3;k++){
-     const i=1+digit*4+k;strip(p[i],p[i+1],span*[.124,.103,.108,.096,.080][digit]*(1-.095*k));
-   }
-   const wristEnd={x:p[0].x+(p[0].x-p[9].x)*.32,y:p[0].y+(p[0].y-p[9].y)*.32};
-   strip(p[0],wristEnd,span*.32);
-   for(const region of [palm,mask]){ctx.save();ctx.clip(region);ctx.translate(w,0);ctx.scale(-1,1);ctx.drawImage(video,0,0,w,h);ctx.restore()}
-
-   if(!sampled.current){
-     const centre=p[0],knuckle=p[9],colour=ctx.getImageData((centre.x+knuckle.x)/2,(centre.y+knuckle.y)/2,1,1).data;
-     if(colour[3]){sampled.current=true;setSettings(s=>({...s,tone:'#'+Array.from(colour.slice(0,3),v=>v.toString(16).padStart(2,'0')).join('')}))}
-   }}
-   frame.current={points,aspect:w/h};redraw.current();
+   frame.current={points:points.map(p=>({...p,x:(p.x*w-x0)/box.width,y:(p.y*h-y0)/height,z:p.z*w/box.width})),aspect:ratio};redraw.current();
  }
  return <div className="flex h-full flex-col">
- <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{containerType:'size'}}>
+ <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{containerType:'size',minHeight:'clamp(230px,38svh,480px)'}}>
  <div className="relative" style={{width:`min(100cqw, ${aspect*100}cqh)`,aspectRatio:aspect}}>
  <canvas ref={canvas} className="block h-full w-full" style={{visibility:clone?'hidden':'visible'}} aria-label="Live hand try-on"/>
  <div className="absolute inset-0">
