@@ -1,6 +1,7 @@
 "use client";
 import {useEffect, useRef, useState} from 'react';
 import {createPortal} from 'react-dom';
+import {DetectionGate} from '../lib/detection-gate';
 import {ViewGesture} from '../lib/view-gesture';
 import {OneEuroHand} from '../lib/one-euro-hand';
 import type {HandLandmarker} from '@mediapipe/tasks-vision';
@@ -127,18 +128,21 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
   useEffect(()=>{callback.current=onPose},[onPose]);
   useEffect(()=>{
     if(!active)return;
-    let stopped=false, frame=0, stream:MediaStream|undefined, tracker:HandLandmarker|undefined;
+    let stopped=false, frame=0, videoFrame=0, stream:MediaStream|undefined, tracker:HandLandmarker|undefined;
     const video=document.createElement('video');
     video.disablePictureInPicture=true;
     const player=video;
     let stage='camera';
     video.muted=true;
     video.playsInline=true;
+    let expiry:ReturnType<typeof setTimeout>|undefined;
     function stop(){
+      clearTimeout(expiry);
       stopped=true;
       setFeedback(null);
       joints.current?.(null);liveFrameRef.current?.(null,undefined);
       cancelAnimationFrame(frame);
+      if(videoFrame)player.cancelVideoFrameCallback?.(videoFrame);
       stream?.getTracks().forEach(track=>track.stop());
       if(player.srcObject===stream)player.srcObject=null;
       tracker?.close();
@@ -172,7 +176,7 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       setMessage('Loading hand tracking…');
       const {HandLandmarker,files,bytes}=await assets;
       if(stopped)return;
-      tracker=await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetBuffer:bytes.slice()},runningMode:'VIDEO',numHands:1,minTrackingConfidence:.45,minHandPresenceConfidence:.45});
+      tracker=await HandLandmarker.createFromOptions(files,{baseOptions:{modelAssetBuffer:bytes.slice()},runningMode:'VIDEO',numHands:1,minHandDetectionConfidence:.60,minTrackingConfidence:.60,minHandPresenceConfidence:.60});
       if(stopped){stop();return}
       stage='tracking';
       setMessage(capture.current?'Show the back of your hand with nails facing the camera. Spread your fingers in even light.':(fingers.current||joints.current)?'Show your hand. Bend or straighten each finger to move the 3D hand.': (callback.current?'Open palm: unclasp. Fist: close. ':'')+'Pinch thumb and index finger, then move your hand to turn the piece. Release to stop.');
@@ -181,13 +185,20 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
       const imageFilter=new OneEuroHand(),worldFilter=new OneEuroHand();
       const commands=new ViewGesture();
       if(reset.current)setMessage('');
+      const gate=new DetectionGate();
+      let liveGap:number|undefined,panX:number|undefined;
       let zoomGap:number|undefined;
       let openFrames=0;
       let anchor:{x:number;y:number}|undefined;
       let candidate:boolean|undefined, emitted:boolean|undefined, since=0, last=0, time=-1;
+      function schedule(){
+        if(stopped)return;
+        if(typeof player.requestVideoFrameCallback==='function')videoFrame=player.requestVideoFrameCallback(tick);
+        else frame=requestAnimationFrame(tick);
+      }
       function tick(now:number){
         if(stopped)return;
-        if(player.readyState>=2 && now-last>=1000/30-2 && time!==player.currentTime){
+        if(player.readyState>=2 && now>last && time!==player.currentTime){
           last=now; time=player.currentTime;
           try{
             const result=tracker!.detectForVideo(player,now);
@@ -195,10 +206,34 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
             const hand=raw?worldFilter.update(raw,now):undefined;
             const points=image?imageFilter.update(image,now):undefined;
             if(!hand){imageFilter.reset();worldFilter.reset()}
-            liveFrameRef.current?.(player,points);
+            if(liveFrameRef.current){
+              const valid=points?.length===21 && raw?.length===21 && points.every(p=>Number.isFinite(p.x+p.y+p.z)) && Math.hypot((points[5].x-points[17].x)*player.videoWidth,(points[5].y-points[17].y)*player.videoHeight)>=20;
+              const state=gate.update(!!valid,now);
+              if(state==='track' && points && raw){
+                const mirrored=points.map(p=>({x:1-p.x,y:p.y,z:p.z}));
+                liveFrameRef.current(player,mirrored);
+                clearTimeout(expiry);
+                expiry=setTimeout(()=>{liveFrameRef.current?.(null,undefined);liveGap=panX=undefined},500);
+                const dist=(a:number,b:number)=>Math.hypot(raw[a].x-raw[b].x,raw[a].y-raw[b].y,raw[a].z-raw[b].z);
+                const ratios=[8,12,16,20].map(t=>dist(t,0)/Math.max(.001,dist(t-2,0)));
+                if(ratios.slice(1).every(r=>r<1.03)&&ratios[0]>.96){
+                  const gap=dist(4,8)/Math.max(.001,dist(5,17));
+                  if(liveGap!==undefined)zoom.current?.(Math.exp(Math.max(-.2,Math.min(.2,(gap-liveGap)*1.4))));
+                  liveGap=gap;
+                }else liveGap=undefined;
+                if(ratios.every(r=>r>1.13)){
+                  const x=[0,5,9,13,17].reduce((sum,i)=>sum+mirrored[i].x,0)/5;
+                  if(panX!==undefined && Math.abs(x-panX)>.004){move.current?.(x-panX,0);panX=x}
+                  panX??=x;
+                }else panX=undefined;
+              }else{
+                liveGap=panX=undefined;
+                if(state==='hide')liveFrameRef.current(null,undefined);
+              }
+            }
             joints.current?.(hand??null);
             let pose:boolean|undefined;
-            if(hand){
+            if(hand && !liveFrameRef.current){
               const distance=(a:number,b:number)=>Math.hypot(hand[a].x-hand[b].x,hand[a].y-hand[b].y,hand[a].z-hand[b].z);
               const ratios=[8,12,16,20].map(tip=>distance(tip,0)/Math.max(.001,distance(tip-2,0)));
               if(capture.current && points){
@@ -266,9 +301,9 @@ export default function HandClasp({onPose,onMove,onZoom,onFingers,onCapture,onJo
             else if(now-since>=180 && emitted!==pose){emitted=pose;callback.current?.(pose)}
           }catch{fail();return}
         }
-        frame=requestAnimationFrame(tick);
+        schedule();
       }
-      frame=requestAnimationFrame(tick);
+      schedule();
     }
     void start().catch(fail);
     const hide=()=>{if(document.hidden){setActive(false);setMessage('')}};

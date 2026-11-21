@@ -11,7 +11,7 @@ export type TryFit={finger:number;diameter:number;reference:number;wrist:number;
 export type RigFrame={points:CameraPoint[];aspect:number};
 export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefObject<RigFrame|null>;clone:boolean;model:string;wrist:boolean;watch:boolean;fit:HandFit|null;settings:TryFit}){
  const {scene}=useGLTF(model);
- const {viewport}=useThree();
+ const {size:display}=useThree();
  const root=useRef<Group>(null);
  const rig=useMemo(()=>{
    const group=new Group(),sphere=new SphereGeometry(1,20,14);
@@ -75,20 +75,32 @@ export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefO
    return {group,palm,forearm,bones,segments,skin,crease,mount,sphere,materials,shadow,bore:bore>.25&&bore<1?bore:1/1.17};
  },[scene,clone,watch,wrist]);
  useEffect(()=>()=>{rig.sphere.dispose();rig.shadow.dispose();rig.materials.forEach(m=>m.dispose())},[rig]);
- const scratch=useMemo(()=>({p:defaultJoints.map(()=>new Vector3()),x:new Vector3(),y:new Vector3(),z:new Vector3(),v:new Vector3(),side:new Vector3(),normal:new Vector3(),orientation:new Quaternion(),matrix:new Matrix4()}),[]);
+ const lastPose=useRef<RigFrame|null>(null);
+ const scratch=useMemo(()=>({p:defaultJoints.map(()=>new Vector3()),x:new Vector3(),y:new Vector3(),z:new Vector3(),v:new Vector3(),side:new Vector3(),normal:new Vector3(),orientation:new Quaternion(),mountRotation:new Quaternion(),mountPosition:new Vector3(),matrix:new Matrix4()}),[]);
  useFrame(()=>{
    const data=frame.current;
    if(!root.current)return;
    root.current.visible=!!data;
-   if(!data)return;
+   if(!data){lastPose.current=null;return}
    const {p,x,y,z,v,matrix}=scratch;
    for(let i=0;i<21;i++){
-     const q=data.points[i];p[i].set((q.x-.5)*viewport.width,(.5-q.y)*viewport.height,-(q.z-data.points[0].z)*viewport.width);
+     const q=data.points[i];p[i].set((q.x-.5)*(display.width/100),(.5-q.y)*(display.height/100),-(q.z-data.points[0].z)*(display.width/100));
    }
    const span=p[5].distanceTo(p[17]);
    if(span<.001)return;
-   x.subVectors(p[5],p[17]).normalize();y.subVectors(p[9],p[0]).normalize();
-   z.crossVectors(x,y).normalize();y.crossVectors(z,x).normalize();matrix.makeBasis(x,y,z);
+   y.subVectors(p[9],p[0]).normalize();
+   x.subVectors(p[5],p[17]);x.addScaledVector(y,-x.dot(y)).normalize();
+   z.crossVectors(x,y).normalize();matrix.makeBasis(x,y,z);
+   const base=1+4*settings.finger;
+   if(wrist){
+     scratch.mountPosition.copy(p[0]).addScaledVector(y,-span*.085);
+     scratch.mountRotation.setFromRotationMatrix(matrix);
+   }else{
+     scratch.mountPosition.copy(p[base]).lerp(p[base+1],.35);
+     const axis=scratch.v.subVectors(p[base+1],p[base]).normalize();
+     const side=scratch.side.crossVectors(axis,z).normalize();
+     scratch.mountRotation.setFromRotationMatrix(new Matrix4().makeBasis(side,axis,scratch.normal.crossVectors(side,axis).normalize()));
+   }
    for(let i=1;i<21;i++){
      const base=1+4*Math.floor((i-1)/4);
      if(i===base)continue;
@@ -117,11 +129,15 @@ export function HandRig({frame,clone,model,wrist,watch,fit,settings}:{frame:RefO
        const part=rig.segments[i];part.position.set(0,len*.5,0);part.scale.set(radius,len*.59,radius*.89);
      }
    }
-   const base=1+4*settings.finger;
-   if(wrist){rig.mount.position.copy(p[0]).addScaledVector(y,-width*.21);rig.mount.quaternion.copy(rig.palm.quaternion);rig.mount.scale.setScalar(wristWidth*1.18*settings.clasp)}
-   else{rig.mount.position.copy(p[base]).lerp(p[base+1],.36);rig.bones[base].getWorldQuaternion(rig.mount.quaternion);
-     const ratio=fit?.outline?.digits[settings.finger]??[.25,.21,.22,.20,.17][settings.finger];
-     rig.mount.scale.setScalar(width*ratio/rig.bore*settings.diameter/settings.reference);}
+   const ratio=fit?.outline?.digits[settings.finger]??[.25,.21,.22,.20,.17][settings.finger];
+   const scale=wrist?span*(fit?.outline?.wrist??.78)*settings.wrist*1.18*settings.clasp:span*ratio/rig.bore*settings.diameter/settings.reference;
+   if(lastPose.current!==data){
+     const alpha=lastPose.current ? .3 : 1;
+     rig.mount.position.lerp(scratch.mountPosition,alpha);
+     rig.mount.quaternion.slerp(scratch.mountRotation,alpha);
+     rig.mount.scale.setScalar(rig.mount.scale.x+(scale-rig.mount.scale.x)*alpha);
+     lastPose.current=data;
+   }
  });
- return <group ref={root}><primitive object={rig.group}/></group>;
+ return <group ref={root} visible={false}><primitive object={rig.group}/></group>;
 }
