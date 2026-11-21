@@ -33,13 +33,16 @@ export interface FittingEntry {
   stage: 1 | 2 | 3 | 4;
   /** Only the twin types that can wear it. */
   twin: 'hand' | 'portrait';
+  /** Convertible pieces (E1, E2): worn as the stud alone or with the detachable element locked on.
+   *  The GLB keeps them as separate nodes (custom-designs.ts parts) and the try-on offers both states. */
+  states?: ('stud' | 'full')[];
 }
 
 export const FITTING_REGISTRY: FittingEntry[] = [
   { categories: ['ring'], anchor: 'hand.finger.ring.baseJoint', along: { fraction: 0.38 }, fit: { kind: 'band', ease: 1.02 }, face: 'up', stage: 2, twin: 'hand' },
   { categories: ['watch'], anchor: 'hand.wrist', along: { mm: -26 }, fit: { kind: 'wrap', ease: 1.02, maxOval: 1.3 }, physics: { chain: 'closed', damping: 0.06 }, face: 'up', stage: 2, twin: 'hand' },
   { categories: ['bracelet', 'bangle'], anchor: 'hand.wrist', along: { mm: -22 }, fit: { kind: 'wrap', ease: 1.04, maxOval: 1.3 }, physics: { chain: 'closed', damping: 0.04 }, face: 'up', stage: 2, twin: 'hand' },
-  { categories: ['earring', 'earrings'], anchor: 'bust.earlobe', along: {}, fit: { kind: 'hang' }, physics: { pendulum: true, damping: 0.025 }, face: 'up', stage: 4, twin: 'portrait' },
+  { categories: ['earring', 'earrings'], anchor: 'bust.earlobe', along: {}, fit: { kind: 'hang' }, physics: { pendulum: true, damping: 0.025 }, face: 'up', stage: 4, twin: 'portrait', states: ['stud', 'full'] },
   { categories: ['necklace', 'pendant'], anchor: 'bust.neck', along: {}, fit: { kind: 'drape' }, physics: { chain: 'open', pendulum: true, damping: 0.04 }, face: 'up', stage: 4, twin: 'portrait' },
   { categories: ['shades', 'sunglasses', 'eyewear'], anchor: 'bust.noseBridge', along: {}, fit: { kind: 'rest' }, face: 'up', stage: 4, twin: 'portrait' },
 ];

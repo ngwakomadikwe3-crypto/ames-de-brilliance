@@ -18,6 +18,8 @@ import { SavePiece } from './PieceAccountActions';
 import { loadPublishedBoutiqueContent, originLabel, stockLabel } from '@/lib/catalogue-content';
 import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
+import { DesignDetail, DesignTile } from './CustomDesigns';
+import { designsInCategory, type CustomDesign } from '../lib/custom-designs';
 
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 /** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
@@ -104,6 +106,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   const [pieces, setPieces] = useState<BoutiquePiece[]>(() => (housePieces as BoutiquePiece[]).filter(piece => showCustomerJewelry(piece.assetId)));
   const [category, setCategory] = useState<BoutiqueCategory>('ring');
   const [selected, setSelected] = useState<BoutiquePiece | null>(null);
+  const [design, setDesign] = useState<CustomDesign | null>(null);
   const [catalogueError, setCatalogueError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -124,16 +127,16 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   const groups = boutiqueGroups(filtered);
   function changeCategory(next: BoutiqueCategory) {
     setCategory(next);
-    setSelected(null);
+    setSelected(null); setDesign(null);
     scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {catalogueError && !pieces.length && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
-      {selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
+      {design ? <DesignDetail key={design.code} design={design} onClose={() => setDesign(null)} /> : selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-initial min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-featured-piece={groups.length === 1 && groups[0].length === 1 || undefined} data-boutique-scroll>
-          {groups.length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
+          {groups.length === 0 && designsInCategory(category).length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="ames-compact-collection px-4 sm:px-8 mx-auto"
             style={{ maxWidth: 760 }}>
@@ -141,6 +144,12 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
             {group.map(piece => <PieceTile key={piece.assetId} piece={piece} single={group.length === 1} onOpen={() => setSelected(piece)} />)}
             </div>
           </section>)}
+          {designsInCategory(category).length > 0 && <section data-custom-designs={category} className="ames-compact-collection px-4 sm:px-8 mx-auto pt-4 pb-6" style={{ maxWidth: 760 }}>
+            <h3 className="mb-2 text-center" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 15, color: '#ffffff' }}>{t('Made to order')}</h3>
+            <div className="grid grid-cols-2 items-start gap-x-4 gap-y-3 sm:gap-x-8">
+              {designsInCategory(category).map(d => <DesignTile key={d.code} design={d} onOpen={() => setDesign(d)} />)}
+            </div>
+          </section>}
         </div>
       </>}
       {/* The categories stay at hand while a piece is open: tapping one goes straight there, no back button needed. */}

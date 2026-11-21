@@ -1,0 +1,53 @@
+{
+  "W1": {
+    "front": null,
+    "back": null
+  },
+  "W2": {
+    "front": null,
+    "back": null
+  },
+  "B1": {
+    "front": null,
+    "back": null
+  },
+  "B2": {
+    "front": null,
+    "back": null
+  },
+  "N1": {
+    "front": null,
+    "back": null
+  },
+  "N2": {
+    "front": null,
+    "back": null
+  },
+  "E1": {
+    "front": {
+      "src": "/atelier/designs/E1/E1-cascade-drop-earrings-front.png",
+      "base": "/atelier/designs/E1/E1-cascade-drop-earrings-front",
+      "width": 415,
+      "height": 530,
+      "widths": [
+        415
+      ]
+    },
+    "back": null,
+    "stud-front": null
+  },
+  "E2": {
+    "front": {
+      "src": "/atelier/designs/E2/E2-convertible-stud-front.png",
+      "base": "/atelier/designs/E2/E2-convertible-stud-front",
+      "width": 555,
+      "height": 493,
+      "widths": [
+        480,
+        555
+      ]
+    },
+    "back": null,
+    "stud-front": null
+  }
+}
