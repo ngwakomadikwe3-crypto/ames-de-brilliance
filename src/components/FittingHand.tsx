@@ -12,6 +12,7 @@ class SceneBoundary extends Component<{children:ReactNode},{failed:boolean}>{
 }
 export default function FittingHand({category,model,children}:{category:string;model:string;children:ReactNode}){
  const [on,setOn]=useState(false),[tone,setTone]=useState(48),[fit,setFit]=useState<HandFit|null>(null);
+ const [scanning,setScanning]=useState(false);
  const fittingViewer=useRef<HTMLDivElement>(null);
  const [cameraView,setCameraView]=useState(true);
  const [live,setLive]=useState<Joint[]|null>(null);
@@ -29,12 +30,12 @@ export default function FittingHand({category,model,children}:{category:string;m
    return ()=>{window.removeEventListener('ames-hand-fit',refresh);window.removeEventListener('ames-hand-deleted',deleted);window.removeEventListener('storage',storage)};
  },[category,wrist]);
  if(!['ring','bracelet','watch'].includes(category)||!model)return <>{children}</>;
- return <div className="flex h-full flex-col"><div ref={fittingViewer} className="min-h-0 flex-1">
- {on&&cameraView?<SceneBoundary key={model}><LiveHand model={model} wrist={wrist} watch={watch} fit={fit} initialTone={colour} onUnavailable={()=>setCameraView(false)}/></SceneBoundary>:on?<SceneBoundary key={model+(fit?":saved":":default")}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
+ return <div className={on?"flex min-h-full flex-col":"flex h-full flex-col"}><div ref={fittingViewer} className="min-h-0 flex-1">
+ {on&&scanning?<p role="status" className="p-6 text-center">Hold your hand flat for the scan.</p>:on&&cameraView?<SceneBoundary key={model}><LiveHand model={model} wrist={wrist} watch={watch} fit={fit} initialTone={colour} onUnavailable={()=>setCameraView(false)}/></SceneBoundary>:on?<SceneBoundary key={model+(fit?":saved":":default")}><Scene model={model} fit={fit} wrist={wrist} watch={watch} tone={tone} colour={colour} curls={curls} live={live}/></SceneBoundary>:children}</div>
  <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 text-xs">
  {on&&!cameraView&&<small>{fit?.outline?.surface?'Your captured hand texture':'Capture your hand to apply your own skin and nail detail. The hand texture is saved on this device.'}</small>}
- {on&&<SavedHandPanel wrist={wrist}/>}
- {on&&!cameraView&&<><HandClasp onZoom={factor=>{
+ {on&&<SavedHandPanel onScanning={setScanning} wrist={wrist}/>}
+ {on&&!cameraView&&!scanning&&<><HandClasp onZoom={factor=>{
    fittingViewer.current?.querySelector('canvas')?.dispatchEvent(new WheelEvent('wheel',{deltaY:-Math.log(factor)*900,bubbles:true,cancelable:true}));
  }} onJoints={points=>setLive(points?fitFromCamera(points,1,0,wrist)?.joints??null:null)}/><select aria-label="Fingers to move" value={digit} onChange={e=>setDigit(Number(e.target.value))}>{['Whole hand','Thumb','Index finger','Middle finger','Ring finger','Little finger'].map((label,i)=><option key={label} value={i-1}>{label}</option>)}</select>
  <button className="min-h-10 underline" onClick={()=>pose(0)}>Open</button><button className="min-h-10 underline" onClick={()=>pose(1)}>{digit===-1?'Clasp hand':'Bend finger'}</button></>}
