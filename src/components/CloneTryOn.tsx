@@ -16,6 +16,8 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { trackingAssets } from '../lib/hand-tracking-assets';
 import { buildHand, solvePose, handednessFlip } from '../lib/clone-hand';
 import { skinMaterial } from '../lib/clone-skin';
+import { loadHandTemplate, templateShape, buildRealHand, clampPose, jointBends, type HandTemplate } from '../lib/realistic-hand';
+import { realisticSkin, realisticNails, type SkinUniforms } from '../lib/realistic-skin';
 import { readProfile, saveProfile, deleteProfile, genericShape, genericTone, type HandProfileV2 } from '../lib/hand-profile';
 import { OneEuro } from '../lib/ar/one-euro';
 import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
@@ -29,6 +31,7 @@ import HandScan, { type ScanResult } from './HandScan';
 
 const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little'];
 const DEFAULT_DISTANCE = 600;                                         // mm from the camera to the hand
+let templatePromise: Promise<HandTemplate> | null = null;              // the sculpted hand, loaded once per page
 
 export default function CloneTryOn({ model, category, onLiveCamera }: { model: string; category: string; onLiveCamera?: () => void }) {
   const box = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,6 +42,12 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   const [notice, setNotice] = useState('');
   const api = useRef<{ snap: () => Promise<Blob | null>; finger: (f: number) => void; pause: (p: boolean) => void; track: (on: boolean) => void } | null>(null);
   const wrist = category === 'watch' || category === 'bracelet';
+  const [template, setTemplate] = useState<HandTemplate | 'failed' | null>(null);
+  useEffect(() => {
+    let live = true;
+    (templatePromise ??= loadHandTemplate()).then(t => { if (live) setTemplate(t); }, e => { console.warn('Realistic hand unavailable, using the simple hand:', e); templatePromise = null; if (live) setTemplate('failed'); });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     const load = () => setProfile(readProfile());
@@ -53,7 +62,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   // --- the scene: rebuilt only when the hand or the piece changes, never on tracking updates -----------------------
   useEffect(() => {
     const canvas = canvasRef.current, host = box.current;
-    if (!canvas || !host || scanning) return;
+    if (!canvas || !host || scanning || !template) return;
     let stopped = false, raf = 0;
     const disposables: { dispose(): void }[] = [];
     const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -79,13 +88,24 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     // view (gestures + showcase) > hand (follows the live wrist) > mirror > skinned hand + jewellery
     const view = new Group(), hand = new Group(), mirror = new Group();
     scene.add(view); view.add(hand); hand.add(mirror);
-    const shape = profile?.shape ?? genericShape;
+    const real = template !== 'failed' ? template : null;
+    const shape = profile?.shape ?? (real ? templateShape(real) : genericShape);
     let photoTexture: Texture | undefined;
     if (profile?.texture?.image) { photoTexture = new TextureLoader().load(profile.texture.image); disposables.push(photoTexture); }
-    const skin = skinMaterial(profile?.tone ?? genericTone, photoTexture); disposables.push(skin);
-    const built = buildHand(shape, skin, profile?.texture?.uv);
+    const tone = profile?.tone ?? genericTone;
+    let skinUniforms: SkinUniforms | null = null, relaxed: Quaternion[] | null = null;
+    let built: { mesh: import('three').SkinnedMesh; bones: Bone[]; rest: Vector3[] };
+    if (real) {
+      // Realistic hand: sculpted template fitted to the customer, lit by the same studio as the metal.
+      const sk = realisticSkin(tone, metalStudio.texture, real.chainS, photoTexture), nailMat = realisticNails(tone, metalStudio.texture);
+      const r = buildRealHand(real, shape, sk.material, nailMat, profile?.texture?.uv);
+      skinUniforms = sk.uniforms; relaxed = r.relaxed; built = r;
+      disposables.push(sk.material, nailMat, r.mesh.geometry, r.nails.geometry);
+    } else {
+      const skin = skinMaterial(tone, photoTexture); disposables.push(skin);
+      built = buildHand(shape, skin, profile?.texture?.uv); disposables.push(built.mesh.geometry);
+    }
     built.mesh.castShadow = true; built.mesh.receiveShadow = true;
-    disposables.push(built.mesh.geometry);
     mirror.add(built.mesh);
     // Centre the hand in view: rest pose middle of the palm at the origin.
     const centre = built.rest[0].clone().lerp(built.rest[9], 0.55);
@@ -95,6 +115,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     // --- jewellery on the 3D hand -----------------------------------------------------------------------------------
     const mount = new Group(); mount.matrixAutoUpdate = false;
     let fingerIndex = 3, piece: Object3D | null = null, loop: ReturnType<typeof fitLoop> | null = null;
+    let contact: { bone: Bone; at: Vector3; axis: Vector3; radius: number; half: number } | null = null;
     const attach = () => {
       if (!piece || !loop) return;
       mount.parent?.remove(mount);
@@ -103,6 +124,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       const [sSide, sAlong, sUp] = fitScale(entry, frame, loop);
       const B = new Matrix4(), S = new Matrix4(), A = new Matrix4(), T = new Matrix4(), bone: Bone = built.bones[frame.bone];
       A.makeBasis(loop.side, loop.axis, loop.up).transpose().multiply(new Matrix4().makeTranslation(-loop.centre.x, -loop.centre.y, -loop.centre.z));
+      contact = { bone, at: frame.at.clone(), axis: frame.axis.clone(), radius: (frame.halfSide + frame.halfUp) / 2, half: Math.max(1, (loop.width ?? 4) * sAlong / 2) };
       mount.matrix.copy(T.makeTranslation(frame.at.x, frame.at.y, frame.at.z)).multiply(B.makeBasis(frame.side, frame.axis, frame.up)).multiply(S.makeScale(sSide, sAlong, sUp)).multiply(A);
       bone.add(mount);
     };
@@ -118,7 +140,8 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     }, undefined, () => setStatus('This piece could not be loaded.'));
 
     // --- live puppet + gestures ------------------------------------------------------------------------------------
-    const restQuats = built.bones.map(b => b.quaternion.clone()), targets = restQuats.map(q => q.clone());
+    const restQuats = relaxed ?? built.bones.map(b => b.quaternion.clone()), targets = restQuats.map(q => q.clone());
+    built.bones.forEach((b, i) => b.quaternion.copy(restQuats[i]));       // rest: a relaxed hand, never splayed
     const handTarget = new Vector3(), handPos = new Vector3();
     const viewTurn = new Quaternion(), viewTarget = new Quaternion();
     let showcase = 0, showcaseBlend = 0, quietUntil = 0, handSeen = false, frozen = false, pausedShowcase = false, resetting = 0;
@@ -158,7 +181,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
           if (flip !== flipped) { flipped = flip; mirror.scale.x = flip ? -1 : 1; mirror.position.x = flip ? centre.x : -centre.x; }
           // Solve in the model's handedness: a mirrored model sees the live hand mirrored too.
           const live = flip ? pts.map(p => new Vector3(-p.x, p.y, p.z)) : pts;
-          const local = solvePose(built.rest, live);
+          const local = clampPose(solvePose(built.rest, live), built.rest);   // anatomical limits: never bends backwards
           local.forEach((q, i) => targets[i].copy(q));
           // Follow the hand across the frame, gently (the view stays centred on the piece).
           handTarget.set((pts[0].x + pts[9].x) / 2 * 0.35, (pts[0].y + pts[9].y) / 2 * 0.35, 0);
@@ -180,6 +203,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
         handSeen = true; quietUntil = now + 5000;
       } else if (state === 'hidden') {
         imageFilter.reset(); worldFilter.reset(); dorsalSide.reset();
+        targets.forEach((q, i) => q.copy(restQuats[i]));                  // hand gone: settle back to the relaxed pose
         const drift = controls.step('None', 0, 0, 0, 1, now);           // let a flick finish
         if (drift.dx) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), drift.dx * Math.PI));
         if (drift.dy) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), drift.dy * Math.PI));
@@ -231,6 +255,15 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       const ease = 1 - Math.pow(0.7, dt * 30);
       built.bones.forEach((b, i) => b.quaternion.slerp(targets[i], ease));
+      if (skinUniforms) {
+        jointBends(built.bones, skinUniforms.bends.value);
+        if (contact && piece) {
+          view.updateMatrixWorld(true);
+          const c = contact.bone.localToWorld(contact.at.clone()), a = contact.bone.localToWorld(contact.at.clone().add(contact.axis)).sub(c).normalize();
+          skinUniforms.contactCentre.value[0].copy(c); skinUniforms.contactAxis.value[0].copy(a);
+          skinUniforms.contactSize.value[0].set(contact.radius, contact.half, wrist ? 3.2 : 2.2, 0); skinUniforms.contactCount.value = 1;
+        } else skinUniforms.contactCount.value = 0;
+      }
       handPos.lerp(handTarget, ease); hand.position.copy(handPos);
       if (resetting) {
         // Fist held: ease back to the default view over one second.
@@ -283,7 +316,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     };
     // finger, paused and tracking are pushed through api.current; they must not rebuild the scene.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, category, wrist, profile, scanning]);
+  }, [model, category, wrist, profile, scanning, template]);
 
   async function finishScan(scan: ScanResult) {
     // Build the new hand first; only a successful build replaces the saved one.

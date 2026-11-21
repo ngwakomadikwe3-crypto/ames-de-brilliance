@@ -24,7 +24,8 @@
     "test:cad:studio": "node --experimental-strip-types --test scripts/test-cad-studio.mjs",
     "test:jewellers": "node --experimental-strip-types --test scripts/test-jeweller-profiles.mjs",
     "cad:listing": "node --env-file=.env.cad-worker.local scripts/cad/listing-operator.mjs",
-    "test:atelier-physics": "node --experimental-strip-types scripts/test-atelier-physics.mjs"
+    "test:atelier-physics": "node --experimental-strip-types scripts/test-atelier-physics.mjs",
+    "test:realistic-hand": "node --experimental-strip-types scripts/test-realistic-hand.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",
