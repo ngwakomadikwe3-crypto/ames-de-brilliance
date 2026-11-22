@@ -184,6 +184,8 @@ export function buildRealHand(t: HandTemplate, shape: HandShape, skin: Material,
   mesh.add(nails); nails.updateMatrixWorld(true); nails.bind(skeleton, mesh.matrixWorld);
   mesh.frustumCulled = nails.frustumCulled = false;
   nails.castShadow = true; nails.receiveShadow = true;
+  // the plate sits on the nail bed, nearly coplanar with the skin: drawn after the skin and pulled forward in depth
+  nails.renderOrder = 2; if (nail) Object.assign(nail, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
   return { mesh, nails, bones, rest: fit.rest, relaxed: t.relaxed.map(q => q.clone()), chainS: t.chainS };
 }
 

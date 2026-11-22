@@ -96,7 +96,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     let stopped = false, frame = 0;
     const disposables: { dispose: () => void }[] = [];
     const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.outputColorSpace = SRGBColorSpace; renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
+    renderer.outputColorSpace = SRGBColorSpace; renderer.toneMapping = ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;   // matched to the hand twin: one skin reads the same in both
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = PCFSoftShadowMap; renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     disposables.push(renderer);
     const scene = new Scene(), camera = new PerspectiveCamera(24, 1, 10, 6000), pmrem = new PMREMGenerator(renderer); disposables.push(pmrem);

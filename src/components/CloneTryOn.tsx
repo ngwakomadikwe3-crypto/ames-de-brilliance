@@ -8,7 +8,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Box3, Color,
   ACESFilmicToneMapping, AmbientLight, DirectionalLight, Group, Material, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
-  PerspectiveCamera, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, type Bone, type Texture,
+  PerspectiveCamera, Quaternion, Raycaster, RepeatWrapping, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, type Bone, type Texture,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
@@ -19,8 +19,10 @@ import { buildHand, solvePose, handednessFlip } from '../lib/clone-hand';
 import { skinMaterial } from '../lib/clone-skin';
 import { loadHandTemplate, templateShape, templateMeasure, buildRealHand, clampPose, jointBends, type HandTemplate } from '../lib/realistic-hand';
 import { realisticSkin, realisticNails, type SkinUniforms } from '../lib/realistic-skin';
-import { readProfile, saveProfile, deleteProfile, genericShape, genericTone, type HandProfileV2, type HandShape, type HandTexture } from '../lib/hand-profile';
+import { readProfile, saveProfile, genericShape, genericTone, type HandProfileV2, type HandShape, type HandTexture } from '../lib/hand-profile';
 import { shapeFromMorph, shiftTone, type HandMorph } from '../lib/hand-morph';
+import { HandAdmire } from '../lib/hand-admire';
+import { deleteTwin, readTwin, twinTones, TWIN_EVENT } from '../lib/twin-profile';
 import { OneEuro } from '../lib/ar/one-euro';
 import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
 import { cameraFor, liftHand, DorsalSide } from '../lib/ar/hand-pose';
@@ -45,6 +47,7 @@ const store = { get: (k: string) => { try { return localStorage.getItem(k); } ca
 export default function CloneTryOn({ model, category, onLiveCamera, title, onClose }: { model: string; category: string; onLiveCamera?: () => void; title?: string; onClose?: () => void }) {
   const box = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLCanvasElement>(null);
   const [profile, setProfile] = useState<HandProfileV2 | null>(null);
+  const [twinFace, setTwinFace] = useState(false);
   const [scanning, setScanning] = useState(false), [confirmDelete, setConfirmDelete] = useState(false);
   const [tracking, setTracking] = useState(false), [status, setStatus] = useState(''), [gesture, setGesture] = useState('');
   const [debugReadout, setDebugReadout] = useState<GestureOutput | null>(null);       // TEMPORARY gesture debug
@@ -65,9 +68,10 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
   }, []);
 
   useEffect(() => {
-    const load = () => setProfile(readProfile());
-    load(); window.addEventListener('ames-hand-fit', load); window.addEventListener('ames-hand-deleted', load);
-    return () => { window.removeEventListener('ames-hand-fit', load); window.removeEventListener('ames-hand-deleted', load); };
+    // one identity: the hand profile, plus the face scan whose skin the hand shares (twin-profile.ts)
+    const load = () => { setProfile(readProfile()); setTwinFace(!!readTwin()?.face); };
+    load(); for (const ev of ['ames-hand-fit', 'ames-hand-deleted', TWIN_EVENT]) window.addEventListener(ev, load);
+    return () => { for (const ev of ['ames-hand-fit', 'ames-hand-deleted', TWIN_EVENT]) window.removeEventListener(ev, load); };
   }, []);
   useEffect(() => () => { if (photo) URL.revokeObjectURL(photo); }, [photo]);
   useEffect(() => { api.current?.finger(finger); }, [finger]);
@@ -78,7 +82,10 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
   useEffect(() => { if (coach && gesture) { setCoach(false); store.set(TIPS_KEY, '1'); } }, [gesture, coach]);
   // the hand on screen: the draft being previewed, else the saved morph, else the saved (older) shape, else the base hand
   const hand = draft ?? (profile ? { morph: profile.morph, tone: profile.tone, texture: profile.texture, shape: profile.shape } : null);
-  const tone = draft ? shiftTone(draft.tone, tune.tone) : profile?.morph ? shiftTone(profile.tone, profile.morph.toneShift) : toneChoice ?? profile?.tone ?? genericTone;
+  // the skin: ONE harmonised tone with the face twin whenever a face or hand has been scanned; the manual swatch only
+  // for a standard hand with no scan at all
+  const shared = twinFace || profile?.morph ? twinTones() : null;
+  const tone = draft ? shiftTone(draft.tone, tune.tone) : shared?.hand ?? toneChoice ?? profile?.tone ?? genericTone;
   // the scene rebuilds when the hand's shape or photo changes, never for a tone change (that is applied live)
   const handKey = hand ? JSON.stringify([hand.morph && { ...hand.morph, toneShift: 0 }, hand.morph ? null : hand.shape, hand.texture?.image.length ?? 0]) : 'base';
   const handRef = useRef(hand), toneRef = useRef(tone);
@@ -199,10 +206,12 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       loop = fitLoop(piece, head ? { up: head.getWorldPosition(new Vector3()) } : clasp && wrist ? { down: clasp.getWorldPosition(new Vector3()) } : undefined);
       piece.traverse(o => { if ((o as Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       mount.add(piece); attach();
+      admire.play(performance.now() + 350);                               // the piece goes on: the fingers flutter once
     }, undefined, () => setStatus('This piece could not be loaded.'));
 
     // --- live puppet + gestures ------------------------------------------------------------------------------------
     const restQuats = relaxed ?? built.bones.map(b => b.quaternion.clone()), targets = restQuats.map(q => q.clone());
+    const admire = new HandAdmire();
     built.bones.forEach((b, i) => b.quaternion.copy(restQuats[i]));       // rest: a relaxed hand, never splayed
     refit(true);
     const handTarget = new Vector3(), handPos = new Vector3();
@@ -299,14 +308,24 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
 
     // Touch / mouse still works: drag to turn, wheel to zoom.
     let drag: { x: number; y: number } | null = null;
-    const down = (e: PointerEvent) => { drag = { x: e.clientX, y: e.clientY }; quietUntil = performance.now() + 5000; canvas.setPointerCapture(e.pointerId); };
+    let tap: { x: number; y: number; t: number } | null = null;
+    const down = (e: PointerEvent) => { tap = { x: e.clientX, y: e.clientY, t: performance.now() }; drag = { x: e.clientX, y: e.clientY }; quietUntil = performance.now() + 5000; canvas.setPointerCapture(e.pointerId); };
     const move = (e: PointerEvent) => {
       if (!drag) return; const r = canvas.getBoundingClientRect();
       viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (e.clientX - drag.x) / r.width * Math.PI));
       viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (e.clientY - drag.y) / r.height * Math.PI));
       drag = { x: e.clientX, y: e.clientY }; quietUntil = performance.now() + 5000;
     };
-    const up = () => { drag = null; };
+    const up = (e: PointerEvent) => {
+      drag = null;
+      // a tap (not a drag) on the hand or the piece replays the admire, once
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 8 && performance.now() - tap.t < 400) {
+        const r = canvas.getBoundingClientRect(), ray = new Raycaster();
+        ray.setFromCamera(new Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+        if (ray.intersectObjects([built.mesh, ...(piece ? [piece] : [])], true).length) admire.play(performance.now());
+      }
+      tap = null;
+    };
     const wheel = (e: WheelEvent) => { e.preventDefault(); const z = zoomRange(fit); targetDistance = Math.max(z.min, Math.min(z.max, targetDistance * Math.exp(e.deltaY * 0.001))); quietUntil = performance.now() + 5000; };
     canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up); canvas.addEventListener('wheel', wheel, { passive: false });
 
@@ -317,6 +336,7 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       const ease = 1 - Math.pow(0.7, dt * 30);
       built.bones.forEach((b, i) => b.quaternion.slerp(targets[i], ease));
+      admire.apply(now, built.bones, built.rest, reduced.matches || handSeen);   // the admire flutter, on top of the pose
       if (skinUniforms) {
         jointBends(built.bones, skinUniforms.bends.value);
         if (contact && piece) {
@@ -347,6 +367,7 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       distance += (targetDistance - distance) * (1 - Math.pow(0.8, dt * 60));
       camera.position.set(0, 0, distance); camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
+      admire.restore(built.bones);
       raf = requestAnimationFrame(render);
     }
     const resize = () => { const r = host.getBoundingClientRect(); if (!r.width || !r.height) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); refit(); };   // refit on every size / orientation change
@@ -360,7 +381,7 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
         if (on) void startTracking().catch(() => { stopTracking(); trackingOn = false; setStatus('The camera is not available. You can still turn the piece by dragging.'); setTracking(false); });
         else stopTracking();
       },
-      finger: f => { fingerIndex = f; attach(); },
+      finger: f => { fingerIndex = f; attach(); admire.play(performance.now() + 250); },
       pause: p => { pausedShowcase = p; },
       tone: hex => liveTone(hex),
       snap: async () => {
@@ -487,16 +508,16 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <button type="button" className="ames-pill min-h-10 rounded-full px-4" onClick={() => { setSheet(false); setScanning(true); }}>{profile ? 'Re-scan my hand' : 'Scan my hand'}</button>
-            {profile && !confirmDelete && <button type="button" className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(true)}>Delete saved hand</button>}
+            {(profile || twinFace) && !confirmDelete && <button type="button" className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(true)} data-delete-twin>Delete my twin</button>}
           </div>
-          {confirmDelete && <div role="group" aria-label="Confirm hand deletion" className="text-xs"><p>Delete your saved hand, its measurements and photo, from this device?</p>
-            <button type="button" className="min-h-10 px-2 underline" onClick={() => { try { deleteProfile(); setNotice('Saved hand deleted.'); } catch { setNotice('Deletion failed. Try again.'); } setConfirmDelete(false); }}>Delete</button>
+          {confirmDelete && <div role="group" aria-label="Confirm hand deletion" className="text-xs"><p>Delete your twin from this device: your hand and face scans, their measurements, photos and skin tone?</p>
+            <button type="button" className="min-h-10 px-2 underline" onClick={() => { try { deleteTwin(); setToneChoice(null); setNotice('Your twin is deleted: face, hand and skin tone.'); } catch { setNotice('Deletion failed. Try again.'); } setConfirmDelete(false); }}>Delete</button>
             <button type="button" autoFocus className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
           <p className="flex items-center gap-1 text-xs opacity-90">
-            <span>{profile ? 'Your hand is saved only on this device.' : 'Your scan stays on this device.'}</span>
+            <span>{profile || twinFace ? `Your twin (${[twinFace && 'face', profile && 'hand'].filter(Boolean).join(' and ')}) is saved only on this device.` : 'Your scan stays on this device.'}</span>
             <button type="button" aria-label="About your hand data" aria-expanded={privacyOpen} onClick={() => setPrivacyOpen(o => !o)} className="flex h-5 w-5 items-center justify-center rounded-full border border-white/60 text-[10px]">i</button>
           </p>
-          {privacyOpen && <p className="text-xs opacity-90">The photo of your hand, its measurements and skin tone are kept in this browser only and never uploaded. Delete them here at any time.</p>}
+          {privacyOpen && <p className="text-xs opacity-90">Your twin is one identity: the face and hand scans share one skin tone. The photos, measurements and tone are kept in this browser only and never uploaded. {twinFace ? '' : 'Add your face from any earring or necklace. '}Delete them here at any time.</p>}
           {profile?.morph
             ? <label className="block"><span className="text-xs">Skin tone <span className="opacity-80">(from your scan: lighter or darker)</span></span>
                 <input type="range" min={-0.25} max={0.25} step={0.01} value={profile.morph.toneShift} aria-valuetext={tone}

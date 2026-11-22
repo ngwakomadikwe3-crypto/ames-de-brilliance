@@ -28,8 +28,23 @@ the tone as lighter or darker than the scanned one) and is saved only on "Save m
 Customize reopens them later; the Customize tone slider adjusts the scanned tone instead of replacing it.
 
 **Profile**: the morph (about 60 numbers) is saved in the hand profile (`ames-saved-hand`, this device only), with
-the tone and, when worthy, the photo texture. Delete asks for confirmation; a re-scan replaces the saved hand only when
-the customer saves the new one; with no profile the base hand is used.
+the tone and, when worthy, the photo texture. A re-scan replaces the saved hand only when the customer saves the new
+one; with no profile the base hand is used. The hand is half of one identity with the face twin
+(`src/lib/twin-profile.ts`, see `portrait-twin.md`): the hand wears the harmonised tone shared with the face, and
+"Delete my twin" (confirmed) wipes face, hand and tones together.
+
+**Skin** (`src/lib/realistic-skin.ts`): subsurface light (a softened, reddened terminator; warm transmission through
+the fingertips, webbing and thin edges, and a warm glow along the silhouette where light passes through); a per-pixel
+normal field of pores and skin lines, knuckle wrinkles (smoothing as the joint bends), flexion creases, palm lines and
+veins; regional roughness (matte palm, satin back, the knuckles glossiest); colour variation (palm lighter, knuckles
+and joints redder, fingertips flushed, mottling). Nails are their own material: pink bed under a glossy clearcoated
+plate, pale lunula, a translucent free edge.
+
+**Admire** (`src/lib/hand-admire.ts`, `npm run test:hand-admire`): when a ring, watch or bracelet goes on (or the
+ring moves to another finger), the fingers flutter in a wave from the little finger for about 1.1 s with a slight
+turn of the wrist, then settle back exactly to the relaxed pose. Once per placement; a tap on the hand or the piece
+replays it; never loops. With reduced motion only the wrist turns gently; with the live camera the customer's own
+hand leads and there is no flutter.
 
 **Everywhere**: every 3D hand is built by `CloneTryOn` from the same profile: the try-on, the full-set try-on in
 Collections and any future hand scene.

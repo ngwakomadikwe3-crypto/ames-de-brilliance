@@ -197,18 +197,18 @@ export function growHair(skin: SkinField, roots: number[], style: HairStyle, col
         strands.push({ pts, width: 0.5, shade: 0.7 + 0.45 * rnd() }); }
       continue;
     }
-    const flow = style === 'short' ? new Vector3(outward.x * 0.4, -0.3, -1)
+    const flow = style === 'short' ? new Vector3(outward.x * 0.2, -0.55, -1)
       : style === 'tied' ? tail.clone().sub(root).normalize()
       : new Vector3(outward.x + away * 0.25, -0.2, outward.z - 0.55);
     void away;
     const guide: Vector3[] = [root.clone().addScaledVector(n, 0.3)];
     let dir = n.clone().multiplyScalar(0.6).add(flow.clone().normalize()).normalize();
-    const step = len / spec.seg, layer = 1.5 + 5 * rnd();
+    const step = len / spec.seg, layer = style === 'short' ? 1 + 2 * rnd() : 1.5 + 5 * rnd();       // short hair hugs the head
     for (let s = 1; s <= spec.seg; s++) {
       const p = guide[s - 1].clone().addScaledVector(dir, step);
       keepOut(p, layer * Math.min(1, s / 3));
       guide.push(p);
-      const grav = style === 'short' ? 0.18 : style === 'tied' ? 0.05 : 0.45 + 0.4 * (s / spec.seg);
+      const grav = style === 'short' ? 0.4 : style === 'tied' ? 0.05 : 0.45 + 0.4 * (s / spec.seg);
       dir = p.clone().sub(guide[s - 1]).normalize().add(new Vector3(0, -grav, 0)).normalize();
       if (style === 'tied' && p.distanceTo(tail) < 14) { while (guide.length <= spec.seg) guide.push(tail.clone().add(new Vector3(0, -(guide.length - s) * 18, -6))); break; }
     }

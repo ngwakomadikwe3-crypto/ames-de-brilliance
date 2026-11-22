@@ -129,7 +129,7 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
             float wr = amesGroove(dA, 1.35, 0.32) * amesLine(dA, 3.4) * 0.45 * (1.0 - 0.5 * bA)
                      + amesGroove(dB, 1.05, 0.26) * amesLine(dB, 2.6) * (f == 0 ? 0.6 : 1.0) * (1.0 - 0.55 * bB)
                      + amesGroove(dC, 0.95, 0.24) * amesLine(dC, 2.0) * 0.7 * (1.0 - 0.55 * bC);
-            g += wr * back * 0.11; cr += wr * back * 0.35;
+            g += wr * back * 0.16; cr += wr * back * 0.45;
             // flexion creases on the pad side: sharp lines that deepen as the joint closes
             float base = f == 0 ? 0.0 : cs.y * 0.3;
             float fl = (amesLine(s - base - 0.6, 0.2) + amesLine(s - base + 0.6, 0.2)) * (0.7 + 0.8 * bA)
@@ -149,7 +149,7 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           // skin micro-relief: furrows and pores on the back, dermal ridges on the palm and the pads
           float ridged = max(palmSide * step(-4.0, pp.y), (f < 5 ? smoothstep(0.5, 0.88, abs(vFinger.z)) : 0.0));
           float micro = mix(1.0 - amesD.r, 1.0 - amesD.g, ridged);
-          g += micro * mix(0.036, 0.022, ridged) * hasDetail;
+          g += micro * mix(0.05, 0.028, ridged) * hasDetail;
           float n1 = amesNoise(vRest * 2.6);
           g += (n1 - 0.5) * mix(0.010, 0.004, hasDetail);
           // raised veins on the back of the hand
@@ -171,11 +171,11 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
         vec3 skinCol = mix(palmTone, tone, smoothstep(0.1, 0.75, amesDorsal));
         skinCol = mix(skinCol, diffuseColor.rgb, hasPhoto * smoothstep(0.2, 0.85, amesDorsal));
         // knuckles and joints redder and a touch darker; fingertips flushed warmer
-        skinCol *= mix(vec3(1.0), vec3(0.93, 0.80, 0.78) * mix(1.0, 0.86, 1.0 - lum), clamp(knuckle * 0.75, 0.0, 1.0));
-        skinCol = mix(skinCol, skinCol * vec3(1.10, 0.88, 0.85) + vec3(0.025, 0.0, 0.0), tip * 0.55);
+        skinCol *= mix(vec3(1.0), vec3(0.92, 0.76, 0.74) * mix(1.0, 0.86, 1.0 - lum), clamp(knuckle * 1.05, 0.0, 1.0));
+        skinCol = mix(skinCol, skinCol * vec3(1.12, 0.86, 0.83) + vec3(0.03, 0.0, 0.0), tip * 0.75);
         // gentle mottling
         float mot = amesNoise(vRest * 0.35) - 0.5, mot2 = amesNoise(vRest * 1.3 + 7.0) - 0.5;
-        skinCol *= 1.0 + mot * 0.06 + mot2 * 0.03;
+        skinCol *= 1.0 + mot * 0.09 + mot2 * 0.04;
         skinCol = mix(skinCol, skinCol * vec3(1.04, 0.95, 0.96), smoothstep(0.1, 0.4, mot) * 0.4);
         // veins: a faint blue-green cast under the skin (more visible on fairer skin)
         { vec2 vp = vec2(vPalm.x * 128.0, vPalm.y * 256.0);
@@ -187,17 +187,18 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
         skinCol = mix(skinCol, skinCol * vec3(0.97, 0.90, 0.90), (1.0 - amesD.r) * 0.25 * hasDetail);
         diffuseColor.rgb = skinCol;
         float creaseMask; float amesH = amesHeight(creaseMask);
-        diffuseColor.rgb *= 1.0 - 0.22 * creaseMask;
+        diffuseColor.rgb *= 1.0 - 0.3 * creaseMask;
         // forearm: fades to nothing, darkening a little first (no cut edge)
         diffuseColor.rgb *= mix(1.0, 0.82, smoothstep(0.15, 0.6, fore));
         diffuseColor.a *= 1.0 - smoothstep(0.32, 0.88, fore);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        normal = amesBump(-vViewPosition, normal, vec2(dFdx(amesH), dFdy(amesH)) * 1.0, faceDirection);`)
+        normal = amesBump(-vViewPosition, normal, vec2(dFdx(amesH), dFdy(amesH)) * 1.5, faceDirection);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         { float creaseR; amesHeight(creaseR);
           float pad = smoothstep(0.5, 0.88, abs(vFinger.z));
           roughnessFactor = mix(0.62, 0.44, smoothstep(0.1, 0.75, vPalm.z));      // matte palm, satin back
           roughnessFactor = mix(roughnessFactor, 0.56, pad * smoothstep(0.3, 1.0, vSkin.z));
+          roughnessFactor -= 0.1 * clamp(vFinger.w * 1.2, 0.0, 1.0) * smoothstep(0.1, 0.75, vPalm.z);   // knuckles: the glossiest skin
           roughnessFactor += 0.08 * creaseR + 0.04 * (amesNoise(vRest * 3.0) - 0.5); }`)
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
         material.sheenColor *= mix(0.35, 1.0, smoothstep(0.1, 0.75, vPalm.z));
@@ -221,7 +222,10 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           reflectedLight.directDiffuse *= 1.0 - 0.35 * contact;
           vec3 sssTint = vec3(1.0, 0.38, 0.28);
           reflectedLight.directDiffuse += amesSSS * diffuseColor.rgb * sssTint;
-          reflectedLight.indirectDiffuse += diffuseColor.rgb * sssTint * amesThin * 0.35 * occ; }`);
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * sssTint * amesThin * 0.35 * occ;
+          // light passing through the silhouette: thin edges of the fingers and hand glow warm against the background
+          float rim = pow(1.0 - clamp(abs(dot(normal, geometryViewDir)), 0.0, 1.0), 2.5);
+          reflectedLight.directDiffuse += diffuseColor.rgb * sssTint * rim * (0.18 + 0.7 * amesThin) * occ; }`);
   };
   m.customProgramCacheKey = () => 'ames-real-skin-' + (photo ? 1 : 0) + (detail ? 1 : 0);
   return { material: m, uniforms, tone: toneColor };
@@ -230,7 +234,7 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
 export function realisticNails(tone: string, env: Texture | null) {
   const m = new MeshPhysicalMaterial({
     color: '#ffffff', roughness: 0.24, metalness: 0, ior: 1.52, specularIntensity: 0.6,
-    clearcoat: 0.45, clearcoatRoughness: 0.12, envMap: env, envMapIntensity: 0.32, transparent: true, side: DoubleSide,
+    clearcoat: 0.7, clearcoatRoughness: 0.08, envMap: env, envMapIntensity: 0.22, transparent: true, side: DoubleSide,
   });
   const toneColor = new Color(tone);
   m.onBeforeCompile = shader => {
@@ -245,7 +249,7 @@ export function realisticNails(tone: string, env: Texture | null) {
         float lum = dot(toneColor, vec3(0.299, 0.587, 0.114));
         // the bed shows through the plate: tone pushed pink, a little paler toward the sides
         // (colours here are linear light)
-        vec3 bed = mix(toneColor * vec3(1.0, 0.80, 0.82), vec3(0.56, 0.24, 0.24), 0.45);
+        vec3 bed = mix(toneColor * vec3(1.0, 0.78, 0.80), vec3(0.58, 0.22, 0.23), 0.55);
         bed = mix(bed, bed * vec3(1.05, 1.08, 1.08) + 0.02, smoothstep(0.55, 1.0, abs(v)));
         // lunula: pale half-moon at the base
         float lun = 1.0 - smoothstep(0.85, 1.05, length(vec2(v * 0.9, (u - 0.02) / 0.2)));
@@ -257,7 +261,7 @@ export function realisticNails(tone: string, env: Texture | null) {
         col *= 0.96 + 0.08 * amesNoise(vNailPos * vec3(6.0, 0.6, 6.0));               // faint lengthwise ridges
         col = mix(col * 0.92, col, top);
         diffuseColor.rgb = col;
-        diffuseColor.a = mix(1.0, 0.78, freeEdge);`)
+        diffuseColor.a = mix(1.0, 0.62, freeEdge);                     // the free edge is see-through`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         { float h = 0.004 * sin(vNail.y * 26.0 + amesNoise(vNailPos * 2.0) * 2.0);
           normal = amesBump(-vViewPosition, normal, vec2(dFdx(h), dFdy(h)), faceDirection); }`)

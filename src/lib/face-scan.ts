@@ -42,6 +42,8 @@ export function headAngle(l: Lm[]) {
   return { turn, tilt };
 }
 
+/** headAngle().tilt of a level head (MediaPipe's canonical face model). */
+export const LEVEL_TILT = 0.31;
 export type Gate = { ok: boolean; reason?: string; sharpness: number; balance: number; brightness: number };
 /** The quality gates. `front` (the accepted front frame) is needed to judge the chin-up and the smile. */
 export function checkFrame(step: Step, img: Px, l: Lm[] | null, front?: Lm[] | null, sideA?: Lm[] | null): Gate {
@@ -71,10 +73,11 @@ export function checkFrame(step: Step, img: Px, l: Lm[] | null, front?: Lm[] | n
     if (balance < 0.62 || balance > 1.6) return fail('One side of your face is in shadow: turn toward the light.', g);
     if (Math.abs(turn) > 0.07) return fail('Look straight at the camera.', g);
   }
-  if (step === 'front' && front === undefined && Math.abs(tilt - 0.55) > 0.18) return fail('Hold your head level.', g);
+  // level: on MediaPipe's canonical (neutral, level) face the nose tip sits 0.31 of the way from the eye line to the chin
+  if (step === 'front' && front === undefined && Math.abs(tilt - LEVEL_TILT) > 0.14) return fail('Hold your head level.', g);
   if ((step === 'side-a' || step === 'side-b') && Math.abs(turn) < 0.22) return fail('Turn a little further.', g);
   if (step === 'side-b' && sideA && Math.sign(turn) === Math.sign(headAngle(sideA).turn)) return fail('Now turn the other way.', g);
-  if (step === 'up') { const t0 = front ? headAngle(front).tilt : 0.55; if (tilt > t0 - 0.08) return fail('Lift your chin a little more.', g); }
+  if (step === 'up') { const t0 = front ? headAngle(front).tilt : LEVEL_TILT; if (tilt > t0 - 0.08) return fail('Lift your chin a little more.', g); }
   if (step === 'smile') {
     const w = (q: Lm[]) => Math.hypot(q[291].x - q[61].x, q[291].y - q[61].y) / Math.hypot(q[454].x - q[234].x, q[454].y - q[234].y);
     if (front && w(l) < w(front) * 1.07) return fail('A natural smile, please.', g);

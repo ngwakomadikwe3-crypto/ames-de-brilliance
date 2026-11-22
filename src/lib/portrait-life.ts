@@ -17,7 +17,8 @@ export class FaceLife {
   private nextMouth = 7; private mouthAt = -10; private mouthKind = 0;
   private delightAt = -100; private resting = 0;
   private w: Weights = {}; private v: Weights = {};
-  constructor(private smile: SmileMix = { 'ex:smile': 0.85, 'ex:cheeks-up': 0.55 }, private rand = Math.random) {}
+  private smile: SmileMix; private rand: () => number;
+  constructor(smile: SmileMix = { 'ex:smile': 0.85, 'ex:cheeks-up': 0.45 }, rand: () => number = Math.random) { this.smile = smile; this.rand = rand; }
 
   /** A piece went on (or was tapped): one warm smile, then a pleased resting smile. */
   delight() { this.delightAt = this.t; }
@@ -32,12 +33,12 @@ export class FaceLife {
     // delight: rise 0.5 s, hold 2.5 s, settle 1.4 s into the resting smile
     const d = this.t - this.delightAt;
     let warm = 0;
-    if (d >= 0 && d < 0.5) warm = ease(d / 0.5);
-    else if (d >= 0.5 && d < 3) warm = 1;
+    if (d >= 0 && d < 0.38) warm = ease(d / 0.38);                          // (the springs add ~0.12 s: risen by ~0.5 s)
+    else if (d >= 0.38 && d < 3) warm = 1;
     else if (d >= 3 && d < 4.4) { warm = 1 - ease((d - 3) / 1.4) * (1 - 0.22); this.resting = 0.22; }
     else if (d >= 4.4) warm = this.resting;
     for (const [k, v] of Object.entries(this.smile)) target[k] = (target[k] ?? 0) + v * warm;
-    target['ex:squint'] = 0.45 * warm; target['ex:brows-soft'] = 0.35 * warm;
+    target['ex:squint'] = 0.2 * warm;                  // eyes narrow (Duchenne), never close target['ex:brows-soft'] = 0.35 * warm;
     if (warm > 0.5) target['ex:part'] = (target['ex:part'] ?? 0) + 0.08 * warm;          // a warm smile parts the lips a little
     // occasional natural mouth movement (not while smiling broadly)
     if (!reducedMotion && this.t > this.nextMouth) { this.mouthAt = this.t; this.mouthKind = Math.floor(this.rand() * 3); this.nextMouth = this.t + 6 + this.rand() * 6; }
@@ -47,7 +48,7 @@ export class FaceLife {
     // springs: blinks are fast; the mouth and cheeks soft and weighty
     const keys = new Set([...Object.keys(target), ...Object.keys(this.w), 'ex:blink-l', 'ex:blink-r']);
     for (const k of keys) {
-      const goal = k === 'ex:blink-l' || k === 'ex:blink-r' ? Math.min(1, b + 0.25 * warm) : target[k] ?? 0;
+      const goal = k === 'ex:blink-l' || k === 'ex:blink-r' ? Math.min(1, b + 0.1 * warm) : target[k] ?? 0;
       const omega = k.startsWith('ex:blink') ? 60 : 9, x = this.w[k] ?? 0, v = this.v[k] ?? 0;
       // critically damped, solved exactly so a slow frame (large dt) can never make it overshoot or blow up
       const e = x - goal, c = v + omega * e, ex = Math.exp(-omega * dt);
