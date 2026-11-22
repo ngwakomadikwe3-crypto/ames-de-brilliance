@@ -12,3 +12,9 @@ CC0 requires no attribution; this note records provenance.
 (`mediapipe/modules/face_geometry/data/canonical_face_model.obj`, https://github.com/google-ai-edge/mediapipe,
 Apache License 2.0, copy in LICENSE-mediapipe-apache-2.0.txt), scaled and placed on this bust, and their pinned
 points on the bust surface. Used to morph the bust to a customer's face.
+
+`portrait-head-v2.glb` (the parametric head) is the MakeHuman base mesh with MakeHuman targets as morph targets:
+the young-adult macro shapes, the face-detail targets and the expression units, all CC0 (data/targets in the
+MakeHuman repository). Built by scripts/blender/create_portrait_head.py. `portrait-head-v2.json` holds the morph
+names, MediaPipe's 478 landmarks as found by MediaPipe Face Mesh (@mediapipe/face_mesh, Apache 2.0) on a render of
+the neutral head, and the lip contours. `lip-zones-v1.png` is derived from them.
