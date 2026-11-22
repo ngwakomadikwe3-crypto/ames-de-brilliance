@@ -336,7 +336,7 @@ for i, tm in enumerate(rows):
 bm = bmesh.new()
 for lb in links:
     me = bpy.data.meshes.new('tmp'); lb.to_mesh(me); lb.free(); bm.from_mesh(me); bpy.data.meshes.remove(me)
-from_bm('Bracelet links', bm, POLISHED, root, smooth=True)
+from_bm('Bracelet links', bm, SATIN, root, smooth=True)          # brushed link faces, polished prongs and lugs
 merge(link_prongs, 'Bracelet prongs', root)
 pave_carrier('Pavé · bracelet', link_stones, root)
 root['ames_design'] = {'code': 'W1', 'name': 'The Classic Pavé', 'case_mm': 41.3, 'bracelet_rows': len(rows),
