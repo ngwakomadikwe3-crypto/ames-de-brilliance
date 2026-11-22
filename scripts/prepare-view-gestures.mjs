@@ -40,3 +40,17 @@ if(materials.includes(roughnessRule)){
 const viewerPath=path.join(dir,'JewelryViewer.tsx');
 let viewer=readFileSync(viewerPath,'utf8');
 if(viewer.includes('gl.toneMappingExposure = DIAMOND_TONE_MAPPING_EXPOSURE'))writeFileSync(viewerPath,viewer.replace('gl.toneMappingExposure = DIAMOND_TONE_MAPPING_EXPOSURE','gl.toneMappingExposure = 1.1'));
+
+// Watch crystals over stones (ames_glass: 'over-stones', e.g. the W1 pavé dial): a clear, reflective crystal that
+// does not use transmission, because three.js does not draw transmissive gems behind another transmissive surface.
+{
+ const studioPath=path.resolve('node_modules/ames-engine/src/engine/jewelry/PhysicalStudioModel.tsx');
+ let studio=readFileSync(studioPath,'utf8');
+ if(!studio.includes("'over-stones'")){
+  const crystal=/const glass=new MeshPhysicalMaterial\(\{name:'AMES sapphire watch crystal'[^}]*\}\)/;
+  const found=studio.match(crystal);
+  if(!found)throw Error('Unsupported AMES engine watch crystal');
+  studio=studio.replace(crystal,"const overStones=(m.userData.ames_glass??m.parent?.userData.ames_glass)==='over-stones'\n      const glass=overStones?new MeshPhysicalMaterial({name:'AMES sapphire watch crystal (over stones)',color:0xffffff,metalness:0,roughness:.015,envMap:studio.metal,envMapIntensity:1,ior:1.77,transparent:true,opacity:.08,depthWrite:false}):"+found[0].replace('const glass=',''));
+  writeFileSync(studioPath,studio);
+ }
+}

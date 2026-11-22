@@ -47,7 +47,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'Round iced watch: graduated brilliants around the bezel, a pavé dial under polished hands, a date window at 3 o’clock, and links that flow from the case.',
     images: { front: img('W1', 'front'), back: img('W1', 'back') },
     alt: { front: 'The Classic Pavé watch — front view, diamond bezel and Roman numeral dial on emerald silk', back: 'The Classic Pavé watch — back view, case back and bracelet links on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/W1/W1-classic-pave-watch.glb",
     options: [METAL, { key: 'case', label: 'Case', choices: ['40 mm', '42 mm', '44 mm'] }, { key: 'dial', label: 'Dial', choices: ['Pavé, Roman numerals', 'Pavé, baguette markers'] },
       { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES, ACCENT],
   },
