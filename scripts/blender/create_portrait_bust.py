@@ -13,18 +13,21 @@ Anchors (glTF frame, mm, face toward +Z, up +Y) are written to the root's extras
   nose_bridge             the sellion (deepest point between the eyes), where shades rest
   eye_l / eye_r           eye centres (for the face tracker's scale: interpupillary distance)
 
-Run:  python scripts/blender/create_portrait_bust.py <base.obj> <out.glb> [<preview.png>]      (bpy module)
+Run:  python scripts/blender/create_portrait_bust.py <base.obj> [<canonical_face_model.obj>] <out.glb> [<preview.png>]   (bpy module)
+      With MediaPipe's canonical face model it also writes face-landmarks-v1.json beside the GLB.
 """
 import json
 import math
 import sys
+from pathlib import Path
 
 import bpy
 import bmesh
 from mathutils import Vector
 
-SRC, OUT = sys.argv[-3] if sys.argv[-1].endswith('.png') else sys.argv[-2], sys.argv[-2] if sys.argv[-1].endswith('.png') else sys.argv[-1]
-PREVIEW = sys.argv[-1] if sys.argv[-1].endswith('.png') else None
+SRC = next(a for a in sys.argv if a.endswith('base.obj'))
+OUT = next(a for a in sys.argv if a.endswith('.glb'))
+PREVIEW = next((a for a in sys.argv if a.endswith('.png')), None)
 DM = 100.0                                   # MakeHuman units are decimetres; out in millimetres
 CUT_Z, SIDE_X = 4.3, 1.9                     # bust cut: mid chest (room for a 45 cm necklace), across the deltoids (dm)
 
@@ -105,6 +108,34 @@ notch = min(front_band, key=lambda v: v.y)                    # the front of the
 anchors = {'earlobe_l': g(lobe_l), 'earlobe_r': g(lobe_r), 'nose_bridge': g(bridge), 'eye_l': g(eye_l), 'eye_r': g(eye_r),
            'neck': neck, 'neck_front': g(notch), 'units': 'mm', 'source': 'MakeHuman 1.x base mesh, CC0 1.0'}
 print('ANCHORS', json.dumps(anchors))
+
+# --- face landmarks: MediaPipe's 468 canonical landmarks pinned to the bust (for morphing to a customer's face) ------
+# The canonical face (Apache 2.0, mediapipe/modules/face_geometry/data/canonical_face_model.obj) is in cm with y up,
+# z forward and the subject's left at +x: the bust's glTF axes. Scale it to the bust's eye spacing, put its nose tip on
+# the bust's, and pin every landmark to the nearest bust vertex. C (canonical, in the bust frame) and B (on the bust)
+# go to face-landmarks-v1.json: at runtime the customer's landmarks are aligned to C, and their differences from C
+# move B and, smoothly, the skin around it.
+CANON = next((a for a in sys.argv if a.endswith('canonical_face_model.obj')), None)
+if CANON:
+    from mathutils.kdtree import KDTree
+    cv = [Vector(map(float, l.split()[1:4])) for l in open(CANON) if l.startswith('v ')]
+    nose_band = [v for v in V if abs(v.x) < 0.05 and eye_z - 0.75 < v.z < eye_z - 0.15]
+    nose = min(nose_band, key=lambda v: v.y)                                          # most forward: the nose tip
+    bust_mm = [Vector(g(v)) for v in V]
+    eye_mid = lambda a, b: (cv[a] + cv[b]) / 2
+    canon_ipd = (eye_mid(263, 362) - eye_mid(33, 133)).length
+    k = (Vector(g(eye_l)) - Vector(g(eye_r))).length / canon_ipd
+    shift = Vector(g(nose)) - cv[1] * k
+    C = [c * k + shift for c in cv]
+    tree = KDTree(len(bust_mm))
+    for i, p in enumerate(bust_mm): tree.insert(p, i)
+    tree.balance()
+    B = [tree.find(c)[0] for c in C]
+    err = sum((b - c).length for b, c in zip(B, C)) / len(C)
+    out = Path(OUT).with_name('face-landmarks-v1.json')
+    out.write_text(json.dumps({'about': 'MediaPipe canonical face landmarks (Apache 2.0) on the AMES portrait bust, mm, glTF frame',
+                               'C': [[round(x, 1) for x in c] for c in C], 'B': [[round(x, 1) for x in b] for b in B]}))
+    print('LANDMARKS', len(C), 'mean pin distance mm', round(err, 2), '->', out)
 
 # --- eyes: subdivided helpers with painted sclera, iris and pupil ---------------------------------------------
 for o in eyes:

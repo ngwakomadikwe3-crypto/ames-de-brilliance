@@ -6,7 +6,7 @@
 // slowly in the showcase motion. Default screen: the stage, the name, one primary action, Customize.
 import { useEffect, useRef, useState } from 'react';
 import {
-  ACESFilmicToneMapping, AmbientLight, Box3, Color, DirectionalLight, Group, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
+  ACESFilmicToneMapping, AmbientLight, Box3, BufferAttribute, Color, DirectionalLight, Group, Matrix3, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
   PerspectiveCamera, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, TextureLoader, Vector3, WebGLRenderer, type MeshPhysicalMaterial,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -17,8 +17,49 @@ import { faceTrackingAssets } from '../lib/hand-tracking-assets';
 import { portraitSkin, portraitEyes } from '../lib/portrait-skin';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
+import { averageFrames, faceDeltas, forgetFaceShape, fromImage, jitter, morphField, readFaceShape, saveFaceShape, type FaceLandmarkAsset, type P3 } from '../lib/face-morph';
 
-export const BUST_URL = '/portrait-twin/portrait-bust-v1.glb';
+export const BUST_URL = '/portrait-twin/portrait-bust-v1.glb', LANDMARKS_URL = '/portrait-twin/face-landmarks-v1.json';
+const CAPTURE_FRAMES = 24, FRONTAL = 0.3, STEADY_MM = 2.5;   // a capture: 24 frames within ~17 degrees of frontal, held still
+
+/** Move the bust's skin and eyes by a face-morph field (mm, in `frame`'s space). The original shape is kept on the
+ *  mesh, so every call starts from it; normals are recomputed and welded across seams. */
+export function morphBust(bust: Object3D, frame: Object3D, field: ((p: P3) => P3) | null) {
+  frame.updateMatrixWorld(true); const toFrame = new Matrix4().copy(frame.matrixWorld).invert();
+  bust.traverse(o => { const mesh = o as Mesh; if (!mesh.isMesh) return;
+    const M = new Matrix4().multiplyMatrices(toFrame, mesh.matrixWorld), Minv = M.clone().invert(), geo = mesh.geometry;
+    if (/eye/i.test(mesh.name)) {                                         // eyes move whole, with the face at their centre
+      const base = (mesh.userData.basePosition ??= mesh.position.clone()) as Vector3;
+      geo.computeBoundingBox(); const c = geo.boundingBox!.getCenter(new Vector3()).applyMatrix4(M);
+      const d = field ? field([c.x, c.y, c.z]) : [0, 0, 0];
+      const parentToFrame = new Matrix4().multiplyMatrices(toFrame, mesh.parent!.matrixWorld);
+      const local = new Vector3(d[0], d[1], d[2]).applyMatrix3(new Matrix3().setFromMatrix4(parentToFrame.invert()));
+      mesh.position.copy(base).add(local); return;
+    }
+    if (!mesh.userData.basePositions) {                                    // decompress once: quantised attributes cannot hold the morph
+      const src = geo.attributes.position, out = new Float32Array(src.count * 3);
+      for (let i = 0; i < src.count; i++) { out[i * 3] = src.getX(i); out[i * 3 + 1] = src.getY(i); out[i * 3 + 2] = src.getZ(i); }
+      mesh.userData.basePositions = out.slice(); geo.setAttribute('position', new BufferAttribute(out, 3));
+      mesh.userData.baseNormals = geo.attributes.normal; 
+    }
+    const base = mesh.userData.basePositions as Float32Array, pos = geo.attributes.position as BufferAttribute, v = new Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      v.set(base[i * 3], base[i * 3 + 1], base[i * 3 + 2]).applyMatrix4(M);
+      const d = field ? field([v.x, v.y, v.z]) : [0, 0, 0];
+      if (d[0] || d[1] || d[2]) v.set(v.x + d[0], v.y + d[1], v.z + d[2]);
+      v.applyMatrix4(Minv); pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+    if (!field) { geo.setAttribute('normal', mesh.userData.baseNormals); geo.computeBoundingSphere(); return; }
+    geo.deleteAttribute('normal'); geo.computeVertexNormals();
+    const n = geo.attributes.normal as BufferAttribute, key = (i: number) => `${pos.getX(i).toFixed(4)},${pos.getY(i).toFixed(4)},${pos.getZ(i).toFixed(4)}`;
+    const sums = new Map<string, Vector3>();
+    for (let i = 0; i < n.count; i++) { const k = key(i), s = sums.get(k) ?? new Vector3(); s.x += n.getX(i); s.y += n.getY(i); s.z += n.getZ(i); sums.set(k, s); }
+    for (let i = 0; i < n.count; i++) { const s = sums.get(key(i))!.clone().normalize(); n.setXYZ(i, s.x, s.y, s.z); }
+    n.needsUpdate = true; geo.computeBoundingSphere();
+  });
+}
+
 type V3 = [number, number, number];
 export type BustAnchors = { earlobe_l: V3; earlobe_r: V3; nose_bridge: V3; eye_l: V3; eye_r: V3; neck: { centre: V3; half_width: number; half_depth: number }; neck_front: V3 };
 // Skin tones shared with the hand twin (same key: one choice on this device for both twins).
@@ -72,7 +113,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
   const [wear, setWear] = useState<'stud' | 'full'>('full');
   const [panel, setPanel] = useState(false), [tracking, setTracking] = useState(false), [status, setStatus] = useState('');
   const [firstVisit] = useState(() => !store.get(SEEN_KEY));
-  const api = useRef<{ tone: (t: string) => void; wear: (w: 'stud' | 'full') => void; camera: (on: boolean) => void } | null>(null);
+  const [shaped, setShaped] = useState(false);
+  const api = useRef<{ tone: (t: string) => void; wear: (w: 'stud' | 'full') => void; camera: (on: boolean) => void; shape: (how: 'capture' | 'reset') => void } | null>(null);
   useEffect(() => { store.set(SEEN_KEY, '1'); }, []);
 
   useEffect(() => {
@@ -105,6 +147,15 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     const view = new Group(), head = new Group(); scene.add(view); view.add(head);
     let anchors: BustAnchors | null = null, framing = { target: new Vector3(0, 620, 40), distance: 600, yaw: 0.3 };
     let pieceRoot: Object3D | null = null, wearNow: 'stud' | 'full' = 'full';
+    let bustRef: Object3D | null = null, landmarks: FaceLandmarkAsset | null = null, field: ((p: P3) => P3) | null = null;
+    const lobeHolders: { holder: Object3D; lobe: P3; base: Vector3 }[] = [];
+    const placeOnFace = () => { for (const h of lobeHolders) { const d = field ? field(h.lobe) : [0, 0, 0]; h.holder.position.copy(h.base).add(new Vector3(d[0], d[1], d[2])); } };
+    const applyShape = (deltas: P3[] | null) => {
+      if (!bustRef || !landmarks) return;
+      field = deltas ? morphField(landmarks, deltas) : null;
+      morphBust(bustRef, head, field); placeOnFace(); setShaped(!!deltas);
+    };
+    let capturing = false, frames: P3[][] = [];
     const applyWear = (w: 'stud' | 'full') => {
       if (!pieceRoot || !detachable) return;
       pieceRoot.traverse(o => { if (o.name === detachable || o.name.startsWith(detachable + '_')) o.visible = w === 'full'; });
@@ -121,7 +172,11 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       eyes = portraitEyes(scene.environment);
       bust.traverse(o => { const m = o as Mesh; if (!m.isMesh) return;
         m.material = /eye/i.test(m.name) ? eyes! : skin!.material; m.castShadow = true; m.receiveShadow = true; });
-      head.add(bust);
+      head.add(bustRef = bust);
+      fetch(LANDMARKS_URL).then(r => r.ok ? r.json() : null).then((asset: FaceLandmarkAsset | null) => {
+        if (stopped || !asset) return; landmarks = asset;
+        const saved = readFaceShape(); if (saved) applyShape(saved.deltas);   // shaped before, on this device
+      }).catch(() => { /* the standard face */ });
       framing = portraitFraming(category, a);
       key.target.position.copy(framing.target);
       loader.load(model, piece => {
@@ -130,7 +185,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         root.traverse(o => { if ((o as Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
         pieceRoot = root; applyWear(wearNow);
         if (category === 'necklace' || category === 'pendant') head.add(setNecklace(root, a));
-        else { root.updateMatrixWorld(true); hangEarrings(root, a).forEach(h => head.add(h)); }
+        else { root.updateMatrixWorld(true); hangEarrings(root, a).forEach(h => { head.add(h); lobeHolders.push({ holder: h, lobe: (/left/.test(h.name) ? a.earlobe_l : a.earlobe_r) as P3, base: h.position.clone() }); }); placeOnFace(); }
       }, undefined, () => setStatus('This piece could not be loaded.'));
     }, undefined, () => setStatus('The portrait could not be loaded.'));
 
@@ -164,16 +219,28 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         const { FaceLandmarker, files, bytes } = await assets;
         tracker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetBuffer: bytes.slice(), delegate: 'GPU' }, runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true });
         if (stopped || !trackingOn) { tracker.close(); tracker = undefined; return; }
-        setStatus(''); setTracking(true);
+        setStatus(capturing ? 'Look at the camera with a relaxed face…' : ''); setTracking(true);
       } catch { setStatus('The camera is not available. You can still turn the portrait with your finger.'); stopCamera(); }
     };
-    const stopCamera = () => { trackingOn = false; stream?.getTracks().forEach(t => t.stop()); stream = undefined; tracker?.close(); tracker = undefined; setTracking(false); faceTarget.identity(); };
+    const stopCamera = () => { trackingOn = false; capturing = false; stream?.getTracks().forEach(t => t.stop()); stream = undefined; tracker?.close(); tracker = undefined; setTracking(false); faceTarget.identity(); };
     const track = (now: number) => {
       if (!tracker || video.readyState < 2) return;
       const result = tracker.detectForVideo(video, now), matrix = result.facialTransformationMatrixes?.[0]?.data;
       if (!matrix) return;
       faceSeen = now; m4.fromArray(matrix as unknown as number[]);
       const q = new Quaternion().setFromRotationMatrix(m4);
+      const marks = result.faceLandmarks?.[0];
+      if (capturing && landmarks && marks && 2 * Math.acos(Math.min(1, Math.abs(q.w))) < FRONTAL) {
+        frames.push(marks.slice(0, 468).map(l => fromImage(l, video.videoWidth, video.videoHeight)));
+        if (frames.length >= CAPTURE_FRAMES) {
+          if (jitter(frames, landmarks) < STEADY_MM) {
+            const deltas = faceDeltas(averageFrames(frames), landmarks);
+            applyShape(deltas); saveFaceShape(deltas); capturing = false;
+            setStatus('Shaped to your face. The measurements stay on this device.'); setTimeout(() => setStatus(''), 4000);
+          } else setStatus('Hold still and look at the camera…');
+          frames = [];
+        }
+      }
       // mirror: the customer turns left, the twin facing them turns to their left too (flip yaw and roll)
       faceTarget.set(q.x, -q.y, -q.z, q.w).normalize();
       const angle = 2 * Math.acos(Math.min(1, Math.abs(faceTarget.w)));
@@ -183,7 +250,11 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     api.current = {
       tone: t => { if (!skin) return; skin.material.color.set(t); skin.material.sheenColor.set(t).lerp(new Color('#ffffff'), 0.45); skin.uniforms.uBleed.value.set(t).lerp(new Color('#c2452d'), 0.55); },
       wear: w => { wearNow = w; applyWear(w); },
-      camera: on => { if (on) void startCamera(); else stopCamera(); },
+      camera: on => { if (on) { capturing = !readFaceShape(); frames = []; void startCamera(); } else stopCamera(); },
+      shape: how => {
+        if (how === 'reset') { capturing = false; forgetFaceShape(); applyShape(null); return; }
+        capturing = true; frames = []; if (!tracker) void startCamera(); else setStatus('Look at the camera with a relaxed face…');
+      },
     };
 
     const resize = () => { const r = host.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
@@ -237,6 +308,12 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         <p className="mb-2 text-xs">Wear as</p>
         <div className="mb-4 flex gap-2">{(['stud', 'full'] as const).map(w => <button key={w} type="button" aria-pressed={wear === w} onClick={() => setWear(w)} className="ames-pill min-h-10 rounded-full px-4 text-[12px]">{wearLabels[w]}</button>)}</div>
       </>}
+      <p className="mb-2 text-xs">Face</p>
+      <div className="mb-1 flex flex-wrap gap-2">
+        <button type="button" onClick={() => { api.current?.shape('capture'); setPanel(false); }} className="ames-pill min-h-10 rounded-full px-4 text-[12px]" data-shape-face>{shaped ? 'Reshape to my face' : 'Shape to my face'}</button>
+        {shaped && <button type="button" onClick={() => api.current?.shape('reset')} className="ames-pill min-h-10 rounded-full px-4 text-[12px]">Use the standard face</button>}
+      </div>
+      <p className="mb-4 text-[11px] text-white">Uses the camera for a moment. Your face measurements stay on this device.</p>
       <p className="mb-2 text-xs">Skin tone</p>
       <div className="flex flex-wrap gap-2">{TONES.map(t => <button key={t} type="button" aria-label={`Skin tone ${t}`} aria-pressed={tone === t} onClick={() => setTone(t)}
         className="h-9 w-9 rounded-full" style={{ background: t, outline: tone === t ? '2px solid #ffffff' : 'none', outlineOffset: 2 }} />)}</div>

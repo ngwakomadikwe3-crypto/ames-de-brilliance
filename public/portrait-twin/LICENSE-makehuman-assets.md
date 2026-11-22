@@ -7,3 +7,8 @@ https://github.com/makehumancommunity/makehuman), whose assets are released unde
 Changes by AMES (scripts/blender/create_portrait_bust.py): cut to a bust at the upper chest and deltoids, capped,
 subdivided once, converted to millimetres, eye helpers subdivided and painted, try-on anchors computed.
 CC0 requires no attribution; this note records provenance.
+
+`face-landmarks-v1.json` holds the 468 landmark positions of MediaPipe's canonical face model
+(`mediapipe/modules/face_geometry/data/canonical_face_model.obj`, https://github.com/google-ai-edge/mediapipe,
+Apache License 2.0, copy in LICENSE-mediapipe-apache-2.0.txt), scaled and placed on this bust, and their pinned
+points on the bust surface. Used to morph the bust to a customer's face.
