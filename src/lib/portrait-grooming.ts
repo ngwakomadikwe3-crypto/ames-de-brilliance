@@ -9,9 +9,9 @@
 import { BufferAttribute, BufferGeometry, Color, Mesh, ShaderMaterial, Vector3, type Texture } from 'three';
 import type { P3 } from './face-morph';
 
-export type HairStyle = 'short' | 'medium' | 'long' | 'tied';
+export type HairStyle = 'cap' | 'short' | 'medium' | 'long' | 'tied';
 export const HAIR_STYLES: { id: HairStyle; label: string }[] = [
-  { id: 'short', label: 'Short' }, { id: 'medium', label: 'Medium' }, { id: 'long', label: 'Long' }, { id: 'tied', label: 'Tied back' }];
+  { id: 'cap', label: 'Close crop' }, { id: 'short', label: 'Short' }, { id: 'medium', label: 'Medium' }, { id: 'long', label: 'Long' }, { id: 'tied', label: 'Tied back' }];
 
 const V = (p: P3) => new Vector3(p[0], p[1], p[2]);
 /** A point a fraction t (0..1) of the way along a polyline (by segment count). */
@@ -152,7 +152,7 @@ export function scalpRoots(skin: SkinField, lm: P3[], eyes: { left: P3; right: P
 }
 
 /** Grow a hairstyle. */
-export function growHair(skin: SkinField, roots: number[], style: HairStyle, color: Color, lm: P3[], shoulders: { y: number }, ears?: { left: P3; right: P3 }) {
+export function growHair(skin: SkinField, roots: number[], style: Exclude<HairStyle, 'cap'>, color: Color, lm: P3[], shoulders: { y: number }, ears?: { left: P3; right: P3 }) {
   seed = 23;
   // a collision shell: the head as an ellipsoid fitted to the scalp, the neck and shoulders below it
   const R = roots.map(i => V(skin.p[i]));

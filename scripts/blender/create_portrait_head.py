@@ -67,6 +67,9 @@ ID = {}
 for anc in ('african', 'asian', 'caucasian'):
     for sex in ('female', 'male'):
         ID[f'id:base-{anc[:3]}-{sex}'] = read_target(f'macrodetails/{anc}-{sex}-young.target')
+# age: how a young adult face becomes an older one (the mean over the six macro shapes, so it carries no ancestry or sex)
+ID['id:age-old'] = sum(read_target(f'macrodetails/{anc}-{sex}-old.target') - read_target(f'macrodetails/{anc}-{sex}-young.target')
+                       for anc in ('african', 'asian', 'caucasian') for sex in ('female', 'male')) / 6
 for folder, names in {
     'chin': ['chin-bones-decr', 'chin-bones-incr', 'chin-height-decr', 'chin-height-incr', 'chin-jaw-drop-decr', 'chin-jaw-drop-incr',
              'chin-prognathism-decr', 'chin-prognathism-incr', 'chin-prominent-decr', 'chin-prominent-incr', 'chin-width-decr', 'chin-width-incr', 'chin-cleft-incr'],

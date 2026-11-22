@@ -5,7 +5,8 @@
 //    thin and backlit (ears, nostril wings) from a thickness estimate in the shader;
 //  - pores and fine creases: the tileable skin-detail texture, triplanar at two scales, as micro normals and as
 //    roughness and albedo variation, never one flat colour or one flat gloss;
-//  - a tonal map from the scan (forehead, cheeks, nose, jaw, lips): regional tone, not one tint;
+//  - the customer's own skin: the scan photos projected onto the UV map (skin-bake.ts), multiplied into the tone;
+//  - a tonal map from the scan (LAB average with subtle zones: forehead, cheeks, nose, jaw, lips): never one flat tint;
 //  - the lip zones (UV distance field): the vermillion border, upper and lower lip as their own zone with their own
 //    colour variation and moisture, and the uniforms a lipstick will drive (colour, amount, gloss/matte);
 //  - stubble: a density sampled from the scan, drawn as fine dark dots over beard regions only;
@@ -21,7 +22,7 @@ export function portraitSkinV2(o: {
 }) {
   const c = (h?: string) => new Color(h ?? o.tones.base);
   const m = new MeshPhysicalMaterial({
-    color: c(), roughness: 0.48, metalness: 0, ior: 1.4, specularIntensity: 0.55,
+    color: c(), roughness: 0.55, metalness: 0, ior: 1.4, specularIntensity: 0.55,
     sheen: 0.25, sheenRoughness: 0.55, sheenColor: c().lerp(new Color('#ffffff'), 0.5),
     clearcoat: 0.12, clearcoatRoughness: 0.42, envMap: o.env, envMapIntensity: 0.35, transparent: true,
   });
@@ -36,18 +37,19 @@ export function portraitSkinV2(o: {
     uStubble: { value: o.stubble ?? 0 },
     uToHead: { value: new Matrix4() },            // world -> the head's own frame in mm (set every frame: the head moves)
     uSSS: { value: new Vector3(1.0, 0.32, 0.18) }, uSSSAmt: { value: 0.55 },
-    uPhotoOn: { value: 0 },                       // per-vertex photo colour from the scan (attribute aPhoto: rgb + confidence)
+    uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 },   // the customer's own skin (skin-bake.ts)
     uBrow: { value: Array.from({ length: 10 }, () => new Vector3(0, -1e4, 0)) }, uBrowOn: { value: 0 },   // brow centrelines, a soft tint under the hairs
+    uEar: { value: new Vector3(0, 0, -1e4) },   // (ear top y, ear lobe y, ear z): the hairline round the ears
     uHair: { value: new Vector4(1e4, 0, -1e4, 0) }, uHairColor: { value: new Color('#2b1d14') },   // scalp under the hair: (front hairline y, eye z, nape y, on)
   };
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, U);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vP; varying vec3 vN; varying vec2 vUv2; varying vec4 vPhoto; uniform mat4 uToHead; uniform float uPhotoOn;\n#ifdef USE_PHOTO\nattribute vec4 aPhoto;\n#endif')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;\n#ifdef USE_PHOTO\nvPhoto = aPhoto;\n#else\nvPhoto = vec4(0.0);\n#endif');
+      .replace('#include <common>', '#include <common>\nvarying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform mat4 uToHead;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; varying vec4 vPhoto; uniform float uPhotoOn; uniform vec4 uHair; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
+        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
         uniform vec3 uTone, uForehead, uCheeks, uNose, uJaw, uLipTone, uLipstick, uSSS;
         uniform vec4 uY, uLipRect; uniform float uChest, uDetailOn, uLipsOn, uLipRange, uLipstickAmount, uLipstickGloss, uStubble, uSSSAmt;
         uniform sampler2D uDetail, uLips;
@@ -73,18 +75,32 @@ export function portraitSkinV2(o: {
         tone = mix(tone, uJaw, 1.0 - smoothstep(uY.w - 5.0, uY.z - 2.0, vP.y));
         vec3 dA = uDetailOn > 0.5 ? mix(tri(vP, vN, 9.3), tri(vP + 3.7, vN, 23.0), 0.4) : vec3(0.5);
         diffuseColor.rgb = tone * (0.93 + 0.14 * dA.b);
-        // the scan's own colour where the photo saw this skin squarely: its chroma and local variation (freckles,
-        // flush, under-eye), with the photo's lighting taken out by matching its brightness to the tone map
-        if (uPhotoOn > 0.5 && vPhoto.a > 0.01) {
-          vec3 pc = vPhoto.rgb; const vec3 Y = vec3(0.2126, 0.7152, 0.0722);
-          vec3 albedo = pc * dot(diffuseColor.rgb, Y) / max(dot(pc, Y), 1e-3);
-          diffuseColor.rgb = mix(diffuseColor.rgb, albedo, 0.8 * vPhoto.a);
-        }
+        // the customer's own skin from the scan photos (a colour ratio to their average skin colour, so the tone above
+        // multiplies into it) and how surely the photos saw this spot
+        vec3 skinRel = vec3(1.0); float skinConf = 0.0;
+        if (uSkinOn > 0.5) { skinRel = texture2D(uSkinMap, vUv2).rgb * 2.0; skinConf = texture2D(uSkinConf, vUv2).r; }
+        float scalp = 0.0;
         // scalp under the hair takes the hair's colour, so no bald skin shows between strands
         if (uHair.w > 0.5) {
-          float front = smoothstep(uHair.y - 30.0, uHair.y - 20.0, vP.z);
-          float line = mix(uHair.z, uHair.x, front);
-          diffuseColor.rgb = mix(diffuseColor.rgb, uHairColor * 0.55, smoothstep(line - 2.0, line + 6.0, vP.y) * 0.92);
+          // a natural hairline: the forehead line (dipping a little at the temples), down in front of the ear as a short
+          // sideburn, up over the ear, and down behind it to the nape (blended, never a hard step)
+          float line;
+          if (uEar.z > -1e3) {
+            float dz = vP.z - uEar.z, ax2 = abs(vP.x);
+            float forehead = uHair.x - 9.0 * smoothstep(30.0, 52.0, ax2);
+            float side = mix(uEar.x - 14.0, forehead - 4.0, smoothstep(7.0, 17.0, dz));           // a short sideburn just in front of the ear
+            float overEar = uEar.x + 3.0;
+            float behind = mix(overEar, uHair.z, smoothstep(-12.0, -38.0, dz));
+            line = dz > 5.0 ? side : mix(behind, mix(overEar, side, smoothstep(-6.0, 5.0, dz)), smoothstep(-14.0, -6.0, dz));
+            line = mix(line, forehead, smoothstep(17.0, 30.0, dz) * (1.0 - smoothstep(58.0, 72.0, ax2)));
+          } else {
+            float front = smoothstep(uHair.y - 30.0, uHair.y - 20.0, vP.z);
+            line = mix(uHair.z, uHair.x, front);
+          }
+          // a close crop: fine short hairs (a grain of darker and lighter flecks), the hairline soft
+          float crop = 0.78 + 0.44 * fract(sin(dot(floor(vP * 2.2), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          scalp = smoothstep(line - 3.0, line + 7.0, vP.y);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uHairColor * 0.55 * crop, scalp * 0.94);
         }
         // brows: the skin beneath them shaded toward the hair colour (real brows read as a soft tone, not only as hairs)
         if (uBrowOn > 0.0) {
@@ -96,7 +112,7 @@ export function portraitSkinV2(o: {
             bm = max(bm, 1.0 - smoothstep(w * 0.45, w, length(vP - A - AB * h)));
           }
           float grain = 0.75 + 0.25 * fract(sin(dot(floor(vP.xy * 4.0), vec2(12.9898, 78.233))) * 43758.5453);
-          diffuseColor.rgb = mix(diffuseColor.rgb, uHairColor * 0.8, bm * uBrowOn * grain);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uHairColor * 0.8, bm * uBrowOn * grain * (1.0 - skinConf));   // the photo has the real brows
         }
         // lips: their own colour with a darker, redder centre line and fine vertical texture; the border is sharp
         vec2 lf = lipField();
@@ -105,10 +121,15 @@ export function portraitSkinV2(o: {
         vec3 lipCol = uLipTone * mix(1.0, 0.82, exp(-abs(lf.y) * 0.9)) * lipTexture;
         lipCol = mix(lipCol, uLipstick, clamp(uLipstickAmount, 0.0, 1.0) * smoothstep(-0.12, 0.12, lf.x));
         diffuseColor.rgb = mix(diffuseColor.rgb, lipCol, lip);
+        // the photo's detail over skin and lips (on the lips relative to the lip tone, so they are not reddened twice);
+        // not over the scalp tint, where the photo shows hair
+        { vec3 relLip = skinRel * uTone / max(uLipTone, vec3(1e-3));
+          vec3 f = mix(skinRel, relLip, lip) ; float k = skinConf * (1.0 - scalp) * (1.0 - 0.6 * clamp(uLipstickAmount, 0.0, 1.0) * lip);
+          diffuseColor.rgb *= mix(vec3(1.0), f, k); }
         // stubble: fine dark dots over the beard and moustache, never on the lips
         float beard = (1.0 - smoothstep(uY.y - 4.0, uY.y + 6.0, vP.y)) * smoothstep(uY.w - 30.0, uY.w - 10.0, vP.y) * (1.0 - smoothstep(55.0, 70.0, ax));
         float dots = step(0.62, hash(floor(vP * 3.2)));
-        diffuseColor.rgb *= 1.0 - uStubble * beard * (1.0 - lip) * (0.18 + 0.42 * dots);
+        diffuseColor.rgb *= 1.0 - uStubble * beard * (1.0 - lip) * (1.0 - skinConf) * (0.18 + 0.42 * dots);
         // the portrait fade below the chest
         // a soft oval vignette: the chest and shoulders melt into the background, no cut edge and no corners
         { float dy = max(0.0, uChest + 40.0 - vP.y) / 45.0, dx = max(0.0, ax - 95.0) / 80.0;
@@ -116,14 +137,14 @@ export function portraitSkinV2(o: {
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         roughnessFactor = clamp(roughnessFactor + (dA.r - 0.5) * 0.24, 0.3, 0.72);
         // the T-zone a little shinier, lips moist (or the lipstick's finish)
-        roughnessFactor -= 0.06 * (1.0 - smoothstep(9.0, 22.0, ax)) * smoothstep(uY.y - 10.0, uY.x + 30.0, vP.y);
+        roughnessFactor -= 0.13 * (1.0 - smoothstep(9.0, 22.0, ax)) * smoothstep(uY.y - 10.0, uY.x + 30.0, vP.y);   // T-zone ~0.42, cheeks ~0.55
         roughnessFactor = mix(roughnessFactor, mix(0.32, mix(0.62, 0.12, uLipstickGloss), uLipstickAmount), lip);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (uDetailOn > 0.5) {                        // pores and fine creases as micro normals
           float e = 0.35; vec3 g = vec3(tri(vP + vec3(e,0,0), vN, 9.3).r - tri(vP - vec3(e,0,0), vN, 9.3).r,
                                         tri(vP + vec3(0,e,0), vN, 9.3).r - tri(vP - vec3(0,e,0), vN, 9.3).r,
                                         tri(vP + vec3(0,0,e), vN, 9.3).r - tri(vP - vec3(0,0,e), vN, 9.3).r);
-          normal = normalize(normal - (viewMatrix * vec4(g, 0.0)).xyz * 0.55 * (1.0 - lip * 0.6));
+          normal = normalize(normal - (viewMatrix * vec4(g, 0.0)).xyz * 0.28 * (1.0 - lip * 0.6));   // low intensity: the photo carries the real detail
         }`)
       .replace('#include <opaque_fragment>', `
         // subsurface: light bleeds past the terminator in warm red; thin backlit parts (ears, nostril wings) glow
@@ -134,9 +155,9 @@ export function portraitSkinV2(o: {
         outgoingLight += diffuseColor.rgb * uSSS * uSSSAmt * (0.22 * max(wrap, 0.0) + 0.35 * thin * (0.35 + back));
         #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'ames-portrait-skin-v2' + (m.defines?.USE_PHOTO ? '-photo' : '');
+  m.customProgramCacheKey = () => 'ames-portrait-skin-v3';
   return {
-    usePhoto: (on: boolean) => { m.defines = { ...(m.defines ?? {}), ...(on ? { USE_PHOTO: '' } : {}) }; if (!on && m.defines) delete m.defines.USE_PHOTO; U.uPhotoOn.value = on ? 1 : 0; m.needsUpdate = true; }, material: m, uniforms: U, setLipstick: (l: Lipstick | null) => { U.uLipstickAmount.value = l ? l.amount : 0; if (l) { U.uLipstick.value.set(l.color); U.uLipstickGloss.value = l.gloss; } },
+    useSkinMap: (map: Texture | null, conf: Texture | null) => { U.uSkinMap.value = map; U.uSkinConf.value = conf; U.uSkinOn.value = map && conf ? 1 : 0; }, material: m, uniforms: U, setLipstick: (l: Lipstick | null) => { U.uLipstickAmount.value = l ? l.amount : 0; if (l) { U.uLipstick.value.set(l.color); U.uLipstickGloss.value = l.gloss; } },
     setTones: (t: ToneMap) => { U.uTone.value.set(t.base); U.uForehead.value.set(t.forehead ?? t.base); U.uCheeks.value.set(t.cheeks ?? t.base); U.uNose.value.set(t.nose ?? t.base);
       U.uJaw.value.set(t.jaw ?? t.base); U.uLipTone.value.set(t.lips ?? t.base).multiply(t.lips ? new Color('#ffffff') : new Color('#e8a0a0')); m.sheenColor.set(t.base).lerp(new Color('#ffffff'), 0.5); } };
 }
@@ -161,7 +182,8 @@ export function portraitEye(o: { env: Texture | null; iris: string; centre: Vect
         vec3 iris = uIris * fib * mix(1.25, 0.8, smoothstep(pupilA, irisA, a));
         iris = mix(iris, uIris * 1.5 + 0.05, smoothstep(0.02, 0.0, abs(a - pupilA * 1.55)) * 0.35);   // the collarette
         iris *= mix(1.0, 0.35, smoothstep(irisA - 0.08, irisA, a));                                      // the limbal ring
-        vec3 sclera = vec3(0.93, 0.9, 0.87) * mix(1.0, 0.86, smoothstep(0.9, 1.6, a));                  // whiter centre, shadowed toward the lids
+        vec3 sclera = vec3(0.74, 0.7, 0.65) * mix(1.0, 0.72, smoothstep(0.75, 1.45, a));                  // never paper white: warm, shadowed toward the lids and corners
+        sclera *= mix(1.0, 0.8, smoothstep(0.55, 0.95, abs(d.x)));
         sclera = mix(sclera, vec3(0.9, 0.62, 0.6), 0.12 * smoothstep(1.1, 1.5, a) * (0.5 + 0.5 * sin(ang * 23.0)));  // faint vessels
         vec3 col = mix(iris, sclera, smoothstep(irisA - 0.01, irisA + 0.025, a));
         col = mix(vec3(0.012), col, smoothstep(pupilA - 0.015, pupilA + 0.01, a));                      // the pupil

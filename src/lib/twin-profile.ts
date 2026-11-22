@@ -17,7 +17,9 @@ export type FaceIdentity = {
   spectacles?: Spectacles;                // measured for frames
   tones: ToneMap;                         // regional tones from the scan (forehead, cheeks, nose, jaw, lips)
   hairColor: string; hairStyle: HairStyle; stubble: number; irisColor: string;
-  photo?: string;                         // per-vertex photo colour + confidence of the fitted face (face-scan.ts pack)
+  skinMap?: string; skinConf?: string;    // the customer's own skin, projected from the photos onto the head's UV map (skin-bake.ts)
+  headScale?: number;                     // true size, from the interpupillary distance
+  tune?: Record<string, number>;          // the customer's fine-tune on top of the solved face (twin-build.ts FACE_TUNE)
   savedAt: number;
 };
 export type TwinProfile = { version: 1; face?: FaceIdentity; savedAt: number };
@@ -28,7 +30,7 @@ export function readTwin(): TwinProfile | null {
 function write(p: TwinProfile) { localStorage.setItem(TWIN_KEY, JSON.stringify(p)); window.dispatchEvent(new Event(TWIN_EVENT)); }
 /** Save the face; the hand is saved by its own flow (hand-profile.ts). Throws when the device refuses (quota). */
 export function saveFace(face: FaceIdentity) { write({ version: 1, face, savedAt: Date.now() }); }
-export function saveFacePrefs(prefs: Partial<Pick<FaceIdentity, 'hairStyle' | 'hairColor'>>) {
+export function saveFacePrefs(prefs: Partial<Pick<FaceIdentity, 'hairStyle' | 'hairColor' | 'tune'>>) {
   const t = readTwin(); if (!t?.face) return; write({ ...t, face: { ...t.face, ...prefs } });
 }
 /** One delete: face, hand and every twin preference. */

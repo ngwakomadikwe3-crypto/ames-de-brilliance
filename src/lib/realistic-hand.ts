@@ -164,6 +164,11 @@ function carry(g: BufferGeometry, t: HandTemplate, fit: ReturnType<typeof fitTem
 export function buildRealHand(t: HandTemplate, shape: HandShape, skin: Material, nail: Material, textureUv?: [number, number][]) {
   const fit = fitTemplate(t, shape);
   const skinGeo = carry(t.skin, t, fit), nailGeo = carry(t.nails, t, fit);
+  // the sculpt's nail plates sit within ±0.2 mm of the skin, so the skin swallowed most of each plate and only the free
+  // edge showed (flat patches): lift every plate 0.35 mm out of the nail bed, along its own surface
+  { nailGeo.computeVertexNormals(); const p = nailGeo.getAttribute('position'), n = nailGeo.getAttribute('normal');
+    for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + n.getX(i) * 0.35, p.getY(i) + n.getY(i) * 0.35, p.getZ(i) + n.getZ(i) * 0.35);
+    p.needsUpdate = true; nailGeo.computeBoundingSphere(); }
   // photo texture: affine map from the fitted rest (x, y) to the photo, fitted on the 21 landmarks
   const pos = skinGeo.getAttribute('position'), uv = new Float32Array(pos.count * 2);
   if (textureUv?.length === 21) {

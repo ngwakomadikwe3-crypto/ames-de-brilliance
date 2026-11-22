@@ -66,3 +66,7 @@ assert.equal(r('smile', good, smile(), front).ok, true, 'a smile passes');
 const t = regionalTones(good, front);
 assert.ok(/^#[0-9a-f]{6}$/.test(t.base) && parseInt(t.base.slice(1, 3), 16) > parseInt(t.base.slice(5, 7), 16), 'regional tones are warm skin colours');
 console.log('ok - good frames pass; blurry, half-lit, dark, cropped and wrong-angle frames are rejected with a reason');
+// LAB round trip (the skin-tone average works in LAB)
+{ const { rgbToLab, labToRgb } = await import('../src/lib/color-lab.ts');
+  for (const c of [[198, 140, 108], [92, 58, 40], [240, 210, 190]]) { const back = labToRgb(rgbToLab(c)); assert.ok(back.every((v, i) => Math.abs(v - c[i]) < 1), `LAB round trip ${c}`); }
+  console.log('ok - LAB round trip'); }

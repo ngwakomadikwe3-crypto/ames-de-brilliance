@@ -9,7 +9,7 @@
 // Default screen: the stage, the name, one primary action, Customize.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ACESFilmicToneMapping, AmbientLight, Box3, BufferAttribute, Color, DirectionalLight, Group, Matrix3, Matrix4, Mesh, Object3D, PCFSoftShadowMap,
+  ACESFilmicToneMapping, AmbientLight, Box3, Color, DirectionalLight, Group, Matrix3, Matrix4, Mesh, Object3D, PCFSoftShadowMap,
   PMREMGenerator, PerspectiveCamera, Quaternion, Raycaster, RepeatWrapping, Scene, ShaderMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -24,7 +24,8 @@ import { portraitSkinV2, portraitEye, teethMaterial, tongueMaterial, type ToneMa
 import { SkinField, growBrows, growLashes, growHair, scalpRoots, HAIR_STYLES, type HairStyle } from '../lib/portrait-grooming';
 import { FaceLife } from '../lib/portrait-life';
 import { readTwin, saveFace, saveFacePrefs, deleteTwin, twinTones, harmonisedFaceTones, TWIN_EVENT, type FaceIdentity } from '../lib/twin-profile';
-import { unpack } from '../lib/face-scan';
+import { tunedWeights, FACE_TUNE, MEAN_PD_MM } from '../lib/twin-build';
+import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import FaceScan from './FaceScan';
 import type { P3 } from '../lib/face-morph';
 
@@ -86,10 +87,14 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
   const [scanning, setScanning] = useState(false), [panel, setPanel] = useState(false), [confirmDelete, setConfirmDelete] = useState(false);
   const [wear, setWear] = useState<'stud' | 'full'>('full'), [tracking, setTracking] = useState(false), [status, setStatus] = useState('');
   const face = preview?.face ?? twin?.face ?? null;
-  const [hairStyle, setHairStyle] = useState<HairStyle>(face?.hairStyle ?? 'medium');
+  const [hairStyle, setHairStyle] = useState<HairStyle>(face?.hairStyle ?? 'cap');
+  // fine-tune after the scan: sliders over the solved face (rebuilds the head a moment after a slider stops)
+  const [tune, setTune] = useState<Record<string, number>>(() => face?.tune ?? {}), [tuneOpen, setTuneOpen] = useState(false);
+  const [tuneKey, setTuneKey] = useState(''), tuneRef = useRef<Record<string, number> | null>(null);
+  useEffect(() => { const id = setTimeout(() => { tuneRef.current = tune; setTuneKey(JSON.stringify(tune)); if (!preview && twin?.face) saveFacePrefs({ tune }); }, 350); return () => clearTimeout(id); }, [tune]);   // eslint-disable-line react-hooks/exhaustive-deps
   const api = useRef<{ wear: (w: 'stud' | 'full') => void; camera: (on: boolean) => void; hair: (s: HairStyle) => void } | null>(null);
   useEffect(() => { const sync = () => setTwin(readTwin()); addEventListener(TWIN_EVENT, sync); addEventListener('ames-hand-fit', sync); return () => { removeEventListener(TWIN_EVENT, sync); removeEventListener('ames-hand-fit', sync); }; }, []);
-  const faceKey = face ? `${face.savedAt}` : 'average';
+  const faceKey = face ? `${face.savedAt}|${tuneKey}` : 'average';
 
   useEffect(() => {
     const canvas = canvasRef.current!, host = box.current!;
@@ -116,8 +121,11 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
 
     (async () => {
       const H = await loadPortraitHead(); if (stopped) return;
-      const weights = face?.weights ?? AVERAGE;
+      const weights = face ? tunedWeights(face.weights, tuneRef.current ?? face.tune) : AVERAGE;
       bakeIdentity(H.head, weights);
+      // true size: the scanned interpupillary distance (or the adult mean), so jewellery sits at its real scale
+      { const e0 = eyeCentres(H.parts, H.head), pd0 = Math.hypot(e0.left[0] - e0.right[0], e0.left[1] - e0.right[1], e0.left[2] - e0.right[2]);
+        H.head.scale.multiplyScalar(face?.headScale ?? Math.max(0.9, Math.min(1.1, MEAN_PD_MM / pd0))); H.head.updateMatrixWorld(true); }
       headFrame.add(H.head);
       const pts = meshPointsMm(H.skin, H.head), lm = anchoredPoints(pts, H.anchors), eyes = eyeCentres(H.parts, H.head);
       anchors = anchorsFrom(pts, lm, eyes);
@@ -130,13 +138,14 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const chestY = Math.min(...pts.map(p => p[1])) + 75;                    // where the portrait fades out, clear of the notched bottom edge
       skinMat = portraitSkinV2({ tones: toneMap, env: null, detail, lipZones, lipRect: H.meta.lips.uvRect, lipRangeMm: H.meta.lips.rangeMm, stubble: face?.stubble ?? 0,
         anchors: { eyeY: (eyes.left[1] + eyes.right[1]) / 2, noseY: lm[1][1], mouthY: lm[13][1], chinY: lm[152][1], chestY } });
-      if (face?.photo) {
-        const photo = unpack(face.photo);
-        if (photo.length === H.skin.geometry.getAttribute('position').count * 4) { H.skin.geometry.setAttribute('aPhoto', new BufferAttribute(photo, 4, true)); skinMat.usePhoto(true); }
+      if (face?.skinMap && face.skinConf) {                                  // the customer's own skin, from the scan photos
+        const load = (url: string) => { const t = new TextureLoader().load(url); t.flipY = false; t.anisotropy = 4; disposables.push(t); return t; };
+        skinMat.useSkinMap(load(face.skinMap), load(face.skinConf));
       }
       const hairColor = new Color(face?.hairColor ?? '#2b1d14');
       skinMat.uniforms.uHairColor.value.copy(hairColor);
       skinMat.uniforms.uHair.value.set(lm[10][1] - 6, (eyes.left[2] + eyes.right[2]) / 2, lm[13][1] - 8, 1);
+      skinMat.uniforms.uEar.value.set((eyes.left[1] + eyes.right[1]) / 2 + 4, anchors.earlobe_l[1], (anchors.earlobe_l[2] + anchors.earlobe_r[2]) / 2 + 6);
       // brow centrelines (midway between MediaPipe's upper and lower brow arcs), inner head to tail
       [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
         .forEach(([u, l], i) => (skinMat!.uniforms.uBrow.value as Vector3[])[i].set((lm[u][0] + lm[l][0]) / 2, (lm[u][1] + lm[l][1]) / 2, (lm[u][2] + lm[l][2]) / 2));
@@ -160,9 +169,13 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const roots = scalpRoots(field, lm, eyes), shoulders = { y: lm[152][1] - 95 };
       regrowHair = (s: HairStyle) => {
         if (hairMesh) { headFrame.remove(hairMesh); hairMesh.geometry.dispose(); (hairMesh.material as { dispose(): void }).dispose(); }
+        hairMesh = null; if (s === 'cap') return;                            // a close crop: the tinted scalp only
         hairMesh = growHair(field, roots, s, hairColor, lm, shoulders, { left: anchors!.earlobe_l as P3, right: anchors!.earlobe_r as P3 }); hairMesh.castShadow = true; (hairMesh.material as ShaderMaterial).uniforms.uFade.value = skinMat?.uniforms.uChest.value ?? -1e6; headFrame.add(hairMesh);
       };
       regrowHair(hairStyle);
+      // living eyes and mouth: corneal bulge, tear lines, the mouth's dark interior
+      { const ep = meshPointsMm(H.parts['eye left'], H.head), r = ep.reduce((a, p) => a + Math.hypot(p[0] - eyes.left[0], p[1] - eyes.left[1], p[2] - eyes.left[2]), 0) / ep.length;
+        headFrame.add(eyeAndMouthDetails(lm, eyes, r, null)); }
       // the jewellery
       const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
       const load = (url: string, kind: string) => loader.load(url, gltf => {
@@ -179,7 +192,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         if (stopped) { hdr.dispose(); return; }
         const env = pmrem.fromEquirectangular(hdr); hdr.dispose(); disposables.push(env);
         scene.traverse(o => { const m = (o as Mesh).material as { envMap?: unknown; needsUpdate?: boolean; envMapIntensity?: number } | undefined;
-          if (m && 'envMap' in m && !(o as Mesh).userData?.ames) { if (m === skinMat?.material || /Eye|eye|teeth|tongue/i.test(o.name)) { m.envMap = env.texture; m.needsUpdate = true; } } });
+          if (m && 'envMap' in m && !(o as Mesh).userData?.ames) { if (m === skinMat?.material || /Eye|eye|teeth|tongue|cornea|tear/i.test(o.name)) { m.envMap = env.texture; m.needsUpdate = true; } } });
       });
     })().catch(() => setStatus('The twin could not be prepared on this device.'));
 
@@ -283,7 +296,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
             <p style={{ fontFamily: 'var(--font-satoshi)', fontSize: 17 }}>Is this your twin?</p>
             <p className="text-[11px] opacity-85">A likeness from your photos, not an exact scan. Compare the jaw, nose, lips and tone.</p>
             <div className="flex flex-wrap gap-3">
-              <button type="button" className="min-h-11 rounded-full px-5 font-medium" style={bubble} data-save-twin onClick={() => { try { saveFace({ ...preview.face, hairStyle }); setPreview(null); setStatus('Your twin is saved on this device.'); } catch { setStatus('Your twin could not be saved on this device.'); } }}>Save my twin</button>
+              <button type="button" className="min-h-11 rounded-full px-5 font-medium" style={bubble} data-save-twin onClick={() => { try { saveFace({ ...preview.face, hairStyle, tune }); setPreview(null); setStatus('Your twin is saved on this device.'); } catch { setStatus('Your twin could not be saved on this device.'); } }}>Save my twin</button>
+              <button type="button" className="min-h-10 px-2 text-xs underline" onClick={() => setTuneOpen(o => !o)} aria-expanded={tuneOpen} data-fine-tune-face>Fine-tune</button>
               <button type="button" className="min-h-10 px-2 text-xs underline" onClick={() => { setPreview(null); setScanning(true); }}>Retake</button>
               <button type="button" className="min-h-10 px-2 text-xs underline" onClick={() => setPreview(null)}>Cancel</button>
             </div>
@@ -299,6 +313,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         <div className="mb-4 flex gap-2">{(['stud', 'full'] as const).map(w => <button key={w} type="button" aria-pressed={wear === w} onClick={() => setWear(w)} className="ames-pill min-h-10 rounded-full px-4 text-[12px]">{wearLabels[w]}</button>)}</div></>}
       <p className="mb-2 text-xs">Hair</p>
       <div className="mb-4 flex flex-wrap gap-2">{HAIR_STYLES.map(h => <button key={h.id} type="button" aria-pressed={hairStyle === h.id} onClick={() => chooseHair(h.id)} className="ames-pill min-h-10 rounded-full px-4 text-[12px]">{h.label}</button>)}</div>
+      {face && <button type="button" className="mb-4 text-xs underline" onClick={() => { setPanel(false); setTuneOpen(true); }} data-fine-tune-face>Fine-tune my face</button>}
       <p className="mb-2 text-xs">Your twin</p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="ames-pill min-h-10 rounded-full px-4 text-[12px]" onClick={() => { setPanel(false); setScanning(true); }}>{face ? 'Rescan my face' : 'Scan my face'}</button>
@@ -308,6 +323,15 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       </div>
       <p className="mt-3 text-[11px] opacity-80">One twin for your face and hands: same skin tone everywhere. Measurements stay on this device.</p>
     </div>}
-    {scanning && <FaceScan onCancel={() => setScanning(false)} onDone={(f, photo) => { setScanning(false); setHairStyle(f.hairStyle); setPreview({ face: f, photo }); }} />}
+    {tuneOpen && face && <div className="absolute inset-x-3 top-16 z-30 max-h-[55%] overflow-auto rounded-2xl p-4 text-white shadow-xl" style={{ background: 'rgba(6,42,33,0.95)' }} data-face-tune>
+      <div className="mb-2 flex items-center justify-between"><p className="text-sm">Fine-tune your twin</p>
+        <button type="button" className="text-xs underline" onClick={() => setTuneOpen(false)}>Done</button></div>
+      <p className="mb-3 text-[11px] opacity-85">Your scan set these; nudge any that look off. Compare with your photo.</p>
+      {FACE_TUNE.map(t => <label key={t.id} className="mb-2 block text-xs">{t.label}
+        <input type="range" min={t.decr ? -0.6 : 0} max={0.6} step={0.02} value={tune[t.id] ?? 0} onChange={e => setTune(v => ({ ...v, [t.id]: Number(e.target.value) }))}
+          className="mt-1 w-full" style={{ accentColor: '#ffffff' }} data-tune={t.id} /></label>)}
+      <button type="button" className="text-xs underline" onClick={() => setTune({})}>Back to my scan</button>
+    </div>}
+    {scanning && <FaceScan onCancel={() => setScanning(false)} onDone={(f, photo) => { setScanning(false); setHairStyle(f.hairStyle); setTune({}); setPreview({ face: f, photo }); }} />}
   </div>;
 }

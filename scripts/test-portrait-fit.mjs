@@ -23,7 +23,7 @@ async function loadHead() {
 const { head, skin } = await loadHead();
 const anchors = anchorsFromUV(skin.geometry, meta.landmarks.uv);
 const B = basisFor(skin, head, anchors, meta.identity);
-assert.equal(B.n, 478); assert.equal(B.names.length, 113);
+assert.equal(B.n, 478); assert.equal(B.names.length, 114); assert.ok(B.names.includes("id:age-old"), "age is a shape");
 const W = name => B.names.indexOf(name);
 const person = spec => { const w = new Array(B.names.length).fill(0); for (const [k, v] of Object.entries(spec)) { assert.ok(W(k) >= 0, k); w[W(k)] = v; } return w; };
 const A = person({ 'id:base-cau-female': 1, 'id:nose-scale-horiz-decr': 0.6, 'id:chin-width-decr': 0.5, 'id:mouth-upperlip-volume-incr': 0.7, 'id:cheek-bones-incr': 0.5, 'id:nose-scale-depth-decr': 0.5 });

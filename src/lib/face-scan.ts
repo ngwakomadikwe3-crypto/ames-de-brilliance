@@ -2,19 +2,22 @@
 //  - gates: every frame must be sharp, evenly lit, whole, large enough and at the angle its step asks for;
 //  - regional tones, hair colour, stubble density and iris colour from the front frame;
 //  - the per-vertex photo colour of the fitted face where the front photo sees it well.
-import type { P3 } from './face-morph';
 import type { ToneMap } from './portrait-materials';
 
 export type Px = { data: Uint8ClampedArray; width: number; height: number };
 export type Lm = { x: number; y: number; z: number };
 export type Step = 'front' | 'side-a' | 'side-b' | 'up' | 'smile';
-export const STEPS: { id: Step; title: string; tip: string }[] = [
+/** Three frames are required (front, about 45 degrees each way); chin-up and a smile are optional extras. */
+export const STEPS: { id: Step; title: string; tip: string; optional?: true }[] = [
   { id: 'front', title: 'Look straight ahead', tip: 'Face in the oval, eyes on the line, mouth relaxed and closed.' },
-  { id: 'side-a', title: 'Turn to one side', tip: 'Slowly turn your head until your nose nearly reaches the edge of the oval.' },
-  { id: 'side-b', title: 'Now the other side', tip: 'Turn the other way, just as far.' },
-  { id: 'up', title: 'Chin up a little', tip: 'Tilt your chin up slightly so the camera sees under your jaw.' },
-  { id: 'smile', title: 'A natural smile', tip: 'Smile as you would in a photo you like.' },
+  { id: 'side-a', title: 'Turn about 45° to one side', tip: 'Slowly turn your head about halfway to your shoulder.' },
+  { id: 'side-b', title: 'Now about 45° the other way', tip: 'Turn the other way, just as far.' },
+  { id: 'up', title: 'Chin up a little', tip: 'Tilt your chin up slightly so the camera sees under your jaw.', optional: true },
+  { id: 'smile', title: 'A natural smile', tip: 'Smile as you would in a photo you like.', optional: true },
 ];
+export const REQUIRED_STEPS = STEPS.filter(s => !s.optional).length;
+/** headAngle().turn at about 35 and 60 degrees: a "45 degree" frame must lie between. */
+export const SIDE_TURN = { min: 0.3, max: 0.8 };
 
 const lum = (d: Uint8ClampedArray, i: number) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
 function patch(img: Px, x: number, y: number, r: number) {
@@ -75,7 +78,8 @@ export function checkFrame(step: Step, img: Px, l: Lm[] | null, front?: Lm[] | n
   }
   // level: on MediaPipe's canonical (neutral, level) face the nose tip sits 0.31 of the way from the eye line to the chin
   if (step === 'front' && front === undefined && Math.abs(tilt - LEVEL_TILT) > 0.14) return fail('Hold your head level.', g);
-  if ((step === 'side-a' || step === 'side-b') && Math.abs(turn) < 0.22) return fail('Turn a little further.', g);
+  if ((step === 'side-a' || step === 'side-b') && Math.abs(turn) < SIDE_TURN.min) return fail('Turn a little further (about 45°).', g);
+  if ((step === 'side-a' || step === 'side-b') && Math.abs(turn) > SIDE_TURN.max) return fail('Not quite so far: about 45° is enough.', g);
   if (step === 'side-b' && sideA && Math.sign(turn) === Math.sign(headAngle(sideA).turn)) return fail('Now turn the other way.', g);
   if (step === 'up') { const t0 = front ? headAngle(front).tilt : LEVEL_TILT; if (tilt > t0 - 0.08) return fail('Lift your chin a little more.', g); }
   if (step === 'smile') {
@@ -85,12 +89,25 @@ export function checkFrame(step: Step, img: Px, l: Lm[] | null, front?: Lm[] | n
   return { ok: true, ...g };
 }
 
-/** Regional tones from the front frame: forehead, cheeks, nose, jaw, lips (shadows and highlights trimmed). */
+import { rgbToLab, labToRgb } from './color-lab';
+export { rgbToLab, labToRgb };
+/** Skin albedo from the front frame: patches on both cheeks and the forehead (stable, flat skin: no nostrils, lips,
+ *  brows or eyes), each pixel in LAB; the darkest 25 % (shadow, pores) and brightest 20 % (specular highlights) by
+ *  lightness are dropped, the rest averaged in LAB. */
+export function skinLab(img: Px, l: Lm[]) {
+  const face = Math.hypot((l[454].x - l[234].x) * img.width, (l[454].y - l[234].y) * img.height), r = Math.max(2, Math.round(face / 40));
+  const labs = [50, 280, 205, 425, 101, 330, 151, 108, 337].flatMap(i => patch(img, l[i].x * img.width, l[i].y * img.height, r)).map(rgbToLab).sort((a, b) => a[0] - b[0]);
+  const kept = labs.slice(Math.floor(labs.length * 0.25), Math.ceil(labs.length * 0.8));
+  if (!kept.length) return null;
+  return [0, 1, 2].map(c => kept.reduce((a, p) => a + p[c], 0) / kept.length);
+}
+/** The skin tones of the twin: the LAB average as the base, with subtle zones (nose and cheeks a touch redder, the jaw
+ *  a touch darker, the forehead a touch lighter); the lips sampled on their own. */
 export function regionalTones(img: Px, l: Lm[]): ToneMap {
-  const at = (ids: number[], r = 5) => trimmedColour(ids.flatMap(i => patch(img, l[i].x * img.width, l[i].y * img.height, r)));
-  const forehead = at([151, 9, 108, 337]), cheeks = at([50, 280, 205, 425]), nose = at([4, 5, 197]), jaw = at([175, 199, 32, 262]), lips = at([14, 17, 0, 13], 3);
-  const base = cheeks ?? forehead ?? [180, 130, 100];
-  return { base: hex(base), forehead: forehead ? hex(forehead) : undefined, cheeks: cheeks ? hex(cheeks) : undefined, nose: nose ? hex(nose) : undefined, jaw: jaw ? hex(jaw) : undefined, lips: lips ? hex(lips) : undefined };
+  const lab = skinLab(img, l) ?? rgbToLab([180, 130, 100]);
+  const shift = (dL: number, dA: number, dB = 0) => hex(labToRgb([lab[0] + dL, lab[1] + dA, lab[2] + dB]));
+  const lips = trimmedColour([14, 17, 0, 13, 312, 82].flatMap(i => patch(img, l[i].x * img.width, l[i].y * img.height, 3)));
+  return { base: shift(0, 0), cheeks: shift(-0.5, 2.2), nose: shift(-1, 3), jaw: shift(-3, 0.5, 0.5), forehead: shift(1, -0.5), lips: lips ? hex(lips) : shift(-8, 14, 3) };
 }
 
 /** Stubble density 0..1: how much darker and more textured the beard area is than the cheeks above it. */
@@ -115,19 +132,5 @@ export function irisColour(img: Px, l: Lm[]) {
   const c = trimmedColour(px); return c ? hex(c) : '#4a3222';
 }
 
-/** Photo colour per skin vertex from the front frame: each fitted vertex projected by the frame's pose; confidence
- *  from how squarely the photo sees it (normal toward the camera), zero for the far side, the eyes' cavities and
- *  anything outside the photo. Returned packed (rgb + confidence) for the profile. */
-export function photoColours(img: Px, points: P3[], normals: P3[], project: (p: P3) => [number, number], toCamera: P3) {
-  const out = new Uint8Array(points.length * 4);
-  points.forEach((p, i) => {
-    const [u, v] = project(p), x = Math.round(u * img.width), y = Math.round(v * img.height);
-    const n = normals[i], facing = n[0] * toCamera[0] + n[1] * toCamera[1] + n[2] * toCamera[2];
-    if (x < 1 || y < 1 || x >= img.width - 1 || y >= img.height - 1 || facing < 0.35) return;
-    const c = trimmedColour(patch(img, x, y, 1)); if (!c) return;
-    out.set([c[0], c[1], c[2], Math.round(255 * Math.min(1, (facing - 0.35) / 0.4))], i * 4);
-  });
-  return out;
-}
 export const pack = (a: Uint8Array) => { let s = ''; for (let i = 0; i < a.length; i += 8192) s += String.fromCharCode(...a.subarray(i, i + 8192)); return btoa(s); };
 export const unpack = (s: string) => Uint8Array.from(atob(s), c => c.charCodeAt(0));

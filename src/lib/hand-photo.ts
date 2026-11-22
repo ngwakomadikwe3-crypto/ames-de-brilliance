@@ -1,4 +1,5 @@
 // Turning one photo of the back of a hand into a hand shape, skin tone and texture.
+import { rgbToLab, labToRgb } from './color-lab';
 // Pure functions over RGBA pixels and MediaPipe landmarks so they can be tested without a browser.
 import type { HandShape, Mm3 } from './hand-profile';
 
@@ -78,18 +79,22 @@ function widthAcross(img: Pixels, a: P, b: P, t: number, maxPx: number) {
   return l && r ? l + r : 0;
 }
 
-/** Skin tone: the middle of the brightness range on the back of the hand, so shadows and highlights are ignored. */
+/** Skin tone: albedo sampled over the back of the hand (between the metacarpals), averaged in LAB like the face: the
+ *  darkest 25 % (shadows, creases) and brightest 20 % (specular highlights, knuckle shine) by lightness left out. */
 export function skinTone(img: Pixels, px: P[]) {
   const samples: number[][] = [];
   for (const base of [5, 9, 13, 17]) for (const t of [0.35, 0.5, 0.65, 0.8]) for (const off of [-0.04, 0, 0.04]) {
     const x = px[0].x + (px[base].x - px[0].x) * t + (px[17].x - px[5].x) * off, y = px[0].y + (px[base].y - px[0].y) * t + (px[17].y - px[5].y) * off;
-    const i = 4 * (Math.round(y) * img.width + Math.round(x));
-    if (i >= 0 && i < img.data.length - 3) samples.push([img.data[i], img.data[i + 1], img.data[i + 2]]);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const i = 4 * (Math.round(y + dy) * img.width + Math.round(x + dx));
+      if (i >= 0 && i < img.data.length - 3) samples.push(rgbToLab([img.data[i], img.data[i + 1], img.data[i + 2]]));
+    }
   }
-  samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+  samples.sort((a, b) => a[0] - b[0]);
   const mid = samples.slice(Math.floor(samples.length * 0.25), Math.ceil(samples.length * 0.8));
-  const avg = [0, 1, 2].map(c => Math.round(mid.reduce((t, s) => t + s[c], 0) / Math.max(1, mid.length)));
-  return '#' + avg.map(v => v.toString(16).padStart(2, '0')).join('');
+  if (!mid.length) return '#c58e6b';
+  const lab = [0, 1, 2].map(c => mid.reduce((t, s) => t + s[c], 0) / mid.length);
+  return '#' + labToRgb(lab).map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
 }
 
 /**

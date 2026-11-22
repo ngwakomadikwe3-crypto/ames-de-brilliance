@@ -33,12 +33,15 @@ one; with no profile the base hand is used. The hand is half of one identity wit
 (`src/lib/twin-profile.ts`, see `portrait-twin.md`): the hand wears the harmonised tone shared with the face, and
 "Delete my twin" (confirmed) wipes face, hand and tones together.
 
-**Skin** (`src/lib/realistic-skin.ts`): subsurface light (a softened, reddened terminator; warm transmission through
+**Skin tone**: sampled over the back of the hand in the scan photo and averaged in LAB like the face (shadows and
+highlights by lightness left out), then harmonised with the face.
+
+**Skin** (`src/lib/realistic-skin.ts`), lit by the jewellery tent HDR with ACES Filmic like the piece: subsurface light (a softened, reddened terminator; warm transmission through
 the fingertips, webbing and thin edges, and a warm glow along the silhouette where light passes through); a per-pixel
 normal field of pores and skin lines, knuckle wrinkles (smoothing as the joint bends), flexion creases, palm lines and
-veins; regional roughness (matte palm, satin back, the knuckles glossiest); colour variation (palm lighter, knuckles
-and joints redder, fingertips flushed, mottling). Nails are their own material: pink bed under a glossy clearcoated
-plate, pale lunula, a translucent free edge.
+veins and, fainter, the extensor tendons (close zoom only); regional roughness (palm ~0.4, back of the hand ~0.55); colour variation (palm lighter, knuckles
+and joints redder, fingertips flushed, mottling). Nails are their own material, lifted clear of the skin: pink bed under a glossy
+plate (clearcoat 0.75, roughness 0.2), pale lunula, darker nail folds, a translucent free edge.
 
 **Admire** (`src/lib/hand-admire.ts`, `npm run test:hand-admire`): when a ring, watch or bracelet goes on (or the
 ring moves to another finger), the fingers flutter in a wave from the little finger for about 1.1 s with a slight
