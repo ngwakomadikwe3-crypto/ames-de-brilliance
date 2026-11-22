@@ -98,7 +98,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'A pear stud with a detachable three-stone drop: the stud alone by day, the full cascade by evening.',
     images: { front: img('E1', 'front'), back: img('E1', 'back') },
     alt: { front: 'The Cascade Drop earrings — front view, pear stud with round and pear drop on emerald silk', back: 'The Cascade Drop earrings — back view, the loop-and-notch lock behind the stud gallery on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/E1/E1-cascade-drop.glb",
     options: [METAL, { key: 'drop', label: 'Drop', choices: ['Full cascade (as shown)', 'Shorter, two stones'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES, ACCENT],
     convertible: {
       detachable: 'drop', stateLabels: { stud: 'Stud', full: 'Full drop' },
@@ -112,7 +112,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'A solitaire stud with a detachable halo jacket: the solitaire alone, or framed in a ring of stones.',
     images: { front: img('E2', 'front'), back: img('E2', 'back') },
     alt: { front: 'The Convertible Stud earrings — front view, round solitaires in pavé halos on emerald silk', back: 'The Convertible Stud earrings — back view, the halo jacket separated from the solitaire stud on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/E2/E2-convertible-stud.glb",
     options: [METAL, { key: 'centre', label: 'Centre size', choices: ['0.5 ct each', '1 ct each', '1.5 ct each'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES, ACCENT],
     convertible: {
       detachable: 'jacket', stateLabels: { stud: 'Stud', full: 'With halo' },

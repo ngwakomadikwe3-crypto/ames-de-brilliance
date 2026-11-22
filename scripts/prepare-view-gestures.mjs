@@ -54,3 +54,16 @@ if(viewer.includes('gl.toneMappingExposure = DIAMOND_TONE_MAPPING_EXPOSURE'))wri
   writeFileSync(studioPath,studio);
  }
 }
+
+// Detachable parts (convertible earrings): the page sends 'ames:hide' {names} to the canvas; every node named so, or
+// named so plus '_…', is hidden, and shown again when a later message leaves it out.
+{
+ const studioPath=path.resolve('node_modules/ames-engine/src/engine/jewelry/PhysicalStudioModel.tsx');
+ let studio=readFileSync(studioPath,'utf8');
+ if(!studio.includes("'ames:hide'")){
+  const anchor="  // Opening: the page sends 'ames:open' {open}";
+  if(!studio.includes(anchor))throw Error('Unsupported AMES engine: no opening handler to anchor ames:hide');
+  studio=studio.replace(anchor,"  // Hiding: the page sends 'ames:hide' {names}; nodes with those names (or name + '_…') are hidden, the rest shown.\n  useEffect(()=>{const el=gl.domElement\n    const onMessage=(e:Event)=>{const names:string[]=(e as CustomEvent).detail?.names??[]\n      built.root.traverse(o=>{const hit=names.some(x=>o.name===x||o.name.startsWith(x+'_'));if(hit)o.visible=false;else if(o.userData.amesHidden)o.visible=true;o.userData.amesHidden=hit})\n      invalidate()}\n    el.addEventListener('ames:hide',onMessage);return()=>el.removeEventListener('ames:hide',onMessage)},[built,gl,invalidate])\n"+anchor);
+  writeFileSync(studioPath,studio);
+ }
+}

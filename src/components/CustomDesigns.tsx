@@ -80,21 +80,40 @@ export function DesignStage({ design, wear, eager }: { design: CustomDesign; wea
   const { t } = useAtelierLanguage();
   const [mode, setMode] = useState<'3d' | 'photos'>(() => (design.glb ? '3d' : 'photos'));
   const host = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
+  // The engine sets the camera distance for a square-ish stage; on a narrow (portrait) stage pull it back so the
+  // whole piece stays in frame. Wide stages keep the house framing.
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    const el = host.current; if (!el) return;
+    const fit = () => { const { width, height } = el.getBoundingClientRect(); if (width && height) setZoom(Math.round(Math.min(1, (width / height) * 0.85) * 100) / 100); };
+    const watch = new ResizeObserver(fit); watch.observe(el); fit();
+    return () => watch.disconnect();
+  }, [mode]);
   useEffect(() => { if (design.glb && !canRun3D()) setMode('photos'); }, [design.glb]);
+  // Convertible pieces: the detachable element is a separate part of the model, hidden for the stud-only look.
+  const detachable = design.convertible?.parts.detachable;
+  useEffect(() => {
+    if (!ready || !detachable) return;
+    host.current?.querySelector('canvas')?.dispatchEvent(new CustomEvent('ames:hide', { detail: { names: wear === 'stud' ? [detachable] : [] } }));
+  }, [ready, wear, detachable]);
   useEffect(() => {
     // The viewer reports its state on the page; if it falls back, so do we (never a broken viewer).
     if (mode !== '3d' || !host.current) return;
     const el = host.current;
-    const check = () => { if (el.querySelector('[data-viewer-state="fallback"]')) setMode('photos'); };
+    const check = () => {
+      if (el.querySelector('[data-viewer-state="fallback"]')) setMode('photos');
+      setReady(!!el.querySelector('[data-viewer-state="ready"]'));
+    };
     const watch = new MutationObserver(check); watch.observe(el, { subtree: true, attributes: true, attributeFilter: ['data-viewer-state'] });
     check(); return () => watch.disconnect();
   }, [mode]);
   if (mode === 'photos' || !design.glb) return <DesignGallery design={design} wear={wear} eager={eager} />;
   return (
     <div ref={host} className="relative h-full w-full">
-      <EngineJewelryViewer src={design.glb} poster={design.images.front?.src} alt={design.alt.front} cameraPreset="front" autoLoad turntableEnabled={false}
+      <EngineJewelryViewer src={design.glb} poster={design.images.front?.src} alt={design.alt.front} cameraPreset="front" zoom={zoom} autoLoad turntableEnabled={false}
         opticsProfile="mounted-gem-studio" style={{ width: '100%', height: '100%' }} />
-      <button type="button" className="ames-pill absolute bottom-2 right-3 min-h-9 rounded-full px-4 text-[12px]" onClick={() => setMode('photos')}>{t('Photos')}</button>
+      <button type="button" className="ames-pill absolute bottom-2 left-3 min-h-9 rounded-full px-4 text-[12px]" onClick={() => setMode('photos')}>{t('Photos')}</button>
     </div>
   );
 }
