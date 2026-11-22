@@ -30,6 +30,7 @@
     "test:gestures": "node --experimental-strip-types scripts/test-gestures.mjs",
     "test:face-morph": "node --experimental-strip-types scripts/test-face-morph.mjs",
     "test:hand-morph": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-hand-morph.mjs",
+    "test:portrait-fit": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-fit.mjs",
     "test:collections": "node --experimental-strip-types scripts/test-collections.mjs",
     "test:try-on-framing": "node --experimental-strip-types scripts/test-try-on-framing.mjs"
   },
