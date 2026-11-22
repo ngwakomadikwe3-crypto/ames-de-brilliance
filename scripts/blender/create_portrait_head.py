@@ -120,6 +120,48 @@ EX = {'ex:blink-l': read_target('expression/units/caucasian/eye-left-closure.tar
       'ex:squint': read_target('expression/units/caucasian/eye-left-slit.target') + read_target('expression/units/caucasian/eye-right-slit.target'),
       'ex:brows-soft': 0.5 * (read_target('expression/units/caucasian/eyebrows-left-down.target') + read_target('expression/units/caucasian/eyebrows-right-down.target')),
       'ex:cheeks-up': cheek_raise()}                                     # the cheeks only (the app caps it at 0.3)
+# --- live mirroring: the 52 ARKit / MediaPipe face blendshapes ('ar:*') ---------------------------------------------
+# MediaPipe FaceLandmarker reports the customer's expression as these 52 channels every frame; the twin carries a
+# shape for each (the eye-look channels turn the eyeballs instead). Built from MakeHuman's expression units: one-sided
+# channels are the unit masked to one half of the face with a smooth 12 mm blend across the midline (the two halves
+# sum to the whole unit); upper/lower-lip channels split at the lips' meeting line with a 3 mm blend; a few with no
+# MakeHuman unit (jaw left/right/forward, mouth left/right, cheek puff) are rigid shifts of their region under a
+# smooth mask. Every mask is smooth, so no shape can crease the mesh.
+U = lambda n: read_target(f'expression/units/caucasian/{n}.target')
+FIG_L = smooth(ramp(V[:, 0], -0.06, 0.06))[:, None]; FIG_R = 1 - FIG_L          # MakeHuman +x is the figure's left
+LIPS_Y = 6.622
+UPPER = smooth(ramp(V[:, 1], LIPS_Y - 0.015, LIPS_Y + 0.015))[:, None]; LOWER = 1 - UPPER
+MOUTH_REGION = (smooth(1 - ramp(np.abs(V[:, 0]), 0.28, 0.42)) * smooth(ramp(V[:, 1], 6.42, 6.5)) * smooth(1 - ramp(V[:, 1], 6.74, 6.82)) * smooth(ramp(V[:, 2], 0.6, 0.9)))[:, None]
+JAW_REGION = (smooth(1 - ramp(V[:, 1], 6.60, 6.70)) * smooth(ramp(V[:, 1], 6.1, 6.25)) * smooth(1 - ramp(np.abs(V[:, 0]), 0.55, 0.7)) * smooth(ramp(V[:, 2], 0.2, 0.6)))[:, None]
+CHEEK_PUFF = (smooth(ramp(V[:, 1], 6.5, 6.6)) * smooth(1 - ramp(V[:, 1], 6.85, 6.95)) * smooth(ramp(np.abs(V[:, 0]), 0.22, 0.32)) * smooth(1 - ramp(np.abs(V[:, 0]), 0.55, 0.65)) * smooth(ramp(V[:, 2], 0.6, 0.85)))[:, None]
+def shift(mask, d): out = np.zeros_like(V); out[:] = d; return out * mask
+smile_full = (U('mouth-corner-puller') + 0.35 * U('mouth-elevation')) * MOUTH_ONLY
+puff = np.zeros_like(V); puff[:, 0] = np.sign(V[:, 0]) * 0.035; puff[:, 2] = 0.012; puff *= CHEEK_PUFF
+AR = {
+  'ar:browDownLeft': U('eyebrows-left-down'), 'ar:browDownRight': U('eyebrows-right-down'),
+  'ar:browInnerUp': U('eyebrows-left-inner-up') + U('eyebrows-right-inner-up'),
+  'ar:browOuterUpLeft': U('eyebrows-left-extern-up'), 'ar:browOuterUpRight': U('eyebrows-right-extern-up'),
+  'ar:cheekPuff': puff, 'ar:cheekSquintLeft': cheek_raise() * FIG_L, 'ar:cheekSquintRight': cheek_raise() * FIG_R,
+  'ar:eyeBlinkLeft': U('eye-left-closure'), 'ar:eyeBlinkRight': U('eye-right-closure'),
+  'ar:eyeSquintLeft': U('eye-left-slit'), 'ar:eyeSquintRight': U('eye-right-slit'),
+  'ar:eyeWideLeft': U('eye-left-opened-up'), 'ar:eyeWideRight': U('eye-right-opened-up'),
+  'ar:jawForward': shift(JAW_REGION, [0, 0, 0.04]), 'ar:jawLeft': shift(JAW_REGION, [0.045, 0, 0]), 'ar:jawRight': shift(JAW_REGION, [-0.045, 0, 0]),
+  'ar:jawOpen': U('mouth-open'),
+  'ar:mouthClose': U('mouth-compression') * 0.5 * MOUTH_REGION,
+  'ar:mouthDimpleLeft': U('mouth-retraction') * FIG_L, 'ar:mouthDimpleRight': U('mouth-retraction') * FIG_R,
+  'ar:mouthFrownLeft': U('mouth-depression') * FIG_L, 'ar:mouthFrownRight': U('mouth-depression') * FIG_R,
+  'ar:mouthFunnel': U('mouth-protusion'), 'ar:mouthPucker': U('mouth-pursing'),
+  'ar:mouthLeft': shift(MOUTH_REGION, [0.04, 0, 0]), 'ar:mouthRight': shift(MOUTH_REGION, [-0.04, 0, 0]),
+  'ar:mouthLowerDownLeft': U('mouth-parling') * LOWER * FIG_L, 'ar:mouthLowerDownRight': U('mouth-parling') * LOWER * FIG_R,
+  'ar:mouthPressLeft': U('mouth-compression') * FIG_L, 'ar:mouthPressRight': U('mouth-compression') * FIG_R,
+  'ar:mouthRollLower': U('mouth-compression') * 0.7 * LOWER, 'ar:mouthRollUpper': U('mouth-compression') * 0.7 * UPPER,
+  'ar:mouthShrugLower': U('mouth-eversion') * LOWER, 'ar:mouthShrugUpper': U('mouth-eversion') * UPPER,
+  'ar:mouthSmileLeft': smile_full * FIG_L, 'ar:mouthSmileRight': smile_full * FIG_R,
+  'ar:mouthStretchLeft': U('mouth-depression-retraction') * FIG_L, 'ar:mouthStretchRight': U('mouth-depression-retraction') * FIG_R,
+  'ar:mouthUpperUpLeft': U('mouth-elevation') * UPPER * FIG_L, 'ar:mouthUpperUpRight': U('mouth-elevation') * UPPER * FIG_R,
+  'ar:noseSneerLeft': U('nose-left-elevation'), 'ar:noseSneerRight': U('nose-right-elevation'),
+}
+EX.update(AR)
 MORPHS = {**ID, **EX}
 print('morphs', len(ID), 'identity,', len(EX), 'expression'); [print(k, round(float(np.abs(v).max()) * 100, 2), 'mm') for k, v in EX.items()]
 

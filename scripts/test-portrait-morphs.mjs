@@ -13,7 +13,7 @@ const audit = JSON.parse(readFileSync('/tmp/portrait-morph-audit.json', 'utf8'))
 assert.ok(audit.baseAsym < 0.1, `base head symmetric (mean mirror mismatch ${audit.baseAsym.toFixed(3)} mm)`);
 for (const r of audit.rows) {
   assert.ok(r.lumps < 0.15, `${r.name}: smooth (lumps ${r.lumps})`);
-  if (!/blink-[lr]$/.test(r.name)) assert.ok(r.asym < 0.05, `${r.name}: symmetric (asym ${r.asym})`);
+  if (!/blink-[lr]$|(Left|Right)$/.test(r.name)) assert.ok(r.asym < 0.05, `${r.name}: symmetric (asym ${r.asym})`);
 }
 console.log(`ok - ${audit.rows.length} targets: base symmetric, each target smooth and symmetric`);
 const byName = Object.fromEntries(audit.rows.map(r => [r.name, r]));

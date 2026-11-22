@@ -262,7 +262,7 @@ export function refreshEyeCentres(eyes: Mesh[]) {
 export function teethMaterial(env: Texture | null) {
   // ivory, not white: teeth sit in the mouth's shade and are never brighter than the eye whites
   // warm off-white, no coat (a coat reflected the dark mouth as grey); a faint fill so the mouth's shade never greys them
-  return new MeshPhysicalMaterial({ color: '#ede6da', roughness: 0.3, envMap: env, envMapIntensity: 0.3, emissive: new Color('#ede6da'), emissiveIntensity: 0.08 });
+  return new MeshPhysicalMaterial({ color: '#ede6da', roughness: 0.3, envMap: env, envMapIntensity: 0.3, emissive: new Color('#ede6da'), emissiveIntensity: 0.03 });
 }
 export function tongueMaterial(env: Texture | null) {
   return new MeshPhysicalMaterial({ color: '#b5545c', roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2, envMap: env, envMapIntensity: 0.25 });

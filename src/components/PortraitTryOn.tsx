@@ -27,6 +27,8 @@ import { readTwin, saveFace, saveFacePrefs, deleteTwin, twinTones, harmonisedFac
 import { tunedWeights, FACE_TUNE, MEAN_PD_MM } from '../lib/twin-build';
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import { sanitizeWeights } from '../lib/portrait-weights';
+import { FaceMirror } from '../lib/face-mirror';
+import { flag } from '../lib/twin-flags';
 import FaceScan from './FaceScan';
 import type { P3 } from '../lib/face-morph';
 
@@ -115,7 +117,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     const life = new FaceLife(face?.smile ?? undefined);
     let anchors: BustAnchors | null = null, framing = { target: new Vector3(0, 640, 40), distance: 700, yaw: 0.3, pitch: 0.03 };
     let skinMat: ReturnType<typeof portraitSkinV2> | null = null, hairMesh: Mesh | null = null, pieceRoot: Object3D | null = null, wearNow: 'stud' | 'full' = 'full';
-    const morphMeshes: Mesh[] = [], grooming: { brows?: Mesh; lashes?: Mesh } = {};
+    const morphMeshes: Mesh[] = [], grooming: { brows?: Mesh; lashes?: Mesh } = {}, eyePivots: { left?: Group[]; right?: Group[] } = {};
     const pieces: Object3D[] = [];
     let regrowHair: (s: HairStyle) => void = () => {};
     let yaw = 0, pitch = 0.03, zoom = 1, idleSince = performance.now(), drag: { x: number; y: number; yaw: number; pitch: number; moved: boolean } | null = null;
@@ -177,7 +179,17 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       regrowHair(hairStyle);
       // living eyes and mouth: corneal bulge, tear lines, the mouth's dark interior
       { const ep = meshPointsMm(H.parts['eye left'], H.head), r = ep.reduce((a, p) => a + Math.hypot(p[0] - eyes.left[0], p[1] - eyes.left[1], p[2] - eyes.left[2]), 0) / ep.length;
-        headFrame.add(eyeAndMouthDetails(lm, eyes, r, null)); }
+        const det = eyeAndMouthDetails(lm, eyes, r, null); headFrame.add(det);
+        // pivots at each eyeball's centre: one in the eye mesh's own space, one in the head frame for its cornea
+        headFrame.updateMatrixWorld(true);
+        for (const side of ['left', 'right'] as const) {
+          const mesh = H.parts['eye ' + side], c = eyes[side]; if (!mesh) continue;
+          const local = mesh.worldToLocal(headFrame.localToWorld(new Vector3(...c))).applyMatrix4(mesh.matrix);   // in the mesh's parent space
+          const pm = new Group(); pm.position.copy(local); mesh.parent!.add(pm); mesh.position.sub(local); pm.add(mesh);
+          const pc = new Group(); pc.position.set(...c); headFrame.add(pc);
+          det.children.filter(o => o.name === 'cornea' && Math.sign(o.position.x) === Math.sign(c[0])).forEach(o => { o.position.sub(pc.position); pc.add(o); });
+          eyePivots[side] = [pm, pc];
+        } }
       // the jewellery
       const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
       const load = (url: string, kind: string) => loader.load(url, gltf => {
@@ -223,6 +235,9 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     let stream: MediaStream | undefined, tracker: FaceLandmarker | undefined, faceSeen = 0;
     const video = document.createElement('video'); video.muted = true; video.playsInline = true;
     const faceTarget = new Quaternion(), m4 = new Matrix4();
+    // live expression mirroring (face-mirror.ts), behind its flag; the idle life stays the fallback
+    const mirrorOn = flag('live-mirror'), mirror = new FaceMirror();
+    let liveFace: ReturnType<FaceMirror['update']> | null = null;
     const stopCamera = () => { stream?.getTracks().forEach(t => t.stop()); stream = undefined; tracker?.close(); tracker = undefined; setTracking(false); faceTarget.identity(); };
     const startCamera = async () => {
       setStatus('Starting the camera…');
@@ -232,7 +247,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         if (stopped) { stopCamera(); return; }
         video.srcObject = stream; await video.play();
         const { FaceLandmarker, files, bytes } = await assets;
-        tracker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetBuffer: bytes.slice(), delegate: 'GPU' }, runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true });
+        tracker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetBuffer: bytes.slice(), delegate: 'GPU' }, runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true, outputFaceBlendshapes: mirrorOn });
         setStatus(''); setTracking(true);
       } catch { setStatus('The camera is not available. You can still turn the portrait with your finger.'); stopCamera(); }
     };
@@ -252,14 +267,30 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       if (tracker && video.readyState >= 2) {
         const res = tracker.detectForVideo(video, now), mat = res.facialTransformationMatrixes?.[0]?.data;
         if (mat) { faceSeen = now; m4.fromArray(mat as unknown as number[]); const q = new Quaternion().setFromRotationMatrix(m4); faceTarget.set(q.x, -q.y, -q.z, q.w).normalize(); }
+        const cats = res.faceBlendshapes?.[0]?.categories;
+        if (mirrorOn && cats?.length) liveFace = mirror.update(cats, now);
       }
       const live = !!tracker && now - faceSeen < 600;
       const s = life.step(dt, reduced.matches);
-      for (const m of morphMeshes) { const d = m.morphTargetDictionary, inf = m.morphTargetInfluences; if (!d || !inf) continue; for (const k in d) inf[d[k]] = s.weights[k] ?? 0; }
+      // mirroring: the customer's own expression drives the twin; the placement smile stays layered on top (its
+      // smile, cheeks, squint and brows), while the idle blinks and mouth movements step aside
+      const mirroring = live && !!liveFace;
+      if (!mirroring && liveFace && now - faceSeen > 600) { liveFace = null; mirror.reset(); }
+      const W: Record<string, number> = mirroring ? { ...liveFace!.weights } : {};
+      for (const [k, v] of Object.entries(s.weights)) if (!mirroring || /smile|cheeks|squint|brows-soft/.test(k)) W[k] = v;
+      for (const m of morphMeshes) { const d = m.morphTargetDictionary, inf = m.morphTargetInfluences; if (!d || !inf) continue; for (const k in d) inf[d[k]] = W[k] ?? 0; }
+      // the strands follow: lashes with either blink, brows with either brow channel
+      const bl = Math.max(W['ex:blink-l'] ?? 0, W['ar:eyeBlinkLeft'] ?? 0), br = Math.max(W['ex:blink-r'] ?? 0, W['ar:eyeBlinkRight'] ?? 0);
+      const bUp = Math.max(W['ex:brows-up'] ?? 0, ((W['ar:browInnerUp'] ?? 0) + (W['ar:browOuterUpLeft'] ?? 0) + (W['ar:browOuterUpRight'] ?? 0)) / 2);
+      const bDown = Math.max(W['ex:brows-soft'] ?? 0, ((W['ar:browDownLeft'] ?? 0) + (W['ar:browDownRight'] ?? 0)) / 2);
       for (const g of [grooming.brows, grooming.lashes]) { const u = (g?.material as { uniforms?: Record<string, { value: number }> } | undefined)?.uniforms; if (!u) continue;
-        if (g === grooming.brows) { u.uW1.value = s.weights['ex:brows-soft'] ?? 0; u.uW2.value = s.weights['ex:brows-up'] ?? 0; } else { u.uW1.value = s.weights['ex:blink-l'] ?? 0; u.uW2.value = s.weights['ex:blink-r'] ?? 0; } }
+        if (g === grooming.brows) { u.uW1.value = bDown; u.uW2.value = bUp; } else { u.uW1.value = bl; u.uW2.value = br; } }
+      // the eyes follow the customer's gaze (each eyeball turns about its own centre, its cornea with it)
+      for (const side of ['left', 'right'] as const) { const pv = eyePivots[side]; if (!pv) continue;
+        const gz = mirroring ? liveFace!.gaze[side] : { yaw: 0, pitch: 0 };
+        for (const p of pv) { p.rotation.y += (gz.yaw - p.rotation.y) * (1 - Math.exp(-dt * 25)); p.rotation.x += (-gz.pitch - p.rotation.x) * (1 - Math.exp(-dt * 25)); } }
       swayQ.setFromAxisAngle(new Vector3(0, 1, 0), s.sway.yaw).multiply(tmp.setFromAxisAngle(new Vector3(1, 0, 0), s.sway.pitch)).multiply(tmp.setFromAxisAngle(new Vector3(0, 0, 1), s.sway.roll));
-      headFrame.quaternion.slerp(live ? faceTarget.clone().multiply(swayQ) : swayQ, 1 - Math.exp(-dt * 8));
+      headFrame.quaternion.slerp(live ? faceTarget.clone().multiply(swayQ) : swayQ, 1 - Math.exp(-dt * (live ? 18 : 8)));   // live: ~55 ms lag
       headFrame.position.y = s.breath;
       headFrame.updateMatrixWorld(true);
       if (skinMat) skinMat.uniforms.uToHead.value.copy(headFrame.matrixWorld).invert();

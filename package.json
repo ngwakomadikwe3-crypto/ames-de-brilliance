@@ -37,7 +37,8 @@
     "test:portrait-life": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-life.mjs",
     "test:face-scan": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-scan.mjs",
     "test:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-morphs.mjs",
-    "audit:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/audit-portrait-morphs.mjs"
+    "audit:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/audit-portrait-morphs.mjs",
+    "test:face-mirror": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-mirror.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

@@ -81,7 +81,7 @@ export function bakeIdentity(head: Object3D, weights: Record<string, number>) {
     }
     g.setAttribute('position', new BufferAttribute(out, 3));
     // keep the expression morphs only
-    const live = Object.keys(all.dict).filter(nm => nm.startsWith('ex:'));
+    const live = Object.keys(all.dict).filter(nm => nm.startsWith('ex:') || nm.startsWith('ar:'));   // the idle and the live-mirror expressions stay live
     delete g.morphAttributes.normal;
     if (live.length) {
       // as plain floats: the compressed model stores morphs as normalised int16, which three's morph texture reads raw
@@ -169,6 +169,10 @@ export async function loadPortraitHead() {
 
 /** Eye centres of the (baked) head, mm, head frame. */
 export function eyeCentres(parts: Record<string, Mesh>, head: Object3D) {
-  const c = (m: Mesh) => { const p = meshPointsMm(m, head); return [0, 1, 2].map(i => p.reduce((a, q) => a + q[i], 0) / p.length) as P3; };
+  // the eyeball's own centre: the middle of its box across and up, and its radius in from the back (the cornea and iris
+  // shells in front would pull a plain mean forward, and an eye turning about a point in front of its centre swings
+  // its back out through the lids)
+  const c = (m: Mesh) => { const p = meshPointsMm(m, head), lo = [0, 1, 2].map(i => Math.min(...p.map(q => q[i]))), hi = [0, 1, 2].map(i => Math.max(...p.map(q => q[i])));
+    const r = Math.max(hi[0] - lo[0], hi[1] - lo[1]) / 2; return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2] + r] as P3; };
   return { left: c(parts['eye left']), right: c(parts['eye right']) };
 }
