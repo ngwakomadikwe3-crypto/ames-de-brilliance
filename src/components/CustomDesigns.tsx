@@ -134,7 +134,7 @@ export function DesignTile({ design, onOpen }: { design: CustomDesign; onOpen: (
   );
 }
 
-const HAND_CATEGORIES = new Set(['watch', 'bracelet']);
+const TRY_ON_CATEGORIES = new Set(['watch', 'bracelet', 'earrings', 'necklace']);   // hand twin, portrait twin
 
 /** The design detail and custom-order configuration. */
 export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDesign; onClose?: () => void; onAskSame?: () => void }) {
@@ -143,7 +143,7 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
   const [choice, setChoice] = useState<Record<string, string>>(() => Object.fromEntries(design.options.map(o => [o.key, o.choices[0]])));
   const configuration = useMemo(() => designConfiguration(design, choice), [design, choice]);
   const missing = missingImages(design);
-  const canTryOn = !!design.glb && HAND_CATEGORIES.has(design.category);
+  const canTryOn = !!design.glb && TRY_ON_CATEGORIES.has(design.category);
   const front = design.convertible && wear === 'stud' ? design.convertible.studFront : design.images.front;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pt-20" data-design-detail={design.code}>
@@ -152,7 +152,8 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>}
         {canTryOn
-          ? <FittingHand category={design.category} title={design.name} model={design.glb!}><DesignStage design={design} wear={wear} /></FittingHand>
+          ? <FittingHand category={design.category} title={design.name} model={design.glb!} detachable={design.convertible?.parts.detachable}
+              wearLabels={design.convertible?.stateLabels}><DesignStage design={design} wear={wear} /></FittingHand>
           : <DesignStage design={design} wear={wear} eager />}
       </div>
 
