@@ -13,7 +13,7 @@ import { loadPortraitHead, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentre
 import { identityAxes, sanitizeWeights, type Axis } from '../lib/portrait-weights';
 import { portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL } from '../lib/portrait-materials';
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
-import { readTwin } from '../lib/twin-profile';
+import { readTwin, twinTones, harmonisedFaceTones } from '../lib/twin-profile';
 
 type Head = Awaited<ReturnType<typeof loadPortraitHead>>;
 const AVERAGE_MACROS = ['afr-female', 'afr-male', 'asi-female', 'asi-male', 'cau-female', 'cau-male'].map(n => `id:base-${n}`);
@@ -23,8 +23,8 @@ export default function TwinLab() {
   const [head, setHead] = useState<Head | null>(null);
   const [axes, setAxes] = useState<Record<string, number>>({}), [ex, setEx] = useState<Record<string, number>>({});
   const [look, setLook] = useState<'clay' | 'skin'>('clay'), [wire, setWire] = useState(false), [macros, setMacros] = useState<'average' | 'zero'>('average');
-  const [filter, setFilter] = useState(''), [sheet, setSheet] = useState<string | null>(null), [busy, setBusy] = useState('');
-  const api = useRef<{ apply: (w: Record<string, number>, e: Record<string, number>) => void; look: (l: 'clay' | 'skin', wire: boolean) => void; yaw: (y: number) => void; snap: () => string } | null>(null);
+  const [layer, setLayer] = useState(2), [filter, setFilter] = useState(''), [sheet, setSheet] = useState<string | null>(null), [busy, setBusy] = useState('');
+  const api = useRef<{ apply: (w: Record<string, number>, e: Record<string, number>) => void; look: (l: 'clay' | 'skin', wire: boolean) => void; layer: (n: number) => void; yaw: (y: number) => void; snap: () => string } | null>(null);
 
   const ids = useMemo(() => head ? head.meta.identity.filter(n => !/head-scale-/.test(n)) : [], [head]);
   const axisList = useMemo(() => identityAxes(ids), [ids]);
@@ -57,6 +57,15 @@ export default function TwinLab() {
       const skin = portraitSkinV2({ tones: { base: '#b98466' }, env: null, detail, lipZones: new TextureLoader().load(LIP_ZONES_URL), lipRect: H.meta.lips.uvRect, lipRangeMm: H.meta.lips.rangeMm,
         anchors: { eyeY: (eyes.left[1] + eyes.right[1]) / 2, noseY: lm[1][1], mouthY: lm[13][1], chinY: lm[152][1], chestY: -1e4 }, lipBox: lipBoxFrom(lm) });
       skin.material.transparent = false;
+      // the saved twin's own skin: its tones, and its photo map (Layer B)
+      const twinFace = readTwin()?.face;
+      if (twinFace) {
+        skin.setTones(harmonisedFaceTones(twinFace, twinTones()?.face ?? twinFace.tones.cheeks ?? twinFace.tones.base));   // exactly as the try-on
+        if (twinFace.skinMap && twinFace.skinConf && twinFace.skinRect) {
+          const tl = (u: string) => { const t = new TextureLoader().load(u); t.flipY = false; return t; };
+          skin.useSkinMap(tl(twinFace.skinMap), tl(twinFace.skinConf), twinFace.skinRect);
+        }
+      }
       const own = new Map<Mesh, Material>();
       for (const [name, m] of Object.entries(H.parts)) {
         if (name === 'head skin') own.set(m, skin.material);
@@ -77,10 +86,12 @@ export default function TwinLab() {
           details = eyeAndMouthDetails(lm2, e2, 12, null); frame.add(details);
           skin.uniforms.uLipBox.value.copy(lipBoxFrom(lm2));
           target.y = (e2.left[1] + e2.right[1]) / 2 - 30;
+          skin.uniforms.uY.value.set((e2.left[1] + e2.right[1]) / 2, lm2[1][1], lm2[13][1], lm2[152][1]);   // the zones follow the face's shape
           for (const m of Object.values(H.parts)) { const d = m.morphTargetDictionary, inf = m.morphTargetInfluences; if (d && inf) for (const k in d) inf[d[k]] = e[k] ?? 0; }
           dress();
         },
         look: (l, wf) => { mode = l; wireOn = wf; dress(); },
+        layer: n => { skin.uniforms.uLayer.value = n; },
         yaw: y => { yaw = y; },
         snap: () => { r.render(scene, cam); return c.toDataURL('image/jpeg', 0.85); },
       };
@@ -107,11 +118,13 @@ export default function TwinLab() {
     if (q.get('twin') && t) { const v: Record<string, number> = {}; for (const a of axisList) v[a.id] = (t.weights[a.pos] ?? 0) - (a.neg ? t.weights[a.neg] ?? 0 : 0); setAxes(v); }
     if (q.get('smile')) setEx({ 'ex:smile': 0.85, 'ex:cheeks-up': 0.3, 'ex:squint': 0.12, 'ex:part': 0.15, 'ex:brows-soft': 0.2 });
     if (q.get('look') === 'skin') setLook('skin');
+    if (q.get('layer')) setLayer(Number(q.get('layer')));
     if (q.get('yaw')) api.current?.yaw(Number(q.get('yaw')));
     }, 0);
     return () => clearTimeout(id);
   }, [head, axisList]);
   useEffect(() => { api.current?.look(look, wire); }, [look, wire, head]);
+  useEffect(() => { api.current?.layer(layer); }, [layer, head]);
 
   async function contactSheet() {
     if (!head || !api.current) return;
@@ -155,6 +168,8 @@ export default function TwinLab() {
       <div className="absolute left-3 top-3 flex flex-wrap gap-2 text-xs">
         {(['clay', 'skin'] as const).map(l => <button key={l} type="button" aria-pressed={look === l} onClick={() => setLook(l)} className="ames-pill rounded-full px-3 py-1">{l}</button>)}
         <button type="button" aria-pressed={wire} onClick={() => setWire(w => !w)} className="ames-pill rounded-full px-3 py-1">wireframe</button>
+        {/* the skin's layers, to isolate a regression in one tap: A base skin, B the scan photo, C lips, teeth and features */}
+        {(['A', 'A+B', 'A+B+C'] as const).map((l, i) => <button key={l} type="button" aria-pressed={look === 'skin' && layer === i} onClick={() => { setLook('skin'); setLayer(i); }} className="ames-pill rounded-full px-3 py-1" data-layer={l}>{l}</button>)}
       </div>
       {busy && <p className="absolute bottom-3 left-3 text-xs">Contact sheet {busy}</p>}
     </div>

@@ -37,7 +37,8 @@ export function portraitSkinV2(o: {
     uStubble: { value: o.stubble ?? 0 },
     uToHead: { value: new Matrix4() },            // world -> the head's own frame in mm (set every frame: the head moves)
     uSSS: { value: new Vector3(1.0, 0.36, 0.22) }, uSSSAmt: { value: 0.85 },
-    uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 }, uSkinRect: { value: new Vector4(0, 0, 1, 1) },   // the customer's own skin (skin-bake.ts)
+    uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 }, uSkinRect: { value: new Vector4(0, 0, 1, 1) },
+    uLayer: { value: 2 },                          // debug layers: 0 = A base skin, 1 = A+B photo, 2 = A+B+C feature materials   // the customer's own skin (skin-bake.ts)
     uBrow: { value: Array.from({ length: 10 }, () => new Vector3(0, -1e4, 0)) }, uBrowOn: { value: 0 },   // brow centrelines, a soft tint under the hairs
     uEar: { value: new Vector3(0, 0, -1e4) },   // (ear top y, ear lobe y, ear z): the hairline round the ears
     uHair: { value: new Vector4(1e4, 0, -1e4, 0) }, uHairColor: { value: new Color('#2b1d14') },   // scalp under the hair: (front hairline y, eye z, nape y, on)
@@ -49,11 +50,16 @@ export function portraitSkinV2(o: {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
+        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn, uLayer; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
         uniform vec3 uTone, uForehead, uCheeks, uNose, uJaw, uLipTone, uLipstick, uSSS;
         uniform vec4 uY, uLipRect, uLipBox; uniform float uChest, uDetailOn, uLipsOn, uLipRange, uLipstickAmount, uLipstickGloss, uStubble, uSSSAmt;
         uniform sampler2D uDetail, uLips;
         float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+        float vnoise(vec3 p) {                          // smooth value noise (for low-frequency mottling)
+          vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+                     mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+        }
         vec3 tri(vec3 p, vec3 n, float scale) {
           vec3 w = pow(abs(n), vec3(4.0)); w /= dot(w, vec3(1.0)); vec3 q = p / scale;
           return texture2D(uDetail, q.yz).rgb * w.x + texture2D(uDetail, q.xz).rgb * w.y + texture2D(uDetail, q.xy).rgb * w.z;
@@ -75,10 +81,16 @@ export function portraitSkinV2(o: {
         tone = mix(tone, uJaw, 1.0 - smoothstep(uY.w - 5.0, uY.z - 2.0, vP.y));
         vec3 dA = uDetailOn > 0.5 ? mix(tri(vP, vN, 9.3), tri(vP + 3.7, vN, 23.0), 0.4) : vec3(0.5);
         diffuseColor.rgb = tone * (0.93 + 0.14 * dA.b);
+        // LAYER A, the base skin (no photo): ears a little redder, a faint cooler tone under the eyes, and low-frequency
+        // mottling (two octaves, within +-5 %), all smooth in 3D: nothing here can seam
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 0.92, 0.91), smoothstep(60.0, 68.0, ax) * smoothstep(uY.z - 15.0, uY.z, vP.y) * (1.0 - smoothstep(uY.x + 15.0, uY.x + 30.0, vP.y)));
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.95, 0.975), smoothstep(uY.x - 18.0, uY.x - 13.0, vP.y) * (1.0 - smoothstep(uY.x - 8.0, uY.x - 4.0, vP.y)) * smoothstep(12.0, 18.0, ax) * (1.0 - smoothstep(40.0, 48.0, ax)));
+        { float m = (vnoise(vP / 22.0) - 0.5) * 0.7 + (vnoise(vP / 9.0 + 17.0) - 0.5) * 0.3;
+          diffuseColor.rgb *= 1.0 + 0.1 * m * vec3(1.0, 1.12, 1.2) ; }
         // the customer's own skin from the scan photos (a colour ratio to their average skin colour, so the tone above
         // multiplies into it) and how surely the photos saw this spot
         vec3 skinRel = vec3(1.0); float skinConf = 0.0;
-        if (uSkinOn > 0.5) { vec2 su = (vUv2 - uSkinRect.xy) / uSkinRect.zw;
+        if (uSkinOn > 0.5 && uLayer >= 1.0) { vec2 su = (vUv2 - uSkinRect.xy) / uSkinRect.zw;
           if (all(greaterThan(su, vec2(0.0))) && all(lessThan(su, vec2(1.0)))) { skinRel = texture2D(uSkinMap, su).rgb * 2.0; skinConf = texture2D(uSkinConf, su).r; } }
         float scalp = 0.0;
         // scalp under the hair takes the hair's colour, so no bald skin shows between strands
@@ -120,7 +132,7 @@ export function portraitSkinV2(o: {
         // the vermillion: the lip-zone field, and never outside the lips' own box on the face (another UV island can share
         // the lip map's rectangle; the 3D box keeps the tint exactly on the lips)
         float inBox = (1.0 - smoothstep(uLipBox.x - 2.0, uLipBox.x, ax)) * smoothstep(uLipBox.y, uLipBox.y + 2.0, vP.y) * (1.0 - smoothstep(uLipBox.z - 2.0, uLipBox.z, vP.y)) * step(uLipBox.w, vP.z);
-        float lip = smoothstep(-0.25, 0.25, lf.x) * inBox;
+        float lip = smoothstep(-0.25, 0.25, lf.x) * inBox * step(1.5, uLayer);   // LAYER C: the lips' own material
         float lipTexture = 0.94 + 0.12 * fract(sin(dot(floor(vec2(vP.x * 1.6, vP.y * 0.4)), vec2(12.9898, 78.233))) * 43758.5453);
         // bare lips: the sampled lip tone muted (saturation -40 %) and drawn toward the skin, a little redder than it
         vec3 lipBase = mix(vec3(dot(uLipTone, vec3(0.2126, 0.7152, 0.0722))), uLipTone, 0.6);

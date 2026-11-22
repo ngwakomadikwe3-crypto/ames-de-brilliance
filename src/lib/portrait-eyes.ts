@@ -43,7 +43,7 @@ export function mouthCavity(lipCentre: P3, mouthWidth: number) {
   const g = new SphereGeometry(1, 24, 16);
   const m = new MeshBasicMaterial({ color: new Color('#2a0f0e'), side: BackSide });
   const mesh = new Mesh(g, m); mesh.name = 'mouth cavity';
-  mesh.scale.set(mouthWidth * 0.55, mouthWidth * 0.34, mouthWidth * 0.62);
+  mesh.scale.set(mouthWidth * 0.4, mouthWidth * 0.3, mouthWidth * 0.62);                  // inside the corners: never pokes through the cheeks
   mesh.position.set(lipCentre[0], lipCentre[1] - 2, lipCentre[2] - mouthWidth * 0.62 - 3);
   return mesh;
 }
