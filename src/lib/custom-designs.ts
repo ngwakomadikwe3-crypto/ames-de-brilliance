@@ -56,7 +56,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'Square iced watch: a braided pavé frame around a pavé dial with black Roman numerals, stones down the case sides and around the crown.',
     images: { front: img('W2', 'front'), back: img('W2', 'back') },
     alt: { front: 'The Square Boutique watch — front view, braided pavé frame and Roman numeral dial on emerald silk', back: 'The Square Boutique watch — back view, case back and pavé case sides on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/W2/W2-square-boutique-watch.glb",
     options: [METAL, { key: 'case', label: 'Case', choices: ['34 mm', '38 mm'] }, { key: 'frame', label: 'Frame', choices: ['Braided pavé', 'Plain pavé'] },
       { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES, ACCENT],
   },
