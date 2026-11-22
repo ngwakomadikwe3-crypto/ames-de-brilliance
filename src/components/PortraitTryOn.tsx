@@ -149,6 +149,11 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const hairColor = new Color(face?.hairColor ?? '#2b1d14');
       skinMat.uniforms.uHairColor.value.copy(hairColor);
       skinMat.uniforms.uHair.value.set(lm[10][1] - 6, (eyes.left[2] + eyes.right[2]) / 2, lm[13][1] - 8, 1);
+      // the folds' anchors (System 4): nose wings to mouth corners, the outer eye corners
+      { const ax = (a: number, b: number, k: number) => (Math.abs(lm[a][k]) + Math.abs(lm[b][k])) / 2, ay = (a: number, b: number) => (lm[a][1] + lm[b][1]) / 2;
+        skinMat.uniforms.uFold.value.set(ax(129, 358, 0) + 2, ay(129, 358) - 2, ax(61, 291, 0) + 3, ay(61, 291));
+        skinMat.uniforms.uEyeCorner.value.set(ax(33, 263, 0), ay(33, 263));
+        skinMat.uniforms.uWrinkleOn.value = flag('expression-skin') ? 1 : 0; }
       skinMat.uniforms.uEar.value.set((eyes.left[1] + eyes.right[1]) / 2 + 4, anchors.earlobe_l[1], (anchors.earlobe_l[2] + anchors.earlobe_r[2]) / 2 + 6);
       // brow centrelines (midway between MediaPipe's upper and lower brow arcs), inner head to tail
       [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
@@ -261,6 +266,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     const watch = new ResizeObserver(resize); watch.observe(host); resize();
     let last = performance.now();
     const swayQ = new Quaternion(), tmp = new Quaternion();
+    let flush = 0;
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -285,6 +291,14 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const bDown = Math.max(W['ex:brows-soft'] ?? 0, ((W['ar:browDownLeft'] ?? 0) + (W['ar:browDownRight'] ?? 0)) / 2);
       for (const g of [grooming.brows, grooming.lashes]) { const u = (g?.material as { uniforms?: Record<string, { value: number }> } | undefined)?.uniforms; if (!u) continue;
         if (g === grooming.brows) { u.uW1.value = bDown; u.uW2.value = bUp; } else { u.uW1.value = bl; u.uW2.value = br; } }
+      // expression-reactive skin: forehead lines, nasolabial folds, crow's feet, and a flush on a held smile
+      if (skinMat) {
+        const smL = Math.max(W['ex:smile'] ?? 0, W['ar:mouthSmileLeft'] ?? 0), smR = Math.max(W['ex:smile'] ?? 0, W['ar:mouthSmileRight'] ?? 0);
+        const sq = Math.max(W['ex:squint'] ?? 0, ((W['ar:eyeSquintLeft'] ?? 0) + (W['ar:eyeSquintRight'] ?? 0)) / 2, ((W['ar:cheekSquintLeft'] ?? 0) + (W['ar:cheekSquintRight'] ?? 0)) / 2);
+        skinMat.uniforms.uWrinkle.value.set(bUp, smL, smR, Math.min(1, sq * 2.5));
+        flush = Math.max(0, Math.min(1, flush + dt * ((smL + smR) / 2 > 0.45 ? 0.25 : -0.4)));
+        skinMat.uniforms.uFlush.value = flush;
+      }
       // the eyes follow the customer's gaze (each eyeball turns about its own centre, its cornea with it)
       for (const side of ['left', 'right'] as const) { const pv = eyePivots[side]; if (!pv) continue;
         const gz = mirroring ? liveFace!.gaze[side] : { yaw: 0, pitch: 0 };

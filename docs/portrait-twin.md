@@ -41,6 +41,24 @@ Expressions are built region-clean (create_portrait_head.py): the smile moves on
 upper lip lifting off the teeth, nothing above the nose); the cheek raise only the cheeks (about 5 mm at full weight,
 used at most 0.3); the squint is capped at 0.15. Eyes stay open at rest and in the smile.
 
+## Live mirroring (System 3) and expression-reactive skin (System 4)
+
+With "Move with me", MediaPipe FaceLandmarker's 52 blendshape channels drive the twin's 52 'ar:*' shapes every frame
+(`face-mirror.ts`): One Euro filter, dead zone, velocity clamp, mirrored left/right; a step reaches 90 % within about
+120 ms at 30 fps and a held expression does not jitter (`npm run test:face-mirror`). The eye-look channels turn each
+eyeball about its true centre (cornea with it), within the lids' range; blinks and brows move the lash and brow
+strands. The placement smile stays layered on top; without a tracked face the idle life runs as before. The 'ar:*'
+shapes are built from MakeHuman's expression units (one-sided ones as smooth half-face masks; jaw/mouth shifts and cheek
+puff as rigid moves under smooth masks) and pass the morph smoothness test.
+
+Expression-reactive skin (flag 'expression-skin'): forehead lines with raised brows, nasolabial folds with each side's
+smile, crow's feet with the squint, as normal-only folds in the skin shader that fade in with the channel and are gone at
+neutral; a warm cheek flush builds while a smile is held and fades after.
+
+Flags (`twin-flags.ts`): 'live-mirror', 'expression-skin' (on), turned off per visit with `?flags=-live-mirror` or per
+device in localStorage 'ames-flags'. The twin lab has an A / A+B / A+B+C switch for the skin's layers (A base skin, B the
+scan photo, C lips and teeth).
+
 ## The look (`src/lib/portrait-materials.ts`, `portrait-grooming.ts`)
 
 Lit by the same HDR studio as the jewellery, ACES Filmic. Roughness by zone: T-zone ~0.42, cheeks ~0.55, lips

@@ -11,7 +11,7 @@
 //    colour variation and moisture, and the uniforms a lipstick will drive (colour, amount, gloss/matte);
 //  - stubble: a density sampled from the scan, drawn as fine dark dots over beard regions only;
 //  - the portrait fade into shadow below the chest (hair covers the top of the head now).
-import { type Mesh, type Material, Color, Matrix4, MeshPhysicalMaterial, Vector3, Vector4, type Texture } from 'three';
+import { type Mesh, type Material, Color, Matrix4, MeshPhysicalMaterial, Vector2, Vector3, Vector4, type Texture } from 'three';
 
 export type ToneMap = { base: string; forehead?: string; cheeks?: string; nose?: string; jaw?: string; lips?: string };
 export type Lipstick = { color: string; amount: number; gloss: number };   // amount 0 = bare lips; gloss 0 matte .. 1 glossy
@@ -38,7 +38,9 @@ export function portraitSkinV2(o: {
     uToHead: { value: new Matrix4() },            // world -> the head's own frame in mm (set every frame: the head moves)
     uSSS: { value: new Vector3(1.0, 0.36, 0.22) }, uSSSAmt: { value: 0.85 },
     uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 }, uSkinRect: { value: new Vector4(0, 0, 1, 1) },
-    uLayer: { value: 2 },                          // debug layers: 0 = A base skin, 1 = A+B photo, 2 = A+B+C feature materials   // the customer's own skin (skin-bake.ts)
+    uLayer: { value: 2 },
+    // expression-reactive skin: fold strengths, the folds' anchors (nose wing x,y -> mouth corner x,y), outer eye corner, flush
+    uWrinkleOn: { value: 1 }, uWrinkle: { value: new Vector4() }, uFold: { value: new Vector4(16, 0, 28, 0) }, uEyeCorner: { value: new Vector2(45, 0) }, uFlush: { value: 0 },                          // debug layers: 0 = A base skin, 1 = A+B photo, 2 = A+B+C feature materials   // the customer's own skin (skin-bake.ts)
     uBrow: { value: Array.from({ length: 10 }, () => new Vector3(0, -1e4, 0)) }, uBrowOn: { value: 0 },   // brow centrelines, a soft tint under the hairs
     uEar: { value: new Vector3(0, 0, -1e4) },   // (ear top y, ear lobe y, ear z): the hairline round the ears
     uHair: { value: new Vector4(1e4, 0, -1e4, 0) }, uHairColor: { value: new Color('#2b1d14') },   // scalp under the hair: (front hairline y, eye z, nape y, on)
@@ -50,7 +52,7 @@ export function portraitSkinV2(o: {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn, uLayer; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
+        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn, uLayer, uWrinkleOn, uFlush; uniform vec4 uWrinkle, uFold; uniform vec2 uEyeCorner; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
         uniform vec3 uTone, uForehead, uCheeks, uNose, uJaw, uLipTone, uLipstick, uSSS;
         uniform vec4 uY, uLipRect, uLipBox; uniform float uChest, uDetailOn, uLipsOn, uLipRange, uLipstickAmount, uLipstickGloss, uStubble, uSSSAmt;
         uniform sampler2D uDetail, uLips;
@@ -65,6 +67,28 @@ export function portraitSkinV2(o: {
           return texture2D(uDetail, q.yz).rgb * w.x + texture2D(uDetail, q.xz).rgb * w.y + texture2D(uDetail, q.xy).rgb * w.z;
         }
         // the lip zones: x = signed mm to the vermillion border (+ on the lips), y = signed mm to where the lips meet (+ upper)
+        // folds keyed to the expression: forehead lines (brows raised), nasolabial folds (smile, each side), crow's feet
+        // (squint); a height field whose gradient bends the normal. uWrinkle = (brows up, smile left, smile right, squint)
+        float wrinkle(vec3 p) {
+          float ax = abs(p.x), h = 0.0;
+          // forehead: three to four shallow horizontal creases above the brows
+          float fy = p.y - (uY.x + 20.0), fm = smoothstep(0.0, 6.0, fy) * (1.0 - smoothstep(24.0, 34.0, fy)) * (1.0 - smoothstep(38.0, 52.0, ax));
+          float c = fract(fy / (6.0 + 1.2 * sin(p.x * 0.05)) + 0.12 * sin(p.x * 0.07 + 1.3)) - 0.5;   // irregular spacing, never a stamp
+          h -= uWrinkle.x * fm * exp(-c * c / 0.02) * 0.28 * (0.7 + 0.3 * sin(p.x * 0.13 + fy * 0.2));
+          // nasolabial fold: from the nose wing to past the mouth corner, a soft crease with the cheek rising beside it
+          for (int sd = 0; sd < 2; sd++) {
+            float sg = sd == 0 ? 1.0 : -1.0, amt = sd == 0 ? uWrinkle.y : uWrinkle.z;
+            vec2 A = vec2(sg * uFold.x, uFold.y), B = vec2(sg * uFold.z, uFold.w - 8.0), AB = B - A;
+            float t = clamp(dot(p.xy - A, AB) / dot(AB, AB), 0.0, 1.0); vec2 q = p.xy - A - AB * t;
+            float d = length(q) * sign(q.x * sg), fade = smoothstep(0.0, 0.15, t) * (1.0 - smoothstep(0.85, 1.0, t));
+            h += amt * fade * (0.9 * exp(-(d - 2.5) * (d - 2.5) / 6.0) - 0.8 * exp(-d * d / 1.2));      // the cheek's bulge, the crease
+          }
+          // crow's feet: fine radial lines fanning from each outer eye corner
+          vec2 rc = vec2(ax - uEyeCorner.x, p.y - uEyeCorner.y); float r = length(rc), th = atan(rc.y, rc.x);
+          float cm = smoothstep(2.0, 5.0, r) * (1.0 - smoothstep(11.0, 16.0, r)) * smoothstep(-0.2, 0.4, rc.x / max(r, 1e-3));
+          h -= uWrinkle.w * cm * pow(abs(sin(th * 6.0)), 10.0) * 0.3;
+          return h;
+        }
         vec2 lipField() {
           if (uLipsOn < 0.5) return vec2(-99.0);
           vec2 t = vec2((vUv2.x - uLipRect.x) / (uLipRect.z - uLipRect.x), ((1.0 - vUv2.y) - uLipRect.y) / (uLipRect.w - uLipRect.y));
@@ -85,6 +109,8 @@ export function portraitSkinV2(o: {
         // mottling (two octaves, within +-5 %), all smooth in 3D: nothing here can seam
         diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 0.92, 0.91), smoothstep(60.0, 68.0, ax) * smoothstep(uY.z - 15.0, uY.z, vP.y) * (1.0 - smoothstep(uY.x + 15.0, uY.x + 30.0, vP.y)));
         diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.95, 0.975), smoothstep(uY.x - 18.0, uY.x - 13.0, vP.y) * (1.0 - smoothstep(uY.x - 8.0, uY.x - 4.0, vP.y)) * smoothstep(12.0, 18.0, ax) * (1.0 - smoothstep(40.0, 48.0, ax)));
+        // a warm flush over the cheeks when a smile is held
+        diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 0.95, 0.94), uFlush * (1.0 - smoothstep(14.0, 26.0, abs(ax - 36.0))) * smoothstep(uY.z - 4.0, uY.z + 10.0, vP.y) * (1.0 - smoothstep(uY.x - 12.0, uY.x - 2.0, vP.y)));
         { float m = (vnoise(vP / 22.0) - 0.5) * 0.7 + (vnoise(vP / 9.0 + 17.0) - 0.5) * 0.3;
           diffuseColor.rgb *= 1.0 + 0.1 * m * vec3(1.0, 1.12, 1.2) ; }
         // the customer's own skin from the scan photos (a colour ratio to their average skin colour, so the tone above
@@ -169,6 +195,12 @@ export function portraitSkinV2(o: {
                                         tri(vP + vec3(0,e,0), vN, 9.3).r - tri(vP - vec3(0,e,0), vN, 9.3).r,
                                         tri(vP + vec3(0,0,e), vN, 9.3).r - tri(vP - vec3(0,0,e), vN, 9.3).r);
           normal = normalize(normal - (viewMatrix * vec4(g, 0.0)).xyz * 0.28 * (1.0 - lip * 0.6));   // low intensity: the photo carries the real detail
+        }
+        // expression-reactive skin (System 4): folds that appear with the expression and vanish at neutral
+        if (uWrinkleOn > 0.5 && dot(uWrinkle, vec4(1.0)) > 0.01) {
+          float e = 0.3;
+          vec3 gw = vec3(wrinkle(vP + vec3(e, 0, 0)) - wrinkle(vP - vec3(e, 0, 0)), wrinkle(vP + vec3(0, e, 0)) - wrinkle(vP - vec3(0, e, 0)), 0.0) / (2.0 * e);
+          normal = normalize(normal + (viewMatrix * vec4(gw, 0.0)).xyz);
         }`)
       .replace('#include <opaque_fragment>', `
         // subsurface: light bleeds past the terminator in warm red; thin backlit parts (ears, nostril wings) glow
