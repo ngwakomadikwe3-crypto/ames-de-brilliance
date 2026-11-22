@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { trackingAssets } from '../lib/hand-tracking-assets';
 import { photoQuality, shapeFromPhoto, skinTone, textureCrop, type Pixels, type Pt } from '../lib/hand-photo';
-import type { HandShape, HandTexture } from '../lib/hand-profile';
+import { genericShape, type HandShape, type HandTexture } from '../lib/hand-profile';
+import { measureHand, textureWorthy, type HandMorph } from '../lib/hand-morph';
 
-export type ScanResult = { shape: HandShape; tone: string; texture: HandTexture };
-type Shot = { canvas: HTMLCanvasElement; pixels: Pixels; image?: Pt[]; world?: Pt[]; issues: string[] };
+export type ScanResult = { morph: HandMorph; shape: HandShape; tone: string; texture?: HandTexture };
+type Shot = { canvas: HTMLCanvasElement; pixels: Pixels; image?: Pt[]; world?: Pt[]; issues: string[]; quality: { sharpness: number; brightness: number } };
 
 let detector: Promise<HandLandmarker> | undefined;
 function imageDetector() {
@@ -26,7 +27,8 @@ async function analyse(source: CanvasImageSource, w: number, h: number): Promise
   const pixels = { data: data.data, width: canvas.width, height: canvas.height };
   const result = (await imageDetector()).detect(canvas);
   const image = result.landmarks?.[0], world = result.worldLandmarks?.[0];
-  return { canvas, pixels, image, world, issues: photoQuality(pixels, image).issues };
+  const q = photoQuality(pixels, image);
+  return { canvas, pixels, image, world, issues: q.issues, quality: { sharpness: q.sharpness, brightness: q.brightness } };
 }
 
 export default function HandScan({ onDone, onCancel }: { onDone: (scan: ScanResult) => Promise<boolean> | boolean; onCancel: () => void }) {
@@ -66,16 +68,23 @@ export default function HandScan({ onDone, onCancel }: { onDone: (scan: ScanResu
   }
   async function confirm() {
     if (!shot?.image || !shot.world) return;
-    setStep('saving'); setMessage('Building your 3D hand…');
-    const shape = shapeFromPhoto(shot.pixels, shot.image, shot.world, angled?.world);
-    if (!shape) { setStep('review'); setMessage('Could not measure this photo. Retake it a little closer.'); return; }
+    setStep('saving'); setMessage('Measuring your hand…');
+    // the customer's proportions: every bone, finger width, palm and wrist as ratios to the middle finger
+    const morph = measureHand(shot.pixels, shot.image, shot.world);
+    if (!morph) { setStep('review'); setMessage('Could not measure this photo. Retake it a little closer.'); return; }
+    const shape = shapeFromPhoto(shot.pixels, shot.image, shot.world, angled?.world) ?? genericShape;   // for older views
     const px = shot.image.map(p => ({ x: p.x * shot.pixels.width, y: p.y * shot.pixels.height }));
     const tone = skinTone(shot.pixels, px);
-    const crop = textureCrop(shot.pixels.width, shot.pixels.height, shot.image);
-    const out = document.createElement('canvas'); out.width = out.height = 1024;
-    const ctx = out.getContext('2d')!; ctx.fillStyle = tone; ctx.fillRect(0, 0, 1024, 1024);
-    ctx.drawImage(shot.canvas, crop.x0, crop.y0, crop.size, crop.size, 0, 0, 1024, 1024);
-    const ok = await onDone({ shape, tone, texture: { image: out.toDataURL('image/jpeg', 0.86), uv: crop.uv } });
+    // the photo itself becomes the skin (their creases and veins) only when it is sharp and well lit
+    let texture: HandTexture | undefined;
+    if (textureWorthy(shot.quality, shot.image, shot.pixels)) {
+      const crop = textureCrop(shot.pixels.width, shot.pixels.height, shot.image);
+      const out = document.createElement('canvas'); out.width = out.height = 1024;
+      const ctx = out.getContext('2d')!; ctx.fillStyle = tone; ctx.fillRect(0, 0, 1024, 1024);
+      ctx.drawImage(shot.canvas, crop.x0, crop.y0, crop.size, crop.size, 0, 0, 1024, 1024);
+      texture = { image: out.toDataURL('image/jpeg', 0.86), uv: crop.uv };
+    }
+    const ok = await onDone({ morph, shape, tone, texture });
     if (!ok) { setStep('review'); setMessage('Your hand could not be saved on this device. Your previous hand is unchanged.'); }
   }
 

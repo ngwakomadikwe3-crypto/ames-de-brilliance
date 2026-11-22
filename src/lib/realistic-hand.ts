@@ -10,13 +10,16 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PARENT, affine } from './clone-hand';
 import type { HandShape, Mm3 } from './hand-profile';
+import type { TemplateMeasure } from './hand-morph';
+
+const MID_JOINT = [3, 6, 10, 14, 18], BASE_SEG = [[2, 3, 0.4], [5, 6, 0.38], [9, 10, 0.38], [13, 14, 0.38], [17, 18, 0.38]] as const;
 
 export const HAND_TEMPLATE_URL = '/hand-twin/realistic-hand-v1.glb';
 
 export interface HandTemplate {
   skin: BufferGeometry; nails: BufferGeometry;
   joints: Vector3[]; relaxed: Quaternion[]; chainS: number[][];
-  measure: { fingers: number[]; palm: number; wrist: number; wristDepth: number };
+  measure: { fingers: number[]; fingersMid: number[]; palm: number; wrist: number; wristDepth: number };
 }
 
 /** Float copy of an attribute (quantised glTF data -> plain millimetres). */
@@ -28,7 +31,11 @@ function floatCopy(a: BufferAttribute, size = a.itemSize) {
 
 export async function loadHandTemplate(url = HAND_TEMPLATE_URL): Promise<HandTemplate> {
   const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = await loader.loadAsync(url);
+  return parseHandTemplate(await loader.loadAsync(url));
+}
+
+/** The template from a loaded glTF (also used by the rig test, which parses the file without a browser). */
+export function parseHandTemplate(gltf: { scene: import('three').Object3D; parser: { json: unknown } }): HandTemplate {
   const extras = (gltf.parser.json as { extras?: { ames_hand_template?: Record<string, unknown> } }).extras?.ames_hand_template;
   if (!extras) throw new Error('Hand template data missing');
   gltf.scene.updateMatrixWorld(true);
@@ -50,12 +57,43 @@ export async function loadHandTemplate(url = HAND_TEMPLATE_URL): Promise<HandTem
   };
   const skin = take('skin', { _finger: 'aFinger', _skin: 'aSkin', _palm: 'aPalm' });
   const nails = take('nail', { _nail: 'aNail' });
-  const t = extras as { joints: Mm3[]; relaxed: number[][]; chainS: number[][]; measure: HandTemplate['measure'] };
+  const t = extras as { joints: Mm3[]; relaxed: number[][]; chainS: number[][]; measure: Omit<HandTemplate['measure'], 'fingersMid'> };
+  const joints = t.joints.map(j => new Vector3(...j));
+  // widths at the middle joints, measured on the mesh the same way as the base widths, calibrated to them
+  const fingersMid = MID_JOINT.map((j, f) => {
+    const [a, b, at] = BASE_SEG[f];
+    const own = f === 0 ? [1, 2, 3, 4] : [5, 6, 7, 8].map(x => x + 4 * (f - 1));
+    const base = crossWidth(skin, joints[a].clone().lerp(joints[b], at), joints[b].clone().sub(joints[a]), own);
+    const mid = crossWidth(skin, joints[j], joints[j + 1].clone().sub(joints[PARENT[j]]), own);
+    return base > 0 && mid > 0 ? t.measure.fingers[f] * mid / base : t.measure.fingers[f] * 0.9;
+  });
   return {
-    skin, nails, chainS: t.chainS, measure: t.measure,
-    joints: t.joints.map(j => new Vector3(...j)),
+    skin, nails, chainS: t.chainS, measure: { ...t.measure, fingersMid },
+    joints,
     relaxed: t.relaxed.map(q => new Quaternion(q[0], q[1], q[2], q[3])),
   };
+}
+
+/** Width of the finger through `c` across its direction `dir` (side to side, as a photo of the back sees it), over the
+ *  vertices the finger's own bones carry most (so a neighbouring finger never counts). */
+function crossWidth(g: BufferGeometry, c: Vector3, dir: Vector3, bones: number[]) {
+  const d = dir.clone().normalize(), lat = d.clone().cross(new Vector3(0, 0, 1)).normalize(), p = new Vector3();
+  const pos = g.getAttribute('position'), si = g.getAttribute('skinIndex'), sw = g.getAttribute('skinWeight');
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < pos.count; i++) {
+    let best = 0, bw = -1;
+    for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > bw) { bw = w; best = si.getComponent(i, k); } }
+    if (!bones.includes(best)) continue;
+    p.fromBufferAttribute(pos, i).sub(c);
+    if (Math.abs(p.dot(d)) > 1.2) continue;
+    const x = p.dot(lat); lo = Math.min(lo, x); hi = Math.max(hi, x);
+  }
+  return hi > lo ? hi - lo : 0;
+}
+
+/** The template's measurements in the form the hand morph compares a customer's hand with. */
+export function templateMeasure(t: HandTemplate): TemplateMeasure {
+  return { joints: t.joints.map(j => [j.x, j.y, j.z] as Mm3), fingers: [...t.measure.fingers], fingersMid: [...t.measure.fingersMid], palm: t.measure.palm, wrist: t.measure.wrist, wristDepth: t.measure.wristDepth };
 }
 
 /** The template's own measurements as a HandShape (used when the customer has not scanned their hand). */
@@ -84,7 +122,14 @@ export function fitTemplate(t: HandTemplate, shape: HandShape) {
     lenRatio[p] = r;
     rest[b] = rest[p].clone().add(T[b].clone().sub(T[p]).multiplyScalar(r));
   }
-  for (let b = 1; b < 21; b++) { const f = fingerOf(b); if (f >= 0) widthRatio[b] = clampRatio(shape.fingers[f] / t.measure.fingers[f]); }
+  // thickness: the base phalanx (and the thumb's metacarpal) from the base width, the phalanges beyond it from the
+  // middle-joint width when the shape has one
+  const mid = (shape as HandShape & { fingersMid?: number[] }).fingersMid;
+  for (let b = 1; b < 21; b++) {
+    const f = fingerOf(b); if (f < 0) continue;
+    const beyond = f === 0 ? b >= 3 : (b - 5) % 4 >= 1;
+    widthRatio[b] = clampRatio(beyond && mid ? mid[f] / t.measure.fingersMid[f] : shape.fingers[f] / t.measure.fingers[f]);
+  }
   return { rest, lenRatio, widthRatio, palm: new Vector3(sx, sy, sz), wristX, wristZ };
 }
 

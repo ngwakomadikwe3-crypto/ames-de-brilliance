@@ -2,6 +2,7 @@
 // Version 2 holds the shape (rest joints and widths, in millimetres) and the photo texture the 3D clone is built
 // from. It also keeps the version 1 fields (joints, outline) so older views still read it.
 import { savedHandKey, readSavedHand, deleteSavedHand } from './fitting-hand';
+import type { HandMorph } from './hand-morph';
 
 export type Mm3 = [number, number, number];
 export type HandShape = {
@@ -13,7 +14,9 @@ export type HandShape = {
   side: 'right' | 'left';
 };
 export type HandTexture = { image: string; uv: [number, number][] };
-export type HandProfileV2 = { version: 2; shape: HandShape; tone: string; texture?: HandTexture; savedAt: number };
+/** morph: the customer's own proportions as a morph of the base hand (src/lib/hand-morph.ts). It is what builds the
+ *  hand on every screen; shape is kept alongside for older views. */
+export type HandProfileV2 = { version: 2; shape: HandShape; tone: string; texture?: HandTexture; morph?: HandMorph; savedAt: number };
 
 /** A generic adult hand for when no scan exists (right hand, about 80 mm across the knuckles). */
 export const genericShape: HandShape = (() => {

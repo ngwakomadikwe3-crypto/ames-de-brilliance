@@ -4,7 +4,7 @@
 // wrist), while gestures move the view: pinch = zoom, index = turn, index + middle = tumble, open palm = freeze,
 // fist held 500 ms = reset. With no hand in view the piece and hand turn slowly in the showcase motion.
 // One WebGL scene: the jewellery wraps the 3D wrist or finger, so occlusion, shadows and light are real.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Box3, Color,
   ACESFilmicToneMapping, AmbientLight, DirectionalLight, Group, Material, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
@@ -17,9 +17,10 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision';
 import { trackingAssets } from '../lib/hand-tracking-assets';
 import { buildHand, solvePose, handednessFlip } from '../lib/clone-hand';
 import { skinMaterial } from '../lib/clone-skin';
-import { loadHandTemplate, templateShape, buildRealHand, clampPose, jointBends, type HandTemplate } from '../lib/realistic-hand';
+import { loadHandTemplate, templateShape, templateMeasure, buildRealHand, clampPose, jointBends, type HandTemplate } from '../lib/realistic-hand';
 import { realisticSkin, realisticNails, type SkinUniforms } from '../lib/realistic-skin';
-import { readProfile, saveProfile, deleteProfile, genericShape, genericTone, type HandProfileV2 } from '../lib/hand-profile';
+import { readProfile, saveProfile, deleteProfile, genericShape, genericTone, type HandProfileV2, type HandShape, type HandTexture } from '../lib/hand-profile';
+import { shapeFromMorph, shiftTone, type HandMorph } from '../lib/hand-morph';
 import { OneEuro } from '../lib/ar/one-euro';
 import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
 import { cameraFor, liftHand, DorsalSide } from '../lib/ar/hand-pose';
@@ -51,6 +52,9 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
   const [notice, setNotice] = useState('');
   const [sheet, setSheet] = useState(false), [menu, setMenu] = useState(false), [privacyOpen, setPrivacyOpen] = useState(false), [coach, setCoach] = useState(false);
   const [toneChoice, setToneChoice] = useState<string | null>(() => (typeof window === 'undefined' ? null : store.get(TONE_KEY)));
+  // a new scan (or fine-tuning a saved one) is previewed on the 3D hand with three sliders; nothing is saved until confirmed
+  const [draft, setDraft] = useState<{ morph: HandMorph; tone: string; texture?: HandTexture; shape: HandShape; measured: number; isNew: boolean } | null>(null);
+  const [tune, setTune] = useState({ size: 1, fingers: 1, tone: 0 });
   const api = useRef<{ snap: () => Promise<Blob | null>; finger: (f: number) => void; pause: (p: boolean) => void; track: (on: boolean) => void; tone: (hex: string) => void } | null>(null);
   const wrist = category === 'watch' || category === 'bracelet';
   const [template, setTemplate] = useState<HandTemplate | 'failed' | null>(null);
@@ -72,7 +76,20 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
   // gesture tips: once, the first time the hand camera is switched on (again only if re-enabled in Customize)
   useEffect(() => { if (tracking && !store.get(TIPS_KEY)) setCoach(true); }, [tracking]);
   useEffect(() => { if (coach && gesture) { setCoach(false); store.set(TIPS_KEY, '1'); } }, [gesture, coach]);
-  const tone = toneChoice ?? profile?.tone ?? genericTone;
+  // the hand on screen: the draft being previewed, else the saved morph, else the saved (older) shape, else the base hand
+  const hand = draft ?? (profile ? { morph: profile.morph, tone: profile.tone, texture: profile.texture, shape: profile.shape } : null);
+  const tone = draft ? shiftTone(draft.tone, tune.tone) : profile?.morph ? shiftTone(profile.tone, profile.morph.toneShift) : toneChoice ?? profile?.tone ?? genericTone;
+  // the scene rebuilds when the hand's shape or photo changes, never for a tone change (that is applied live)
+  const handKey = hand ? JSON.stringify([hand.morph && { ...hand.morph, toneShift: 0 }, hand.morph ? null : hand.shape, hand.texture?.image.length ?? 0]) : 'base';
+  const handRef = useRef(hand), toneRef = useRef(tone);
+  useLayoutEffect(() => { handRef.current = hand; toneRef.current = tone; });   // before the scene effect reads them
+  // slider moves rebuild the hand after a short pause, not on every step
+  useEffect(() => {
+    if (!draft) return;
+    const id = setTimeout(() => setDraft(d => d && (d.morph.middle !== d.measured * tune.size || d.morph.fingerLength !== tune.fingers)
+      ? { ...d, morph: { ...d.morph, middle: d.measured * tune.size, fingerLength: tune.fingers } } : d), 280);
+    return () => clearTimeout(id);
+  }, [tune.size, tune.fingers, draft]);
   useEffect(() => { api.current?.tone(tone); }, [tone]);
 
   // --- the scene: rebuilt only when the hand or the piece changes, never on tracking updates -----------------------
@@ -107,10 +124,11 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     const view = new Group(), hand = new Group(), mirror = new Group();
     scene.add(view); view.add(hand); hand.add(mirror);
     const real = template !== 'failed' ? template : null;
-    const shape = profile?.shape ?? (real ? templateShape(real) : genericShape);
+    const current = handRef.current;
+    const shape = current?.morph && real ? shapeFromMorph(templateMeasure(real), current.morph) : current?.shape ?? (real ? templateShape(real) : genericShape);
     let photoTexture: Texture | undefined;
-    if (profile?.texture?.image) { photoTexture = new TextureLoader().load(profile.texture.image); disposables.push(photoTexture); }
-    const skinTone = toneChoice ?? profile?.tone ?? genericTone;
+    if (current?.texture?.image) { photoTexture = new TextureLoader().load(current.texture.image); disposables.push(photoTexture); }
+    const skinTone = toneRef.current;
     let skinUniforms: SkinUniforms | null = null, relaxed: Quaternion[] | null = null, liveTone: (hex: string) => void = () => {};
     let built: { mesh: import('three').SkinnedMesh; bones: Bone[]; rest: Vector3[] };
     if (real) {
@@ -120,13 +138,13 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       // skin takes the boutique tent light (the scene environment), like the stones
       const sk = realisticSkin(skinTone, null, real.chainS, photoTexture, detail), nailMat = realisticNails(skinTone, metalStudio.texture);
       liveTone = (hex: string) => { sk.tone.set(hex); (nailMat.userData.tone as Color).set(hex); };
-      const r = buildRealHand(real, shape, sk.material, nailMat, profile?.texture?.uv);
+      const r = buildRealHand(real, shape, sk.material, nailMat, current?.texture?.uv);
       skinUniforms = sk.uniforms; relaxed = r.relaxed; built = r; skinMat = sk.material;
       if (scene.environment) { skinMat.envMap = scene.environment; skinMat.envMapIntensity = 0.38; }
       disposables.push(sk.material, nailMat, r.mesh.geometry, r.nails.geometry);
     } else {
       const skin = skinMaterial(skinTone, photoTexture); disposables.push(skin);
-      built = buildHand(shape, skin, profile?.texture?.uv); disposables.push(built.mesh.geometry);
+      built = buildHand(shape, skin, current?.texture?.uv); disposables.push(built.mesh.geometry);
     }
     built.mesh.castShadow = true; built.mesh.receiveShadow = true;
     mirror.add(built.mesh);
@@ -365,16 +383,34 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     };
     // finger, paused and tracking are pushed through api.current; they must not rebuild the scene.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, category, wrist, profile, scanning, template]);
+  }, [model, category, wrist, handKey, scanning, template]);
 
   async function finishScan(scan: ScanResult) {
-    // Build the new hand first; only a successful build replaces the saved one.
+    // The measured hand goes to the preview first; the saved hand changes only when the customer confirms it.
+    setTune({ size: 1, fingers: 1, tone: 0 });
+    setDraft({ morph: scan.morph, tone: scan.tone, texture: scan.texture, shape: scan.shape, measured: scan.morph.middle, isNew: true });
+    setScanning(false);
+    return true;
+  }
+  function fineTune() {
+    if (!profile?.morph) return;
+    const m = profile.morph, measured = m.middle;
+    setTune({ size: 1, fingers: m.fingerLength, tone: m.toneShift });
+    setDraft({ morph: m, tone: profile.tone, texture: profile.texture, shape: profile.shape, measured, isNew: false }); setSheet(false);
+  }
+  function confirmHand() {
+    if (!draft) return;
+    const morph: HandMorph = { ...draft.morph, middle: draft.measured * tune.size, fingerLength: tune.fingers, toneShift: tune.tone };
     try {
-      buildHand(scan.shape, skinMaterial(scan.tone)).mesh.geometry.dispose();
-      saveProfile({ shape: scan.shape, tone: scan.tone, texture: scan.texture });
-      setScanning(false); setNotice('Your hand is saved on this device.');
-      return true;
-    } catch { return false; }
+      const real = template && template !== 'failed' ? template : null;
+      const shape = real ? shapeFromMorph(templateMeasure(real), morph) : draft.shape;
+      saveProfile({ shape, tone: draft.tone, texture: draft.texture, morph });
+      setDraft(null); setNotice(draft.isNew ? 'Your hand is saved on this device.' : 'Your hand is updated.');
+    } catch { setNotice('Your hand could not be saved on this device. Your previous hand is unchanged.'); }
+  }
+  function setScannedToneShift(shift: number) {
+    if (!profile?.morph) return;
+    try { saveProfile({ shape: profile.shape, tone: profile.tone, texture: profile.texture, morph: { ...profile.morph, toneShift: shift } }); } catch { /* keep the shown tone */ }
   }
   async function takePhoto() {
     const blob = await api.current?.snap(); if (!blob) return;
@@ -416,13 +452,32 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     </div>}
 
     {/* one primary action, only until a hand is saved */}
-    {firstVisit && !sheet && <button type="button" onClick={() => setScanning(true)} className="absolute bottom-6 left-1/2 min-h-12 -translate-x-1/2 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-primary>Scan your hand</button>}
+    {firstVisit && !sheet && !draft && <button type="button" onClick={() => setScanning(true)} className="absolute bottom-6 left-1/2 min-h-12 -translate-x-1/2 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-primary>Scan your hand</button>}
 
     {/* gesture tips, once */}
     {coach && <button type="button" onClick={() => { setCoach(false); store.set(TIPS_KEY, '1'); }} className="absolute inset-x-6 bottom-6 z-20 rounded-2xl bg-black/80 p-4 text-left text-xs leading-5 shadow-xl" data-coach-marks>
       <span className="mb-1 block text-sm">Move the piece with your hand</span>
       <span className="grid grid-cols-2 gap-x-4"><span>☝️ Point · turn</span><span>✌️ Two fingers · tilt</span><span>🤏 Pinch · zoom</span><span>✋ Palm · freeze</span><span>✊ Fist · reset</span><span className="opacity-70">Tap to close</span></span>
     </button>}
+
+    {/* Preview: the measured hand on screen, three fine-tuning sliders, saved only when confirmed */}
+    {draft && <div role="dialog" aria-label="Your 3D hand" className="absolute inset-x-0 bottom-0 z-30 rounded-t-3xl bg-[#0b2f26]/95 p-5 pb-6 text-sm shadow-2xl" data-hand-preview>
+      <p style={{ fontFamily: 'var(--font-satoshi)', fontSize: 18 }}>{draft.isNew ? 'Is this your hand?' : 'Fine-tune your hand'}</p>
+      <p className="mb-3 text-xs opacity-90">Hold your hand next to the screen and compare. {draft.morph.sizeFrom === 'average' && draft.isNew ? 'The size starts from an average adult hand: set it to match yours.' : ''}</p>
+      <label className="mb-3 block text-xs">Hand size <span className="opacity-80">· middle finger {Math.round(draft.measured * tune.size)} mm</span>
+        <input type="range" min={0.85} max={1.15} step={0.01} value={tune.size} onChange={e => setTune(t => ({ ...t, size: Number(e.target.value) }))} className="mt-1 w-full" style={{ accentColor: '#ffffff' }} data-tune-size /></label>
+      <label className="mb-3 block text-xs">Finger length <span className="opacity-80">· {tune.fingers >= 1 ? '+' : ''}{Math.round((tune.fingers - 1) * 100)}%</span>
+        <input type="range" min={0.9} max={1.1} step={0.01} value={tune.fingers} onChange={e => setTune(t => ({ ...t, fingers: Number(e.target.value) }))} className="mt-1 w-full" style={{ accentColor: '#ffffff' }} data-tune-fingers /></label>
+      <label className="mb-4 block text-xs">Skin tone <span className="opacity-80">· from your photo, lighter or darker</span>
+        <input type="range" min={-0.25} max={0.25} step={0.01} value={tune.tone} onChange={e => setTune(t => ({ ...t, tone: Number(e.target.value) }))} className="mt-1 w-full"
+          style={{ accentColor: '#ffffff', background: `linear-gradient(90deg, ${shiftTone(draft.tone, -0.25)}, ${draft.tone}, ${shiftTone(draft.tone, 0.25)})`, height: 10, borderRadius: 6 }} data-tune-tone /></label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={confirmHand} className="min-h-11 rounded-full px-6 font-medium shadow-lg" style={bubbleStyle} data-confirm-hand>{draft.isNew ? 'Save my hand' : 'Save'}</button>
+        {draft.isNew && <button type="button" className="min-h-10 px-2 text-xs underline" onClick={() => { setDraft(null); setScanning(true); }}>Retake</button>}
+        <button type="button" className="min-h-10 px-2 text-xs underline" onClick={() => setDraft(null)}>{draft.isNew ? 'Cancel' : 'Back'}</button>
+      </div>
+      {!draft.texture && draft.isNew && <p className="mt-2 text-[11px] opacity-80">The photo was not sharp or bright enough to use as your skin, so the standard skin detail is used with your tone.</p>}
+    </div>}
 
     {/* Customize: set-up controls, closed by default */}
     {sheet && <div className="absolute inset-0 z-30 flex items-end bg-black/40" onClick={() => setSheet(false)}>
@@ -442,12 +497,19 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
             <button type="button" aria-label="About your hand data" aria-expanded={privacyOpen} onClick={() => setPrivacyOpen(o => !o)} className="flex h-5 w-5 items-center justify-center rounded-full border border-white/60 text-[10px]">i</button>
           </p>
           {privacyOpen && <p className="text-xs opacity-90">The photo of your hand, its measurements and skin tone are kept in this browser only and never uploaded. Delete them here at any time.</p>}
-          <label className="block"><span className="text-xs">Skin tone</span>
-            <input type="range" min={0} max={TONES.length - 1} step={1} value={Math.max(0, TONES.indexOf(tone))} aria-valuetext={tone}
-              onChange={e => { const hex = TONES[Number(e.target.value)]; setToneChoice(hex); store.set(TONE_KEY, hex); }} className="mt-1 w-full" data-skin-tone
-              style={{ accentColor: '#ffffff', background: `linear-gradient(90deg, ${TONES.join(',')})`, height: 10, borderRadius: 6 }} />
-            {toneChoice && profile && <button type="button" className="mt-1 text-xs underline" onClick={() => { setToneChoice(null); store.set(TONE_KEY, null); }}>Use my scanned tone</button>}
-          </label>
+          {profile?.morph
+            ? <label className="block"><span className="text-xs">Skin tone <span className="opacity-80">(from your scan: lighter or darker)</span></span>
+                <input type="range" min={-0.25} max={0.25} step={0.01} value={profile.morph.toneShift} aria-valuetext={tone}
+                  onChange={e => setScannedToneShift(Number(e.target.value))} className="mt-1 w-full" data-skin-tone
+                  style={{ accentColor: '#ffffff', background: `linear-gradient(90deg, ${shiftTone(profile.tone, -0.25)}, ${profile.tone}, ${shiftTone(profile.tone, 0.25)})`, height: 10, borderRadius: 6 }} />
+                <button type="button" className="mt-2 text-xs underline" onClick={fineTune} data-fine-tune>Fine-tune my hand</button>
+              </label>
+            : <label className="block"><span className="text-xs">Skin tone</span>
+                <input type="range" min={0} max={TONES.length - 1} step={1} value={Math.max(0, TONES.indexOf(tone))} aria-valuetext={tone}
+                  onChange={e => { const hex = TONES[Number(e.target.value)]; setToneChoice(hex); store.set(TONE_KEY, hex); }} className="mt-1 w-full" data-skin-tone
+                  style={{ accentColor: '#ffffff', background: `linear-gradient(90deg, ${TONES.join(',')})`, height: 10, borderRadius: 6 }} />
+                {toneChoice && profile && <button type="button" className="mt-1 text-xs underline" onClick={() => { setToneChoice(null); store.set(TONE_KEY, null); }}>Use my scanned tone</button>}
+              </label>}
           <label className="flex items-center justify-between gap-3"><span>Move the piece with my hand <span className="block text-xs opacity-80">Uses the camera on this device</span></span>
             <input type="checkbox" checked={tracking} onChange={e => setTracking(e.target.checked)} className="h-5 w-5" data-gestures-toggle /></label>
           {!wrist && <label className="flex items-center justify-between gap-3">Ring finger <select value={finger} onChange={e => setFinger(Number(e.target.value))} className="rounded bg-black/30 px-2 py-1">{FINGERS.map((n, i) => <option key={n} value={i}>{n}</option>)}</select></label>}
