@@ -224,7 +224,7 @@ export function realisticSkin(tone: string, env: Texture | null, chainS: number[
           reflectedLight.indirectDiffuse += diffuseColor.rgb * sssTint * amesThin * 0.35 * occ; }`);
   };
   m.customProgramCacheKey = () => 'ames-real-skin-' + (photo ? 1 : 0) + (detail ? 1 : 0);
-  return { material: m, uniforms };
+  return { material: m, uniforms, tone: toneColor };
 }
 
 export function realisticNails(tone: string, env: Texture | null) {
@@ -265,5 +265,6 @@ export function realisticNails(tone: string, env: Texture | null) {
         reflectedLight.directDiffuse += diffuseColor.rgb * vec3(0.12, 0.03, 0.02) * (1.0 - smoothstep(0.0, 0.3, vNail.z * 4.0));`);
   };
   m.customProgramCacheKey = () => 'ames-real-nail';
+  m.userData.tone = toneColor;                                        // live skin-tone changes recolour the nail bed too
   return m;
 }

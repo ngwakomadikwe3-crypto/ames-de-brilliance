@@ -122,19 +122,18 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
   const { t } = useAtelierLanguage();
   const [wear, setWear] = useState<WearState>('full');
   const [choice, setChoice] = useState<Record<string, string>>(() => Object.fromEntries(design.options.map(o => [o.key, o.choices[0]])));
-  const [tryOn, setTryOn] = useState(false);
   const configuration = useMemo(() => designConfiguration(design, choice), [design, choice]);
   const missing = missingImages(design);
   const canTryOn = !!design.glb && HAND_CATEGORIES.has(design.category);
   const front = design.convertible && wear === 'stud' ? design.convertible.studFront : design.images.front;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pt-20" data-design-detail={design.code}>
-      <div className="relative mx-auto w-full shrink-0 px-4" style={{ maxWidth: 720, height: 'clamp(260px, 52dvh, 520px)' }}>
+      <div className="relative mx-auto w-full shrink-0 px-4" style={{ maxWidth: 1040, height: 'clamp(320px, 70dvh, 980px)' }}>
         {onClose && <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg>
         </button>}
-        {tryOn && canTryOn
-          ? <FittingHand category={design.category} model={design.glb!}><DesignStage design={design} wear={wear} /></FittingHand>
+        {canTryOn
+          ? <FittingHand category={design.category} title={design.name} model={design.glb!}><DesignStage design={design} wear={wear} /></FittingHand>
           : <DesignStage design={design} wear={wear} eager />}
       </div>
 
@@ -187,22 +186,14 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
           </div>
         </section>
 
-        {/* Try on */}
-        <section className="mt-5 flex items-center gap-3" data-try-on-entry={design.code}>
-          <div className="h-16 w-14 shrink-0 overflow-hidden rounded-lg">
-            {design.images.front ? <DesignPicture image={design.images.front} alt={design.alt.front} sizes="56px" /> : <ImageToCome label="Front view on its way" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <button type="button" disabled={!canTryOn} aria-pressed={tryOn} onClick={() => setTryOn(v => !v)} className="ames-pill min-h-11 rounded-full px-5 text-[12px]" style={{ opacity: canTryOn ? 1 : 0.55 }}>
-              {t(tryOn ? 'Close try-on' : 'Try on')}
-            </button>
-            {!canTryOn && <p className="mt-1 text-[11px]" style={{ color: '#ffffff' }}>
-              {t(design.category === 'earrings' || design.category === 'necklace'
-                ? 'Try-on for this design, including both ways to wear it, opens when its 3D model and the portrait try-on are ready.'
-                : 'Try-on opens when this design’s 3D model is ready.')}
-            </p>}
-          </div>
-        </section>
+        {/* Try on: the floating button on the stage when the design's model exists; otherwise say when it will */}
+        {!canTryOn && <section className="mt-5" data-try-on-entry={design.code}>
+          <p className="text-[11px]" style={{ color: '#ffffff' }}>
+            {t(design.category === 'earrings' || design.category === 'necklace'
+              ? 'Try-on for this design, including both ways to wear it, opens when its 3D model and the portrait try-on are ready.'
+              : 'Try-on opens when this design\u2019s 3D model is ready.')}
+          </p>
+        </section>}
 
         <SampleQuote key={configuration} configuration={configuration} stone={design.name} setting={design.category} cut="" metal={choice.metal ?? ''} />
         {missing.length > 0 && <p className="mt-3 text-[10px]" style={{ color: '#ffffff' }} data-missing-images>{t('Still to come for this design')}: {missing.join(', ')}.</p>}

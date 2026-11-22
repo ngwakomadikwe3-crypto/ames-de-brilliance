@@ -6,6 +6,7 @@
 // One WebGL scene: the jewellery wraps the 3D wrist or finger, so occlusion, shadows and light are real.
 import { useEffect, useRef, useState } from 'react';
 import {
+  Box3, Color,
   ACESFilmicToneMapping, AmbientLight, DirectionalLight, Group, Material, Matrix4, Mesh, Object3D, PCFSoftShadowMap, PMREMGenerator,
   PerspectiveCamera, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, type Bone, type Texture,
 } from 'three';
@@ -24,6 +25,7 @@ import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
 import { cameraFor, liftHand, DorsalSide } from '../lib/ar/hand-pose';
 import { fitLoop } from '../lib/ar/model-fit';
 import { fittingFor, handAnchor, fitScale } from '../lib/atelier/fitting-registry';
+import { FRAMING_PRESETS, fitPoints, presetFor, zoomRange } from '../lib/try-on-framing';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
 import { GestureController, gestureDebugEnabled, type GestureOutput } from '../lib/gesture-controller';
@@ -34,7 +36,12 @@ const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little'];
 const DEFAULT_DISTANCE = 600;                                         // mm from the camera to the hand
 let templatePromise: Promise<HandTemplate> | null = null;              // the sculpted hand, loaded once per page
 
-export default function CloneTryOn({ model, category, onLiveCamera }: { model: string; category: string; onLiveCamera?: () => void }) {
+// Skin tones for the standard hand (light to deep). The choice is remembered on this device.
+const TONES = ['#f4d8c3', '#e8c0a1', '#d9a786', '#c58e6b', '#b07a5a', '#966045', '#7a4a31', '#5d3624', '#412619'];
+const TONE_KEY = 'ames-hand-tone', TIPS_KEY = 'ames-gesture-tips-seen';
+const store = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k: string, v: string | null) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* private mode */ } } };
+
+export default function CloneTryOn({ model, category, onLiveCamera, title, onClose }: { model: string; category: string; onLiveCamera?: () => void; title?: string; onClose?: () => void }) {
   const box = useRef<HTMLDivElement>(null), canvasRef = useRef<HTMLCanvasElement>(null);
   const [profile, setProfile] = useState<HandProfileV2 | null>(null);
   const [scanning, setScanning] = useState(false), [confirmDelete, setConfirmDelete] = useState(false);
@@ -42,7 +49,9 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   const [debugReadout, setDebugReadout] = useState<GestureOutput | null>(null);       // TEMPORARY gesture debug
   const [finger, setFinger] = useState(3), [paused, setPaused] = useState(false), [photo, setPhoto] = useState('');
   const [notice, setNotice] = useState('');
-  const api = useRef<{ snap: () => Promise<Blob | null>; finger: (f: number) => void; pause: (p: boolean) => void; track: (on: boolean) => void } | null>(null);
+  const [sheet, setSheet] = useState(false), [menu, setMenu] = useState(false), [privacyOpen, setPrivacyOpen] = useState(false), [coach, setCoach] = useState(false);
+  const [toneChoice, setToneChoice] = useState<string | null>(() => (typeof window === 'undefined' ? null : store.get(TONE_KEY)));
+  const api = useRef<{ snap: () => Promise<Blob | null>; finger: (f: number) => void; pause: (p: boolean) => void; track: (on: boolean) => void; tone: (hex: string) => void } | null>(null);
   const wrist = category === 'watch' || category === 'bracelet';
   const [template, setTemplate] = useState<HandTemplate | 'failed' | null>(null);
   useEffect(() => {
@@ -60,6 +69,11 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   useEffect(() => { api.current?.finger(finger); }, [finger]);
   useEffect(() => { api.current?.pause(paused); }, [paused]);
   useEffect(() => { api.current?.track(tracking); }, [tracking]);
+  // gesture tips: once, the first time the hand camera is switched on (again only if re-enabled in Customize)
+  useEffect(() => { if (tracking && !store.get(TIPS_KEY)) setCoach(true); }, [tracking]);
+  useEffect(() => { if (coach && gesture) { setCoach(false); store.set(TIPS_KEY, '1'); } }, [gesture, coach]);
+  const tone = toneChoice ?? profile?.tone ?? genericTone;
+  useEffect(() => { api.current?.tone(tone); }, [tone]);
 
   // --- the scene: rebuilt only when the hand or the piece changes, never on tracking updates -----------------------
   useEffect(() => {
@@ -96,29 +110,50 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     const shape = profile?.shape ?? (real ? templateShape(real) : genericShape);
     let photoTexture: Texture | undefined;
     if (profile?.texture?.image) { photoTexture = new TextureLoader().load(profile.texture.image); disposables.push(photoTexture); }
-    const tone = profile?.tone ?? genericTone;
-    let skinUniforms: SkinUniforms | null = null, relaxed: Quaternion[] | null = null;
+    const skinTone = toneChoice ?? profile?.tone ?? genericTone;
+    let skinUniforms: SkinUniforms | null = null, relaxed: Quaternion[] | null = null, liveTone: (hex: string) => void = () => {};
     let built: { mesh: import('three').SkinnedMesh; bones: Bone[]; rest: Vector3[] };
     if (real) {
       // Realistic hand: sculpted template fitted to the customer, lit by the same studio as the metal.
       const detail = new TextureLoader().load('/hand-twin/skin-detail.jpg');
       detail.wrapS = detail.wrapT = RepeatWrapping; detail.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); disposables.push(detail);
       // skin takes the boutique tent light (the scene environment), like the stones
-      const sk = realisticSkin(tone, null, real.chainS, photoTexture, detail), nailMat = realisticNails(tone, metalStudio.texture);
+      const sk = realisticSkin(skinTone, null, real.chainS, photoTexture, detail), nailMat = realisticNails(skinTone, metalStudio.texture);
+      liveTone = (hex: string) => { sk.tone.set(hex); (nailMat.userData.tone as Color).set(hex); };
       const r = buildRealHand(real, shape, sk.material, nailMat, profile?.texture?.uv);
       skinUniforms = sk.uniforms; relaxed = r.relaxed; built = r; skinMat = sk.material;
       if (scene.environment) { skinMat.envMap = scene.environment; skinMat.envMapIntensity = 0.38; }
       disposables.push(sk.material, nailMat, r.mesh.geometry, r.nails.geometry);
     } else {
-      const skin = skinMaterial(tone, photoTexture); disposables.push(skin);
+      const skin = skinMaterial(skinTone, photoTexture); disposables.push(skin);
       built = buildHand(shape, skin, profile?.texture?.uv); disposables.push(built.mesh.geometry);
     }
     built.mesh.castShadow = true; built.mesh.receiveShadow = true;
     mirror.add(built.mesh);
-    // Centre the hand in view: rest pose middle of the palm at the origin.
-    const centre = built.rest[0].clone().lerp(built.rest[9], 0.55);
-    if (wrist) centre.copy(built.rest[0]).addScaledVector(built.rest[0].clone().sub(built.rest[9]).normalize(), 10);
-    mirror.position.copy(centre).multiplyScalar(-1);
+    // Framing from the model: the posed hand (and, once attached, the piece) fills ~60 % of the frame, centred.
+    const centre = new Vector3(), preset = FRAMING_PRESETS[presetFor(category)];
+    let fit = { distance: DEFAULT_DISTANCE }, fitCentre = new Vector3();
+    const refit = (snap = false) => {
+      const wasFlipped = mirror.scale.x < 0;
+      mirror.position.set(0, 0, 0); mirror.scale.x = 1; mirror.updateMatrixWorld(true);
+      const pts: Vector3[] = [], toLocal = new Matrix4().copy(mirror.matrixWorld).invert();
+      // the posed skin itself (fingertips, nails, thumb, knuckles), down to the preset's share of forearm
+      const wristP = built.bones[0].getWorldPosition(new Vector3()).applyMatrix4(toLocal), midP = built.bones[9].getWorldPosition(new Vector3()).applyMatrix4(toLocal);
+      const along = midP.clone().sub(wristP).normalize(), v = new Vector3(), count = built.mesh.geometry.getAttribute('position').count;
+      built.mesh.skeleton.update();
+      for (let i = 0; i < count; i += 7) {
+        built.mesh.getVertexPosition(i, v); v.applyMatrix4(built.mesh.matrixWorld).applyMatrix4(toLocal);
+        if (v.clone().sub(wristP).dot(along) >= -preset.forearm) pts.push(v.clone());
+      }
+      if (piece && mount.parent) { const b = new Box3().setFromObject(piece); if (!b.isEmpty()) for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(new Vector3(x, y, z).applyMatrix4(toLocal)); }
+      const f = fitPoints(pts, camera.fov, camera.aspect || 1, preset.fill);
+      const ratio = fit.distance ? targetDistance / fit.distance : 1;
+      fit = f; fitCentre.set(f.centre.x, f.centre.y, f.centre.z);
+      if (snap) centre.copy(fitCentre);
+      mirror.position.copy(centre).multiplyScalar(-1);
+      if (wasFlipped) { mirror.scale.x = -1; mirror.position.x = centre.x; }
+      const z = zoomRange(f); targetDistance = Math.max(z.min, Math.min(z.max, f.distance * (snap ? 1 : ratio))); if (snap) distance = targetDistance;
+    };
 
     // --- jewellery on the 3D hand -----------------------------------------------------------------------------------
     const mount = new Group(); mount.matrixAutoUpdate = false;
@@ -135,6 +170,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       contact = { bone, at: frame.at.clone(), axis: frame.axis.clone(), radius: (frame.halfSide + frame.halfUp) / 2, half: Math.max(1, (loop.width ?? 4) * sAlong / 2) };
       mount.matrix.copy(T.makeTranslation(frame.at.x, frame.at.y, frame.at.z)).multiply(B.makeBasis(frame.side, frame.axis, frame.up)).multiply(S.makeScale(sSide, sAlong, sUp)).multiply(A);
       bone.add(mount);
+      refit();
     };
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(model, gltf => {
@@ -150,6 +186,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
     // --- live puppet + gestures ------------------------------------------------------------------------------------
     const restQuats = relaxed ?? built.bones.map(b => b.quaternion.clone()), targets = restQuats.map(q => q.clone());
     built.bones.forEach((b, i) => b.quaternion.copy(restQuats[i]));       // rest: a relaxed hand, never splayed
+    refit(true);
     const handTarget = new Vector3(), handPos = new Vector3();
     const viewTurn = new Quaternion(), viewTarget = new Quaternion();
     let showcase = 0, showcaseBlend = 0, quietUntil = 0, handSeen = false, frozen = false, pausedShowcase = false, resetting = 0;
@@ -203,7 +240,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
           frozen = g.state === 'FROZEN';
           if (g.dx) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), g.dx * Math.PI));
           if (g.dy) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), g.dy * Math.PI));
-          if (g.zoom !== 1) targetDistance = Math.max(160, Math.min(900, targetDistance / g.zoom));
+          if (g.zoom !== 1) { const z = zoomRange(fit); targetDistance = Math.max(z.min, Math.min(z.max, targetDistance / g.zoom)); }
           if (g.reset) { resetting = now; resetFrom.copy(viewTurn); resetDistance = distance; }
           if (controls.debug) setDebug(g);
           const label2 = g.pose === 'point' ? 'Turning' : g.pose === 'two' ? 'Tilting' : g.pose === 'pinch' ? 'Zoom' : g.pose === 'palm' ? 'Frozen' : g.pose === 'fist' ? 'Resetting…' : '';
@@ -252,7 +289,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       drag = { x: e.clientX, y: e.clientY }; quietUntil = performance.now() + 5000;
     };
     const up = () => { drag = null; };
-    const wheel = (e: WheelEvent) => { e.preventDefault(); targetDistance = Math.max(160, Math.min(900, targetDistance * Math.exp(e.deltaY * 0.001))); quietUntil = performance.now() + 5000; };
+    const wheel = (e: WheelEvent) => { e.preventDefault(); const z = zoomRange(fit); targetDistance = Math.max(z.min, Math.min(z.max, targetDistance * Math.exp(e.deltaY * 0.001))); quietUntil = performance.now() + 5000; };
     canvas.addEventListener('pointerdown', down); canvas.addEventListener('pointermove', move); canvas.addEventListener('pointerup', up); canvas.addEventListener('wheel', wheel, { passive: false });
 
     // --- render loop: ease bones and view toward their targets (EMA 0.3 at 30 fps, frame-rate independent) ------
@@ -276,7 +313,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
         // Fist held: ease back to the default view over one second.
         const t = Math.min(1, (now - resetting) / 1000), s = t * t * (3 - 2 * t);
         viewTarget.slerpQuaternions(resetFrom, new Quaternion(), s); viewTurn.copy(viewTarget);
-        targetDistance = distance = resetDistance + (DEFAULT_DISTANCE - resetDistance) * s;
+        targetDistance = distance = resetDistance + (fit.distance - resetDistance) * s;
         if (t >= 1) resetting = 0;
       }
       viewTurn.slerp(viewTarget, 1 - Math.pow(0.85, dt * 60));
@@ -285,12 +322,16 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       showcaseBlend = Math.max(0, Math.min(1, showcaseBlend + (idle ? dt : -1)));
       if (idle) showcase += dt * showcaseBlend * showcaseBlend * (3 - 2 * showcaseBlend);
       view.quaternion.copy(viewTurn).multiply(showcaseBlend > 0 ? new Quaternion().slerp(tumble(showcase), showcaseBlend) : new Quaternion());
+      if (centre.distanceToSquared(fitCentre) > 0.01) {                    // smooth reframing (finger or piece change)
+        centre.lerp(fitCentre, 1 - Math.pow(0.85, dt * 60));
+        mirror.position.set(mirror.scale.x < 0 ? centre.x : -centre.x, -centre.y, -centre.z);
+      }
       distance += (targetDistance - distance) * (1 - Math.pow(0.8, dt * 60));
       camera.position.set(0, 0, distance); camera.lookAt(0, 0, 0);
       renderer.render(scene, camera);
       raf = requestAnimationFrame(render);
     }
-    const resize = () => { const r = host.getBoundingClientRect(); if (!r.width) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); };
+    const resize = () => { const r = host.getBoundingClientRect(); if (!r.width || !r.height) return; renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); refit(); };   // refit on every size / orientation change
     const observer = new ResizeObserver(resize); observer.observe(host); resize();
     raf = requestAnimationFrame(render);
 
@@ -303,6 +344,7 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
       },
       finger: f => { fingerIndex = f; attach(); },
       pause: p => { pausedShowcase = p; },
+      tone: hex => liveTone(hex),
       snap: async () => {
         const size = renderer.getSize(new Vector2()), ratio = renderer.getPixelRatio();
         const w = 2048, h = Math.round(2048 * size.y / size.x);
@@ -340,38 +382,87 @@ export default function CloneTryOn({ model, category, onLiveCamera }: { model: s
   }
 
   if (scanning) return <HandScan onDone={finishScan} onCancel={() => setScanning(false)} />;
-  return <div className="flex flex-col text-white">
-    <div ref={box} className="relative w-full" style={{ height: 'clamp(300px, 52svh, 640px)' }}>
+  // The stage is the product: everything else is a floating icon, a sheet or a menu, opened only when asked.
+  const bubble = 'flex h-11 w-11 items-center justify-center rounded-full shadow-lg';
+  const bubbleStyle = { background: '#ffffff', color: '#0c3b2e' };
+  const firstVisit = !profile;
+  return <div className="relative h-full w-full overflow-hidden text-white" data-try-on-stage>
+    <div ref={box} className="absolute inset-0">
       <canvas ref={canvasRef} className="block h-full w-full touch-none" aria-label={profile ? 'Your 3D hand wearing the piece' : 'A 3D hand wearing the piece'} />
-      {debugReadout && <GestureDebug g={debugReadout} />}
-      {(status || gesture) && <p role="status" className="pointer-events-none absolute inset-x-0 top-2 text-center text-xs drop-shadow">{status || gesture}</p>}
-      <button type="button" className="ames-pill absolute bottom-2 left-2 rounded-full px-3 py-1 text-xs" aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? 'Play showcase' : 'Pause showcase'}</button>
     </div>
-    <div className="flex flex-wrap items-center justify-center gap-3 py-2 text-xs">
-      <button type="button" className="ames-pill rounded-full px-4 py-2" aria-pressed={tracking} onClick={() => setTracking(t => !t)}>{tracking ? 'Stop hand camera' : 'Move with my hand'}</button>
-      <button type="button" className="ames-pill rounded-full px-4 py-2" onClick={() => void takePhoto()}>Take photo</button>
-      {!wrist && <label className="flex items-center gap-2">Finger <select value={finger} onChange={e => setFinger(Number(e.target.value))}>{FINGERS.map((n, i) => <option key={n} value={i}>{n}</option>)}</select></label>}
-      {onLiveCamera && <button type="button" className="underline" onClick={onLiveCamera}>Live camera view</button>}
+    {debugReadout && <GestureDebug g={debugReadout} />}
+
+    {/* top: close, (first visit) the name, one status line, settings and more */}
+    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+      {onClose ? <button type="button" aria-label="Close try-on" onClick={onClose} className={`pointer-events-auto ${bubble}`} style={bubbleStyle}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg></button> : <span />}
+      <div className="min-w-0 flex-1 pt-1 text-center" style={{ textShadow: '0 1px 6px rgba(0,0,0,.6)' }}>
+        {firstVisit && title && <p className="truncate" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 17 }}>{title}</p>}
+        {(status || gesture || notice) && <p role="status" className="truncate text-xs">{status || gesture || notice}</p>}
+      </div>
+      <div className="pointer-events-auto flex gap-2">
+        <button type="button" aria-label="Customize" aria-expanded={sheet} onClick={() => { setSheet(true); setMenu(false); }} className={bubble} style={bubbleStyle} data-customize>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg></button>
+        <button type="button" aria-label="More" aria-expanded={menu} onClick={() => setMenu(m => !m)} className={bubble} style={bubbleStyle} data-more>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg></button>
+      </div>
     </div>
-    {tracking && <p className="text-center text-xs">Pinch to zoom · point to turn · two fingers to tilt · open palm to freeze · hold a fist to reset.</p>}
-    <section aria-label="Your hand" className="space-y-1 py-2 text-center text-xs">
-      <p>{profile ? 'This is your hand, saved only on this device.' : 'Showing a standard hand. Scan yours to see the piece on your own hand; the photo stays on this device.'}</p>
-      {confirmDelete
-        ? <div role="group" aria-label="Confirm hand deletion"><p>Delete your saved hand, its measurements and photo, from this device?</p>
-            <button type="button" className="min-h-10 px-2 underline" onClick={() => { try { deleteProfile(); setNotice('Saved hand deleted. Scan again any time.'); } catch { setNotice('Deletion failed. Try again.'); } setConfirmDelete(false); }}>Delete</button>
-            <button type="button" autoFocus className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(false)}>Cancel</button></div>
-        : <div className="flex justify-center gap-4">
-            <button type="button" className="min-h-10 underline" onClick={() => setScanning(true)}>{profile ? 'Re-scan my hand' : 'Scan my hand'}</button>
-            {profile && <button type="button" className="min-h-10 underline" onClick={() => setConfirmDelete(true)}>Delete saved hand</button>}
-          </div>}
-      {notice && <p role="status">{notice}</p>}
-    </section>
-    {photo && <figure className="mx-auto w-full max-w-sm pb-2 text-center text-xs">
+
+    {/* ••• : utilities */}
+    {menu && <div role="menu" className="absolute right-3 top-16 z-20 min-w-48 overflow-hidden rounded-2xl bg-black/85 py-1 text-sm shadow-xl backdrop-blur" data-more-menu>
+      <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" onClick={() => { setMenu(false); void takePhoto(); }}>Take photo</button>
+      {onLiveCamera && <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" onClick={() => { setMenu(false); onLiveCamera(); }}>Live camera view</button>}
+      {onClose && <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" onClick={() => { setMenu(false); onClose(); }}>Piece only</button>}
+    </div>}
+
+    {/* one primary action, only until a hand is saved */}
+    {firstVisit && !sheet && <button type="button" onClick={() => setScanning(true)} className="absolute bottom-6 left-1/2 min-h-12 -translate-x-1/2 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-primary>Scan your hand</button>}
+
+    {/* gesture tips, once */}
+    {coach && <button type="button" onClick={() => { setCoach(false); store.set(TIPS_KEY, '1'); }} className="absolute inset-x-6 bottom-6 z-20 rounded-2xl bg-black/80 p-4 text-left text-xs leading-5 shadow-xl" data-coach-marks>
+      <span className="mb-1 block text-sm">Move the piece with your hand</span>
+      <span className="grid grid-cols-2 gap-x-4"><span>☝️ Point · turn</span><span>✌️ Two fingers · tilt</span><span>🤏 Pinch · zoom</span><span>✋ Palm · freeze</span><span>✊ Fist · reset</span><span className="opacity-70">Tap to close</span></span>
+    </button>}
+
+    {/* Customize: set-up controls, closed by default */}
+    {sheet && <div className="absolute inset-0 z-30 flex items-end bg-black/40" onClick={() => setSheet(false)}>
+      <div role="dialog" aria-label="Customize" className="max-h-[80%] w-full overflow-y-auto rounded-t-3xl bg-[#0b2f26] p-5 pb-7 text-sm shadow-2xl" onClick={e => e.stopPropagation()} data-customize-sheet>
+        <div className="mb-3 flex items-center justify-between"><p style={{ fontFamily: 'var(--font-satoshi)', fontSize: 18 }}>Customize</p>
+          <button type="button" aria-label="Close" onClick={() => setSheet(false)} className={bubble} style={bubbleStyle}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="ames-pill min-h-10 rounded-full px-4" onClick={() => { setSheet(false); setScanning(true); }}>{profile ? 'Re-scan my hand' : 'Scan my hand'}</button>
+            {profile && !confirmDelete && <button type="button" className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(true)}>Delete saved hand</button>}
+          </div>
+          {confirmDelete && <div role="group" aria-label="Confirm hand deletion" className="text-xs"><p>Delete your saved hand, its measurements and photo, from this device?</p>
+            <button type="button" className="min-h-10 px-2 underline" onClick={() => { try { deleteProfile(); setNotice('Saved hand deleted.'); } catch { setNotice('Deletion failed. Try again.'); } setConfirmDelete(false); }}>Delete</button>
+            <button type="button" autoFocus className="min-h-10 px-2 underline" onClick={() => setConfirmDelete(false)}>Cancel</button></div>}
+          <p className="flex items-center gap-1 text-xs opacity-90">
+            <span>{profile ? 'Your hand is saved only on this device.' : 'Your scan stays on this device.'}</span>
+            <button type="button" aria-label="About your hand data" aria-expanded={privacyOpen} onClick={() => setPrivacyOpen(o => !o)} className="flex h-5 w-5 items-center justify-center rounded-full border border-white/60 text-[10px]">i</button>
+          </p>
+          {privacyOpen && <p className="text-xs opacity-90">The photo of your hand, its measurements and skin tone are kept in this browser only and never uploaded. Delete them here at any time.</p>}
+          <label className="block"><span className="text-xs">Skin tone</span>
+            <input type="range" min={0} max={TONES.length - 1} step={1} value={Math.max(0, TONES.indexOf(tone))} aria-valuetext={tone}
+              onChange={e => { const hex = TONES[Number(e.target.value)]; setToneChoice(hex); store.set(TONE_KEY, hex); }} className="mt-1 w-full" data-skin-tone
+              style={{ accentColor: '#ffffff', background: `linear-gradient(90deg, ${TONES.join(',')})`, height: 10, borderRadius: 6 }} />
+            {toneChoice && profile && <button type="button" className="mt-1 text-xs underline" onClick={() => { setToneChoice(null); store.set(TONE_KEY, null); }}>Use my scanned tone</button>}
+          </label>
+          <label className="flex items-center justify-between gap-3"><span>Move the piece with my hand <span className="block text-xs opacity-80">Uses the camera on this device</span></span>
+            <input type="checkbox" checked={tracking} onChange={e => setTracking(e.target.checked)} className="h-5 w-5" data-gestures-toggle /></label>
+          {!wrist && <label className="flex items-center justify-between gap-3">Ring finger <select value={finger} onChange={e => setFinger(Number(e.target.value))} className="rounded bg-black/30 px-2 py-1">{FINGERS.map((n, i) => <option key={n} value={i}>{n}</option>)}</select></label>}
+          <label className="flex items-center justify-between gap-3">Turn slowly when idle <input type="checkbox" checked={!paused} onChange={e => setPaused(!e.target.checked)} className="h-5 w-5" /></label>
+          <button type="button" className="text-xs underline" onClick={() => { store.set(TIPS_KEY, null); setSheet(false); if (tracking) setCoach(true); else setTracking(true); }}>Show gesture tips again</button>
+        </div>
+      </div>
+    </div>}
+
+    {photo && <figure className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/85 p-4 text-center text-xs">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photo} alt="Your try-on photo" className="w-full rounded-xl" />
-      <figcaption className="flex justify-center gap-4 py-2"><a className="underline" href={photo} download="houseofames-try-on.png">Save photo</a>
+      <img src={photo} alt="Your try-on photo" className="max-h-[75%] max-w-full rounded-xl" />
+      <figcaption className="flex justify-center gap-4"><a className="underline" href={photo} download="houseofames-try-on.png">Save photo</a>
         {typeof navigator !== 'undefined' && 'share' in navigator && <button type="button" className="underline" onClick={() => { void fetch(photo).then(r => r.blob()).then(b => navigator.share({ files: [new File([b], 'houseofames-try-on.png', { type: 'image/png' })] })).catch(() => {}); }}>Share</button>}
-        <button type="button" className="underline" onClick={() => setPhoto('')}>Discard</button></figcaption>
+        <button type="button" className="underline" onClick={() => setPhoto('')}>Close</button></figcaption>
     </figure>}
   </div>;
 }

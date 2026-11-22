@@ -67,7 +67,7 @@ export default function CollectionView({ entry, onClose }: { entry: CollectionEn
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pt-20" data-collection={entry.id}>
       {/* hero: the full set */}
-      <div className="relative mx-auto w-full shrink-0 px-4" style={{ maxWidth: 820, height: 'clamp(280px, 56dvh, 560px)' }}>
+      <div className="relative mx-auto w-full shrink-0 px-4" style={{ maxWidth: 1040, height: 'clamp(320px, 70dvh, 980px)' }}>
         {onClose && <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>}
         {view3d === 'on'

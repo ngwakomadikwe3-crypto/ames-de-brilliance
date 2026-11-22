@@ -28,7 +28,8 @@
     "test:realistic-hand": "node --experimental-strip-types scripts/test-realistic-hand.mjs",
     "designs:images": "node scripts/build-design-images.mjs",
     "test:gestures": "node --experimental-strip-types scripts/test-gestures.mjs",
-    "test:collections": "node --experimental-strip-types scripts/test-collections.mjs"
+    "test:collections": "node --experimental-strip-types scripts/test-collections.mjs",
+    "test:try-on-framing": "node --experimental-strip-types scripts/test-try-on-framing.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",
