@@ -81,7 +81,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'A rivière of graduated stones finishing in a single pear drop at the centre.',
     images: { front: img('N1', 'front'), back: img('N1', 'back') },
     alt: { front: 'The Rivière Drop necklace — front view, graduated stones and pear drop on emerald silk', back: 'The Rivière Drop necklace — back view, settings and clasp on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/N1/N1-riviere-drop.glb",
     options: [METAL, { key: 'length', label: 'Length', choices: ['40 cm', '42 cm', '45 cm'] }, { key: 'drop', label: 'Centre drop', choices: ['Pear, about 1.5 ct', 'Pear, about 2 ct', 'Pear, about 3 ct'] }, STONES, ACCENT],
   },
   {
@@ -89,7 +89,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'One centre stone on a fine chain: the cut, the size and the setting are yours to choose.',
     images: { front: img('N2', 'front'), back: img('N2', 'back') },
     alt: { front: 'The Solitaire Pendant necklace — front view, single stone on a fine chain on emerald silk', back: 'The Solitaire Pendant necklace — back view, setting gallery and bail on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/N2/N2-solitaire-pendant.glb",
     options: [METAL, { key: 'chain', label: 'Chain length', choices: ['40 cm', '45 cm', '50 cm'] }, { key: 'cut', label: 'Centre cut', choices: ['Round', 'Oval', 'Pear', 'Cushion'] },
       { key: 'centre', label: 'Centre size', choices: ['0.5 ct', '1 ct', '1.5 ct', '2 ct'] }, { key: 'setting', label: 'Setting', choices: ['Four prongs', 'Six prongs', 'Halo'] }, STONES, ACCENT],
   },
