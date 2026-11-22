@@ -57,7 +57,6 @@ def read_target(rel):
 def keep_body(vs):
     c = V[vs].mean(axis=0); return c[1] > CUT_Y and abs(c[0]) < SIDE_X
 PARTS = {'Head skin': lambda g, vs: g == 'body' and keep_body(vs),
-         'Eye left': lambda g, vs: g == 'helper-l-eye', 'Eye right': lambda g, vs: g == 'helper-r-eye',
          'Teeth upper': lambda g, vs: g == 'helper-upper-teeth', 'Teeth lower': lambda g, vs: g == 'helper-lower-teeth',
          'Tongue': lambda g, vs: g == 'helper-tongue'}
 
@@ -97,9 +96,21 @@ for n in ['eye-scale-decr', 'eye-scale-incr', 'eye-trans-up', 'eye-trans-down', 
 for n in ['ear-scale-decr', 'ear-scale-incr', 'ear-trans-up', 'ear-trans-down', 'ear-rot-backward', 'ear-rot-forward', 'ear-lobe-decr', 'ear-lobe-incr']:
     ID[f'id:{n}'] = pair(f'ears/l-{n}.target', f'ears/r-{n}.target')
 EXU = TG / 'expression' / 'units' / 'caucasian'
+# Clean expression regions (MakeHuman units: 1 = 100 mm; in base.obj the eyes sit near y 7.28, the mouth near y 6.62). MakeHuman's
+# units mix regions: the corner puller also bulges the cheeks, the upward retraction moves the mouth. Each expression
+# here moves only its own region, so a smile can never touch the eyelids and a cheek raise never moves the mouth.
+def ramp(v, a, b): return np.clip((v - a) / (b - a), 0, 1)
+def smooth(t): return t * t * (3 - 2 * t)
+MOUTH_ONLY = smooth(1 - ramp(V[:, 1], 6.75, 6.83))[:, None]                                  # up to just under the nose
+CHEEK_ONLY = (smooth(ramp(V[:, 1], 6.68, 6.76)) * smooth(1 - ramp(V[:, 1], 7.06, 7.14)) * smooth(ramp(np.abs(V[:, 0]), 0.14, 0.22)))[:, None]
+def cheek_raise():
+    d = (read_target('expression/units/caucasian/mouth-corner-puller.target') + read_target('expression/units/caucasian/mouth-upward-retraction.target')) * CHEEK_ONLY
+    d[:, 0] = 0                                                                                # up and forward only: the cheek lifts
+    m = np.abs(d).max(); return d * (0.05 / m if m > 0 else 0)                                 # about 5 mm at full weight
 EX = {'ex:blink-l': read_target('expression/units/caucasian/eye-left-closure.target'),
       'ex:blink-r': read_target('expression/units/caucasian/eye-right-closure.target'),
-      'ex:smile': read_target('expression/units/caucasian/mouth-corner-puller.target') + 0.35 * read_target('expression/units/caucasian/mouth-elevation.target'),
+      # the smile: mouth corners up and out, the upper lip lifting a little off the teeth; nothing above the nose
+      'ex:smile': (read_target('expression/units/caucasian/mouth-corner-puller.target') + 0.35 * read_target('expression/units/caucasian/mouth-elevation.target')) * MOUTH_ONLY,
       'ex:part': read_target('expression/units/caucasian/mouth-parling.target'),
       'ex:purse': read_target('expression/units/caucasian/mouth-pursing.target'),
       'ex:relaxed': read_target('expression/units/caucasian/mouth-compression.target') * -0.6,
@@ -108,9 +119,9 @@ EX = {'ex:blink-l': read_target('expression/units/caucasian/eye-left-closure.tar
       # for a genuine (Duchenne) smile: the eyes narrow at the corners, the brows soften (inner brow eases down)
       'ex:squint': read_target('expression/units/caucasian/eye-left-slit.target') + read_target('expression/units/caucasian/eye-right-slit.target'),
       'ex:brows-soft': 0.5 * (read_target('expression/units/caucasian/eyebrows-left-down.target') + read_target('expression/units/caucasian/eyebrows-right-down.target')),
-      'ex:cheeks-up': read_target('expression/units/caucasian/mouth-elevation.target') + 0.5 * read_target('expression/units/caucasian/mouth-upward-retraction.target')}
+      'ex:cheeks-up': cheek_raise()}                                     # the cheeks only (the app caps it at 0.3)
 MORPHS = {**ID, **EX}
-print('morphs', len(ID), 'identity,', len(EX), 'expression')
+print('morphs', len(ID), 'identity,', len(EX), 'expression'); [print(k, round(float(np.abs(v).max()) * 100, 2), 'mm') for k, v in EX.items()]
 
 # --- build each part in Blender, subdivided, with every morph as a shape key -----------------------------------
 def g2b(a): return np.stack([a[:, 0], -a[:, 2], a[:, 1]], axis=1)       # MakeHuman (y up, +z front) -> Blender (z up, -y front)
@@ -150,7 +161,59 @@ def build(name, keep, subdiv):
     print(name, len(obj.data.vertices), 'verts', kept, 'morphs')
     return obj, base
 
-parts = {n: build(n, k, 1 if n == 'Head skin' else 2 if n.startswith('Eye') else 0) for n, k in PARTS.items()}
+parts = {n: build(n, k, 1 if n == 'Head skin' else 0) for n, k in PARTS.items()}
+
+# --- the eyes: MakeHuman's high-poly eye proxy (CC0), not the base mesh's helper spheres --------------------------------
+# The base mesh's eye "helpers" are 30 mm placeholder balls with no iris; the real eyes are a proxy fitted to them: each
+# proxy vertex is a weighted point of three base vertices plus an offset scaled by the base mesh's own size there
+# (MakeHuman's .mhclo fitting). Fitting the proxy to the base mesh with each morph applied gives the eyes' morphs, so
+# the eyes follow every shape of the face exactly like the skin. Its UVs map MakeHuman's photographic eye texture.
+EYE_DIR = DATA / 'eyes' / 'high-poly'
+PV, PT, PF = [], [], []
+for line in open(EYE_DIR / 'high-poly.obj'):
+    if line.startswith('v '): PV.append([float(x) for x in line.split()[1:4]])
+    elif line.startswith('vt '): PT.append([float(x) for x in line.split()[1:3]])
+    elif line.startswith('f '):
+        cs = [c.split('/') for c in line.split()[1:]]; PF.append(([int(c[0]) - 1 for c in cs], [int(c[1]) - 1 for c in cs]))
+REF, W, OFF, SCALE = [], [], [], {}
+mode = None
+for line in open(EYE_DIR / 'high-poly.mhclo'):
+    p = line.split()
+    if not p or p[0].startswith('#'): continue
+    if p[0] in ('x_scale', 'y_scale', 'z_scale'): SCALE[p[0][0]] = (int(p[1]), int(p[2]), float(p[3])); continue
+    if p[0] == 'verts': mode = 'verts'; continue
+    if mode == 'verts' and len(p) == 9:
+        REF.append([int(x) for x in p[:3]]); W.append([float(x) for x in p[3:6]]); OFF.append([float(x) for x in p[6:9]])
+    elif mode == 'verts' and len(p) == 1:
+        REF.append([int(p[0])] * 3); W.append([1.0, 0, 0]); OFF.append([0.0, 0, 0])
+    elif mode == 'verts' and p[0] in ('delete_verts', 'material', 'obj_file'): mode = None
+REF, W, OFF = np.array(REF), np.array(W), np.array(OFF)
+assert len(REF) == len(PV), (len(REF), len(PV))
+def fit_proxy(Vb):
+    s = np.array([abs(Vb[SCALE[k][0]][i] - Vb[SCALE[k][1]][i]) / SCALE[k][2] for i, k in enumerate('xyz')])
+    return (Vb[REF] * W[:, :, None]).sum(axis=1) + OFF * s
+P0 = fit_proxy(V)
+def build_eye(name, side):
+    keep = [f for f in PF if (P0[f[0]][:, 0].mean() > 0) == (side > 0)]
+    used = sorted({v for vs, _ in keep for v in vs}); local = {v: i for i, v in enumerate(used)}
+    def mesh_with(P):
+        me = bpy.data.meshes.new(name); bm = bmesh.new(); verts = [bm.verts.new(c) for c in g2b(P[used])]
+        uv = bm.loops.layers.uv.new('UVMap')
+        for vs, ts in keep:
+            try: f = bm.faces.new([verts[local[v]] for v in vs])
+            except ValueError: continue
+            for loop, t in zip(f.loops, ts): loop[uv].uv = PT[t]
+        bm.to_mesh(me); bm.free(); o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o); return o
+    obj = mesh_with(P0); obj.parent = root
+    base = np.array([v.co[:] for v in obj.data.vertices]); obj.shape_key_add(name='Basis', from_mix=False); kept = 0
+    for key, delta in MORPHS.items():
+        co = g2b((fit_proxy(V + delta))[used]); co_base = g2b(P0[used])
+        if np.abs(co - co_base).max() < 5e-5: continue
+        sk = obj.shape_key_add(name=key, from_mix=False); sk.data.foreach_set('co', (base + (co - co_base)).reshape(-1)); sk.value = 0.0; kept += 1
+    for p in obj.data.polygons: p.use_smooth = True
+    print(name, len(obj.data.vertices), 'verts', kept, 'morphs (high-poly eye proxy)')
+    return obj, base
+parts['Eye left'] = build_eye('Eye left', 1); parts['Eye right'] = build_eye('Eye right', -1)
 head, head_base = parts['Head skin']
 
 # --- landmarks: where MediaPipe itself finds its 478 landmarks on this head --------------------------------------------

@@ -18,3 +18,5 @@ the young-adult macro shapes, the face-detail targets and the expression units, 
 MakeHuman repository). Built by scripts/blender/create_portrait_head.py. `portrait-head-v2.json` holds the morph
 names, MediaPipe's 478 landmarks as found by MediaPipe Face Mesh (@mediapipe/face_mesh, Apache 2.0) on a render of
 the neutral head, and the lip contours. `lip-zones-v1.png` is derived from them.
+
+`eye-brown.png` is MakeHuman's `data/eyes/materials/brown_eye.png` and the eyes are its `data/eyes/high-poly` proxy, both released by the MakeHuman team under CC0 (September 2020).

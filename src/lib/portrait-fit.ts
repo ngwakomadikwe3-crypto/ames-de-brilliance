@@ -94,7 +94,7 @@ function visibility(kind: FrameKind, head: P3[], pose: Pose): number[] {
   return head.map(p => { const side = Math.sign(p[0]) * Math.sign(toward); return Math.abs(p[0]) < 12 ? 1 : side > 0 ? 1 : 0.15; });
 }
 
-export type FitOptions = { iterations?: number; depthWeight?: number; prior?: number; macro?: number[]; sweeps?: number; macroWeight?: number; profiles?: boolean };
+export type FitOptions = { upper?: number[]; iterations?: number; depthWeight?: number; prior?: number; macro?: number[]; sweeps?: number; macroWeight?: number; profiles?: boolean };
 
 /** Fit identity weights to every frame together. Joint Gauss-Newton over the shape (bounded to [0, 1]) and every
  *  frame's pose (rotation, scale, translation), so pose and shape never chase each other. Residuals are in each
@@ -107,7 +107,7 @@ export function fitHead(b: HeadBasis, frames: ScanFrame[], opt: FitOptions = {})
   const alpha = opt.depthWeight ?? 0.35;
   let poses: Pose[] = used.map(f => similarity(landmarksAt(b, w).slice(0, n), f.points.slice(0, n)));
   const x = new Float64Array(P), lo = new Float64Array(P).fill(-1e9), hi = new Float64Array(P).fill(1e9);
-  for (let k = 0; k < K; k++) { lo[k] = 0; hi[k] = 1; }
+  for (let k = 0; k < K; k++) { lo[k] = 0; hi[k] = opt.upper?.[k] ?? 1; }        // each target within its sane range
   for (let it = 0; it < (opt.iterations ?? 10); it++) {
     const head = landmarksAt(b, w);
     const A = new Float64Array(P * P), c = new Float64Array(P);

@@ -35,7 +35,9 @@
     "test:try-on-framing": "node --experimental-strip-types scripts/test-try-on-framing.mjs",
     "test:hand-admire": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-hand-admire.mjs",
     "test:portrait-life": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-life.mjs",
-    "test:face-scan": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-scan.mjs"
+    "test:face-scan": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-scan.mjs",
+    "test:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-morphs.mjs",
+    "audit:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/audit-portrait-morphs.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

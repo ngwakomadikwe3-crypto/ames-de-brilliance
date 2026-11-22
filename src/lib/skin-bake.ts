@@ -14,7 +14,7 @@
 // The result is a colour ratio to the customer's average skin colour (1 = exactly the average), so the twin's tone
 // (sampled in LAB, adjustable, harmonised with the hands) multiplies into it: never a flat fill, never a second tone.
 import {
-  BufferAttribute, BufferGeometry, Camera, Matrix3, Vector2, DataTexture, FloatType, GLSL3, HalfFloatType, LinearFilter, LinearMipmapLinearFilter, Mesh,
+  BufferAttribute, BufferGeometry, Camera, Matrix3, Vector2, Vector4, DataTexture, FloatType, GLSL3, HalfFloatType, LinearFilter, LinearMipmapLinearFilter, Mesh,
   NearestFilter, RGBAFormat, Scene, ShaderMaterial, UnsignedByteType, Vector3, WebGLRenderer, WebGLRenderTarget, DoubleSide,
 } from 'three';
 import type { P3 } from './face-morph';
@@ -27,9 +27,10 @@ export type BakeInput = {
   views: BakeView[];                     // up to 4 (front first)
   tone: number[];                        // the customer's average skin colour, linear RGB 0..1
   eyes: P3[][];                          // the eye-opening contours (mm), kept out of the bake
+  rect: [number, number, number, number]; // the face's own region of the UV atlas (u, v, width, height): the map covers only this
   size?: number;
 };
-export type SkinMap = { map: string; conf: string; coverage: number };
+export type SkinMap = { map: string; conf: string; coverage: number; rect: [number, number, number, number] };
 
 const MAX_VIEWS = 4, OVAL = 36;
 /** MediaPipe's face-oval landmarks, in order round the face. */
@@ -87,10 +88,10 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
       uFavour: { value: pad(views.map(v => v.favour ?? 1), 0) },
       uOval: { value: pad(views, views[0]).flatMap(v => v.oval.slice(0, OVAL).map(([x, y]) => new Vector2(x, y))) },
       uFeather: { value: pad(views.map(v => 0.05 * Math.hypot(v.oval[8][0] - v.oval[28][0], v.oval[8][1] - v.oval[28][1])), 1) },
-      uTone: { value: new Vector3(...input.tone) }, uEye: { value: eyePts },
+      uTone: { value: new Vector3(...input.tone) }, uEye: { value: eyePts }, uRect: { value: new Vector4(...input.rect) },
     },
-    vertexShader: `in vec3 aP; in vec3 aN; out vec3 vP; out vec3 vN;
-      void main() { vP = aP; vN = aN; gl_Position = vec4(position.xy * 2.0 - 1.0, 0.0, 1.0); }`,
+    vertexShader: `in vec3 aP; in vec3 aN; out vec3 vP; out vec3 vN; uniform vec4 uRect;
+      void main() { vP = aP; vN = aN; gl_Position = vec4((position.xy - uRect.xy) / uRect.zw * 2.0 - 1.0, 0.0, 1.0); }`,
     fragmentShader: `precision highp float;
       in vec3 vP; in vec3 vN; out vec4 o;
       uniform sampler2D uPhoto[${MAX_VIEWS}]; uniform sampler2D uDepth[${MAX_VIEWS}];
@@ -123,14 +124,17 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         w *= smoothstep(0.0, uFeather[k], insideOval(k, vec2(q.x, -q.y)));
         if (w <= 0.0) return;
         vec3 c = lin(texture(photo, uv).rgb);
-        // de-light: the large-scale shading of the room, from a blurred copy (mip level ~ 8 mm on the face)
-        float lod = log2(max(1.0, 8.0 * uS[k]));
-        float shade = lum(lin(textureLod(photo, uv, lod).rgb)) / max(1e-3, lum(uTone));
-        vec3 rel = c / max(vec3(1e-3), uTone * shade);
-        // skin keeps skin's hue: a sample whose colour is far from the customer's own (the room behind them, a
-        // misaligned edge) is not skin, whatever the outline says. Freckles, moles, brows and flush pass.
-        float m3 = max(1e-3, (rel.r + rel.g + rel.b) / 3.0), dev = length(rel / m3 - 1.0);
-        w *= 1.0 - smoothstep(0.32, 0.5, dev * smoothstep(0.25, 0.5, m3));
+        // detail only: the photo divided by a blurred copy of itself (~7 mm on the face), colour by colour. What is
+        // left is the skin's fine structure (pores, freckles, moles, fine lines) around 1.0; the room's light, the
+        // camera's colour and every broad patch are gone, so the map can never make blotches. The broad colour of
+        // the face is the LAB tone and its zones.
+        float lod = log2(max(1.0, 7.0 * uS[k]));
+        vec3 rel = c / max(vec3(1e-3), lin(textureLod(photo, uv, lod).rgb));
+        rel = 1.0 + 0.45 * tanh((rel - 1.0) / 0.45);                    // soft limit: a mole stays a mole, a glint never a hole
+        // and the sample must look like skin: its colour near the customer's own (the room behind them, hair, a
+        // misaligned edge are rejected), whatever the outline says
+        vec3 cn = c / max(1e-3, lum(c)), tn = uTone / max(1e-3, lum(uTone));
+        w *= 1.0 - smoothstep(0.35, 0.6, length(cn - tn));
         w *= uFavour[k] * w;                                            // squarer views count much more
         acc += w * clamp(rel, 0.0, 2.0); wsum += w;
       }
@@ -142,14 +146,9 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         vec3 acc = vec3(0.0); float wsum = 0.0;
         #define LOOK(K, P, N, A, W) if (K < VIEWS) look(uPhoto[K], uDepth[K], K, P, N, A, W);
         LOOK(0, vP, n, acc, wsum) LOOK(1, vP, n, acc, wsum) LOOK(2, vP, n, acc, wsum) LOOK(3, vP, n, acc, wsum)
-        vec3 mAcc = vec3(0.0); float mSum = 0.0;                          // the mirror image of the other side of the face
-        vec3 pm = vec3(-vP.x, vP.yz), nm = vec3(-n.x, n.yz);
-        LOOK(0, pm, nm, mAcc, mSum) LOOK(1, pm, nm, mAcc, mSum) LOOK(2, pm, nm, mAcc, mSum) LOOK(3, pm, nm, mAcc, mSum)
-        float direct = clamp(wsum * 2.0, 0.0, 1.0), mirror = clamp(mSum * 2.0, 0.0, 1.0) * 0.85;
-        vec3 col = direct > 0.0 ? acc / max(wsum, 1e-4) : vec3(1.0);
-        vec3 colM = mSum > 0.0 ? mAcc / max(mSum, 1e-4) : vec3(1.0);
-        vec3 rel = mix(colM, col, direct / max(1e-4, max(direct, mirror)));
-        float conf = max(direct, mirror) * keep;
+        // (no mirror fill: it would copy a mole onto the other cheek; unseen skin keeps the tone and its pore detail)
+        float conf = clamp(wsum * 2.0, 0.0, 1.0) * keep;
+        vec3 rel = wsum > 0.0 ? acc / max(wsum, 1e-4) : vec3(1.0);
         o = vec4(rel * 0.5, conf);
       }`,
   });
@@ -160,14 +159,26 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
   r.setRenderTarget(target); r.setClearColor(0x000000, 0); r.clear(); r.render(scene, cam); r.setRenderTarget(null);
   const px = new Uint8Array(size * size * 4); r.readRenderTargetPixels(target, 0, 0, size, size, px);
   disposables.forEach(d => d.dispose()); if (own) r.dispose();
-  dilate(px, size, 6);
+  feather(px, size, 2);                 // soften the confidence edge, so the detail fades in, never a seam
+  dilate(px, size, 14);                 // and bleed colour well past every island edge
   let covered = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 128) covered++;
-  return { ...encode(px, size), coverage: covered / (size * size) };
+  return { ...encode(px, size), coverage: covered / (size * size), rect: input.rect };
 }
 
 const poseZ = (p: Pose, x: P3) => p.s * (p.R[2][0] * x[0] + p.R[2][1] * x[1] + p.R[2][2] * x[2]) + p.t[2];
 const rows = (p: Pose) => new Matrix3().set(p.R[0][0], p.R[0][1], p.R[0][2], p.R[1][0], p.R[1][1], p.R[1][2], p.R[2][0], p.R[2][1], p.R[2][2]);
 
+/** Box-blur the confidence (alpha) where it is set, a few passes. */
+function feather(px: Uint8Array, size: number, passes: number) {
+  for (let p = 0; p < passes; p++) {
+    const a = new Float32Array(size * size); for (let i = 0; i < size * size; i++) a[i] = px[i * 4 + 3];
+    for (let y = 2; y < size - 2; y++) for (let x = 2; x < size - 2; x++) {
+      const i = y * size + x; if (!(px[i * 4] || px[i * 4 + 1] || px[i * 4 + 2])) continue;
+      let s = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) s += a[i + dy * size + dx];
+      px[i * 4 + 3] = Math.min(px[i * 4 + 3], s / 25);
+    }
+  }
+}
 /** Spread colour into empty texels at UV island edges, so filtering never pulls in black at the seams. */
 function dilate(px: Uint8Array, size: number, passes: number) {
   for (let pass = 0; pass < passes; pass++) {

@@ -14,8 +14,8 @@ export function cornea(centre: P3, eyeRadius: number, env: Texture | null) {
   // place the dome so its rim sits on the eyeball's surface: the clear bulge only over the iris
   const along = Math.sqrt(Math.max(0, eyeRadius ** 2 - IRIS_R ** 2)) - CORNEA_R * Math.cos(theta);
   const g = new SphereGeometry(CORNEA_R, 40, 16, 0, Math.PI * 2, 0, theta); g.rotateX(Math.PI / 2);   // the cap's pole on +z
-  const m = new MeshPhysicalMaterial({ color: '#000000', roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.0, specularIntensity: 1, ior: 1.376,
-    envMap: env, envMapIntensity: 1.6, transparent: true, blending: AdditiveBlending, depthWrite: false });
+  const m = new MeshPhysicalMaterial({ color: '#000000', roughness: 0.03, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.0, specularIntensity: 0.55, ior: 1.376,
+    envMap: env, envMapIntensity: 0.9, transparent: true, blending: AdditiveBlending, depthWrite: false });
   const mesh = new Mesh(g, m); mesh.name = 'cornea'; mesh.position.set(centre[0], centre[1], centre[2] + along); mesh.renderOrder = 3;
   return mesh;
 }

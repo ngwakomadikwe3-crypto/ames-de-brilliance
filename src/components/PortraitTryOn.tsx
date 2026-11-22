@@ -20,12 +20,13 @@ import { faceTrackingAssets } from '../lib/hand-tracking-assets';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
 import { loadPortraitHead, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, LIP_ZONES_URL } from '../lib/portrait-head';
-import { portraitSkinV2, portraitEye, teethMaterial, tongueMaterial, type ToneMap } from '../lib/portrait-materials';
+import { portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL, type ToneMap } from '../lib/portrait-materials';
 import { SkinField, growBrows, growLashes, growHair, scalpRoots, HAIR_STYLES, type HairStyle } from '../lib/portrait-grooming';
 import { FaceLife } from '../lib/portrait-life';
 import { readTwin, saveFace, saveFacePrefs, deleteTwin, twinTones, harmonisedFaceTones, TWIN_EVENT, type FaceIdentity } from '../lib/twin-profile';
 import { tunedWeights, FACE_TUNE, MEAN_PD_MM } from '../lib/twin-build';
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
+import { sanitizeWeights } from '../lib/portrait-weights';
 import FaceScan from './FaceScan';
 import type { P3 } from '../lib/face-morph';
 
@@ -121,7 +122,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
 
     (async () => {
       const H = await loadPortraitHead(); if (stopped) return;
-      const weights = face ? tunedWeights(face.weights, tuneRef.current ?? face.tune) : AVERAGE;
+      const ids = H.meta.identity.filter(n => !/head-scale-/.test(n));
+      const weights = face ? sanitizeWeights(tunedWeights(face.weights, tuneRef.current ?? face.tune), ids, H.limits) : AVERAGE;
       bakeIdentity(H.head, weights);
       // true size: the scanned interpupillary distance (or the adult mean), so jewellery sits at its real scale
       { const e0 = eyeCentres(H.parts, H.head), pd0 = Math.hypot(e0.left[0] - e0.right[0], e0.left[1] - e0.right[1], e0.left[2] - e0.right[2]);
@@ -137,10 +139,10 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const lipZones = new TextureLoader().load(LIP_ZONES_URL); disposables.push(lipZones);
       const chestY = Math.min(...pts.map(p => p[1])) + 75;                    // where the portrait fades out, clear of the notched bottom edge
       skinMat = portraitSkinV2({ tones: toneMap, env: null, detail, lipZones, lipRect: H.meta.lips.uvRect, lipRangeMm: H.meta.lips.rangeMm, stubble: face?.stubble ?? 0,
-        anchors: { eyeY: (eyes.left[1] + eyes.right[1]) / 2, noseY: lm[1][1], mouthY: lm[13][1], chinY: lm[152][1], chestY } });
+        anchors: { eyeY: (eyes.left[1] + eyes.right[1]) / 2, noseY: lm[1][1], mouthY: lm[13][1], chinY: lm[152][1], chestY }, lipBox: lipBoxFrom(lm) });
       if (face?.skinMap && face.skinConf) {                                  // the customer's own skin, from the scan photos
         const load = (url: string) => { const t = new TextureLoader().load(url); t.flipY = false; t.anisotropy = 4; disposables.push(t); return t; };
-        skinMat.useSkinMap(load(face.skinMap), load(face.skinConf));
+        skinMat.useSkinMap(load(face.skinMap), load(face.skinConf), face.skinRect);   // (a map from before the face-region bake has no rect: not used)
       }
       const hairColor = new Color(face?.hairColor ?? '#2b1d14');
       skinMat.uniforms.uHairColor.value.copy(hairColor);
@@ -149,12 +151,12 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       // brow centrelines (midway between MediaPipe's upper and lower brow arcs), inner head to tail
       [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
         .forEach(([u, l], i) => (skinMat!.uniforms.uBrow.value as Vector3[])[i].set((lm[u][0] + lm[l][0]) / 2, (lm[u][1] + lm[l][1]) / 2, (lm[u][2] + lm[l][2]) / 2));
-      skinMat.uniforms.uBrowOn.value = 0.55;
+      skinMat.uniforms.uBrowOn.value = 0.8;
       for (const [name, m] of Object.entries(H.parts)) {
         m.castShadow = m.receiveShadow = true; morphMeshes.push(m);
         if (name === 'head skin') m.material = skinMat.material;
-        else if (name.startsWith('eye')) { const p = meshPointsMm(m, H.head), c = new Vector3(); m.geometry.computeBoundingBox(); m.geometry.boundingBox!.getCenter(c);
-          m.material = portraitEye({ env: null, iris: face?.irisColor ?? '#4a3222', centre: c, radius: 12 }); void p; }
+        else if (name.startsWith('eye')) { const t = new TextureLoader().load(EYE_TEXTURE_URL); t.flipY = false; t.colorSpace = SRGBColorSpace; t.anisotropy = 4; disposables.push(t);
+          m.material = portraitEyeTextured({ env: null, iris: face?.irisColor ?? '#4a3222', map: t }); }
         else if (name.startsWith('teeth')) m.material = teethMaterial(null); else if (name === 'tongue') m.material = tongueMaterial(null);
       }
       // grooming: strands on the skin, following its expressions

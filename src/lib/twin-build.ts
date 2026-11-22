@@ -7,6 +7,8 @@ import { fitHead, fitExpression, irisScale, type ScanFrame } from './portrait-fi
 import { loadPortraitHead, basisFor, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, measureSpectacles } from './portrait-head';
 import { sampleHairColor } from './portrait-grooming';
 import { bakeSkinMap, FACE_OVAL } from './skin-bake';
+import { sanitizeWeights } from './portrait-weights';
+import { CAPS } from './portrait-life';
 import type { FaceIdentity } from './twin-profile';
 
 export type Shot = { step: Step | 'sweep'; l: Lm[]; px: Px; photo?: string };
@@ -43,7 +45,7 @@ export function tunedWeights(weights: Record<string, number>, tune?: Record<stri
     w[t.incr] = Math.max(0, net); if (t.decr) w[t.decr] = Math.max(0, -net);
   }
   for (const k in w) w[k] = Math.max(0, Math.min(1, w[k]));
-  return w;
+  return w;                                                   // (the bake sanitises: portrait-weights.ts)
 }
 
 function vertexNormals(points: P3[], index: ArrayLike<number>) {
@@ -69,15 +71,16 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
   const frame = (s: Shot): ScanFrame => ({ kind: s.step === 'side-a' ? 'left' : s.step === 'side-b' ? 'right' : s.step === 'sweep' ? 'sweep' : s.step, points: s.l.map(p => fromImage(p, s.px.width, s.px.height)) });
   const used = shots.filter(s => s.step !== 'smile'), frames = used.map(frame);
   opt.onProgress?.('Matching your proportions…');
-  const fit = fitHead(basis, frames);
-  const weights = Object.fromEntries(names.map((n, i) => [n, Math.round(fit.weights[i] * 1000) / 1000]));
+  const fit = fitHead(basis, frames, { upper: names.map(n => H.limits[n] ?? 1) });
+  // one axis per opposing pair, every target within its sane range, the ancestry/sex mix summing to 1
+  const weights = Object.fromEntries(Object.entries(sanitizeWeights(Object.fromEntries(names.map((n, i) => [n, fit.weights[i]])), names, H.limits)).map(([n, v]) => [n, Math.round(v * 1000) / 1000]));
   // the customer's own smile, when the smile frame was taken: expression mix with the identity fixed
   const smileShot = shots.find(s => s.step === 'smile');
   let smile: Record<string, number> | undefined;
   if (smileShot) {
     const E = basisFor(H.skin, H.head, H.anchors, H.meta.expressions.filter(n => /smile|cheeks|part|open|squint/.test(n)));
     const w = fitExpression(fit.landmarks, E, frame(smileShot), STABLE);
-    smile = Object.fromEntries(E.names.map((n, i) => [n, Math.round(w[i] * 100) / 100]).filter(([, v]) => (v as number) > 0.02));
+    smile = Object.fromEntries(E.names.map((n, i) => [n, Math.round(Math.min(w[i], CAPS[n] ?? 1) * 100) / 100]).filter(([, v]) => (v as number) > 0.02));
   }
   // true size: the head scaled so its pupils are as far apart as the customer's (from the irises, or the mean)
   bakeIdentity(H.head, weights);
@@ -101,15 +104,26 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
   const views = used.map((s, i) => ({ s, pose: fit.poses[i] })).filter(v => v.s.step !== 'sweep' || used.indexOf(v.s) < 8)
     .map(v => ({ img: v.s.px, pose: v.pose, favour: v.s.step === 'front' ? 2.5 : v.s.step === 'up' ? 0.4 : 0.7,
       oval: FACE_OVAL.map(i => [v.s.l[i].x * v.s.px.width, v.s.l[i].y * v.s.px.height] as [number, number]) }));
+  // the face's region of MakeHuman's whole-body UV atlas (the face is a small island there): the map covers only it, so
+  // its 1024 px land on the face, not on the body (glTF v = 1 - Blender v)
+  // the face's UV island: in glTF a UV seam splits vertices, so the island is the vertices connected (by triangles) to
+  // the nose tip's; its UV box is where the map's pixels go
+  const nose = lm[1].map(v => v / headScale); let seed = 0, best = 1e9;
+  ptsFit.forEach((p, i) => { const d = Math.hypot(p[0] - nose[0], p[1] - nose[1], p[2] - nose[2]); if (d < best) { best = d; seed = i; } });
+  const adj: number[][] = ptsFit.map(() => []); for (let t = 0; t < index.length; t += 3) for (let a = 0; a < 3; a++) adj[index[t + a]].push(index[t + (a + 1) % 3], index[t + (a + 2) % 3]);
+  const seen = new Uint8Array(ptsFit.length), stack = [seed], fu: number[] = [], fv: number[] = []; seen[seed] = 1;
+  while (stack.length) { const v = stack.pop()!; fu.push(uv[v * 2]); fv.push(uv[v * 2 + 1]); for (const w of adj[v]) if (!seen[w]) { seen[w] = 1; stack.push(w); } }
+  const u0 = Math.min(...fu), u1 = Math.max(...fu), v0 = Math.min(...fv), v1 = Math.max(...fv), mu = (u1 - u0) * 0.02, mv = (v1 - v0) * 0.02;
+  const rect: [number, number, number, number] = [u0 - mu, v0 - mv, u1 - u0 + 2 * mu, v1 - v0 + 2 * mv];
   const toneLin = new Color(tones.base); // three converts hex (sRGB) to linear working colour
-  let skin: { map: string; conf: string; coverage: number } | undefined;
+  let skin: import("./skin-bake").SkinMap | undefined;
   try {
     skin = bakeSkinMap({ points: ptsFit, normals: vertexNormals(ptsFit, index), uv, index, views: views.slice(0, 4), tone: [toneLin.r, toneLin.g, toneLin.b],
-      eyes: EYE_OPENINGS.map(c => c.map(i => lm[i].map(v => v / headScale) as P3)) });
+      eyes: EYE_OPENINGS.map(c => c.map(i => lm[i].map(v => v / headScale) as P3)), rect });
   } catch (e) { console.warn('The skin map could not be made on this device:', e); }
   return {
     weights, smile, spectacles, tones, hairColor: sampleHairColor(frontShot.px, frontShot.l), hairStyle: 'cap',
     stubble: stubbleDensity(frontShot.px, frontShot.l), irisColor: irisColour(frontShot.px, frontShot.l),
-    headScale, skinMap: skin?.map, skinConf: skin?.conf, savedAt: Date.now(),
+    headScale, skinMap: skin?.map, skinConf: skin?.conf, skinRect: skin?.rect, savedAt: Date.now(),
   };
 }

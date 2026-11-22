@@ -99,7 +99,7 @@ export function growBrows(skin: SkinField, lm: P3[], color: Color, density = 1, 
     const U = b.upper.map(i => V(lm[i])), L = b.lower.map(i => V(lm[i]));
     const along = (arr: Vector3[], u: number) => { const f = u * (arr.length - 1), i = Math.min(arr.length - 2, Math.floor(f)); return arr[i].clone().lerp(arr[i + 1], f - i); };
     const lateral = Math.sign(U[4].x - U[0].x);
-    for (let k = 0; k < 820 * density; k++) {
+    for (let k = 0; k < 420 * density; k++) {                          // sparse: the brow's tone is painted on the skin, these give it texture
       const u = rnd(), w = rnd() * (1 - 0.55 * u);                         // the tail thins
       const root = along(L, u).lerp(along(U, u), 0.15 + 0.7 * w);
       const i = skin.nearest([root.x, root.y, root.z]); if (i < 0) continue;
@@ -108,8 +108,8 @@ export function growBrows(skin: SkinField, lm: P3[], color: Color, density = 1, 
       const dir = new Vector3(lateral * (0.45 + 0.9 * u), 0.8 - 1.1 * u + 0.25 * w, 0).normalize();
       const len = 3.6 + 2.6 * rnd() - 1.2 * u;                         // short hairs, lying close to the skin
       const pts: Vector3[] = [];
-      for (let s = 0; s <= 5; s++) { const f = s / 5; pts.push(p0.clone().addScaledVector(dir, len * f).addScaledVector(n, 0.12 + 0.35 * f * (1 - f))); }
-      strands.push({ pts, width: 0.16, shade: 0.75 + 0.35 * rnd(), follow: follow?.(i) });
+      for (let s = 0; s <= 5; s++) { const f = s / 5; pts.push(p0.clone().addScaledVector(dir, len * f).addScaledVector(n, 0.06 + 0.2 * f * (1 - f))); }
+      strands.push({ pts, width: 0.13, shade: 0.75 + 0.35 * rnd(), follow: follow?.(i) });
     }
   }
   return ribbons(strands, color, { spec: 0.4 });
@@ -119,25 +119,25 @@ export function growBrows(skin: SkinField, lm: P3[], color: Color, density = 1, 
 export function growLashes(lm: P3[], color: Color, eyes: { left: P3; right: P3 }, skin?: SkinField, follow?: Follow) {
   seed = 11;
   const lids = [
-    { line: [33, 246, 161, 160, 159, 158, 157, 173, 133], up: 1, eye: eyes.right, n: 95 }, { line: [33, 7, 163, 144, 145, 153, 154, 155, 133], up: -1, eye: eyes.right, n: 22 },
-    { line: [263, 466, 388, 387, 386, 385, 384, 398, 362], up: 1, eye: eyes.left, n: 95 }, { line: [263, 249, 390, 373, 374, 380, 381, 382, 362], up: -1, eye: eyes.left, n: 22 }];
+    { line: [33, 246, 161, 160, 159, 158, 157, 173, 133], up: 1, eye: eyes.right, n: 80 }, { line: [33, 7, 163, 144, 145, 153, 154, 155, 133], up: -1, eye: eyes.right, n: 14 },
+    { line: [263, 466, 388, 387, 386, 385, 384, 398, 362], up: 1, eye: eyes.left, n: 80 }, { line: [263, 249, 390, 373, 374, 380, 381, 382, 362], up: -1, eye: eyes.left, n: 14 }];
   const strands: Strand[] = [];
   for (const lid of lids) {
     const P = lid.line.map(i => V(lm[i])), E = V(lid.eye);
     for (let k = 0; k < lid.n; k++) {
       const u = 0.04 + 0.92 * rnd(), f = u * (P.length - 1), i = Math.min(P.length - 2, Math.floor(f));
       const root = P[i].clone().lerp(P[i + 1], f - i);
-      const out = root.clone().sub(E).setY(0).normalize();                 // away from the eyeball, outward
+      const out = root.clone().sub(E).setY(0).normalize().add(new Vector3(0, 0, 1.2)).normalize();   // forward off the lid, a little outward
       const fullness = Math.sin(Math.PI * u);                               // longest at the middle, short at the corners
-      const len = (lid.up > 0 ? 7.5 : 2.2) * (0.55 + 0.45 * fullness) * (0.85 + 0.3 * rnd());
+      const len = (lid.up > 0 ? 6 : 2) * (0.55 + 0.45 * fullness) * (0.85 + 0.3 * rnd());
       const pts: Vector3[] = [];
       for (let s = 0; s <= 5; s++) { const t = s / 5;
-        pts.push(root.clone().addScaledVector(out, len * (0.75 * t)).add(new Vector3(0, lid.up * len * (0.15 * t + 0.55 * t * t), 0))); }
+        pts.push(root.clone().addScaledVector(out, len * (0.85 * t)).add(new Vector3(0, lid.up * len * (0.05 * t + 0.35 * t * t), 0))); }   // a gentle curl, not a fence
       const ri = skin ? skin.nearest([root.x, root.y, root.z]) : -1;
-      strands.push({ pts, width: lid.up > 0 ? 0.16 : 0.1, shade: lid.up > 0 ? 0.9 : 1.3, follow: ri >= 0 ? follow?.(ri) : undefined });
+      strands.push({ pts, width: lid.up > 0 ? 0.11 : 0.08, shade: lid.up > 0 ? 0.8 : 1.3, follow: ri >= 0 ? follow?.(ri) : undefined });
     }
   }
-  return ribbons(strands, color, { spec: 0.3 });
+  return ribbons(strands, color, { spec: 0.06 });                        // lashes are matte: no glinting fence
 }
 
 /** Hair on the scalp: which skin points carry hair (above the hairline, behind and above the ears, down to the nape). */

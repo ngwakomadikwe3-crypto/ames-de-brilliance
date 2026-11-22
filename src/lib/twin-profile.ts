@@ -17,7 +17,7 @@ export type FaceIdentity = {
   spectacles?: Spectacles;                // measured for frames
   tones: ToneMap;                         // regional tones from the scan (forehead, cheeks, nose, jaw, lips)
   hairColor: string; hairStyle: HairStyle; stubble: number; irisColor: string;
-  skinMap?: string; skinConf?: string;    // the customer's own skin, projected from the photos onto the head's UV map (skin-bake.ts)
+  skinMap?: string; skinConf?: string; skinRect?: [number, number, number, number];   // (the face's region of the UV atlas)    // the customer's own skin, projected from the photos onto the head's UV map (skin-bake.ts)
   headScale?: number;                     // true size, from the interpupillary distance
   tune?: Record<string, number>;          // the customer's fine-tune on top of the solved face (twin-build.ts FACE_TUNE)
   savedAt: number;

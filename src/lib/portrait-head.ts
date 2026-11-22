@@ -3,6 +3,7 @@
 import { BufferAttribute, Matrix3, Matrix4, Vector3, type BufferGeometry, type Mesh, type Object3D } from 'three';
 import type { HeadBasis } from './portrait-fit';
 import type { P3 } from './face-morph';
+import { saneLimits } from './portrait-weights';
 
 export const HEAD_URL = '/portrait-twin/portrait-head-v2.glb', HEAD_META_URL = '/portrait-twin/portrait-head-v2.json', LIP_ZONES_URL = '/portrait-twin/lip-zones-v1.png';
 export type HeadMeta = { identity: string[]; expressions: string[]; landmarks: { uv: ([number, number] | null)[]; mm: (P3 | null)[] };
@@ -155,7 +156,15 @@ export async function loadPortraitHead() {
   head.traverse(o => { const m = o as Mesh; if (m.isMesh) parts[m.name.replace(/_/g, ' ').toLowerCase()] = m; });
   const skin = parts['head skin'];
   const anchors = anchorsFromUV(skin.geometry, meta.landmarks.uv);
-  return { head, meta, parts, skin, anchors };
+  // each target's largest movement of the skin (mm), and from it the target's sane range (portrait-weights.ts)
+  head.updateMatrixWorld(true);
+  const sc = new Vector3().setFromMatrixScale(skin.matrixWorld).x, maxMm: Record<string, number> = {};
+  for (const [name, at] of Object.entries(skin.morphTargetDictionary ?? {})) {
+    const a = skin.geometry.morphAttributes.position![at]; let m = 0;
+    for (let i = 0; i < a.count; i++) m = Math.max(m, Math.hypot(a.getX(i), a.getY(i), a.getZ(i)));
+    maxMm[name] = m * sc;
+  }
+  return { head, meta, parts, skin, anchors, maxMm, limits: saneLimits(maxMm) };
 }
 
 /** Eye centres of the (baked) head, mm, head frame. */

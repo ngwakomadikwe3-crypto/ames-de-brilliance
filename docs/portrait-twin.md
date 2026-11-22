@@ -20,14 +20,36 @@ from MakeHuman 1.x data (CC0, `LICENSE-makehuman-assets.md`): one parametric hea
   the lips meet (+ upper). The upper and lower lip are separate material zones with a sharp border, ready for
   lipstick (`setLipstick(colour, amount, gloss)`).
 
+## Morph rules and the twin lab
+
+Every set of identity weights passes `src/lib/portrait-weights.ts` before it touches the mesh: one scalar weight per
+named target on its baked delta (nothing else moves vertices); each opposing pair (…-decr/-incr, -down/-up, -in/-out,
+-backward/-forward) is ONE axis in [-1, 1], never both halves; every feature target is limited to the weight at which
+it moves the skin at most 9 mm (MakeHuman's targets reach caricature at 1.0: the forehead bulge moves 58 mm); the six
+ancestry/sex shapes sum to exactly 1. The scan solve uses these limits as its bounds.
+
+`npm run test:portrait-morphs` (with `npm run audit:portrait-morphs` for the full table): all weights 0 is the
+symmetric MakeHuman base (mirror mismatch under 0.1 mm); every target alone is smooth and mirror-symmetric (except
+the one-eyed blinks); the smile and cheek raise never move the eyelids.
+
+**Twin lab** (`/dev/twin-lab`, development and preview deployments only): one slider per morph axis and per
+expression, live on the model, clay or skin, wireframe, "All 0 (MakeHuman base)", "Average adult", "My twin", and a
+contact sheet that renders every target alone at 0.5 and 1.0 (front) and 1.0 (profile). Link presets for checks:
+`?twin=1&smile=1&look=skin&yaw=0`.
+
+Expressions are built region-clean (create_portrait_head.py): the smile moves only the mouth (corners up and out, the
+upper lip lifting off the teeth, nothing above the nose); the cheek raise only the cheeks (about 5 mm at full weight,
+used at most 0.3); the squint is capped at 0.15. Eyes stay open at rest and in the smile.
+
 ## The look (`src/lib/portrait-materials.ts`, `portrait-grooming.ts`)
 
 Lit by the same HDR studio as the jewellery, ACES Filmic. Roughness by zone: T-zone ~0.42, cheeks ~0.55, lips
 glossier. Skin: regional tones (forehead, cheeks, nose, jaw, lips), triplanar
 pores, SSS wrap and warm transmission through thin parts (ears, nostrils), regional roughness (moister T-zone and
 lips), optional stubble, the scalp tinted to the hair colour, a soft brow tone under the brow hairs, and a soft oval
-fade below the chest and past the shoulders (no cut edge). Eyes (separate eyeball meshes): procedural iris in the scanned iris colour, limbal
-ring, a warm sclera shadowed toward lids and corners (never paper white), a clear corneal dome bulging over each iris
+fade below the chest and past the shoulders (no cut edge). Eyes: MakeHuman's high-poly eye proxy (CC0; 24 mm eyeballs, an 11.7 mm iris), fitted to the face so every shape
+morph moves them, with MakeHuman's photographic eye texture (real sclera and vessels; the iris re-coloured to the scan's
+iris colour with its fibres kept), wet and glossy; a clear corneal dome bulging over each iris
 (its highlights slide as the head turns), and a wet tear line along each lower lid (`portrait-eyes.ts`). Mouth: teeth,
 tongue and a dark mouth cavity behind them. Hair, brows and lashes are camera-facing strands (Kajiya-Kay):
 a close crop by default (the scalp tinted from the sampled hair colour with fine grain, a natural hairline with
@@ -60,13 +82,15 @@ customer's own smile mix. **Skin tone**: albedo from stable patches of both chee
 brightest 20 % by lightness dropped (shadows, highlights), averaged in LAB (`color-lab.ts`); subtle zones from it
 (nose and cheeks a touch redder, jaw darker, forehead lighter). Never a flat fill: it multiplies into the skin map.
 
-**Skin texture** (`src/lib/skin-bake.ts`): every frame's photo is projected onto the head's UV map (1024 px) through
+**Skin texture** (`src/lib/skin-bake.ts`): every frame's photo is projected onto the face's own island of the UV
+atlas (found by connectivity from the nose tip, so its 1024 px land on the face, not the whole body) through
 its fitted pose: weighted by how squarely the photo sees each point (feathered at the silhouette), visible only if
 the head's own depth from that camera says so (the nose hides part of the far cheek), only inside the face's outline
 in that photo, never the eye openings, and only skin-hued samples (the room behind never comes through). The front
-frame is favoured; what no frame sees takes the mirror image of the other side; the rest shows the twin's own tone.
-The photo's room lighting is divided out with a blurred copy (about 8 mm), keeping pores, freckles, moles and
-complexion. Stored as a colour ratio JPEG plus a small confidence JPEG on the device (about 60-250 KB). The tiling pore
+frame is favoured. The map holds detail only: the photo divided by a blurred copy of itself (about 7 mm), colour by
+colour, so pores, freckles, moles and fine lines transfer but no broad patch can (no blotches, ever): the face's broad
+colour is the LAB tone with its smooth zones. Confidence is feathered and colour bled 14 px past every island edge;
+unseen skin keeps the tone (no mirror fill: it would copy a mole to the other cheek). Stored as a colour ratio JPEG plus a small confidence JPEG on the device (about 60-250 KB). The tiling pore
 normal detail stays at low strength on top.
 
 Hair colour, stubble and iris colour also come from the front photo. Spectacles: pupillary distance, bridge width and projection, temple-to-temple width, ear rests and

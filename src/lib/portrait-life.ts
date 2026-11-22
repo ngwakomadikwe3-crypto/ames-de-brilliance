@@ -12,13 +12,15 @@ export type SmileMix = Record<string, number>;      // the customer's own smile,
 
 const ease = (t: number) => t * t * (3 - 2 * t);
 
+/** Hard caps: a cheek raise is small, a squint barely narrows the eyes, so the eyes stay open in every smile. */
+export const CAPS: Record<string, number> = { 'ex:cheeks-up': 0.3, 'ex:squint': 0.15, 'ex:brows-soft': 0.3 };
 export class FaceLife {
   private t = 0; private nextBlink = 1.5; private blinkAt = -10; private doubleBlink = false;
   private nextMouth = 7; private mouthAt = -10; private mouthKind = 0;
   private delightAt = -100; private resting = 0;
   private w: Weights = {}; private v: Weights = {};
   private smile: SmileMix; private rand: () => number;
-  constructor(smile: SmileMix = { 'ex:smile': 0.85, 'ex:cheeks-up': 0.45 }, rand: () => number = Math.random) { this.smile = smile; this.rand = rand; }
+  constructor(smile: SmileMix = { 'ex:smile': 0.85, 'ex:cheeks-up': 0.3 }, rand: () => number = Math.random) { this.smile = smile; this.rand = rand; }
 
   /** A piece went on (or was tapped): one warm smile, then a pleased resting smile. */
   delight() { this.delightAt = this.t; }
@@ -38,8 +40,9 @@ export class FaceLife {
     else if (d >= 3 && d < 4.4) { warm = 1 - ease((d - 3) / 1.4) * (1 - 0.22); this.resting = 0.22; }
     else if (d >= 4.4) warm = this.resting;
     for (const [k, v] of Object.entries(this.smile)) target[k] = (target[k] ?? 0) + v * warm;
-    target['ex:squint'] = 0.2 * warm;                  // eyes narrow (Duchenne), never close target['ex:brows-soft'] = 0.35 * warm;
-    if (warm > 0.5) target['ex:part'] = (target['ex:part'] ?? 0) + 0.08 * warm;          // a warm smile parts the lips a little
+    target['ex:squint'] = 0.12 * warm;                 // eyes narrow a touch (Duchenne), never close
+    target['ex:brows-soft'] = 0.2 * warm;
+    target['ex:part'] = (target['ex:part'] ?? 0) + 0.15 * warm;                          // the lips part a little: the upper teeth show
     // occasional natural mouth movement (not while smiling broadly)
     if (!reducedMotion && this.t > this.nextMouth) { this.mouthAt = this.t; this.mouthKind = Math.floor(this.rand() * 3); this.nextMouth = this.t + 6 + this.rand() * 6; }
     const m = this.t - this.mouthAt, mouth = m < 0 || m > 1.6 ? 0 : Math.sin(Math.PI * m / 1.6) * (1 - warm);
@@ -48,7 +51,7 @@ export class FaceLife {
     // springs: blinks are fast; the mouth and cheeks soft and weighty
     const keys = new Set([...Object.keys(target), ...Object.keys(this.w), 'ex:blink-l', 'ex:blink-r']);
     for (const k of keys) {
-      const goal = k === 'ex:blink-l' || k === 'ex:blink-r' ? Math.min(1, b + 0.1 * warm) : target[k] ?? 0;
+      const goal = k === 'ex:blink-l' || k === 'ex:blink-r' ? b : Math.min(target[k] ?? 0, CAPS[k] ?? 1);
       const omega = k.startsWith('ex:blink') ? 60 : 9, x = this.w[k] ?? 0, v = this.v[k] ?? 0;
       // critically damped, solved exactly so a slow frame (large dt) can never make it overshoot or blow up
       const e = x - goal, c = v + omega * e, ex = Math.exp(-omega * dt);
