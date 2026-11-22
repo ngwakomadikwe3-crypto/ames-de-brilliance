@@ -159,6 +159,8 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     const mount = new Group(); mount.matrixAutoUpdate = false;
     let fingerIndex = 3, piece: Object3D | null = null, loop: ReturnType<typeof fitLoop> | null = null;
     let contact: { bone: Bone; at: Vector3; axis: Vector3; radius: number; half: number } | null = null;
+    let fittedAt = -Infinity;
+    const curlAxis = new Vector3(-1, 0, 0), curlRotation = new Quaternion();
     const attach = () => {
       if (!piece || !loop) return;
       mount.parent?.remove(mount);
@@ -170,6 +172,7 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       contact = { bone, at: frame.at.clone(), axis: frame.axis.clone(), radius: (frame.halfSide + frame.halfUp) / 2, half: Math.max(1, (loop.width ?? 4) * sAlong / 2) };
       mount.matrix.copy(T.makeTranslation(frame.at.x, frame.at.y, frame.at.z)).multiply(B.makeBasis(frame.side, frame.axis, frame.up)).multiply(S.makeScale(sSide, sAlong, sUp)).multiply(A);
       bone.add(mount);
+      fittedAt = performance.now();
       refit();
     };
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
@@ -298,7 +301,17 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       if (stopped) return;
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
       const ease = 1 - Math.pow(0.7, dt * 30);
-      built.bones.forEach((b, i) => b.quaternion.slerp(targets[i], ease));
+      if (handSeen || frozen || pausedShowcase || reduced.matches || document.hidden) fittedAt = -Infinity;
+      built.bones.forEach((bone, i) => {
+        const digit = Math.floor((i - 1) / 4);
+        const time = (now - fittedAt) / 1000 - digit * .065;
+        if (i > 0 && (i - 1) % 4 < 3 && time > 0 && time < .9) {
+          const wave = Math.sin(Math.PI * time / .9) ** 2;
+          const bend = wave * (.55 - .45 * Math.cos(4 * Math.PI * time / .9));
+          curlRotation.setFromAxisAngle(curlAxis, bend * (digit === 0 ? .09 : .27)).premultiply(restQuats[i]);
+          bone.quaternion.slerp(curlRotation, ease);
+        } else bone.quaternion.slerp(targets[i], ease);
+      });
       if (skinUniforms) {
         jointBends(built.bones, skinUniforms.bends.value);
         if (contact && piece) {
