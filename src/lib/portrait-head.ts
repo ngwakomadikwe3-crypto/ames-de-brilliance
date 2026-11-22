@@ -63,25 +63,34 @@ export function basisFor(mesh: Mesh, head: Object3D, anchors: Anchor[], names: s
  *  live. Normals are recomputed and welded across UV seams. */
 export function bakeIdentity(head: Object3D, weights: Record<string, number>) {
   head.traverse(o => {
-    const mesh = o as Mesh; if (!mesh.isMesh || !mesh.morphTargetDictionary) return;
-    const g = mesh.geometry, dict = mesh.morphTargetDictionary, morph = g.morphAttributes.position ?? [], src = g.getAttribute('position');
+    const mesh = o as Mesh; if (!mesh.isMesh || (!mesh.morphTargetDictionary && !mesh.userData.allMorphs)) return;
+    const g = mesh.geometry, dict = mesh.morphTargetDictionary ?? {}, morph = g.morphAttributes.position ?? [], src = g.getAttribute('position');
     if (!mesh.userData.basePositions) {
       const b = new Float32Array(src.count * 3);
       for (let i = 0; i < src.count; i++) { b[i * 3] = src.getX(i); b[i * 3 + 1] = src.getY(i); b[i * 3 + 2] = src.getZ(i); }
       mesh.userData.basePositions = b;
     }
+    // the full morph set is kept on first bake, so baking again (a new scan) still sees the identity morphs
+    if (!mesh.userData.allMorphs) mesh.userData.allMorphs = { dict: { ...dict }, morph };
+    const all = mesh.userData.allMorphs as { dict: Record<string, number>; morph: BufferAttribute[] };
     const out = Float32Array.from(mesh.userData.basePositions as Float32Array);
     for (const [name, w] of Object.entries(weights)) {
-      const at = dict[name]; if (at === undefined || !w) continue;
-      const d = morph[at]; for (let i = 0; i < d.count; i++) { out[i * 3] += w * d.getX(i); out[i * 3 + 1] += w * d.getY(i); out[i * 3 + 2] += w * d.getZ(i); }
+      const at = all.dict[name]; if (at === undefined || !w) continue;
+      const d = all.morph[at]; for (let i = 0; i < d.count; i++) { out[i * 3] += w * d.getX(i); out[i * 3 + 1] += w * d.getY(i); out[i * 3 + 2] += w * d.getZ(i); }
     }
     g.setAttribute('position', new BufferAttribute(out, 3));
     // keep the expression morphs only
-    if (!mesh.userData.allMorphs) mesh.userData.allMorphs = { dict: { ...dict }, morph };
-    const all = mesh.userData.allMorphs as { dict: Record<string, number>; morph: BufferAttribute[] };
     const live = Object.keys(all.dict).filter(nm => nm.startsWith('ex:'));
-    g.morphAttributes.position = live.map(nm => all.morph[all.dict[nm]]); delete g.morphAttributes.normal;
-    mesh.morphTargetDictionary = Object.fromEntries(live.map((nm, i) => [nm, i])); mesh.morphTargetInfluences = live.map(() => 0);
+    delete g.morphAttributes.normal;
+    if (live.length) {
+      // as plain floats: the compressed model stores morphs as normalised int16, which three's morph texture reads raw
+      g.morphAttributes.position = live.map(nm => { const src = all.morph[all.dict[nm]], f = new Float32Array(src.count * 3);
+        for (let i = 0; i < src.count; i++) { f[i * 3] = src.getX(i); f[i * 3 + 1] = src.getY(i); f[i * 3 + 2] = src.getZ(i); }
+        return new BufferAttribute(f, 3); });
+      mesh.morphTargetDictionary = Object.fromEntries(live.map((nm, i) => [nm, i])); mesh.morphTargetInfluences = live.map(() => 0);
+    } else {                                    // nothing live (eyes): no morphing at all, or three.js compiles an empty morph shader
+      delete g.morphAttributes.position; mesh.morphTargetDictionary = undefined; mesh.morphTargetInfluences = undefined;
+    }
     g.deleteAttribute('normal'); g.computeVertexNormals(); weldNormals(g); g.computeBoundingSphere();
   });
 }
@@ -134,4 +143,23 @@ export function meshPointsMm(mesh: Mesh, head: Object3D): P3[] {
 }
 export function anchoredPoints(points: P3[], anchors: Anchor[]): P3[] {
   return anchors.map(a => (a ? [0, 1, 2].map(c => a.bary[0] * points[a.tri[0]][c] + a.bary[1] * points[a.tri[1]][c] + a.bary[2] * points[a.tri[2]][c]) as P3 : [0, 0, 0] as P3));
+}
+
+/** Load the parametric head and its metadata (the twin and the scan both use it). The returned scene is scaled to mm. */
+export async function loadPortraitHead() {
+  const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/examples/jsm/loaders/GLTFLoader.js'), import('three/examples/jsm/libs/meshopt_decoder.module.js')]);
+  const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+  const [gltf, meta] = await Promise.all([loader.loadAsync(HEAD_URL), fetch(HEAD_META_URL).then(r => r.json() as Promise<HeadMeta>)]);
+  const head = gltf.scene; head.scale.setScalar(1000);
+  const parts: Record<string, Mesh> = {};
+  head.traverse(o => { const m = o as Mesh; if (m.isMesh) parts[m.name.replace(/_/g, ' ').toLowerCase()] = m; });
+  const skin = parts['head skin'];
+  const anchors = anchorsFromUV(skin.geometry, meta.landmarks.uv);
+  return { head, meta, parts, skin, anchors };
+}
+
+/** Eye centres of the (baked) head, mm, head frame. */
+export function eyeCentres(parts: Record<string, Mesh>, head: Object3D) {
+  const c = (m: Mesh) => { const p = meshPointsMm(m, head); return [0, 1, 2].map(i => p.reduce((a, q) => a + q[i], 0) / p.length) as P3; };
+  return { left: c(parts['eye left']), right: c(parts['eye right']) };
 }

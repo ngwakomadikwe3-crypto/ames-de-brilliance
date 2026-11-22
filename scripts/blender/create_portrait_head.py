@@ -101,7 +101,11 @@ EX = {'ex:blink-l': read_target('expression/units/caucasian/eye-left-closure.tar
       'ex:purse': read_target('expression/units/caucasian/mouth-pursing.target'),
       'ex:relaxed': read_target('expression/units/caucasian/mouth-compression.target') * -0.6,
       'ex:open': read_target('expression/units/caucasian/mouth-open.target'),
-      'ex:brows-up': read_target('expression/units/caucasian/eyebrows-left-up.target') + read_target('expression/units/caucasian/eyebrows-right-up.target')}
+      'ex:brows-up': read_target('expression/units/caucasian/eyebrows-left-up.target') + read_target('expression/units/caucasian/eyebrows-right-up.target'),
+      # for a genuine (Duchenne) smile: the eyes narrow at the corners, the brows soften (inner brow eases down)
+      'ex:squint': read_target('expression/units/caucasian/eye-left-slit.target') + read_target('expression/units/caucasian/eye-right-slit.target'),
+      'ex:brows-soft': 0.5 * (read_target('expression/units/caucasian/eyebrows-left-down.target') + read_target('expression/units/caucasian/eyebrows-right-down.target')),
+      'ex:cheeks-up': read_target('expression/units/caucasian/mouth-elevation.target') + 0.5 * read_target('expression/units/caucasian/mouth-upward-retraction.target')}
 MORPHS = {**ID, **EX}
 print('morphs', len(ID), 'identity,', len(EX), 'expression')
 
