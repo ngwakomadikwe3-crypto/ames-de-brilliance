@@ -108,7 +108,8 @@ export function growBrows(skin: SkinField, lm: P3[], color: Color, density = 1, 
       const dir = new Vector3(lateral * (0.45 + 0.9 * u), 0.8 - 1.1 * u + 0.25 * w, 0).normalize();
       const len = 3.6 + 2.6 * rnd() - 1.2 * u;                         // short hairs, lying close to the skin
       const pts: Vector3[] = [];
-      for (let s = 0; s <= 5; s++) { const f = s / 5; pts.push(p0.clone().addScaledVector(dir, len * f).addScaledVector(n, 0.06 + 0.2 * f * (1 - f))); }
+      const ceil = along(U, u).y + 0.6;                                   // no stray stroke rises above the brow's upper edge
+      for (let s = 0; s <= 5; s++) { const f = s / 5, p = p0.clone().addScaledVector(dir, len * f).addScaledVector(n, 0.06 + 0.2 * f * (1 - f)); p.y = Math.min(p.y, ceil); pts.push(p); }
       strands.push({ pts, width: 0.13, shade: 0.75 + 0.35 * rnd(), follow: follow?.(i) });
     }
   }

@@ -109,8 +109,8 @@ export function portraitSkinV2(o: {
           for (int b = 0; b < 2; b++) for (int k = 0; k < 4; k++) {
             vec3 A = uBrow[b * 5 + k], B = uBrow[b * 5 + k + 1], AB = B - A;
             float h = clamp(dot(vP - A, AB) / dot(AB, AB), 0.0, 1.0), u = (float(k) + h) / 4.0;
-            float w = mix(4.6, 1.6, u * u);                                  // full at the head, thin at the tail
-            bm = max(bm, 1.0 - smoothstep(w * 0.45, w, length(vP - A - AB * h)));
+            float w = mix(3.4, 1.2, u * u);                                  // full at the head, thin at the tail
+            bm = max(bm, 1.0 - smoothstep(w * 0.15, w, length(vP - A - AB * h)));   // feathered: a tone, never a painted block
           }
           float grain = 0.75 + 0.25 * fract(sin(dot(floor(vP.xy * 4.0), vec2(12.9898, 78.233))) * 43758.5453);
           diffuseColor.rgb = mix(diffuseColor.rgb, uHairColor * 0.8, bm * uBrowOn * grain * (1.0 - skinConf));   // the photo has the real brows
@@ -122,7 +122,10 @@ export function portraitSkinV2(o: {
         float inBox = (1.0 - smoothstep(uLipBox.x - 2.0, uLipBox.x, ax)) * smoothstep(uLipBox.y, uLipBox.y + 2.0, vP.y) * (1.0 - smoothstep(uLipBox.z - 2.0, uLipBox.z, vP.y)) * step(uLipBox.w, vP.z);
         float lip = smoothstep(-0.25, 0.25, lf.x) * inBox;
         float lipTexture = 0.94 + 0.12 * fract(sin(dot(floor(vec2(vP.x * 1.6, vP.y * 0.4)), vec2(12.9898, 78.233))) * 43758.5453);
-        vec3 lipCol = uLipTone * mix(1.0, 0.82, exp(-abs(lf.y) * 0.9)) * lipTexture;
+        // bare lips: the sampled lip tone muted (saturation -40 %) and drawn toward the skin, a little redder than it
+        vec3 lipBase = mix(vec3(dot(uLipTone, vec3(0.2126, 0.7152, 0.0722))), uLipTone, 0.6);
+        lipBase = mix(lipBase, uTone * vec3(1.05, 0.88, 0.86), 0.3);
+        vec3 lipCol = lipBase * mix(1.0, 0.88, exp(-abs(lf.y) * 0.9)) * lipTexture;
         lipCol = mix(lipCol, uLipstick, clamp(uLipstickAmount, 0.0, 1.0) * smoothstep(-0.12, 0.12, lf.x));
         diffuseColor.rgb = mix(diffuseColor.rgb, lipCol, lip);
         // the photo's fine detail (a ratio around 1: pores, freckles, moles, lip lines) over skin and lips;
@@ -141,7 +144,13 @@ export function portraitSkinV2(o: {
         roughnessFactor = clamp(roughnessFactor + (dA.r - 0.5) * 0.24, 0.3, 0.72);
         // the T-zone a little shinier, lips moist (or the lipstick's finish)
         roughnessFactor -= 0.13 * (1.0 - smoothstep(9.0, 22.0, ax)) * smoothstep(uY.y - 10.0, uY.x + 30.0, vP.y);   // T-zone ~0.42, cheeks ~0.55
-        roughnessFactor = mix(roughnessFactor, mix(0.32, mix(0.62, 0.12, uLipstickGloss), uLipstickAmount), lip);`)
+        roughnessFactor = mix(roughnessFactor, mix(0.5, mix(0.62, 0.12, uLipstickGloss), uLipstickAmount), lip);   // bare lips ~0.5: soft, not wet`)
+      // no clearcoat or sheen on bare lips (the skin's coat made them read glossy red); a glossy lipstick brings its own
+      .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
+        material.clearcoat *= 1.0 - lip * (1.0 - uLipstickAmount * uLipstickGloss);
+        #ifdef USE_SHEEN
+        material.sheenColor *= 1.0 - lip;
+        #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         if (uDetailOn > 0.5) {                        // pores and fine creases as micro normals
           float e = 0.35; vec3 g = vec3(tri(vP + vec3(e,0,0), vN, 9.3).r - tri(vP - vec3(e,0,0), vN, 9.3).r,
@@ -240,7 +249,8 @@ export function refreshEyeCentres(eyes: Mesh[]) {
 
 export function teethMaterial(env: Texture | null) {
   // ivory, not white: teeth sit in the mouth's shade and are never brighter than the eye whites
-  return new MeshPhysicalMaterial({ color: '#cfc2aa', roughness: 0.34, clearcoat: 0.4, clearcoatRoughness: 0.2, envMap: env, envMapIntensity: 0.25, sheen: 0.1, sheenColor: new Color('#f3e8d6') });
+  // warm off-white, no coat (a coat reflected the dark mouth as grey); a faint fill so the mouth's shade never greys them
+  return new MeshPhysicalMaterial({ color: '#ede6da', roughness: 0.3, envMap: env, envMapIntensity: 0.3, emissive: new Color('#ede6da'), emissiveIntensity: 0.08 });
 }
 export function tongueMaterial(env: Texture | null) {
   return new MeshPhysicalMaterial({ color: '#b5545c', roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2, envMap: env, envMapIntensity: 0.25 });

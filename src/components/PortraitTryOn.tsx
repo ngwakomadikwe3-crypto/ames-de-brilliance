@@ -151,7 +151,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       // brow centrelines (midway between MediaPipe's upper and lower brow arcs), inner head to tail
       [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
         .forEach(([u, l], i) => (skinMat!.uniforms.uBrow.value as Vector3[])[i].set((lm[u][0] + lm[l][0]) / 2, (lm[u][1] + lm[l][1]) / 2, (lm[u][2] + lm[l][2]) / 2));
-      skinMat.uniforms.uBrowOn.value = 0.8;
+      skinMat.uniforms.uBrowOn.value = 0.35;                               // a faint tone under the wispy brow hairs
       for (const [name, m] of Object.entries(H.parts)) {
         m.castShadow = m.receiveShadow = true; morphMeshes.push(m);
         if (name === 'head skin') m.material = skinMat.material;

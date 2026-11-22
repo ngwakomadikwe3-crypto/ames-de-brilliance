@@ -109,12 +109,14 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
       float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
       // the colour ratio and confidence of one view at a point (p, n in head mm)
       // (samplers passed in by constant index: GLSL ES 3 cannot index sampler arrays with a loop variable)
-      void look(sampler2D photo, sampler2D depth, int k, vec3 p, vec3 n, inout vec3 acc, inout float wsum) {
+      void look(sampler2D photo, sampler2D depth, int k, vec3 p, vec3 n, inout vec3 acc, inout float wsum, inout float wmax) {
         vec3 q = uS[k] * (uR[k] * p) + uT[k];
         vec2 uv = vec2(q.x / uWH[k].x, -q.y / uWH[k].y);
         if (uv.x < 0.01 || uv.y < 0.01 || uv.x > 0.99 || uv.y > 0.99) return;
         float facing = (uR[k] * n).z;
-        float w = smoothstep(0.22, 0.62, facing);
+        // grazing texels are stretched and shadowed (the dark wedge beside the nose): nothing past ~65 degrees, full
+        // weight only from ~45 degrees in; views overlap widely, so left and right blend across the whole nose bridge
+        float w = smoothstep(0.42, 0.72, facing);
         if (w <= 0.0) return;
         float dz = texture(depth, vec2(uv.x, 1.0 - uv.y)).r - q.z;
         w *= 1.0 - smoothstep(3.0, 6.0, dz / uS[k]);                    // hidden behind the nose or the cheek: not this view
@@ -124,6 +126,11 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         w *= smoothstep(0.0, uFeather[k], insideOval(k, vec2(q.x, -q.y)));
         if (w <= 0.0) return;
         vec3 c = lin(texture(photo, uv).rgb);
+        // the photo's own shadows (beside the nose, under the hairline, under the brow) fight the twin's 3D light: a
+        // region darker than its wider surroundings (~12 mm against ~35 mm) is not taken; the skin tint shows there.
+        // Moles and freckles are too small to darken the 12 mm average, so they stay.
+        float shade = lum(lin(textureLod(photo, uv, log2(max(1.0, 12.0 * uS[k]))).rgb)) / max(1e-4, lum(lin(textureLod(photo, uv, log2(max(1.0, 35.0 * uS[k]))).rgb)));
+        w *= smoothstep(0.74, 0.9, shade);
         // detail only: the photo divided by a blurred copy of itself (~7 mm on the face), colour by colour. What is
         // left is the skin's fine structure (pores, freckles, moles, fine lines) around 1.0; the room's light, the
         // camera's colour and every broad patch are gone, so the map can never make blotches. The broad colour of
@@ -136,20 +143,24 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         vec3 cn = c / max(1e-3, lum(c)), tn = uTone / max(1e-3, lum(uTone));
         w *= 1.0 - smoothstep(0.35, 0.6, length(cn - tn));
         w *= uFavour[k] * w;                                            // squarer views count much more
-        acc += w * clamp(rel, 0.0, 2.0); wsum += w;
+        acc += w * clamp(rel, 0.0, 2.0); wsum += w; wmax = max(wmax, w);
       }
       void main() {
         vec3 n = normalize(vN);
         float eye = 1e9;
         for (int i = 0; i < 32; i++) eye = min(eye, length(vP - uEye[i]));
         float keep = smoothstep(2.0, 4.5, eye);
-        vec3 acc = vec3(0.0); float wsum = 0.0;
-        #define LOOK(K, P, N, A, W) if (K < VIEWS) look(uPhoto[K], uDepth[K], K, P, N, A, W);
+        vec3 acc = vec3(0.0); float wsum = 0.0, wmax = 0.0;
+        #define LOOK(K, P, N, A, W) if (K < VIEWS) look(uPhoto[K], uDepth[K], K, P, N, A, W, wmax);
         LOOK(0, vP, n, acc, wsum) LOOK(1, vP, n, acc, wsum) LOOK(2, vP, n, acc, wsum) LOOK(3, vP, n, acc, wsum)
         // (no mirror fill: it would copy a mole onto the other cheek; unseen skin keeps the tone and its pore detail)
         float conf = clamp(wsum * 2.0, 0.0, 1.0) * keep;
         vec3 rel = wsum > 0.0 ? acc / max(wsum, 1e-4) : vec3(1.0);
+        #ifdef BAND
+        o = vec4(vec3(wsum > 0.0 ? 1.0 - wmax / wsum : 0.0), 1.0);      // where two views meet (0 = one view alone)
+        #else
         o = vec4(rel * 0.5, conf);
+        #endif
       }`,
   });
   disposables.push(bake);
@@ -158,6 +169,11 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
   const scene = new Scene(); scene.add(new Mesh(geo, bake));
   r.setRenderTarget(target); r.setClearColor(0x000000, 0); r.clear(); r.render(scene, cam); r.setRenderTarget(null);
   const px = new Uint8Array(size * size * 4); r.readRenderTargetPixels(target, 0, 0, size, size, px);
+  // the blend band (where views meet), for a small blur across it only
+  bake.defines = { ...bake.defines, BAND: '' }; bake.needsUpdate = true;
+  r.setRenderTarget(target); r.clear(); r.render(scene, cam); r.setRenderTarget(null);
+  const band = new Uint8Array(size * size * 4); r.readRenderTargetPixels(target, 0, 0, size, size, band);
+  bandBlur(px, band, size, 5);
   disposables.forEach(d => d.dispose()); if (own) r.dispose();
   feather(px, size, 2);                 // soften the confidence edge, so the detail fades in, never a seam
   dilate(px, size, 14);                 // and bleed colour well past every island edge
@@ -168,6 +184,19 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
 const poseZ = (p: Pose, x: P3) => p.s * (p.R[2][0] * x[0] + p.R[2][1] * x[1] + p.R[2][2] * x[2]) + p.t[2];
 const rows = (p: Pose) => new Matrix3().set(p.R[0][0], p.R[0][1], p.R[0][2], p.R[1][0], p.R[1][1], p.R[1][2], p.R[2][0], p.R[2][1], p.R[2][2]);
 
+/** Blur the colour ratio across the band where two views meet (radius in px), nowhere else: no seam line survives. */
+function bandBlur(px: Uint8Array, band: Uint8Array, size: number, radius: number) {
+  const src = px.slice();
+  for (let y = radius; y < size - radius; y++) for (let x = radius; x < size - radius; x++) {
+    const i = y * size + x, b = band[i * 4] / 255; if (b < 0.12 || !src[i * 4 + 3]) continue;
+    let r = 0, g = 0, bl = 0, c = 0;
+    for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
+      const j = i + dy * size + dx; if (!src[j * 4 + 3]) continue; r += src[j * 4]; g += src[j * 4 + 1]; bl += src[j * 4 + 2]; c++;
+    }
+    const k = Math.min(1, (b - 0.12) / 0.2);
+    if (c) { px[i * 4] = src[i * 4] * (1 - k) + (r / c) * k; px[i * 4 + 1] = src[i * 4 + 1] * (1 - k) + (g / c) * k; px[i * 4 + 2] = src[i * 4 + 2] * (1 - k) + (bl / c) * k; }
+  }
+}
 /** Box-blur the confidence (alpha) where it is set, a few passes. */
 function feather(px: Uint8Array, size: number, passes: number) {
   for (let p = 0; p < passes; p++) {

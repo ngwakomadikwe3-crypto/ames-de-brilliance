@@ -44,7 +44,7 @@ used at most 0.3); the squint is capped at 0.15. Eyes stay open at rest and in t
 ## The look (`src/lib/portrait-materials.ts`, `portrait-grooming.ts`)
 
 Lit by the same HDR studio as the jewellery, ACES Filmic. Roughness by zone: T-zone ~0.42, cheeks ~0.55, lips
-glossier. Skin: regional tones (forehead, cheeks, nose, jaw, lips), triplanar
+glossier... Bare lips: the sampled lip tone muted (saturation -40 %) and drawn toward the skin, roughness 0.5, no clearcoat or sheen (a glossy lipstick brings its own). Teeth warm off-white #EDE6DA, roughness 0.3, a faint fill. Skin: regional tones (forehead, cheeks, nose, jaw, lips), triplanar
 pores, SSS wrap and warm transmission through thin parts (ears, nostrils), regional roughness (moister T-zone and
 lips), optional stubble, the scalp tinted to the hair colour, a soft brow tone under the brow hairs, and a soft oval
 fade below the chest and past the shoulders (no cut edge). Eyes: MakeHuman's high-poly eye proxy (CC0; 24 mm eyeballs, an 11.7 mm iris), fitted to the face so every shape
@@ -89,7 +89,7 @@ the head's own depth from that camera says so (the nose hides part of the far ch
 in that photo, never the eye openings, and only skin-hued samples (the room behind never comes through). The front
 frame is favoured. The map holds detail only: the photo divided by a blurred copy of itself (about 7 mm), colour by
 colour, so pores, freckles, moles and fine lines transfer but no broad patch can (no blotches, ever): the face's broad
-colour is the LAB tone with its smooth zones. Confidence is feathered and colour bled 14 px past every island edge;
+colour is the LAB tone with its smooth zones. Nothing past ~65 degrees from a camera is taken (stretched, shadowed edge texels), views overlap and blend by facing across the whole nose bridge, and a 5 px blur runs across the blend band only (no seam line). The photo's own shadows (a region darker than its ~35 mm surroundings at ~12 mm: beside the nose, under the hairline and brows) are not projected; the skin tint shows there. Confidence is feathered and colour bled 14 px past every island edge;
 unseen skin keeps the tone (no mirror fill: it would copy a mole to the other cheek). Stored as a colour ratio JPEG plus a small confidence JPEG on the device (about 60-250 KB). The tiling pore
 normal detail stays at low strength on top.
 
