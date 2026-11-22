@@ -65,7 +65,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'A single line of matched brilliants, each in its own setting, closing with a hidden box clasp and safety latch.',
     images: { front: img('B1', 'front'), back: img('B1', 'back') },
     alt: { front: 'The Tennis Line bracelet — front view, a single line of brilliants on emerald silk', back: 'The Tennis Line bracelet — back view, settings and box clasp on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/B1/B1-tennis-line.glb",
     options: [METAL, { key: 'length', label: 'Length', choices: ['16 cm', '17 cm', '18 cm', '19 cm'] }, { key: 'stoneSize', label: 'Stone size', choices: ['2 mm', '3 mm', '4 mm'] }, STONES, ACCENT],
   },
   {
@@ -73,7 +73,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     summary: 'A solid bangle paved with stones, opening on a concealed hinge.',
     images: { front: img('B2', 'front'), back: img('B2', 'back') },
     alt: { front: 'The Pavé Bangle — front view, pavé surface on emerald silk', back: 'The Pavé Bangle — back view, hinge and inner band on emerald silk' },
-    glb: null,
+    glb: "/atelier/designs/B2/B2-pave-bangle.glb",
     options: [METAL, { key: 'size', label: 'Inner size', choices: ['Small (56 mm)', 'Medium (60 mm)', 'Large (64 mm)'] }, { key: 'coverage', label: 'Pavé', choices: ['Top half', 'All the way round'] }, STONES, ACCENT],
   },
   {
