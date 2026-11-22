@@ -7,7 +7,7 @@ import EngineJewelryViewer from './EngineJewelryViewer';
 import FittingHand from './FittingHand';
 import SampleQuote from './SampleQuote';
 import { useAtelierLanguage } from './AtelierLanguage';
-import { missingImages, type CustomDesign, type DesignImage, type WearState } from '../lib/custom-designs';
+import { designConfiguration, missingImages, type CustomDesign, type DesignImage, type WearState } from '../lib/custom-designs';
 
 /** AVIF, then WebP, then the PNG master. Lazy unless it is the first thing on screen. */
 export function DesignPicture({ image, alt, eager, sizes = '(min-width: 760px) 360px, 50vw', style }: { image: DesignImage; alt: string; eager?: boolean; sizes?: string; style?: React.CSSProperties }) {
@@ -23,7 +23,7 @@ export function DesignPicture({ image, alt, eager, sizes = '(min-width: 760px) 3
 }
 
 /** A render that has not been delivered yet: said plainly, never stood in for by another picture. */
-function ImageToCome({ label }: { label: string }) {
+export function ImageToCome({ label }: { label: string }) {
   const { t } = useAtelierLanguage();
   return (
     <div role="img" aria-label={label} className="flex h-full w-full items-center justify-center rounded-2xl px-6 text-center"
@@ -123,11 +123,7 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
   const [wear, setWear] = useState<WearState>('full');
   const [choice, setChoice] = useState<Record<string, string>>(() => Object.fromEntries(design.options.map(o => [o.key, o.choices[0]])));
   const [tryOn, setTryOn] = useState(false);
-  const configuration = useMemo(() => [
-    `${design.code} ${design.name}`,
-    ...design.options.map(o => `${o.label}: ${choice[o.key]}`),
-    design.convertible && `Detachable construction included: wears as ${design.convertible.stateLabels.stud.toLowerCase()} and ${design.convertible.stateLabels.full.toLowerCase()}`,
-  ].filter(Boolean).join(' · '), [design, choice]);
+  const configuration = useMemo(() => designConfiguration(design, choice), [design, choice]);
   const missing = missingImages(design);
   const canTryOn = !!design.glb && HAND_CATEGORIES.has(design.category);
   const front = design.convertible && wear === 'stud' ? design.convertible.studFront : design.images.front;

@@ -27,7 +27,8 @@
     "test:atelier-physics": "node --experimental-strip-types scripts/test-atelier-physics.mjs",
     "test:realistic-hand": "node --experimental-strip-types scripts/test-realistic-hand.mjs",
     "designs:images": "node scripts/build-design-images.mjs",
-    "test:gestures": "node --experimental-strip-types scripts/test-gestures.mjs"
+    "test:gestures": "node --experimental-strip-types scripts/test-gestures.mjs",
+    "test:collections": "node --experimental-strip-types scripts/test-collections.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

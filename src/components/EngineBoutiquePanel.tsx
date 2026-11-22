@@ -20,6 +20,10 @@ import WatchMovement from './WatchMovement';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import { DesignDetail, DesignTile } from './CustomDesigns';
 import { designsInCategory, type CustomDesign } from '../lib/custom-designs';
+import CollectionView from './CollectionView';
+import CollectionCard from './CollectionCard';
+import { activeCollections } from '../lib/collections';
+import type { CollectionEntry } from '../lib/collection-logic';
 
 import { showCustomerJewelry, hasUnfinishedJewelryImages, AMES_STUDIO_PIECES, studioCameraPreset } from '../lib/customer-jewelry-display';
 /** AMES pieces and converter-made jeweller listings use the studio diamond viewer. */
@@ -107,6 +111,7 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   const [category, setCategory] = useState<BoutiqueCategory>('ring');
   const [selected, setSelected] = useState<BoutiquePiece | null>(null);
   const [design, setDesign] = useState<CustomDesign | null>(null);
+  const [collection, setCollection] = useState<CollectionEntry | null>(null);
   const [catalogueError, setCatalogueError] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -127,16 +132,19 @@ export default function EngineBoutiquePanel({ highlightAssetId, onAskSame }: { h
   const groups = boutiqueGroups(filtered);
   function changeCategory(next: BoutiqueCategory) {
     setCategory(next);
-    setSelected(null); setDesign(null);
+    setSelected(null); setDesign(null); setCollection(null);
     scrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   return (
     <div data-boutique-panel className="flex-1 min-h-0 flex flex-col" style={{ background: 'transparent' }}>
       {catalogueError && !pieces.length && <p role="status" className="px-5 pt-20 text-xs text-white">{catalogueError}</p>}
-      {design ? <DesignDetail key={design.code} design={design} onClose={() => setDesign(null)} /> : selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
+      {collection ? <CollectionView key={collection.id} entry={collection} onClose={() => setCollection(null)} /> : design ? <DesignDetail key={design.code} design={design} onClose={() => setDesign(null)} /> : selected && showCustomerJewelry(selected.assetId) ? <PieceDetail key={selected.assetId} piece={selected} onClose={() => setSelected(null)} onAskSame={() => onAskSame(selected)} /> : <>
         <div ref={scrollRef} className="flex-initial min-h-0 overflow-y-auto overscroll-contain" style={{ scrollbarWidth: 'none' }} data-featured-piece={groups.length === 1 && groups[0].length === 1 || undefined} data-boutique-scroll>
-          {groups.length === 0 && designsInCategory(category).length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
+          {category === 'collections' && <section data-collections className="ames-compact-collection px-4 sm:px-8 mx-auto pt-4 pb-6" style={{ maxWidth: 760 }}>
+            <div className="grid gap-4 sm:grid-cols-2">{activeCollections().map(c => <CollectionCard key={c.id} entry={c} onOpen={() => setCollection(c)} />)}</div>
+          </section>}
+          {category !== 'collections' && groups.length === 0 && designsInCategory(category).length === 0 && <div className="h-full flex items-center justify-center px-8 text-center" style={{ color: '#ffffff', fontSize: 13 }}>No pieces in this category yet.</div>}
           {groups.map((group, index) => <section key={`${category}-${index}`} data-boutique-group={index}
             className="ames-compact-collection px-4 sm:px-8 mx-auto"
             style={{ maxWidth: 760 }}>

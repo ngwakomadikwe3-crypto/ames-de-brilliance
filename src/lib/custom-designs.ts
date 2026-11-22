@@ -39,6 +39,7 @@ export interface CustomDesign {
 const img = (code: DesignCode, view: string) => ((manifest as Record<string, Record<string, DesignImage | null>>)[code]?.[view] ?? null);
 const METAL: DesignOption = { key: 'metal', label: 'Metal', choices: ['925 silver, rhodium plated', '18k white gold', '18k yellow gold', '18k rose gold', 'Platinum'] };
 const STONES: DesignOption = { key: 'stones', label: 'Stones', choices: ['Moissanite', 'Lab-grown diamond', 'Natural diamond'] };
+const ACCENT: DesignOption = { key: 'accent', label: 'Accent stones', choices: ['None', 'Sapphire', 'Ruby', 'Emerald'] };
 
 export const CUSTOM_DESIGNS: CustomDesign[] = [
   {
@@ -48,7 +49,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     alt: { front: 'The Classic Pavé watch — front view, diamond bezel and Roman numeral dial on emerald silk', back: 'The Classic Pavé watch — back view, case back and bracelet links on emerald silk' },
     glb: null,
     options: [METAL, { key: 'case', label: 'Case', choices: ['40 mm', '42 mm', '44 mm'] }, { key: 'dial', label: 'Dial', choices: ['Pavé, Roman numerals', 'Pavé, baguette markers'] },
-      { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES],
+      { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES, ACCENT],
   },
   {
     code: 'W2', name: 'The Square Boutique', category: 'watch',
@@ -57,7 +58,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     alt: { front: 'The Square Boutique watch — front view, braided pavé frame and Roman numeral dial on emerald silk', back: 'The Square Boutique watch — back view, case back and pavé case sides on emerald silk' },
     glb: null,
     options: [METAL, { key: 'case', label: 'Case', choices: ['34 mm', '38 mm'] }, { key: 'frame', label: 'Frame', choices: ['Braided pavé', 'Plain pavé'] },
-      { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES],
+      { key: 'strap', label: 'Strap', choices: ['Iced bracelet', 'Leather strap'] }, STONES, ACCENT],
   },
   {
     code: 'B1', name: 'The Tennis Line', category: 'bracelet',
@@ -65,7 +66,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     images: { front: img('B1', 'front'), back: img('B1', 'back') },
     alt: { front: 'The Tennis Line bracelet — front view, a single line of brilliants on emerald silk', back: 'The Tennis Line bracelet — back view, settings and box clasp on emerald silk' },
     glb: null,
-    options: [METAL, { key: 'length', label: 'Length', choices: ['16 cm', '17 cm', '18 cm', '19 cm'] }, { key: 'stoneSize', label: 'Stone size', choices: ['2 mm', '3 mm', '4 mm'] }, STONES],
+    options: [METAL, { key: 'length', label: 'Length', choices: ['16 cm', '17 cm', '18 cm', '19 cm'] }, { key: 'stoneSize', label: 'Stone size', choices: ['2 mm', '3 mm', '4 mm'] }, STONES, ACCENT],
   },
   {
     code: 'B2', name: 'The Pavé Bangle', category: 'bracelet',
@@ -73,7 +74,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     images: { front: img('B2', 'front'), back: img('B2', 'back') },
     alt: { front: 'The Pavé Bangle — front view, pavé surface on emerald silk', back: 'The Pavé Bangle — back view, hinge and inner band on emerald silk' },
     glb: null,
-    options: [METAL, { key: 'size', label: 'Inner size', choices: ['Small (56 mm)', 'Medium (60 mm)', 'Large (64 mm)'] }, { key: 'coverage', label: 'Pavé', choices: ['Top half', 'All the way round'] }, STONES],
+    options: [METAL, { key: 'size', label: 'Inner size', choices: ['Small (56 mm)', 'Medium (60 mm)', 'Large (64 mm)'] }, { key: 'coverage', label: 'Pavé', choices: ['Top half', 'All the way round'] }, STONES, ACCENT],
   },
   {
     code: 'N1', name: 'The Rivière Drop', category: 'necklace',
@@ -81,7 +82,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     images: { front: img('N1', 'front'), back: img('N1', 'back') },
     alt: { front: 'The Rivière Drop necklace — front view, graduated stones and pear drop on emerald silk', back: 'The Rivière Drop necklace — back view, settings and clasp on emerald silk' },
     glb: null,
-    options: [METAL, { key: 'length', label: 'Length', choices: ['40 cm', '42 cm', '45 cm'] }, { key: 'drop', label: 'Centre drop', choices: ['Pear, about 1.5 ct', 'Pear, about 2 ct', 'Pear, about 3 ct'] }, STONES],
+    options: [METAL, { key: 'length', label: 'Length', choices: ['40 cm', '42 cm', '45 cm'] }, { key: 'drop', label: 'Centre drop', choices: ['Pear, about 1.5 ct', 'Pear, about 2 ct', 'Pear, about 3 ct'] }, STONES, ACCENT],
   },
   {
     code: 'N2', name: 'The Solitaire Pendant', category: 'necklace',
@@ -90,7 +91,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     alt: { front: 'The Solitaire Pendant necklace — front view, single stone on a fine chain on emerald silk', back: 'The Solitaire Pendant necklace — back view, setting gallery and bail on emerald silk' },
     glb: null,
     options: [METAL, { key: 'chain', label: 'Chain length', choices: ['40 cm', '45 cm', '50 cm'] }, { key: 'cut', label: 'Centre cut', choices: ['Round', 'Oval', 'Pear', 'Cushion'] },
-      { key: 'centre', label: 'Centre size', choices: ['0.5 ct', '1 ct', '1.5 ct', '2 ct'] }, { key: 'setting', label: 'Setting', choices: ['Four prongs', 'Six prongs', 'Halo'] }, STONES],
+      { key: 'centre', label: 'Centre size', choices: ['0.5 ct', '1 ct', '1.5 ct', '2 ct'] }, { key: 'setting', label: 'Setting', choices: ['Four prongs', 'Six prongs', 'Halo'] }, STONES, ACCENT],
   },
   {
     code: 'E1', name: 'The Cascade Drop', category: 'earrings',
@@ -98,7 +99,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     images: { front: img('E1', 'front'), back: img('E1', 'back') },
     alt: { front: 'The Cascade Drop earrings — front view, pear stud with round and pear drop on emerald silk', back: 'The Cascade Drop earrings — back view, the loop-and-notch lock behind the stud gallery on emerald silk' },
     glb: null,
-    options: [METAL, { key: 'drop', label: 'Drop', choices: ['Full cascade (as shown)', 'Shorter, two stones'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES],
+    options: [METAL, { key: 'drop', label: 'Drop', choices: ['Full cascade (as shown)', 'Shorter, two stones'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES, ACCENT],
     convertible: {
       detachable: 'drop', stateLabels: { stud: 'Stud', full: 'Full drop' },
       mechanism: 'The drop hooks onto the stud with a hidden loop-and-notch lock behind the stud’s gallery: invisible from the front, secure in wear.',
@@ -112,7 +113,7 @@ export const CUSTOM_DESIGNS: CustomDesign[] = [
     images: { front: img('E2', 'front'), back: img('E2', 'back') },
     alt: { front: 'The Convertible Stud earrings — front view, round solitaires in pavé halos on emerald silk', back: 'The Convertible Stud earrings — back view, the halo jacket separated from the solitaire stud on emerald silk' },
     glb: null,
-    options: [METAL, { key: 'centre', label: 'Centre size', choices: ['0.5 ct each', '1 ct each', '1.5 ct each'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES],
+    options: [METAL, { key: 'centre', label: 'Centre size', choices: ['0.5 ct each', '1 ct each', '1.5 ct each'] }, { key: 'back', label: 'Earring back', choices: ['Push back', 'Screw back'] }, STONES, ACCENT],
     convertible: {
       detachable: 'jacket', stateLabels: { stud: 'Stud', full: 'With halo' },
       mechanism: 'The halo jacket slides onto the stud’s post behind the solitaire and is held by the earring back.',
@@ -139,3 +140,14 @@ export function applyWearState(root: { traverse: (fn: (o: { name: string; visibl
   const name = design.convertible?.parts.detachable; if (!name) return;
   root.traverse(o => { if (o.name === name || o.name.startsWith(name + '_')) o.visible = state === 'full'; });
 }
+
+/** The configuration text for one design: the same text keys staff prices and quote requests, wherever the
+ *  design is configured (on its own or inside a collection). */
+export function designConfiguration(design: CustomDesign, choice: Record<string, string>) {
+  return [
+    `${design.code} ${design.name}`,
+    ...design.options.map(o => `${o.label}: ${choice[o.key] ?? o.choices[0]}`),
+    design.convertible && `Detachable construction included: wears as ${design.convertible.stateLabels.stud.toLowerCase()} and ${design.convertible.stateLabels.full.toLowerCase()}`,
+  ].filter(Boolean).join(' · ');
+}
+export const defaultChoice = (design: CustomDesign) => Object.fromEntries(design.options.map(o => [o.key, o.choices[0]]));
