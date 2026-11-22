@@ -70,6 +70,7 @@ const EARRING = /^earring[ _](left|right)$/i;
 
 /** Where the camera looks and how far it stands, per piece (mm, bust frame). */
 export function portraitFraming(category: string, a: BustAnchors) {
+  if (category === 'set') return { target: new Vector3(0, a.neck.centre[1] + 5, 40), distance: 1050, yaw: 0.12 };   // a set: face, ears and neckline together
   if (category === 'necklace' || category === 'pendant') return { target: new Vector3(0, a.neck.centre[1] - 45, 40), distance: 900, yaw: 0.18 };
   return { target: new Vector3(22, a.earlobe_l[1] - 8, 30), distance: 640, yaw: 0.62 };   // earrings: a three-quarter view of one ear
 }
@@ -105,8 +106,9 @@ export function setNecklace(piece: Object3D, a: BustAnchors) {
   return holder;
 }
 
-export default function PortraitTryOn({ model, category, title, onClose, detachable, wearLabels }: {
+export default function PortraitTryOn({ model, category, title, onClose, detachable, wearLabels, more }: {
   model: string; category: string; title?: string; onClose?: () => void; detachable?: string; wearLabels?: { stud: string; full: string };
+  more?: { model: string; category: string }[];      // other pieces of a set worn at the same time (necklace with earrings)
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
   const [tone, setTone] = useState(() => store.get(TONE_KEY) ?? TONES[3]);
@@ -177,16 +179,18 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         if (stopped || !asset) return; landmarks = asset;
         const saved = readFaceShape(); if (saved) applyShape(saved.deltas);   // shaped before, on this device
       }).catch(() => { /* the standard face */ });
-      framing = portraitFraming(category, a);
+      framing = portraitFraming((more ?? []).length ? 'set' : category, a);   // a set with a necklace: show the whole portrait
       key.target.position.copy(framing.target);
-      loader.load(model, piece => {
+      const loadPiece = (url: string, kind: string) => loader.load(url, piece => {
         if (stopped) return;
         const root = piece.scene; root.scale.setScalar(1000); dress(root, metalStudio.texture);
         root.traverse(o => { if ((o as Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-        pieceRoot = root; applyWear(wearNow);
-        if (category === 'necklace' || category === 'pendant') head.add(setNecklace(root, a));
+        if (kind === category) { pieceRoot = root; applyWear(wearNow); }
+        if (kind === 'necklace' || kind === 'pendant') head.add(setNecklace(root, a));
         else { root.updateMatrixWorld(true); hangEarrings(root, a).forEach(h => { head.add(h); lobeHolders.push({ holder: h, lobe: (/left/.test(h.name) ? a.earlobe_l : a.earlobe_r) as P3, base: h.position.clone() }); }); placeOnFace(); }
       }, undefined, () => setStatus('This piece could not be loaded.'));
+      loadPiece(model, category);
+      for (const extra of more ?? []) loadPiece(extra.model, extra.category);     // a set: every piece on the one portrait
     }, undefined, () => setStatus('The portrait could not be loaded.'));
 
     // --- view: drag to turn, pinch / wheel to zoom, the showcase turn when idle -----------------------------------
@@ -285,7 +289,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     };
     // the scene is built once per piece; tone, wear and camera changes go through api
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model, category, detachable]);
+  }, [model, category, detachable, JSON.stringify(more ?? [])]);
 
   useEffect(() => { api.current?.tone(tone); store.set(TONE_KEY, tone); }, [tone]);
   useEffect(() => { api.current?.wear(wear); }, [wear]);

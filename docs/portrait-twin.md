@@ -37,4 +37,9 @@ face" / "Reshape" and "Use the standard face". The first "Use my camera" shapes 
 Overall head size is not measured (one camera cannot tell a large face far away from a small one near): the twin
 keeps the average adult size, and jewellery is always at true size.
 
-Not yet: shades (no shades design yet) and the two-twin full-set try-on for Collections.
+**Full set** (`src/components/FullSetTryOn.tsx`): a collection's "Try on the full set" opens both twins on one
+screen (stacked upright, side by side in landscape). The portrait wears every ear and neck piece at once
+(`PortraitTryOn` `more`), the hand wears the watch or the bracelet, with a switcher when the set has both. The
+collection's still life rests while the set is open, so only the two try-on scenes render.
+
+Not yet: shades (no shades design yet), and a watch and a bracelet on the same wrist at the same time.

@@ -4,6 +4,7 @@
 // package price (pieces minus the house's set discount, from two pieces up) and one quote request for it all.
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import CollectionScene from './CollectionScene';
 import SampleQuote from './SampleQuote';
 import { DesignPicture, ImageToCome } from './CustomDesigns';
@@ -11,6 +12,8 @@ import { useAtelierLanguage } from './AtelierLanguage';
 import { collectionDesigns } from '../lib/collections';
 import { designConfiguration } from '../lib/custom-designs';
 import { applyShared, bundlePrice, packageRequest, resolveSet, setOverride, sharedOptions, type Choice, type CollectionEntry, type Money } from '../lib/collection-logic';
+
+const FullSetTryOn = dynamic(() => import('./FullSetTryOn'), { ssr: false });
 
 const money = (m: { currency: string | null; amount: number | null }) =>
   m.currency && m.amount !== null ? new Intl.NumberFormat('en-BW', { style: 'currency', currency: m.currency }).format(m.amount) : '';
@@ -27,6 +30,7 @@ export default function CollectionView({ entry, onClose }: { entry: CollectionEn
   const [prices, setPrices] = useState<Record<string, Money | null>>({});
   const [view3d, setView3d] = useState<'pending' | 'on' | 'off'>('pending');
   const [why, setWhy] = useState('');
+  const [trySet, setTrySet] = useState(false);
 
   const shared = useMemo(() => sharedOptions(designs), [designs]);
   const resolved = useMemo(() => resolveSet(designs, state.shared, state.overrides), [designs, state]);
@@ -71,7 +75,8 @@ export default function CollectionView({ entry, onClose }: { entry: CollectionEn
         {onClose && <button type="button" onClick={onClose} aria-label="Back to Boutique" className="ames-pill absolute left-5 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M15 18l-6-6 6-6" /></svg></button>}
         {view3d === 'on'
-          ? <CollectionScene pieces={scenePieces} onFallback={w => { setView3d('off'); setWhy(w); }} />
+          ? (trySet ? <div className="h-full" aria-hidden /> /* one scene at a time: the still life rests while the set is tried on */
+            : <CollectionScene pieces={scenePieces} onFallback={w => { setView3d('off'); setWhy(w); }} />)
           : <div className="grid h-full grid-cols-2 gap-2" data-collection-stills>
               {designs.map(d => (
                 <div key={d.code} className="relative overflow-hidden rounded-2xl" style={{ opacity: removed.includes(d.code) ? 0.35 : 1 }}>
@@ -159,8 +164,19 @@ export default function CollectionView({ entry, onClose }: { entry: CollectionEn
 
         {/* try on the full set */}
         <section className="mt-5" data-full-set-try-on>
-          <button type="button" disabled className="ames-pill min-h-11 rounded-full px-5 text-[12px]" style={{ opacity: 0.55 }}>{t('Try on the full set')}</button>
-          <p className="mt-1 text-[11px]" style={{ color: '#ffffff' }}>{t('Full-set try-on (earrings and necklace on your portrait, watch and bracelet on your hand) opens when the 3D models of these designs and the portrait try-on are ready.')}</p>
+          {(() => {
+            const designOf = (code: string) => designs.find(d => d.code === code)!;
+            const ready = included.length > 0 && included.every(p => designOf(p.code).glb);
+            return <>
+              <button type="button" disabled={!ready} onClick={() => setTrySet(true)} className="ames-pill min-h-11 rounded-full px-5 text-[12px]" style={{ opacity: ready ? 1 : 0.55 }}>{t('Try on the full set')}</button>
+              <p className="mt-1 text-[11px]" style={{ color: '#ffffff' }}>{ready
+                ? t('Earrings and necklace on your 3D portrait, the watch or bracelet on your 3D hand, together.')
+                : t('Full-set try-on opens when every piece in the set has its 3D model.')}</p>
+            </>;
+          })()}
+          {trySet && <FullSetTryOn title={entry.name} onClose={() => setTrySet(false)}
+            pieces={included.map(p => { const d = designs.find(x => x.code === p.code)!;
+              return { code: d.code, name: d.name, category: d.category, glb: d.glb!, detachable: d.convertible?.parts.detachable, wearLabels: d.convertible?.stateLabels }; })} />}
         </section>
 
         {included.length > 0
