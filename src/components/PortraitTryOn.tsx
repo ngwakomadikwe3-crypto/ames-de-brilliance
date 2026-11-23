@@ -150,6 +150,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       if (face?.skinMap && face.skinConf) {                                  // the customer's own skin, from the scan photos
         const load = (url: string) => { const t = new TextureLoader().load(url); t.flipY = false; t.anisotropy = 4; disposables.push(t); return t; };
         skinMat.useSkinMap(load(face.skinMap), load(face.skinConf), face.skinRect);   // (a map from before the face-region bake has no rect: not used)
+        if (face.skinV2 && flag('skin-v2')) skinMat.useSkinV2(load(face.skinV2.map), load(face.skinV2.conf), load(face.skinV2.maps), face.skinV2.rect, eyes);   // System 2
       }
       const hairColor = new Color(face?.hairColor ?? '#2b1d14');
       skinMat.uniforms.uHairColor.value.copy(hairColor);
@@ -267,6 +268,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     let last = performance.now();
     const swayQ = new Quaternion(), tmp = new Quaternion();
     let flush = 0;
+    const perfT: number[] = [], perfEl = new URLSearchParams(location.search).get('perf') ? Object.assign(document.createElement('div'), { style: 'position:fixed;left:8px;bottom:8px;z-index:99;font:11px monospace;color:#fff;background:#0009;padding:4px 6px;border-radius:4px' }) : null;
+    if (perfEl) document.body.appendChild(perfEl);
     const roomOn = flag('room-light'), roomCanvas = document.createElement('canvas'); roomCanvas.width = 32; roomCanvas.height = 24;
     let roomAt = 0, room: RoomBlend | null = null;
     const keyBase = key.color.clone(), studioPos = key.position.clone();
@@ -274,6 +277,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     const roomNow = { dir: studioDirNow(), col: [1, 1, 1] as [number, number, number], ex: 1.2, on: false };
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
+      // ?perf=1: frame times on the device (System 2's performance gate: median and 95th percentile over 2 s)
+      if (perfEl) { perfT.push(now - last); if (perfT.length >= 120) { const t = perfT.sort((x, y) => x - y); perfEl.textContent = `frame ${t[60].toFixed(1)} ms median · ${t[114].toFixed(1)} ms p95 · skin-v2 ${flag('skin-v2') ? 'on' : 'off'}`; perfT.length = 0; } }
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
       if (tracker && video.readyState >= 2) {
         const res = tracker.detectForVideo(video, now), mat = res.facialTransformationMatrixes?.[0]?.data;
@@ -341,7 +346,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     };
     frame = requestAnimationFrame(tick);
     return () => {
-      stopped = true; cancelAnimationFrame(frame); watch.disconnect(); stopCamera();
+      stopped = true; cancelAnimationFrame(frame); perfEl?.remove(); watch.disconnect(); stopCamera();
       canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('wheel', wheel);
       scene.traverse(o => { const m = o as Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach(x => x.dispose()); } });
       disposables.forEach(x => x.dispose()); api.current = null;

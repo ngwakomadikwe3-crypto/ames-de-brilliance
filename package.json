@@ -43,7 +43,8 @@
     "test:wand-gestures": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-wand-gestures.mjs",
     "test:face-refine": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-refine.mjs",
     "test:room-blend": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-room-blend.mjs",
-    "test:face-outline": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-outline.mjs"
+    "test:face-outline": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-outline.mjs",
+    "test:texture-capture": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-texture-capture.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

@@ -20,6 +20,7 @@ export type FaceIdentity = {
   tones: ToneMap;                         // regional tones from the scan (forehead, cheeks, nose, jaw, lips)
   hairColor: string; hairStyle: HairStyle; stubble: number; irisColor: string;
   skinMap?: string; skinConf?: string; skinRect?: [number, number, number, number];   // (the face's region of the UV atlas)    // the customer's own skin, projected from the photos onto the head's UV map (skin-bake.ts)
+  skinV2?: { map: string; conf: string; maps: string; rect: [number, number, number, number] };   // System 2 (skin-bake-v2.ts)
   headScale?: number;                     // true size, from the interpupillary distance
   refine?: FaceRefine | OutlineRefine;    // System 1: v2 the outline fit (face-outline.ts); v1 the landmark refine (face-refine.ts)
   tune?: Record<string, number>;          // the customer's fine-tune on top of the solved face (twin-build.ts FACE_TUNE)

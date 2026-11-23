@@ -132,6 +132,69 @@ stays off, the morph solve remains the default, and the twin lab's refine toggle
 - **Next lever, not built:** solve placement and shape together from the outline, with the landmarks only as a weak
   prior. Expect to re-measure the same table.
 
+### Status: PARKED at the data ceiling (decision, 23 Nov 2026)
+
+System 1 is parked. The morph solve is the shipped default and the `face-refine` flag stays off. The landmark refine
+(round 1) and the outline fit (round 2) are kept in the code and the twin lab for evaluation only.
+
+**Resume lever (documented, not started):** solve each photo's placement and the outline shape together, from the
+segmented outline, with MediaPipe's landmarks only as a weak prior on placement.
+
+- **Budget:** one round, timeboxed.
+- **Gate:** the same table as above (`entry-refine.tsx`, subject c). It must beat both the front (< 15.1 px) and the
+  turned (< 19.9 px) values, with neither view regressing.
+- **If it fails:** System 1 stays parked for good, and the morph solve remains the product.
+
+## System 2: de-lit multi-frame skin texture. Result: FAIL, flag `skin-v2` stays off
+
+**Built:**
+- **Capture** (`texture-capture.ts`, in `FaceScan`): with the flag on, the three photos are followed by a slow guided
+  head turn. Each frame is gated for sharpness (Laplacian variance ≥ 60), exposure (0.24–0.85, clipped < 1.5 %) and a
+  whole face, and goes into one of 13 turn bins (±0.62). Each bin keeps its sharpest frame. The turn is done at ≥ 10
+  frames with ≥ 3 left, ≥ 2 front and ≥ 3 right, at most 15. Every rejection is a short prompt ("A little slower:
+  that one was blurred."), and the guidance says where to turn next (`npm run test:texture-capture`).
+- **De-light** (`skin-bake-v2.ts`): per frame, the skin's luminance is fitted as second-order spherical harmonics of
+  the camera-space normal, which is the irradiance of any distant light. Three robust passes drop freckles, moles and
+  shadows. The photo is divided by its fitted shading before anything is merged.
+- **Merge:** a 2048 texel UV accumulation of every frame (within 60°, unhidden, inside the face outline, skin-coloured,
+  not clipped), weighted by facing² × sharpness. A second, robust pass down-weights samples far from the first-pass
+  mean, so moving shadows and highlights lose.
+- **Maps:** the colour ratio to its own ~6 mm average (colour detail at half strength), plus normal, roughness and
+  SSS maps derived from it. All three are wired into the skin shader.
+- **Protected features:** lips, brows and eyes keep the approved single-photo map. The old path stays as the fallback.
+- **Debug:** the twin lab's A / A+B / A+B+C switch drives the new stack (B = the System 2 map when the twin has one and
+  the flag is on), and layer −3 shows the protected-feature mask.
+
+**Gates** (subject a: 3 photos and a 13-frame turn read by the real MediaPipe face mesh; the same saved twin rendered
+with the flag off, "current", and on, "System 2"; `/tmp/skin2gates.py` in the harness):
+
+| Gate | Measure | Current | System 2 | Result |
+|---|---|---|---|---|
+| a) Relight (image light only), mean left/right asymmetry of texture ÷ Layer A, low-passed | tent-v3 / studio-v3 / tent-v1 | 0.38 / 0.56 / 0.38 % | 0.73 / 1.04 / 0.74 % | **FAIL** |
+| b) Turntable, 8 angles: share of skin pixels with a low-pass texture deviation over 4 % | 0°, 45°, 90°, 135°–270°, 315° | 0.14, 0.04, 0, 0…0, 0 % | 1.95, 1.08, 0.11, 0…0.07, 0.99 % | **FAIL** |
+| c) Regression: silhouette (clay), front and 3/4 | differing pixels | | 0 and 0 | pass |
+| c) Regression: eyes and lips (full-keep pixels), front and 3/4 | differing pixels | | 360 of 19,075 (max 4/255) and 243 of 13,521 (max 5/255) | **FAIL** (not pixel-identical) |
+| d) Performance | median frame time, software GPU (not a phone) | 1,150 ms | 1,250 ms (+8.7 %) | **not verified** on a mid-range phone |
+
+Pipeline time: 98 s in the software-GPU harness, 16 frames. The stored maps are 221 KB.
+
+Notes on the table:
+- **Gate c:** brows are protected only where the brow tone is on (the try-on); the twin lab does not set it.
+- **Gate d:** the try-on now shows frame times on the device with `?perf=1`.
+
+**Why it fails:**
+- **Lost detail.** The merge loses fine detail. Freckles visible in the single-photo map are softened, because each
+  frame's pose comes from MediaPipe's landmarks, which are good to ~1–2 mm, not to a texel. Averaging 16 frames
+  misregistered by that much blurs 1–2 mm marks.
+- **Mid-scale mottling.** The de-light fit leaves 17–23 % residual per frame. The current map has neither problem
+  because it uses one well-aligned front photo, and its ±45° cut already removed the side-view smearing (0 % at 90°
+  and 270°).
+
+**Next lever (not built):** register every frame to the front frame photometrically in UV space (optical flow on the
+de-lit projections) before merging, then re-run these four gates unchanged.
+
+The single-photo path is NOT deleted. It remains the shipped default until System 2 passes.
+
 ## Room light
 
 Flag `room-light`, on by default (`room-blend.ts`). Only while the camera is on, a 32×24 mirrored camera frame is

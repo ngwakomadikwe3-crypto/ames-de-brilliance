@@ -15,6 +15,7 @@ import { SKIN_ENV_YAW, portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import { growFeatures, disposeFeatures } from '../lib/portrait-features';
 import { readTwin, twinTones, harmonisedFaceTones } from '../lib/twin-profile';
+import { flag } from '../lib/twin-flags';
 import type { FaceRefine } from '../lib/face-refine';
 import type { OutlineRefine } from '../lib/face-outline';
 
@@ -51,6 +52,8 @@ export default function TwinLab() {
     for (const x of [-1, 1]) { const fill = new DirectionalLight('#fff4ea', 0.22); fill.position.set(x * 460, 160, 380); scene.add(fill); }   // a soft fill from both sides
     const rim = new DirectionalLight('#dfe9ff', 1.0); rim.position.set(320, 460, -520);
     scene.add(key, rim, new AmbientLight('#ffffff', 0.18));
+    // ?lights=0: image-based light only (the relight test: the twin under an HDR alone)
+    if (new URLSearchParams(location.search).get('lights') === '0') scene.traverse(o => { if ((o as DirectionalLight).isLight) o.visible = false; });
     const frame = new Group(); scene.add(frame);
     let yaw = 0.25, dist = 900;
     c.addEventListener('wheel', e => { e.preventDefault(); dist = Math.max(180, Math.min(1400, dist * Math.exp(e.deltaY * 0.001))); }, { passive: false });
@@ -75,6 +78,9 @@ export default function TwinLab() {
         if (twinFace.skinMap && twinFace.skinConf && twinFace.skinRect) {
           const tl = (u: string) => { const t = new TextureLoader().load(u); t.flipY = false; return t; };
           skin.useSkinMap(tl(twinFace.skinMap), tl(twinFace.skinConf), twinFace.skinRect);
+          // System 2's texture stack under the same A / A+B / A+B+C switch (B = the skin map, v2 when the twin has one and ?flags=+skin-v2)
+          if (twinFace.skinV2 && flag('skin-v2')) skin.useSkinV2(tl(twinFace.skinV2.map), tl(twinFace.skinV2.conf), tl(twinFace.skinV2.maps), twinFace.skinV2.rect, eyeCentres(H.parts, H.head));
+          (window as unknown as { __skinU?: unknown }).__skinU = skin.uniforms;   // (dev page: for checks)
         }
       }
       const own = new Map<Mesh, Material>();
@@ -87,7 +93,7 @@ export default function TwinLab() {
       let details: Group | null = null, features: ReturnType<typeof growFeatures> | null = null;
       const hairCol = new Color(readTwin()?.face?.hairColor ?? '#2a1d15');
       const target = new Vector3(0, (eyes.left[1] + eyes.right[1]) / 2 - 30, 40);
-      new HDRLoader().load('/ames-engine/environments/jewellery-tent-v3.hdr', hdr => { const env = new PMREMGenerator(r).fromEquirectangular(hdr).texture; scene.environment = env; scene.environmentIntensity = new URLSearchParams(location.search).get('env') === '0' ? 0 : 0.45; envForSkin(env); });
+      new HDRLoader().load(`/ames-engine/environments/${new URLSearchParams(location.search).get('hdr') ?? 'jewellery-tent-v3'}.hdr`, hdr => { const env = new PMREMGenerator(r).fromEquirectangular(hdr).texture; const qq = new URLSearchParams(location.search); scene.environment = env; scene.environmentIntensity = qq.get('env') === '0' ? 0 : qq.get('lights') === '0' ? 1.4 : 0.45; envForSkin(env); });
       let mode: 'clay' | 'skin' = 'clay', wireOn = false;
       const dress = () => { for (const [m, mat] of own) { m.material = mode === 'skin' ? mat : clay; } clay.wireframe = wireOn; if (details) details.visible = mode === 'skin'; if (features) features.brows.visible = features.lashes.visible = mode === 'skin'; };
       api.current = {
@@ -99,6 +105,7 @@ export default function TwinLab() {
           // the locked features: regrown for the new shape, shown in skin views at every layer (portrait-features.ts)
           disposeFeatures(features); features = growFeatures(H.skin, frame, p2, lm2, e2, hairCol);
           skin.uniforms.uLipBox.value.copy(lipBoxFrom(lm2));
+          (skin.uniforms.uEyeC.value as Vector3[]).forEach((v, i) => v.set(...(i ? e2.right : e2.left)));   // System 2's protected eyes, in the same frame as the lips
           target.y = (e2.left[1] + e2.right[1]) / 2 - 30;
           skin.uniforms.uY.value.set((e2.left[1] + e2.right[1]) / 2, lm2[1][1], lm2[13][1], lm2[152][1]);   // the zones follow the face's shape
           for (const m of Object.values(H.parts)) { const d = m.morphTargetDictionary, inf = m.morphTargetInfluences; if (d && inf) for (const k in d) inf[d[k]] = e[k] ?? 0; }

@@ -38,6 +38,10 @@ export function portraitSkinV2(o: {
     uToHead: { value: new Matrix4() },            // world -> the head's own frame in mm (set every frame: the head moves)
     uSSS: { value: new Vector3(1.0, 0.36, 0.22) }, uSSSAmt: { value: 0.85 },
     uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 }, uSkinRect: { value: new Vector4(0, 0, 1, 1) },
+    // System 2 (skin-bake-v2.ts): the de-lit multi-frame map and its detail maps; the single-photo map above stays the
+    // source inside the protected features (lips, brows, eyes), so they are pixel-identical to the approved build
+    uV2Map: { value: null as Texture | null }, uV2Conf: { value: null as Texture | null }, uV2Maps: { value: null as Texture | null }, uV2On: { value: 0 }, uV2Rect: { value: new Vector4(0, 0, 1, 1) },
+    uEyeC: { value: [new Vector3(1e4, 1e4, 1e4), new Vector3(1e4, 1e4, 1e4)] },
     uLayer: { value: 2 }, uKeyDir: { value: new Vector3(-0.15, 0.6, 0.8).normalize() },   // the key light's direction (head frame)
     // expression-reactive skin: fold strengths, the folds' anchors (nose wing x,y -> mouth corner x,y), outer eye corner, flush
     uWrinkleOn: { value: 1 }, uWrinkle: { value: new Vector4() }, uFold: { value: new Vector4(16, 0, 28, 0) }, uEyeCorner: { value: new Vector2(45, 0) }, uFlush: { value: 0 },                          // debug layers: 0 = A base skin, 1 = A+B photo, 2 = A+B+C feature materials   // the customer's own skin (skin-bake.ts)
@@ -52,7 +56,7 @@ export function portraitSkinV2(o: {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform vec3 uKeyDir; uniform float uSkinOn, uLayer, uWrinkleOn, uFlush; uniform vec4 uWrinkle, uFold; uniform vec2 uEyeCorner; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
+        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf, uV2Map, uV2Conf, uV2Maps; uniform float uV2On; uniform vec4 uV2Rect; uniform vec3 uEyeC[2]; uniform vec3 uKeyDir; uniform float uSkinOn, uLayer, uWrinkleOn, uFlush; uniform vec4 uWrinkle, uFold; uniform vec2 uEyeCorner; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
         uniform vec3 uTone, uForehead, uCheeks, uNose, uJaw, uLipTone, uLipstick, uSSS;
         uniform vec4 uY, uLipRect, uLipBox; uniform float uChest, uDetailOn, uLipsOn, uLipRange, uLipstickAmount, uLipstickGloss, uStubble, uSSSAmt;
         uniform sampler2D uDetail, uLips;
@@ -119,6 +123,18 @@ export function portraitSkinV2(o: {
         vec3 skinRel = vec3(1.0); float skinConf = 0.0;
         if (uSkinOn > 0.5 && uLayer >= 1.0) { vec2 su = (vUv2 - uSkinRect.xy) / uSkinRect.zw;
           if (all(greaterThan(su, vec2(0.0))) && all(lessThan(su, vec2(1.0)))) { skinRel = texture2D(uSkinMap, su).rgb * 2.0; skinConf = texture2D(uSkinConf, su).r; } }
+        vec3 v2Rel = skinRel; float v2Conf = skinConf; vec3 v2Maps = vec3(0.5); vec2 v2Su = vec2(-1.0);
+        if (uV2On > 0.5 && uLayer >= 1.0) { v2Su = (vUv2 - uV2Rect.xy) / uV2Rect.zw;
+          if (all(greaterThan(v2Su, vec2(0.0))) && all(lessThan(v2Su, vec2(1.0)))) { v2Rel = texture2D(uV2Map, v2Su).rgb * 2.0; v2Conf = texture2D(uV2Conf, v2Su).r; v2Maps = texture2D(uV2Maps, v2Su).rgb; }
+          else { v2Rel = vec3(1.0); v2Conf = 0.0; } }
+        // the protected features keep the approved single-photo map exactly: lips (their box + 2 mm), brows (6 mm), eyes (17 mm)
+        float v2Keep = 0.0;
+        if (uV2On > 0.5) {
+          float ex = min(length(vP - uEyeC[0]), length(vP - uEyeC[1]));
+          float bd = 1e9; for (int b = 0; b < 2; b++) for (int k = 0; k < 4; k++) { vec3 A = uBrow[b * 5 + k], B = uBrow[b * 5 + k + 1], AB = B - A; bd = min(bd, length(vP - A - AB * clamp(dot(vP - A, AB) / dot(AB, AB), 0.0, 1.0))); }
+          float lbx = (1.0 - smoothstep(uLipBox.x + 2.0, uLipBox.x + 5.0, abs(vP.x))) * smoothstep(uLipBox.y - 5.0, uLipBox.y - 2.0, vP.y) * (1.0 - smoothstep(uLipBox.z + 2.0, uLipBox.z + 5.0, vP.y));
+          v2Keep = max(max(1.0 - smoothstep(17.0, 21.0, ex), (1.0 - smoothstep(6.0, 9.0, bd)) * uBrowOn), lbx);
+        }
         float scalp = 0.0;
         // scalp under the hair takes the hair's colour, so no bald skin shows between strands
         if (uHair.w > 0.5) {
@@ -169,12 +185,12 @@ export function portraitSkinV2(o: {
         diffuseColor.rgb = mix(diffuseColor.rgb, lipCol, lip);
         // the photo's fine detail (a ratio around 1: pores, freckles, moles, lip lines) over skin and lips;
         // not over the scalp tint, where the photo shows hair
-        { vec3 f = skinRel; float k = skinConf * (1.0 - scalp) * (1.0 - 0.6 * clamp(uLipstickAmount, 0.0, 1.0) * lip);
+        { vec3 f = mix(v2Rel, skinRel, v2Keep); float k = mix(v2Conf, skinConf, v2Keep) * (1.0 - scalp) * (1.0 - 0.6 * clamp(uLipstickAmount, 0.0, 1.0) * lip);
           diffuseColor.rgb *= mix(vec3(1.0), f, k); }
         // stubble: fine dark dots over the beard and moustache, never on the lips
         float beard = (1.0 - smoothstep(uY.y - 4.0, uY.y + 6.0, vP.y)) * smoothstep(uY.w - 30.0, uY.w - 10.0, vP.y) * (1.0 - smoothstep(55.0, 70.0, ax));
         float dots = step(0.62, hash(floor(vP * 3.2)));
-        diffuseColor.rgb *= 1.0 - uStubble * beard * (1.0 - lip) * (1.0 - skinConf) * (0.18 + 0.42 * dots);
+        diffuseColor.rgb *= 1.0 - uStubble * beard * (1.0 - lip) * (1.0 - mix(v2Conf, skinConf, v2Keep)) * (0.18 + 0.42 * dots);
         // the portrait fade below the chest
         // a soft oval vignette: the chest and shoulders melt into the background, no cut edge and no corners
         { float dy = max(0.0, uChest + 40.0 - vP.y) / 45.0, dx = max(0.0, ax - 95.0) / 80.0;
@@ -183,7 +199,8 @@ export function portraitSkinV2(o: {
         roughnessFactor = clamp(roughnessFactor + (dA.r - 0.5) * 0.24, 0.3, 0.72);
         // the T-zone a little shinier, lips moist (or the lipstick's finish)
         roughnessFactor -= 0.13 * (1.0 - smoothstep(9.0, 22.0, ax)) * smoothstep(uY.y - 10.0, uY.x + 30.0, vP.y);   // T-zone ~0.42, cheeks ~0.55
-        roughnessFactor = mix(roughnessFactor, mix(0.5, mix(0.62, 0.12, uLipstickGloss), uLipstickAmount), lip);   // bare lips ~0.5: soft, not wet`)
+        roughnessFactor = mix(roughnessFactor, mix(0.5, mix(0.62, 0.12, uLipstickGloss), uLipstickAmount), lip);   // bare lips ~0.5: soft, not wet
+        if (uV2On > 0.5) roughnessFactor += (v2Maps.b - 0.5) * 0.16 * v2Conf * (1.0 - v2Keep) * (1.0 - scalp) * (1.0 - lip);   // System 2 roughness map`)
       // no clearcoat or sheen on bare lips (the skin's coat made them read glossy red); a glossy lipstick brings its own
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
         material.clearcoat *= 1.0 - lip * (1.0 - uLipstickAmount * uLipstickGloss);
@@ -191,6 +208,12 @@ export function portraitSkinV2(o: {
         material.sheenColor *= 1.0 - lip;
         #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        // System 2's normal map (from the de-lit albedo's fine detail), in a frame from the UV's screen derivatives
+        if (v2Su.x > 0.0) { float kN = v2Conf * (1.0 - v2Keep) * (1.0 - scalp) * 0.6;
+          vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 st0 = dFdx(v2Su), st1 = dFdy(v2Su);
+          vec3 q1p = cross(q1, normal), q0p = cross(normal, q0), T = q1p * st0.x + q0p * st1.x, Bt = q1p * st0.y + q0p * st1.y;
+          float dt = max(dot(T, T), dot(Bt, Bt)), sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
+          vec2 mn = (v2Maps.rg * 2.0 - 1.0) * kN; normal = normalize(T * (mn.x * sc) + Bt * (mn.y * sc) + normal); }
         if (uDetailOn > 0.5) {                        // pores and fine creases as micro normals
           float e = 0.35; vec3 g = vec3(tri(vP + vec3(e,0,0), vN, 9.3).r - tri(vP - vec3(e,0,0), vN, 9.3).r,
                                         tri(vP + vec3(0,e,0), vN, 9.3).r - tri(vP - vec3(0,e,0), vN, 9.3).r,
@@ -209,12 +232,16 @@ export function portraitSkinV2(o: {
         float ndl = dot(Nw, Lw), wrap = clamp((ndl + 0.5) / 1.5, 0.0, 1.0) - clamp(ndl, 0.0, 1.0);
         float thin = smoothstep(55.0, 75.0, ax) * (1.0 - smoothstep(-10.0, 25.0, vP.z - 0.0)) + (1.0 - smoothstep(10.0, 20.0, ax)) * smoothstep(uY.y - 6.0, uY.y + 2.0, vP.y) * (1.0 - smoothstep(uY.y + 4.0, uY.y + 14.0, vP.y)) * 0.5;
         float back = pow(clamp(dot(normalize(-vViewPosition), -normalize((viewMatrix * vec4(Lw, 0.0)).xyz)), 0.0, 1.0), 3.0);
-        outgoingLight += diffuseColor.rgb * uSSS * uSSSAmt * (0.26 * max(wrap, 0.0) + 0.02 + 0.4 * thin * (0.35 + back));   // wrap: light bleeds warm past the terminator; a little everywhere (skin is never matte paint)
-        if (uLayer < -0.5) outgoingLight = uLayer < -1.5 ? normal * 0.5 + 0.5 : diffuseColor.rgb;   // debug: -1 albedo only (unlit), -2 the shading normal
+        float sssMap = mix(1.0, clamp(1.0 + 1.5 * (v2Rel.r - v2Rel.g), 0.75, 1.3), v2Conf * (1.0 - v2Keep) * uV2On);   // System 2: redder skin scatters more
+        outgoingLight += diffuseColor.rgb * uSSS * uSSSAmt * sssMap * (0.26 * max(wrap, 0.0) + 0.02 + 0.4 * thin * (0.35 + back));   // wrap: light bleeds warm past the terminator; a little everywhere (skin is never matte paint)
+        if (uLayer < -0.5) outgoingLight = uLayer < -2.5 ? vec3(v2Keep) : uLayer < -1.5 ? normal * 0.5 + 0.5 : diffuseColor.rgb;   // debug: -1 albedo only (unlit), -2 the shading normal, -3 System 2's protected features
         #include <opaque_fragment>`);
   };
-  m.customProgramCacheKey = () => 'ames-portrait-skin-v3';
+  m.customProgramCacheKey = () => 'ames-portrait-skin-v4';
   return {
+    useSkinV2: (map: Texture | null, conf: Texture | null, maps: Texture | null, rect?: [number, number, number, number], eyes?: { left: number[]; right: number[] }) => {
+      U.uV2Map.value = map; U.uV2Conf.value = conf; U.uV2Maps.value = maps; U.uV2On.value = map && conf && maps && rect ? 1 : 0; if (rect) U.uV2Rect.value.set(...rect);
+      if (eyes) { (U.uEyeC.value as Vector3[])[0].set(eyes.left[0], eyes.left[1], eyes.left[2]); (U.uEyeC.value as Vector3[])[1].set(eyes.right[0], eyes.right[1], eyes.right[2]); } },
     useSkinMap: (map: Texture | null, conf: Texture | null, rect?: [number, number, number, number]) => { U.uSkinMap.value = map; U.uSkinConf.value = conf; U.uSkinOn.value = map && conf && rect ? 1 : 0; if (rect) U.uSkinRect.value.set(...rect); }, material: m, uniforms: U, setLipstick: (l: Lipstick | null) => { U.uLipstickAmount.value = l ? l.amount : 0; if (l) { U.uLipstick.value.set(l.color); U.uLipstickGloss.value = l.gloss; } },
     setTones: (t: ToneMap) => { U.uTone.value.set(t.base); U.uForehead.value.set(t.forehead ?? t.base); U.uCheeks.value.set(t.cheeks ?? t.base); U.uNose.value.set(t.nose ?? t.base);
       U.uJaw.value.set(t.jaw ?? t.base); U.uLipTone.value.set(t.lips ?? t.base).multiply(t.lips ? new Color('#ffffff') : new Color('#eeb4b0')); m.sheenColor.set(t.base).lerp(new Color('#ffffff'), 0.5); } };

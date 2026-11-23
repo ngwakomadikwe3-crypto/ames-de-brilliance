@@ -191,7 +191,7 @@ const poseZ = (p: Pose, x: P3) => p.s * (p.R[2][0] * x[0] + p.R[2][1] * x[1] + p
 const rows = (p: Pose) => new Matrix3().set(p.R[0][0], p.R[0][1], p.R[0][2], p.R[1][0], p.R[1][1], p.R[1][2], p.R[2][0], p.R[2][1], p.R[2][2]);
 
 /** Blur the colour ratio across the band where two views meet (radius in px), nowhere else: no seam line survives. */
-function bandBlur(px: Uint8Array, band: Uint8Array, size: number, radius: number) {
+export function bandBlur(px: Uint8Array, band: Uint8Array, size: number, radius: number) {
   const src = px.slice();
   for (let y = radius; y < size - radius; y++) for (let x = radius; x < size - radius; x++) {
     const i = y * size + x, b = band[i * 4] / 255; if (b < 0.12 || !src[i * 4 + 3]) continue;
@@ -204,7 +204,7 @@ function bandBlur(px: Uint8Array, band: Uint8Array, size: number, radius: number
   }
 }
 /** Box-blur the confidence (alpha) where it is set, a few passes. */
-function feather(px: Uint8Array, size: number, passes: number) {
+export function feather(px: Uint8Array, size: number, passes: number) {
   for (let p = 0; p < passes; p++) {
     const a = new Float32Array(size * size); for (let i = 0; i < size * size; i++) a[i] = px[i * 4 + 3];
     for (let y = 2; y < size - 2; y++) for (let x = 2; x < size - 2; x++) {
@@ -215,7 +215,7 @@ function feather(px: Uint8Array, size: number, passes: number) {
   }
 }
 /** Spread colour into empty texels at UV island edges, so filtering never pulls in black at the seams. */
-function dilate(px: Uint8Array, size: number, passes: number) {
+export function dilate(px: Uint8Array, size: number, passes: number) {
   for (let pass = 0; pass < passes; pass++) {
     const src = px.slice();
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {

@@ -11,12 +11,16 @@ import { faceTrackingAssets } from '../lib/hand-tracking-assets';
 import { STEPS, REQUIRED_STEPS, checkFrame, headAngle, type Lm, type Px } from '../lib/face-scan';
 import { buildTwin, type Shot } from '../lib/twin-build';
 import type { FaceIdentity } from '../lib/twin-profile';
+import { TextureCapture, clippedFraction } from '../lib/texture-capture';
+import { flag } from '../lib/twin-flags';
 
 export default function FaceScan({ onDone, onCancel }: { onDone: (face: FaceIdentity, photo: string) => void; onCancel: () => void }) {
   const video = useRef<HTMLVideoElement>(null), work = useRef<HTMLCanvasElement | null>(null);
-  const [stepIx, setStepIx] = useState(0), [hint, setHint] = useState('Starting the camera…'), [phase, setPhase] = useState<'capture' | 'sweep-offer' | 'sweep' | 'fitting' | 'error'>('capture');
+  const [stepIx, setStepIx] = useState(0), [hint, setHint] = useState('Starting the camera…'), [phase, setPhase] = useState<'capture' | 'sweep-offer' | 'sweep' | 'turn' | 'fitting' | 'error'>('capture');
   const [progress, setProgress] = useState(0);
-  const shots = useRef<Shot[]>([]), state = useRef({ stepIx: 0, phase: 'capture' as string, held: 0, sweepUntil: 0 });
+  const shots = useRef<Shot[]>([]), state = useRef({ stepIx: 0, phase: 'capture' as string, held: 0, sweepUntil: 0, turnUntil: 0 });
+  // System 2 (flag 'skin-v2'): after the three photos, a slow guided head turn of 10-15 frames for the skin texture
+  const turnCap = useRef(new TextureCapture<{ l: Shot['l']; px: Shot['px'] }>()), [turnCount, setTurnCount] = useState(0);
   useEffect(() => { state.current.stepIx = stepIx; state.current.phase = phase; }, [stepIx, phase]);
 
   useEffect(() => {
@@ -33,11 +37,21 @@ export default function FaceScan({ onDone, onCancel }: { onDone: (face: FaceIden
         const loop = () => {
           raf = requestAnimationFrame(loop);
           if (!tracker || v.readyState < 2) return;
-          const st = state.current; if (st.phase !== 'capture' && st.phase !== 'sweep') return;
+          const st = state.current; if (st.phase !== 'capture' && st.phase !== 'sweep' && st.phase !== 'turn') return;
           const res = tracker.detectForVideo(v, performance.now()), l = (res.faceLandmarks?.[0] ?? null) as Lm[] | null;
           const c = (work.current ??= document.createElement('canvas')), w = 480, h = Math.round(480 * v.videoHeight / v.videoWidth);
           c.width = w; c.height = h; const ctx = c.getContext('2d', { willReadFrequently: true })!; ctx.drawImage(v, 0, 0, w, h);
           const px = ctx.getImageData(0, 0, w, h) as unknown as Px;
+          if (st.phase === 'turn') {
+            const cap = turnCap.current, g = checkFrame('side-a', px, l);
+            const r = cap.offer(l, g, l ? clippedFraction(px, l) : 0, () => ({ l: l!.map(p => ({ ...p })), px: snapshot(v) }));
+            setHint(r.prompt); setTurnCount(cap.count());
+            if (cap.done() || (performance.now() > st.turnUntil && cap.count() >= 6)) {
+              shots.current = shots.current.filter(s => s.step !== 'sweep').concat(cap.result().map(f => ({ step: 'sweep' as const, l: f.data.l, px: f.data.px })));
+              setPhase('fitting');
+            }
+            return;
+          }
           if (st.phase === 'sweep') {
             if (performance.now() > st.sweepUntil) { setPhase('fitting'); return; }
             const g = checkFrame('side-a', px, l);
@@ -56,7 +70,8 @@ export default function FaceScan({ onDone, onCancel }: { onDone: (face: FaceIden
             const snap = snapshot(v);
             shots.current = shots.current.filter(s => s.step !== step).concat({ step, l: l.map(p => ({ ...p })), px: snap, photo: step === 'front' ? photoOf(v) : undefined });
             st.held = 0; setProgress(0);
-            if (st.stepIx + 1 === REQUIRED_STEPS) { setPhase('sweep-offer'); setHint('Three photos taken. Build your twin now, or add the optional frames for a closer likeness.'); }           // the three required frames are in
+            if (st.stepIx + 1 === REQUIRED_STEPS && flag('skin-v2')) { st.turnUntil = performance.now() + 25000; setPhase('turn'); setHint('Now a slow turn for your skin: look at the camera, then turn slowly to your left.'); }
+            else if (st.stepIx + 1 === REQUIRED_STEPS) { setPhase('sweep-offer'); setHint('Three photos taken. Build your twin now, or add the optional frames for a closer likeness.'); }           // the three required frames are in
             else if (st.stepIx + 1 < STEPS.length) { setStepIx(st.stepIx + 1); setHint(STEPS[st.stepIx + 1].tip); }
             else setPhase('fitting');
           }
@@ -97,6 +112,7 @@ export default function FaceScan({ onDone, onCancel }: { onDone: (face: FaceIden
     </div>
     <div className="space-y-3 p-5 pb-7">
       {phase === 'capture' && <p style={{ fontFamily: 'var(--font-satoshi)', fontSize: 18 }}>{step.title}</p>}
+      {phase === 'turn' && <p style={{ fontFamily: 'var(--font-satoshi)', fontSize: 18 }}>Slow head turn · {turnCount} of 10+</p>}
       <p className="text-sm" role="status" aria-live="polite">{hint}</p>
       {phase === 'sweep-offer' && <div className="flex flex-wrap gap-3">
         <button type="button" className="min-h-11 rounded-full bg-white px-5 font-medium text-[#0c3b2e]" onClick={() => { setStepIx(REQUIRED_STEPS); setHint(STEPS[REQUIRED_STEPS].tip); setPhase('capture'); }} data-scan-extras>Add chin-up and smile (optional)</button>

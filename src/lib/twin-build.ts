@@ -1,7 +1,8 @@
 // Build the face twin from the scan frames: the identity solve, the measurements and the customer's own skin.
 // Kept out of the scan's UI so it can be run (and tested) on any set of frames.
 import { Color } from 'three';
-import { regionalTones, stubbleDensity, irisColour, type Lm, type Px, type Step } from './face-scan';
+import { regionalTones, stubbleDensity, irisColour, checkFrame, type Lm, type Px, type Step } from './face-scan';
+import { bakeSkinV2 } from './skin-bake-v2';
 import { fromImage, type P3 } from './face-morph';
 import { fitHead, fitExpression, irisScale, type ScanFrame } from './portrait-fit';
 import { solveOutline, type OutlineRefine } from './face-outline';
@@ -138,9 +139,22 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
     skin = bakeSkinMap({ points: ptsFit, normals: vertexNormals(ptsFit, index), uv, index, views: views.slice(0, 4), tone: [toneLin.r, toneLin.g, toneLin.b],
       eyes: EYE_OPENINGS.map(c => c.map(i => lm[i].map(v => v / headScale) as P3)), rect });
   } catch (e) { console.warn('The skin map could not be made on this device:', e); }
+  // System 2 (flag 'skin-v2'): every frame of the guided turn, de-lit and merged (skin-bake-v2.ts); the single-photo
+  // map above stays the fallback and the source inside the protected features
+  let skinV2: FaceIdentity['skinV2'];
+  if (flag('skin-v2') && used.filter(s => s.step === 'sweep').length >= 6) {
+    try {
+      opt.onProgress?.('De-lighting and merging your skin…');
+      const v2 = bakeSkinV2({ points: ptsFit, normals: vertexNormals(ptsFit, index), uv, index, tone: [toneLin.r, toneLin.g, toneLin.b], rect,
+        eyes: EYE_OPENINGS.map(c => c.map(i => lm[i].map(v => v / headScale) as P3)),
+        views: used.map((s, i) => ({ img: s.px, pose: fit.poses[i], sharpness: checkFrame('side-a', s.px, s.l).sharpness,
+          oval: FACE_OVAL.map(k => [s.l[k].x * s.px.width, s.l[k].y * s.px.height] as [number, number]) })) });
+      skinV2 = { map: v2.map, conf: v2.conf, maps: v2.maps, rect: v2.rect }; console.info('skin v2', JSON.stringify(v2.stats), 'coverage', v2.coverage.toFixed(3), 'KB', Math.round((v2.map.length + v2.maps.length + v2.conf.length) / 1024));
+    } catch (e) { console.warn('The System 2 skin could not be made on this device:', e); }
+  }
   return {
     weights, smile, spectacles, tones, hairColor: sampleHairColor(frontShot.px, frontShot.l), hairStyle: 'cap',
     stubble: stubbleDensity(frontShot.px, frontShot.l), irisColor: irisColour(frontShot.px, frontShot.l),
-    headScale, refine, skinMap: skin?.map, skinConf: skin?.conf, skinRect: skin?.rect, savedAt: Date.now(),
+    headScale, refine, skinV2, skinMap: skin?.map, skinConf: skin?.conf, skinRect: skin?.rect, savedAt: Date.now(),
   };
 }
