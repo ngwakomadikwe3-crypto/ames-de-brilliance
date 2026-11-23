@@ -22,7 +22,8 @@ const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647
 /** A spatial lookup of the skin: nearest surface point and its normal. */
 export class SkinField {
   cells = new Map<string, number[]>(); size = 6;
-  constructor(public p: P3[], public n: P3[]) { p.forEach((q, i) => { const k = this.key(q); (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(i); }); }
+  p: P3[]; n: P3[];
+  constructor(p: P3[], n: P3[]) { this.p = p; this.n = n; p.forEach((q, i) => { const k = this.key(q); (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(i); }); }
   key(q: P3) { return `${Math.floor(q[0] / this.size)},${Math.floor(q[1] / this.size)},${Math.floor(q[2] / this.size)}`; }
   nearest(q: P3) {
     let best = -1, bd = Infinity; const [cx, cy, cz] = [0, 1, 2].map(j => Math.floor(q[j] / this.size));

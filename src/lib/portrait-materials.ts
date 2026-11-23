@@ -38,7 +38,7 @@ export function portraitSkinV2(o: {
     uToHead: { value: new Matrix4() },            // world -> the head's own frame in mm (set every frame: the head moves)
     uSSS: { value: new Vector3(1.0, 0.36, 0.22) }, uSSSAmt: { value: 0.85 },
     uSkinMap: { value: null as Texture | null }, uSkinConf: { value: null as Texture | null }, uSkinOn: { value: 0 }, uSkinRect: { value: new Vector4(0, 0, 1, 1) },
-    uLayer: { value: 2 },
+    uLayer: { value: 2 }, uKeyDir: { value: new Vector3(-0.15, 0.6, 0.8).normalize() },   // the key light's direction (head frame)
     // expression-reactive skin: fold strengths, the folds' anchors (nose wing x,y -> mouth corner x,y), outer eye corner, flush
     uWrinkleOn: { value: 1 }, uWrinkle: { value: new Vector4() }, uFold: { value: new Vector4(16, 0, 28, 0) }, uEyeCorner: { value: new Vector2(45, 0) }, uFlush: { value: 0 },                          // debug layers: 0 = A base skin, 1 = A+B photo, 2 = A+B+C feature materials   // the customer's own skin (skin-bake.ts)
     uBrow: { value: Array.from({ length: 10 }, () => new Vector3(0, -1e4, 0)) }, uBrowOn: { value: 0 },   // brow centrelines, a soft tint under the hairs
@@ -52,7 +52,7 @@ export function portraitSkinV2(o: {
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvP = (uToHead * modelMatrix * vec4(transformed, 1.0)).xyz; vN = normalize(mat3(uToHead * modelMatrix) * objectNormal); vUv2 = uv;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
-        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform float uSkinOn, uLayer, uWrinkleOn, uFlush; uniform vec4 uWrinkle, uFold; uniform vec2 uEyeCorner; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
+        varying vec3 vP; varying vec3 vN; varying vec2 vUv2; uniform sampler2D uSkinMap, uSkinConf; uniform vec3 uKeyDir; uniform float uSkinOn, uLayer, uWrinkleOn, uFlush; uniform vec4 uWrinkle, uFold; uniform vec2 uEyeCorner; uniform vec4 uSkinRect; uniform vec4 uHair; uniform vec3 uEar; uniform vec3 uHairColor; uniform vec3 uBrow[10]; uniform float uBrowOn;
         uniform vec3 uTone, uForehead, uCheeks, uNose, uJaw, uLipTone, uLipstick, uSSS;
         uniform vec4 uY, uLipRect, uLipBox; uniform float uChest, uDetailOn, uLipsOn, uLipRange, uLipstickAmount, uLipstickGloss, uStubble, uSSSAmt;
         uniform sampler2D uDetail, uLips;
@@ -100,7 +100,8 @@ export function portraitSkinV2(o: {
         float ax = abs(vP.x);
         vec3 tone = uTone;
         tone = mix(tone, uForehead, smoothstep(uY.x + 8.0, uY.x + 28.0, vP.y));
-        tone = mix(tone, uCheeks, (1.0 - smoothstep(18.0, 40.0, abs(ax - 38.0))) * smoothstep(uY.z - 5.0, uY.z + 15.0, vP.y) * (1.0 - smoothstep(uY.x - 5.0, uY.x + 5.0, vP.y)));
+        // the cheek zone: on the cheekbone, both sides alike, capped at 70 %
+        tone = mix(tone, uCheeks, 0.7 * (1.0 - smoothstep(14.0, 30.0, abs(ax - 36.0))) * smoothstep(uY.z - 5.0, uY.z + 15.0, vP.y) * (1.0 - smoothstep(uY.x - 5.0, uY.x + 5.0, vP.y)));
         tone = mix(tone, uNose, (1.0 - smoothstep(9.0, 16.0, ax)) * smoothstep(uY.y - 10.0, uY.y, vP.y) * (1.0 - smoothstep(uY.x - 2.0, uY.x + 8.0, vP.y)));
         tone = mix(tone, uJaw, 1.0 - smoothstep(uY.w - 5.0, uY.z - 2.0, vP.y));
         vec3 dA = uDetailOn > 0.5 ? mix(tri(vP, vN, 9.3), tri(vP + 3.7, vN, 23.0), 0.4) : vec3(0.5);
@@ -111,8 +112,8 @@ export function portraitSkinV2(o: {
         diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.95, 0.975), smoothstep(uY.x - 18.0, uY.x - 13.0, vP.y) * (1.0 - smoothstep(uY.x - 8.0, uY.x - 4.0, vP.y)) * smoothstep(12.0, 18.0, ax) * (1.0 - smoothstep(40.0, 48.0, ax)));
         // a warm flush over the cheeks when a smile is held
         diffuseColor.rgb *= mix(vec3(1.0), vec3(1.05, 0.95, 0.94), uFlush * (1.0 - smoothstep(14.0, 26.0, abs(ax - 36.0))) * smoothstep(uY.z - 4.0, uY.z + 10.0, vP.y) * (1.0 - smoothstep(uY.x - 12.0, uY.x - 2.0, vP.y)));
-        { float m = (vnoise(vP / 22.0) - 0.5) * 0.7 + (vnoise(vP / 9.0 + 17.0) - 0.5) * 0.3;
-          diffuseColor.rgb *= 1.0 + 0.1 * m * vec3(1.0, 1.12, 1.2) ; }
+        { float m = (vnoise(vP / 12.0) - 0.5) * 0.6 + (vnoise(vP / 5.0 + 17.0) - 0.5) * 0.4;   // finer: never a blob
+          diffuseColor.rgb *= 1.0 + 0.06 * m * vec3(1.0, 1.12, 1.2); }                         // within +-3 %
         // the customer's own skin from the scan photos (a colour ratio to their average skin colour, so the tone above
         // multiplies into it) and how surely the photos saw this spot
         vec3 skinRel = vec3(1.0); float skinConf = 0.0;
@@ -204,11 +205,12 @@ export function portraitSkinV2(o: {
         }`)
       .replace('#include <opaque_fragment>', `
         // subsurface: light bleeds past the terminator in warm red; thin backlit parts (ears, nostril wings) glow
-        vec3 Nw = normalize(vN), Lw = normalize(vec3(-0.35, 0.65, 0.65));
+        vec3 Nw = normalize(vN), Lw = normalize(uKeyDir);                  // the scene's own key light (was a fixed side light)
         float ndl = dot(Nw, Lw), wrap = clamp((ndl + 0.5) / 1.5, 0.0, 1.0) - clamp(ndl, 0.0, 1.0);
         float thin = smoothstep(55.0, 75.0, ax) * (1.0 - smoothstep(-10.0, 25.0, vP.z - 0.0)) + (1.0 - smoothstep(10.0, 20.0, ax)) * smoothstep(uY.y - 6.0, uY.y + 2.0, vP.y) * (1.0 - smoothstep(uY.y + 4.0, uY.y + 14.0, vP.y)) * 0.5;
         float back = pow(clamp(dot(normalize(-vViewPosition), -normalize((viewMatrix * vec4(Lw, 0.0)).xyz)), 0.0, 1.0), 3.0);
         outgoingLight += diffuseColor.rgb * uSSS * uSSSAmt * (0.26 * max(wrap, 0.0) + 0.02 + 0.4 * thin * (0.35 + back));   // wrap: light bleeds warm past the terminator; a little everywhere (skin is never matte paint)
+        if (uLayer < -0.5) outgoingLight = uLayer < -1.5 ? normal * 0.5 + 0.5 : diffuseColor.rgb;   // debug: -1 albedo only (unlit), -2 the shading normal
         #include <opaque_fragment>`);
   };
   m.customProgramCacheKey = () => 'ames-portrait-skin-v3';
@@ -299,6 +301,10 @@ export function teethMaterial(env: Texture | null) {
 export function tongueMaterial(env: Texture | null) {
   return new MeshPhysicalMaterial({ color: '#b5545c', roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2, envMap: env, envMapIntensity: 0.25 });
 }
+
+/** The jewellery HDR as the skin sees it: turned about the vertical so the tent's main light falls on the face from the
+ *  front (the same light, the same reflections on the pieces; only the skin's view of it is turned). */
+export const SKIN_ENV_YAW = -0.7;                         // measured: cheeks within 1.5 levels of each other, face fully lit
 
 /** The lips' box on the face (mm, from the skin landmarks): half width, bottom, top, and how far back. */
 export function lipBoxFrom(lm: number[][]) {

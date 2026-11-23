@@ -11,8 +11,9 @@ import {
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { loadPortraitHead, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, LIP_ZONES_URL } from '../lib/portrait-head';
 import { identityAxes, sanitizeWeights, type Axis } from '../lib/portrait-weights';
-import { portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL } from '../lib/portrait-materials';
+import { SKIN_ENV_YAW, portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL } from '../lib/portrait-materials';
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
+import { growFeatures, disposeFeatures } from '../lib/portrait-features';
 import { readTwin, twinTones, harmonisedFaceTones } from '../lib/twin-profile';
 
 type Head = Awaited<ReturnType<typeof loadPortraitHead>>;
@@ -42,7 +43,9 @@ export default function TwinLab() {
     r.outputColorSpace = SRGBColorSpace; r.toneMapping = ACESFilmicToneMapping; r.toneMappingExposure = 1.0;
     const scene = new Scene(); scene.background = new Color('#0c3b2e');
     const cam = new PerspectiveCamera(22, 1, 10, 6000);
-    const key = new DirectionalLight('#fff4ea', 2.4); key.position.set(-520, 380, 380);   // raking: shows every bump
+    // the same light as the try-on (frontal key from above, soft fills both sides)
+    const key = new DirectionalLight('#fff4ea', 1.8); key.position.set(0, 520, 640);
+    for (const x of [-1, 1]) { const fill = new DirectionalLight('#fff4ea', 0.22); fill.position.set(x * 460, 160, 380); scene.add(fill); }   // a soft fill from both sides
     const rim = new DirectionalLight('#dfe9ff', 1.0); rim.position.set(320, 460, -520);
     scene.add(key, rim, new AmbientLight('#ffffff', 0.18));
     const frame = new Group(); scene.add(frame);
@@ -57,6 +60,11 @@ export default function TwinLab() {
       const skin = portraitSkinV2({ tones: { base: '#b98466' }, env: null, detail, lipZones: new TextureLoader().load(LIP_ZONES_URL), lipRect: H.meta.lips.uvRect, lipRangeMm: H.meta.lips.rangeMm,
         anchors: { eyeY: (eyes.left[1] + eyes.right[1]) / 2, noseY: lm[1][1], mouthY: lm[13][1], chinY: lm[152][1], chestY: -1e4 }, lipBox: lipBoxFrom(lm) });
       skin.material.transparent = false;
+      skin.uniforms.uKeyDir.value.copy(key.position).normalize();
+      // the skin carries the same HDR as the jewellery, turned so the tent's main light faces the face (both cheeks even)
+      const envForSkin = (env: import('three').Texture) => { const q = new URLSearchParams(location.search);
+        skin.material.envMap = q.get('env') === '0' ? null : env; skin.material.envMapIntensity = 0.45;
+        skin.material.envMapRotation.y = q.get('envyaw') ? Number(q.get('envyaw')) : SKIN_ENV_YAW; skin.material.needsUpdate = true; };
       // the saved twin's own skin: its tones, and its photo map (Layer B)
       const twinFace = readTwin()?.face;
       if (twinFace) {
@@ -73,17 +81,20 @@ export default function TwinLab() {
         else if (name.startsWith('teeth')) own.set(m, teethMaterial(null)); else own.set(m, tongueMaterial(null));
         m.material = clay;
       }
-      let details: Group | null = null;
+      let details: Group | null = null, features: ReturnType<typeof growFeatures> | null = null;
+      const hairCol = new Color(readTwin()?.face?.hairColor ?? '#2a1d15');
       const target = new Vector3(0, (eyes.left[1] + eyes.right[1]) / 2 - 30, 40);
-      new HDRLoader().load('/ames-engine/environments/jewellery-tent-v3.hdr', hdr => { const env = new PMREMGenerator(r).fromEquirectangular(hdr).texture; scene.environment = env; scene.environmentIntensity = 0.45; });
+      new HDRLoader().load('/ames-engine/environments/jewellery-tent-v3.hdr', hdr => { const env = new PMREMGenerator(r).fromEquirectangular(hdr).texture; scene.environment = env; scene.environmentIntensity = new URLSearchParams(location.search).get('env') === '0' ? 0 : 0.45; envForSkin(env); });
       let mode: 'clay' | 'skin' = 'clay', wireOn = false;
-      const dress = () => { for (const [m, mat] of own) { m.material = mode === 'skin' ? mat : clay; } clay.wireframe = wireOn; if (details) details.visible = mode === 'skin'; };
+      const dress = () => { for (const [m, mat] of own) { m.material = mode === 'skin' ? mat : clay; } clay.wireframe = wireOn; if (details) details.visible = mode === 'skin'; if (features) features.brows.visible = features.lashes.visible = mode === 'skin'; };
       api.current = {
         apply: (w, e) => {
           bakeIdentity(H.head, w);
           const p2 = meshPointsMm(H.skin, H.head), lm2 = anchoredPoints(p2, H.anchors), e2 = eyeCentres(H.parts, H.head);
           if (details) frame.remove(details);
           details = eyeAndMouthDetails(lm2, e2, 12, null); frame.add(details);
+          // the locked features: regrown for the new shape, shown in skin views at every layer (portrait-features.ts)
+          disposeFeatures(features); features = growFeatures(H.skin, frame, p2, lm2, e2, hairCol);
           skin.uniforms.uLipBox.value.copy(lipBoxFrom(lm2));
           target.y = (e2.left[1] + e2.right[1]) / 2 - 30;
           skin.uniforms.uY.value.set((e2.left[1] + e2.right[1]) / 2, lm2[1][1], lm2[13][1], lm2[152][1]);   // the zones follow the face's shape

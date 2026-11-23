@@ -9,7 +9,7 @@
 // Default screen: the stage, the name, one primary action, Customize.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ACESFilmicToneMapping, AmbientLight, Box3, Color, DirectionalLight, Group, Matrix3, Matrix4, Mesh, Object3D, PCFSoftShadowMap,
+  ACESFilmicToneMapping, AmbientLight, Box3, Color, DirectionalLight, Group, Matrix4, Mesh, Object3D, PCFSoftShadowMap,
   PMREMGenerator, PerspectiveCamera, Quaternion, Raycaster, RepeatWrapping, Scene, ShaderMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -20,8 +20,9 @@ import { faceTrackingAssets } from '../lib/hand-tracking-assets';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
 import { loadPortraitHead, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, LIP_ZONES_URL } from '../lib/portrait-head';
-import { portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL, type ToneMap } from '../lib/portrait-materials';
-import { SkinField, growBrows, growLashes, growHair, scalpRoots, HAIR_STYLES, type HairStyle } from '../lib/portrait-grooming';
+import { SKIN_ENV_YAW, portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom, portraitEyeTextured, EYE_TEXTURE_URL, type ToneMap } from '../lib/portrait-materials';
+import { growFeatures } from '../lib/portrait-features';
+import { growHair, scalpRoots, HAIR_STYLES, type HairStyle } from '../lib/portrait-grooming';
 import { FaceLife } from '../lib/portrait-life';
 import { readTwin, saveFace, saveFacePrefs, deleteTwin, twinTones, harmonisedFaceTones, TWIN_EVENT, type FaceIdentity } from '../lib/twin-profile';
 import { tunedWeights, FACE_TUNE, MEAN_PD_MM } from '../lib/twin-build';
@@ -108,7 +109,9 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = PCFSoftShadowMap; renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     disposables.push(renderer);
     const scene = new Scene(), camera = new PerspectiveCamera(24, 1, 10, 6000), pmrem = new PMREMGenerator(renderer); disposables.push(pmrem);
-    const key = new DirectionalLight('#fff4ea', 1.8); key.position.set(-260, 520, 520); key.castShadow = true;
+    // a frontal key from above (modelling from top light) with soft fills from both sides: both cheeks read the same tone
+    const key = new DirectionalLight('#fff4ea', 1.8); key.position.set(0, 520, 640); key.castShadow = true;
+    for (const x of [-1, 1]) { const fill = new DirectionalLight('#fff4ea', 0.22); fill.position.set(x * 460, 160, 380); scene.add(fill); }   // a soft fill from both sides
     key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -280, right: 280, top: 280, bottom: -280, near: 100, far: 2400 }); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.6; key.shadow.radius = 5;
     const rim = new DirectionalLight('#dfe9ff', 1.2); rim.position.set(320, 460, -520);
     scene.add(key, key.target, rim, new AmbientLight('#ffffff', 0.08));
@@ -158,7 +161,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       // brow centrelines (midway between MediaPipe's upper and lower brow arcs), inner head to tail
       [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
         .forEach(([u, l], i) => (skinMat!.uniforms.uBrow.value as Vector3[])[i].set((lm[u][0] + lm[l][0]) / 2, (lm[u][1] + lm[l][1]) / 2, (lm[u][2] + lm[l][2]) / 2));
-      skinMat.uniforms.uBrowOn.value = 0.35;                               // a faint tone under the wispy brow hairs
+      skinMat.uniforms.uBrowOn.value = 0.35;
+      skinMat.uniforms.uKeyDir.value.copy(key.position).normalize();   // its glow follows the real key light
       for (const [name, m] of Object.entries(H.parts)) {
         m.castShadow = m.receiveShadow = true; morphMeshes.push(m);
         if (name === 'head skin') m.material = skinMat.material;
@@ -166,15 +170,9 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
           m.material = portraitEyeTextured({ env: null, iris: face?.irisColor ?? '#4a3222', map: t }); }
         else if (name.startsWith('teeth')) m.material = teethMaterial(null); else if (name === 'tongue') m.material = tongueMaterial(null);
       }
-      // grooming: strands on the skin, following its expressions
-      const nrm = H.skin.geometry.getAttribute('normal'), toHead = new Matrix4().copy(headFrame.matrixWorld).invert().multiply(H.skin.matrixWorld), N3 = new Matrix3().setFromMatrix4(toHead);
-      const normals: P3[] = []; for (let i = 0; i < nrm.count; i++) { const v = new Vector3(nrm.getX(i), nrm.getY(i), nrm.getZ(i)).applyMatrix3(N3).normalize(); normals.push([v.x, v.y, v.z]); }
-      const field = new SkinField(pts, normals), dict = H.skin.morphTargetDictionary!, morph = H.skin.geometry.morphAttributes.position ?? [];
-      const delta = (i: number, name: string) => { const at = dict[name]; return at === undefined ? new Vector3() : new Vector3().fromBufferAttribute(morph[at], i).applyMatrix3(N3); };
-      const browColor = hairColor.clone().multiplyScalar(0.8);
-      grooming.brows = growBrows(field, lm, browColor, 1, i => [delta(i, 'ex:brows-soft'), delta(i, 'ex:brows-up')]);
-      grooming.lashes = growLashes(lm, new Color('#120c09'), eyes, field, i => [delta(i, 'ex:blink-l'), delta(i, 'ex:blink-r')]);
-      headFrame.add(grooming.brows, grooming.lashes);
+      // the locked features (portrait-features.ts): brows and lashes, following the expressions
+      const feat = growFeatures(H.skin, headFrame, pts, lm, eyes, hairColor);
+      grooming.brows = feat.brows; grooming.lashes = feat.lashes; const field = feat.field;
       const roots = scalpRoots(field, lm, eyes), shoulders = { y: lm[152][1] - 95 };
       regrowHair = (s: HairStyle) => {
         if (hairMesh) { headFrame.remove(hairMesh); hairMesh.geometry.dispose(); (hairMesh.material as { dispose(): void }).dispose(); }
@@ -211,7 +209,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         if (stopped) { hdr.dispose(); return; }
         const env = pmrem.fromEquirectangular(hdr); hdr.dispose(); disposables.push(env);
         scene.traverse(o => { const m = (o as Mesh).material as { envMap?: unknown; needsUpdate?: boolean; envMapIntensity?: number } | undefined;
-          if (m && 'envMap' in m && !(o as Mesh).userData?.ames) { if (m === skinMat?.material || /Eye|eye|teeth|tongue|cornea|tear/i.test(o.name)) { m.envMap = env.texture; m.needsUpdate = true; } } });
+          if (m && 'envMap' in m && !(o as Mesh).userData?.ames) { if (m === skinMat?.material || /Eye|eye|teeth|tongue|cornea|tear/i.test(o.name)) { m.envMap = env.texture; if (m === skinMat?.material) skinMat.material.envMapRotation.y = SKIN_ENV_YAW; m.needsUpdate = true; } } });
       });
     })().catch(() => setStatus('The twin could not be prepared on this device.'));
 
