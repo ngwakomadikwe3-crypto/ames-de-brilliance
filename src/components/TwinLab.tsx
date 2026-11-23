@@ -106,7 +106,7 @@ export default function TwinLab() {
         yaw: y => { yaw = y; },
         snap: () => { r.render(scene, cam); return c.toDataURL('image/jpeg', 0.85); },
       };
-      setHead(H); (window as unknown as { __twinLab: unknown }).__twinLab = { scene, H, cam };   // for automated checks
+      setHead(H); (window as unknown as { __twinLab: unknown }).__twinLab = { scene, H, cam }; (window as unknown as { __twinLabApi: unknown }).__twinLabApi = api.current;   // for automated checks
       const tick = () => {
         raf = requestAnimationFrame(tick);
         const w = c.clientWidth, h = c.clientHeight; if (c.width !== w || c.height !== h) { r.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }

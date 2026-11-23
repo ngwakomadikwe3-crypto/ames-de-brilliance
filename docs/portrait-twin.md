@@ -100,7 +100,9 @@ customer's own smile mix. **Skin tone**: albedo from stable patches of both chee
 brightest 20 % by lightness dropped (shadows, highlights), averaged in LAB (`color-lab.ts`); subtle zones from it
 (nose and cheeks a touch redder, jaw darker, forehead lighter). Never a flat fill: it multiplies into the skin map.
 
-**Skin texture** (`src/lib/skin-bake.ts`): every frame's photo is projected onto the face's own island of the UV
+**Skin layers**: A, the base skin with no photo (LAB tone and zones, ±3 % mottling, pores, wrap SSS, zone roughness); B, the front scan photo on top, only within 45° of the front camera's axis (feathered over the last 10°), shadow and highlight outliers rejected; C, the lips' and teeth's own materials. The brows and lashes are a locked features layer over all three (`portrait-features.ts`, `npm run test:portrait-features`). The skin sees the jewellery HDR turned −0.7 rad (`SKIN_ENV_YAW`) so the tent's main light faces the face and both cheeks read the same tone.
+
+**Skin texture** (`src/lib/skin-bake.ts`, Layer B): every frame's photo is projected onto the face's own island of the UV
 atlas (found by connectivity from the nose tip, so its 1024 px land on the face, not the whole body) through
 its fitted pose: weighted by how squarely the photo sees each point (feathered at the silhouette), visible only if
 the head's own depth from that camera says so (the nose hides part of the far cheek), only inside the face's outline

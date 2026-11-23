@@ -101,8 +101,9 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
   const ptsFit = pts.map(p => p.map(v => v / headScale) as P3);
   const index = H.skin.geometry.index!.array, uvAttr = H.skin.geometry.getAttribute('uv');
   const uv = new Float32Array(uvAttr.count * 2); for (let i = 0; i < uvAttr.count; i++) { uv[i * 2] = uvAttr.getX(i); uv[i * 2 + 1] = uvAttr.getY(i); }
-  const views = used.map((s, i) => ({ s, pose: fit.poses[i] })).filter(v => v.s.step !== 'sweep' || used.indexOf(v.s) < 8)
-    .map(v => ({ img: v.s.px, pose: v.pose, favour: v.s.step === 'front' ? 2.5 : v.s.step === 'up' ? 0.4 : 0.7,
+  // LAYER B: the front frame only (the side frames serve the shape solve; their photos are not projected)
+  const views = used.map((s, i) => ({ s, pose: fit.poses[i] })).filter(v => v.s.step === 'front')
+    .map(v => ({ img: v.s.px, pose: v.pose, favour: 1,
       oval: FACE_OVAL.map(i => [v.s.l[i].x * v.s.px.width, v.s.l[i].y * v.s.px.height] as [number, number]) }));
   // the face's region of MakeHuman's whole-body UV atlas (the face is a small island there): the map covers only it, so
   // its 1024 px land on the face, not on the body (glTF v = 1 - Blender v)

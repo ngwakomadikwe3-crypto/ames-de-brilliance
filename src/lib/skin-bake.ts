@@ -116,7 +116,10 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         float facing = (uR[k] * n).z;
         // grazing texels are stretched and shadowed (the dark wedge beside the nose): nothing past ~65 degrees, full
         // weight only from ~45 degrees in; views overlap widely, so left and right blend across the whole nose bridge
-        float w = smoothstep(0.42, 0.72, facing);
+        // LAYER B: only where the camera sees the skin within 45 degrees of its axis, feathered over the last 10
+        // (cos 45 = 0.707, cos 35 = 0.819). Past that, the photo is never used: no edge texel is ever stretched
+        // across the cheeks, jaw, ears or profile; Layer A shows there
+        float w = smoothstep(0.707, 0.819, facing);
         if (w <= 0.0) return;
         float dz = texture(depth, vec2(uv.x, 1.0 - uv.y)).r - q.z;
         w *= 1.0 - smoothstep(3.0, 6.0, dz / uS[k]);                    // hidden behind the nose or the cheek: not this view
@@ -131,6 +134,9 @@ export function bakeSkinMap(input: BakeInput, renderer?: WebGLRenderer): SkinMap
         // Moles and freckles are too small to darken the 12 mm average, so they stay.
         float shade = lum(lin(textureLod(photo, uv, log2(max(1.0, 12.0 * uS[k]))).rgb)) / max(1e-4, lum(lin(textureLod(photo, uv, log2(max(1.0, 35.0 * uS[k]))).rgb)));
         w *= smoothstep(0.74, 0.9, shade);
+        // and highlights: a region brighter than its surroundings (a sheen) or any clipped channel is not the skin's colour
+        w *= 1.0 - smoothstep(1.12, 1.3, shade);
+        w *= 1.0 - smoothstep(0.9, 0.97, max(c.r, max(c.g, c.b)));
         // detail only: the photo divided by a blurred copy of itself (~7 mm on the face), colour by colour. What is
         // left is the skin's fine structure (pores, freckles, moles, fine lines) around 1.0; the room's light, the
         // camera's colour and every broad patch are gone, so the map can never make blotches. The broad colour of
