@@ -1,7 +1,8 @@
 'use client';
-import {useEffect,useState} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 type Price={currency:string;amount:number};
-export default function ConfigurationPrice({piece,setting,options}:{piece:string;setting:string;options:string}){
+// children: render the configuration's line yourself (the boutique makes it the quote request's own heading: one row)
+export default function ConfigurationPrice({piece,setting,options,children}:{piece:string;setting:string;options:string;children?:(line:string)=>ReactNode}){
  const [price,setPrice]=useState<Price|null>(null),[staff,setStaff]=useState(false),[status,setStatus]=useState('Checking price…');
  useEffect(()=>{
    const abort=new AbortController();
@@ -10,7 +11,8 @@ export default function ConfigurationPrice({piece,setting,options}:{piece:string
     .catch(()=>{if(!abort.signal.aborted)setStatus('Price unavailable · request a quote');});
    return ()=>abort.abort();
  },[piece,setting,options]);
- return <section className="my-3 text-sm"><p aria-live="polite">Selected configuration · {price?new Intl.NumberFormat('en-BW',{style:'currency',currency:price.currency}).format(price.amount):status}</p>
+ const line=`Selected configuration · ${price?new Intl.NumberFormat('en-BW',{style:'currency',currency:price.currency}).format(price.amount):status}`;
+ return <section className="my-3 text-sm">{children?children(line):<p aria-live="polite">{line}</p>}
  {staff&&<details><summary className="cursor-pointer py-2">Staff pricing for this selection</summary><form className="grid gap-2" onSubmit={async e=>{
  e.preventDefault();const f=new FormData(e.currentTarget);try{
  const quote={currency:f.get('currency'),dealerRef:f.get('dealerRef'),dealerCost:Number(f.get('dealerCost')),makerRef:f.get('makerRef')||'',makerCost:Number(f.get('makerCost')),markup:Number(f.get('markup'))};

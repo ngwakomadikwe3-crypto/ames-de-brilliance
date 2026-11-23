@@ -8,8 +8,11 @@ const dictionaries:Record<string,Record<string,string>>={fr:{...words,Language:'
 function read(){try{const value=localStorage.getItem(key)??'en';return Object.prototype.hasOwnProperty.call(names,value)?value:'en'}catch{return 'en'}}
 function subscribe(fn:()=>void){window.addEventListener('storage',fn);window.addEventListener(key,fn);return ()=>{window.removeEventListener('storage',fn);window.removeEventListener(key,fn)}}
 export function useAtelierLanguage(){const lang=useSyncExternalStore(subscribe,read,()=>'en');return {lang,t:(v:string)=>dictionaries[lang]?.[v]??v};}
-export function LanguageSetting(){
+export function LanguageSetting({menu=false}:{menu?:boolean}={}){
   const {lang,t}=useAtelierLanguage();
+  // in the house (hamburger) menu: the same plain label + select as the silk background choice
+  if(menu)return <label dir={lang==='ar'?'rtl':undefined}>{t('Language')} <select value={lang} onChange={e=>{localStorage.setItem(key,e.target.value);window.dispatchEvent(new Event(key));}}>
+      {Object.entries(names).map(([code,name])=><option lang={code} key={code} value={code}>{name}</option>)}</select></label>;
   return <label dir={lang==='ar'?'rtl':undefined} className="flex items-center justify-between gap-4 py-3">{t('Language')}
     <select value={lang} className="min-h-11 rounded-xl bg-[#10372f] px-3 text-base" onChange={e=>{localStorage.setItem(key,e.target.value);window.dispatchEvent(new Event(key));}}>
       {Object.entries(names).map(([code,name])=><option lang={code} key={code} value={code}>{name}</option>)}

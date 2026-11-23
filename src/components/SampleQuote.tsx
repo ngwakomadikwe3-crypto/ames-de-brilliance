@@ -2,7 +2,7 @@
 import {useAtelierLanguage} from './AtelierLanguage';
 import { useState, type FormEvent } from 'react';
 
-export default function SampleQuote({ stone, setting, cut, metal, caseShape, configuration }: {configuration?:string;stone: string; setting: string; cut: string; metal: string; caseShape?: string}) {
+export default function SampleQuote({ stone, setting, cut, metal, caseShape, configuration, heading }: {configuration?:string;stone: string; setting: string; cut: string; metal: string; caseShape?: string; heading?: string}) {
   const {t}=useAtelierLanguage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -27,8 +27,9 @@ export default function SampleQuote({ stone, setting, cut, metal, caseShape, con
     } catch { setError('Your request could not be confirmed. Please try again.'); }
     finally { setBusy(false); }
   }
-  return <details className="mt-3 border-t border-white/15 text-sm">
-    <summary className="cursor-pointer py-3">{t('Request a made-to-order quote')}</summary>
+  return <details className={heading ? 'border-t border-white/15 text-sm' : 'mt-3 border-t border-white/15 text-sm'}>
+    {/* with a heading (the configuration's price line), the line and the request are one row */}
+    <summary className="cursor-pointer py-3">{heading ? <><span aria-live="polite">{heading}</span><span className="opacity-80"> · {t('Request a made-to-order quote')}</span></> : t('Request a made-to-order quote')}</summary>
     {reference ? <p role="status">Request {reference} received for your {stone} {setting}.</p> :
       <form onSubmit={submit} className="grid gap-3 py-2">
         <p>This {stone} {setting} is a design sample. AMES will request supplier pricing and a lead time for your approval.</p>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {useEffect,useRef} from 'react';
 import HouseWordmark from './HouseWordmark';
 import {useSilk,backgrounds,chooseBackground,type Background} from './SilkPreference';
+import {LanguageSetting} from './AtelierLanguage';
 
 export default function HouseNavigation({light=false}:{light?:boolean}){
  const silk=useSilk(), menu=useRef<HTMLDetailsElement>(null);
@@ -14,6 +15,7 @@ export default function HouseNavigation({light=false}:{light?:boolean}){
  <summary aria-label="Menu"><span aria-hidden="true">☰</span></summary>
  <nav aria-label="House menu" onClick={e=>{if((e.target as HTMLElement).closest('a')&&menu.current)menu.current.open=false}}>
  {Object.entries({'Boutique & SAME':'/app','My workspace':'/workspace','Profile & settings':'/app/account','My cart':'/cart','Purchases & invoices':'/app/billing'}).map(([name,href])=><Link key={href} href={href}>{name}</Link>)}
+ <LanguageSetting menu/>
  <label>Silk background <select value={silk} onChange={e=>chooseBackground(e.target.value as Background)}>{backgrounds.map(v=><option key={v}>{v}</option>)}</select></label>
  </nav></details><Link href="/app" aria-label="HOUSEofAMES home"><HouseWordmark size={14} tone={silk==='White'||(silk==='Emerald'&&light)?'ink':'light'}/></Link></div>;
 }

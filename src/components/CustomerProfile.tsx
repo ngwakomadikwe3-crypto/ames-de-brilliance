@@ -1,7 +1,6 @@
 "use client";
 import SavedHandPanel from './SavedHandPanel';
 
-import {LanguageSetting} from './AtelierLanguage';
 import { useState, useSyncExternalStore, useCallback } from 'react';
 
 import Link from 'next/link';
@@ -80,7 +79,6 @@ export default function CustomerProfile() {
 
     <div className="space-y-6" data-customer-profile>
 
-      <LanguageSetting/>
       <CustomerAccount user={user} onChange={changeUser} onReady={setReady} />
 
       <details key={user?.id || 'guest'} open={user ? true : undefined}>
