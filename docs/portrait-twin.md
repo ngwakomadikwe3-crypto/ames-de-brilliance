@@ -89,6 +89,49 @@ all. Its per-landmark offsets on our head also differ between people, so a fixed
 off. The next step is a silhouette fit against a face-skin segmentation (MediaPipe's selfie multiclass model). That
 needs the model file in `public/`, and this build environment cannot download it.
 
+### Round 2: outline fit (dual-source). Result: FAIL, flag stays off
+
+`face-outline.ts` with `face-segment.ts`:
+
+- **Segmentation.** MediaPipe's selfie multiclass segmenter (Apache-2.0) labels the face skin in each of the three
+  photos. The model is fetched at build to `public/hand-tracking/segment-v1.tflite`, with `/api/segment-model` as the
+  fallback.
+- **Territories.** The outline (face-skin edge) moves only the jaw, cheeks, temples and chin. The landmarks keep the
+  features: the nose, lips, eyes and brows are excluded from the outline, with a 6 mm fade.
+- **Joint fit.** Each round re-places every photo (2D shift and scale from its own outline gaps). It then collects
+  occluding-contour observations from all three photos, using a z-buffer to skip hidden contour points. The
+  observations are spread as one Gaussian field (10 mm), smoothed four times over the mesh and clamped to 6 mm. There
+  are three rounds.
+- **Hard limits** (`npm run test:face-outline`):
+  - the scalp, ears and neck have exactly zero weight;
+  - features are never outline;
+  - no weight step along any mesh edge exceeds 0.5;
+  - 1,813 of 20,208 skin vertices can move;
+  - the eyeballs are separate meshes and never move.
+
+**Acceptance** (subject c, real MediaPipe face mesh and segmenter on rendered photos, `entry-refine.tsx`):
+
+| px | front | 42° turn |
+|---|---|---|
+| gate | < 15.1 | < 19.9 |
+| morph solve | 16.47 | 19.88 |
+| outline fit | **16.36** | **20.51** |
+| true silhouette (face vs background): morph → outline fit | 10.24 → 10.89 | 11.10 → 11.04 |
+| aligned on all face vertices instead of landmarks: morph → outline fit | 17.16 → 16.90 | 20.77 → 21.61 |
+
+Neither view passes its gate, and the turned view regresses, so this is a FAIL under the rule. Flag `face-refine`
+stays off, the morph solve remains the default, and the twin lab's refine toggle works for both record types.
+
+**What the numbers say:**
+- The segmenter is accurate: its face edge is 1.36 px (front) and 2.94 px (turn) from the true silhouette.
+- The fit does match the photos. The mean outline gap fell from 9.5 to 3.9 px (front) and from 6.3 to 4.3 px (turn)
+  over the three rounds.
+- The head's shape against the truth did not improve, because the remaining ~10–20 px are dominated by where the head
+  is placed against the face. That placement comes from MediaPipe's landmarks, whose positions on a head vary by face
+  (round 1). A better outline fit cannot correct a placement error it is measured through.
+- **Next lever, not built:** solve placement and shape together from the outline, with the landmarks only as a weak
+  prior. Expect to re-measure the same table.
+
 ## Room light
 
 Flag `room-light`, on by default (`room-blend.ts`). Only while the camera is on, a 32×24 mirrored camera frame is

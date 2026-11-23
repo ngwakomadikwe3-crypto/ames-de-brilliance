@@ -16,6 +16,7 @@ import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import { growFeatures, disposeFeatures } from '../lib/portrait-features';
 import { readTwin, twinTones, harmonisedFaceTones } from '../lib/twin-profile';
 import type { FaceRefine } from '../lib/face-refine';
+import type { OutlineRefine } from '../lib/face-outline';
 
 type Head = Awaited<ReturnType<typeof loadPortraitHead>>;
 const AVERAGE_MACROS = ['afr-female', 'afr-male', 'asi-female', 'asi-male', 'cau-female', 'cau-male'].map(n => `id:base-${n}`);
@@ -25,7 +26,7 @@ export default function TwinLab() {
   const [head, setHead] = useState<Head | null>(null);
   const [axes, setAxes] = useState<Record<string, number>>({}), [ex, setEx] = useState<Record<string, number>>({});
   const [look, setLook] = useState<'clay' | 'skin'>('clay'), [wire, setWire] = useState(false), [macros, setMacros] = useState<'average' | 'zero'>('average');
-  const [refineOn, setRefineOn] = useState(false), refineRef = useRef<FaceRefine | null>(null);
+  const [refineOn, setRefineOn] = useState(false), refineRef = useRef<FaceRefine | OutlineRefine | null>(null);
   const [layer, setLayer] = useState(2), [filter, setFilter] = useState(''), [sheet, setSheet] = useState<string | null>(null), [busy, setBusy] = useState('');
   const api = useRef<{ apply: (w: Record<string, number>, e: Record<string, number>) => void; look: (l: 'clay' | 'skin', wire: boolean) => void; layer: (n: number) => void; yaw: (y: number) => void; snap: () => string } | null>(null);
 

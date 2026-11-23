@@ -3,8 +3,9 @@
 import { Color } from 'three';
 import { regionalTones, stubbleDensity, irisColour, type Lm, type Px, type Step } from './face-scan';
 import { fromImage, type P3 } from './face-morph';
-import { fitHead, fitExpression, irisScale, landmarksAt, type ScanFrame } from './portrait-fit';
-import { solveRefine, type FaceRefine } from './face-refine';
+import { fitHead, fitExpression, irisScale, type ScanFrame } from './portrait-fit';
+import { solveOutline, type OutlineRefine } from './face-outline';
+import { faceSegmenter } from './face-segment';
 import { flag } from './twin-flags';
 import { loadPortraitHead, basisFor, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, measureSpectacles } from './portrait-head';
 import { sampleHairColor } from './portrait-grooming';
@@ -85,11 +86,18 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
     smile = Object.fromEntries(E.names.map((n, i) => [n, Math.round(Math.min(w[i], CAPS[n] ?? 1) * 100) / 100]).filter(([, v]) => (v as number) > 0.02));
   }
   // true size: the head scaled so its pupils are as far apart as the customer's (from the irises, or the mean)
-  // System 1: per vertex, toward the scan itself, for what no morph can make (flag 'face-refine'; face-refine.ts)
-  let refine: FaceRefine | undefined;
+  // System 1, the outline fit (flag 'face-refine'; face-outline.ts): the photos' face outline moves the jaw, cheeks,
+  // temples and chin, jointly over every angle; the features stay with the landmarks (the morph solve)
+  let refine: OutlineRefine | undefined;
   if (flag('face-refine')) {
-    try { refine = solveRefine(landmarksAt(basis, names.map(n => weights[n] ?? 0)), frames, fit.poses); }
-    catch (e) { console.warn('The face refinement could not be made on this device:', e); }
+    try {
+      opt.onProgress?.('Tracing your outline…');
+      bakeIdentity(H.head, weights);
+      const base = meshPointsMm(H.skin, H.head), seg = await faceSegmenter();
+      const views = used.map((s, i) => ({ pose: fit.poses[i], seg: seg.segment(s.px as ImageData), width: s.px.width, height: s.px.height }));
+      const dbg: string[] = [], { observations, ...r } = solveOutline(base, H.skin.geometry.index!.array, anchoredPoints(base, H.anchors), views, undefined, dbg);
+      refine = r; console.info('outline fit observations per round', observations, dbg.join(' | '));
+    } catch (e) { console.warn('The outline fit could not run on this device:', e); }
   }
   bakeIdentity(H.head, weights, refine);
   let eyes = eyeCentres(H.parts, H.head);

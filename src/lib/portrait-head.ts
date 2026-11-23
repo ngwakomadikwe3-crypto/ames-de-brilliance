@@ -1,4 +1,5 @@
 import { refineField, type FaceRefine } from './face-refine';
+import type { OutlineRefine } from './face-outline';
 // The parametric portrait head at runtime: its landmarks (from UV positions), its identity and expression bases for
 // fitting, baking a fitted identity into the mesh (expressions stay live morphs), and the spectacle measurements.
 import { BufferAttribute, Matrix3, Matrix4, Vector3, type BufferGeometry, type Mesh, type Object3D } from 'three';
@@ -63,7 +64,7 @@ export function basisFor(mesh: Mesh, head: Object3D, anchors: Anchor[], names: s
 
 /** Bake identity weights into every part of the head (skin, eyes, teeth, tongue) and keep only the expression morphs
  *  live. Normals are recomputed and welded across UV seams. */
-export function bakeIdentity(head: Object3D, weights: Record<string, number>, refine?: FaceRefine | null) {
+export function bakeIdentity(head: Object3D, weights: Record<string, number>, refine?: FaceRefine | OutlineRefine | null) {
   head.traverse(o => {
     const mesh = o as Mesh; if (!mesh.isMesh || (!mesh.morphTargetDictionary && !mesh.userData.allMorphs)) return;
     const g = mesh.geometry, dict = mesh.morphTargetDictionary ?? {}, morph = g.morphAttributes.position ?? [], src = g.getAttribute('position');
@@ -83,7 +84,8 @@ export function bakeIdentity(head: Object3D, weights: Record<string, number>, re
     g.setAttribute('position', new BufferAttribute(out, 3));
     // System 1: the per-vertex refinement toward the customer's own scan (skin only; face-refine.ts)
     if (refine && /head.?skin/i.test(mesh.name)) {
-      const pts = meshPointsMm(mesh, head), d = refineField(pts, refine);
+      const d: P3[] = refine.v === 2 ? (() => { const z = Array.from({ length: src.count }, () => [0, 0, 0] as P3); refine.idx.forEach((i, k) => { if (i < z.length) z[i] = [refine.d[k * 3], refine.d[k * 3 + 1], refine.d[k * 3 + 2]]; }); return z; })()
+        : refineField(meshPointsMm(mesh, head), refine);
       const inv = new Matrix3().setFromMatrix4(new Matrix4().copy(head.parent ? new Matrix4().copy(head.parent.matrixWorld).invert() : new Matrix4()).multiply(mesh.matrixWorld)).invert();
       const v = new Vector3();
       for (let i = 0; i < d.length; i++) { if (!d[i][0] && !d[i][1] && !d[i][2]) continue; v.set(d[i][0], d[i][1], d[i][2]).applyMatrix3(inv); out[i * 3] += v.x; out[i * 3 + 1] += v.y; out[i * 3 + 2] += v.z; }
