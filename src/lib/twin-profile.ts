@@ -1,3 +1,4 @@
+import type { FaceRefine } from './face-refine';
 // One identity for both twins: the face scan's shape and tones, the hand scan's proportions (hand-profile.ts), and
 // ONE harmonised skin tone that both twins wear, so hands and face are always visibly the same person's skin.
 // When only one scan exists, its tone dresses both twins (never a pale default hand on a deep-toned face, or the
@@ -19,6 +20,7 @@ export type FaceIdentity = {
   hairColor: string; hairStyle: HairStyle; stubble: number; irisColor: string;
   skinMap?: string; skinConf?: string; skinRect?: [number, number, number, number];   // (the face's region of the UV atlas)    // the customer's own skin, projected from the photos onto the head's UV map (skin-bake.ts)
   headScale?: number;                     // true size, from the interpupillary distance
+  refine?: FaceRefine;                    // System 1: the per-vertex refinement toward the scan (face-refine.ts)
   tune?: Record<string, number>;          // the customer's fine-tune on top of the solved face (twin-build.ts FACE_TUNE)
   savedAt: number;
 };

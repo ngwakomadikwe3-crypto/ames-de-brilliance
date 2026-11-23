@@ -40,7 +40,9 @@
     "audit:portrait-morphs": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/audit-portrait-morphs.mjs",
     "test:face-mirror": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-mirror.mjs",
     "test:portrait-features": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-portrait-features.mjs",
-    "test:wand-gestures": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-wand-gestures.mjs"
+    "test:wand-gestures": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-wand-gestures.mjs",
+    "test:face-refine": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-refine.mjs",
+    "test:room-blend": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-room-blend.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

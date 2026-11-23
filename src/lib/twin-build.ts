@@ -3,7 +3,9 @@
 import { Color } from 'three';
 import { regionalTones, stubbleDensity, irisColour, type Lm, type Px, type Step } from './face-scan';
 import { fromImage, type P3 } from './face-morph';
-import { fitHead, fitExpression, irisScale, type ScanFrame } from './portrait-fit';
+import { fitHead, fitExpression, irisScale, landmarksAt, type ScanFrame } from './portrait-fit';
+import { solveRefine, type FaceRefine } from './face-refine';
+import { flag } from './twin-flags';
 import { loadPortraitHead, basisFor, bakeIdentity, meshPointsMm, anchoredPoints, eyeCentres, measureSpectacles } from './portrait-head';
 import { sampleHairColor } from './portrait-grooming';
 import { bakeSkinMap, FACE_OVAL } from './skin-bake';
@@ -83,7 +85,13 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
     smile = Object.fromEntries(E.names.map((n, i) => [n, Math.round(Math.min(w[i], CAPS[n] ?? 1) * 100) / 100]).filter(([, v]) => (v as number) > 0.02));
   }
   // true size: the head scaled so its pupils are as far apart as the customer's (from the irises, or the mean)
-  bakeIdentity(H.head, weights);
+  // System 1: per vertex, toward the scan itself, for what no morph can make (flag 'face-refine'; face-refine.ts)
+  let refine: FaceRefine | undefined;
+  if (flag('face-refine')) {
+    try { refine = solveRefine(landmarksAt(basis, names.map(n => weights[n] ?? 0)), frames, fit.poses); }
+    catch (e) { console.warn('The face refinement could not be made on this device:', e); }
+  }
+  bakeIdentity(H.head, weights, refine);
   let eyes = eyeCentres(H.parts, H.head);
   const frontShot = shots.find(s => s.step === 'front')!, front = frame(frontShot);
   const mmPerPx = irisScale(front);
@@ -125,6 +133,6 @@ export async function buildTwin(shots: Shot[], opt: { onProgress?: (msg: string)
   return {
     weights, smile, spectacles, tones, hairColor: sampleHairColor(frontShot.px, frontShot.l), hairStyle: 'cap',
     stubble: stubbleDensity(frontShot.px, frontShot.l), irisColor: irisColour(frontShot.px, frontShot.l),
-    headScale, skinMap: skin?.map, skinConf: skin?.conf, skinRect: skin?.rect, savedAt: Date.now(),
+    headScale, refine, skinMap: skin?.map, skinConf: skin?.conf, skinRect: skin?.rect, savedAt: Date.now(),
   };
 }

@@ -15,6 +15,7 @@ import { SKIN_ENV_YAW, portraitSkinV2, teethMaterial, tongueMaterial, lipBoxFrom
 import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import { growFeatures, disposeFeatures } from '../lib/portrait-features';
 import { readTwin, twinTones, harmonisedFaceTones } from '../lib/twin-profile';
+import type { FaceRefine } from '../lib/face-refine';
 
 type Head = Awaited<ReturnType<typeof loadPortraitHead>>;
 const AVERAGE_MACROS = ['afr-female', 'afr-male', 'asi-female', 'asi-male', 'cau-female', 'cau-male'].map(n => `id:base-${n}`);
@@ -24,6 +25,7 @@ export default function TwinLab() {
   const [head, setHead] = useState<Head | null>(null);
   const [axes, setAxes] = useState<Record<string, number>>({}), [ex, setEx] = useState<Record<string, number>>({});
   const [look, setLook] = useState<'clay' | 'skin'>('clay'), [wire, setWire] = useState(false), [macros, setMacros] = useState<'average' | 'zero'>('average');
+  const [refineOn, setRefineOn] = useState(false), refineRef = useRef<FaceRefine | null>(null);
   const [layer, setLayer] = useState(2), [filter, setFilter] = useState(''), [sheet, setSheet] = useState<string | null>(null), [busy, setBusy] = useState('');
   const api = useRef<{ apply: (w: Record<string, number>, e: Record<string, number>) => void; look: (l: 'clay' | 'skin', wire: boolean) => void; layer: (n: number) => void; yaw: (y: number) => void; snap: () => string } | null>(null);
 
@@ -89,7 +91,7 @@ export default function TwinLab() {
       const dress = () => { for (const [m, mat] of own) { m.material = mode === 'skin' ? mat : clay; } clay.wireframe = wireOn; if (details) details.visible = mode === 'skin'; if (features) features.brows.visible = features.lashes.visible = mode === 'skin'; };
       api.current = {
         apply: (w, e) => {
-          bakeIdentity(H.head, w);
+          bakeIdentity(H.head, w, refineRef.current);   // System 1, when switched on
           const p2 = meshPointsMm(H.skin, H.head), lm2 = anchoredPoints(p2, H.anchors), e2 = eyeCentres(H.parts, H.head);
           if (details) frame.remove(details);
           details = eyeAndMouthDetails(lm2, e2, 12, null); frame.add(details);
@@ -121,7 +123,7 @@ export default function TwinLab() {
     return () => { stopped = true; cancelAnimationFrame(raf); r.dispose(); };
   }, []);
 
-  useEffect(() => { api.current?.apply(weights, ex); }, [weights, ex, head]);
+  useEffect(() => { refineRef.current = refineOn ? readTwin()?.face?.refine ?? null : null; api.current?.apply(weights, ex); }, [weights, ex, head, refineOn]);
   // link presets (?twin=1 the saved twin, ?smile=1 the placement smile at its peak, ?look=skin, ?yaw=0): for checks
   useEffect(() => {
     if (!head) return; const q = new URLSearchParams(location.search), t = readTwin()?.face;
@@ -129,6 +131,7 @@ export default function TwinLab() {
     if (q.get('twin') && t) { const v: Record<string, number> = {}; for (const a of axisList) v[a.id] = (t.weights[a.pos] ?? 0) - (a.neg ? t.weights[a.neg] ?? 0 : 0); setAxes(v); }
     if (q.get('smile')) setEx({ 'ex:smile': 0.85, 'ex:cheeks-up': 0.3, 'ex:squint': 0.12, 'ex:part': 0.15, 'ex:brows-soft': 0.2 });
     if (q.get('look') === 'skin') setLook('skin');
+    if (q.get('twin') && t?.refine && q.get('refine') !== '0') setRefineOn(true);
     if (q.get('layer')) setLayer(Number(q.get('layer')));
     if (q.get('yaw')) api.current?.yaw(Number(q.get('yaw')));
     }, 0);
@@ -179,6 +182,8 @@ export default function TwinLab() {
       <div className="absolute left-3 top-3 flex flex-wrap gap-2 text-xs">
         {(['clay', 'skin'] as const).map(l => <button key={l} type="button" aria-pressed={look === l} onClick={() => setLook(l)} className="ames-pill rounded-full px-3 py-1">{l}</button>)}
         <button type="button" aria-pressed={wire} onClick={() => setWire(w => !w)} className="ames-pill rounded-full px-3 py-1">wireframe</button>
+        {/* System 1: the saved twin's per-vertex refinement on top of the morph solve */}
+        {twin?.face?.refine && <button type="button" aria-pressed={refineOn} onClick={() => setRefineOn(v => !v)} className="ames-pill rounded-full px-3 py-1" data-lab-refine>refine</button>}
         {/* the skin's layers, to isolate a regression in one tap: A base skin, B the scan photo, C lips, teeth and features */}
         {(['A', 'A+B', 'A+B+C'] as const).map((l, i) => <button key={l} type="button" aria-pressed={look === 'skin' && layer === i} onClick={() => { setLook('skin'); setLayer(i); }} className="ames-pill rounded-full px-3 py-1" data-layer={l}>{l}</button>)}
       </div>

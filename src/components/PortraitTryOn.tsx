@@ -30,6 +30,8 @@ import { eyeAndMouthDetails } from '../lib/portrait-eyes';
 import { sanitizeWeights } from '../lib/portrait-weights';
 import { FaceMirror } from '../lib/face-mirror';
 import { flag } from '../lib/twin-flags';
+import { blendRoom, type RoomBlend } from '../lib/room-blend';
+import { estimateRoomLight } from '../lib/ar/room-light';
 import FaceScan from './FaceScan';
 import type { P3 } from '../lib/face-morph';
 
@@ -129,7 +131,7 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
       const H = await loadPortraitHead(); if (stopped) return;
       const ids = H.meta.identity.filter(n => !/head-scale-/.test(n));
       const weights = face ? sanitizeWeights(tunedWeights(face.weights, tuneRef.current ?? face.tune), ids, H.limits) : AVERAGE;
-      bakeIdentity(H.head, weights);
+      bakeIdentity(H.head, weights, face?.refine && flag('face-refine') ? face.refine : null);   // System 1: the per-vertex refinement
       // true size: the scanned interpupillary distance (or the adult mean), so jewellery sits at its real scale
       { const e0 = eyeCentres(H.parts, H.head), pd0 = Math.hypot(e0.left[0] - e0.right[0], e0.left[1] - e0.right[1], e0.left[2] - e0.right[2]);
         H.head.scale.multiplyScalar(face?.headScale ?? Math.max(0.9, Math.min(1.1, MEAN_PD_MM / pd0))); H.head.updateMatrixWorld(true); }
@@ -265,6 +267,11 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
     let last = performance.now();
     const swayQ = new Quaternion(), tmp = new Quaternion();
     let flush = 0;
+    const roomOn = flag('room-light'), roomCanvas = document.createElement('canvas'); roomCanvas.width = 32; roomCanvas.height = 24;
+    let roomAt = 0, room: RoomBlend | null = null;
+    const keyBase = key.color.clone(), studioPos = key.position.clone();
+    const studioDirNow = () => studioPos.clone().sub(key.target.position).normalize().toArray() as [number, number, number];
+    const roomNow = { dir: studioDirNow(), col: [1, 1, 1] as [number, number, number], ex: 1.2, on: false };
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -273,6 +280,26 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
         if (mat) { faceSeen = now; m4.fromArray(mat as unknown as number[]); const q = new Quaternion().setFromRotationMatrix(m4); faceTarget.set(q.x, -q.y, -q.z, q.w).normalize(); }
         const cats = res.faceBlendshapes?.[0]?.categories;
         if (mirrorOn && cats?.length) liveFace = mirror.update(cats, now);
+      }
+      // room light (flag 'room-light'): a few times a second, a tiny mirrored frame of the camera nudges the key's
+      // direction and colour and the exposure toward the customer's room (room-blend.ts), eased
+      if (tracker && video.readyState >= 2 && roomOn && now - roomAt > 400) {
+        roomAt = now; const c = roomCanvas.getContext('2d', { willReadFrequently: true })!;
+        c.setTransform(-1, 0, 0, 1, roomCanvas.width, 0); c.drawImage(video, 0, 0, roomCanvas.width, roomCanvas.height);
+        room = blendRoom(estimateRoomLight(c.getImageData(0, 0, roomCanvas.width, roomCanvas.height).data, roomCanvas.width, roomCanvas.height), studioDirNow(), 1.2);
+      }
+      if (roomOn && (tracker || roomNow.on)) {
+        const k = 1 - Math.exp(-dt / 0.8), want = tracker && room ? room : null, sd = studioDirNow();
+        if (!roomNow.on) roomNow.dir = sd;
+        const dir = want ? want.keyDir : sd, col = want ? want.keyColour : [1, 1, 1], ex = want ? want.exposure : 1.2;
+        roomNow.dir = roomNow.dir.map((v, i) => v + (dir[i] - v) * k) as [number, number, number];
+        roomNow.col = roomNow.col.map((v, i) => v + (col[i] - v) * k) as [number, number, number]; roomNow.ex += (ex - roomNow.ex) * k;
+        const back = !want && Math.abs(roomNow.ex - 1.2) < 1e-3 && roomNow.col.every(v => Math.abs(v - 1) < 1e-3) && roomNow.dir.every((v, i) => Math.abs(v - sd[i]) < 1e-3);
+        roomNow.on = !back;
+        if (back) { key.position.copy(studioPos); key.color.copy(keyBase); renderer.toneMappingExposure = 1.2; }    // exactly the studio again
+        else { key.position.copy(key.target.position).add(new Vector3(...roomNow.dir).multiplyScalar(studioPos.distanceTo(key.target.position)));
+          key.color.copy(keyBase).multiply(new Color(...roomNow.col)); renderer.toneMappingExposure = roomNow.ex; }
+        skinMat?.uniforms.uKeyDir.value.copy(key.position).normalize();
       }
       const live = !!tracker && now - faceSeen < 600;
       const s = life.step(dt, reduced.matches);

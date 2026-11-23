@@ -59,6 +59,46 @@ Flags (`twin-flags.ts`): 'live-mirror', 'expression-skin' (on), turned off per v
 device in localStorage 'ames-flags'. The twin lab has an A / A+B / A+B+C switch for the skin's layers (A base skin, B the
 scan photo, C lips and teeth).
 
+## Face refinement (System 1): built, measured, off by default
+
+FLAME (under DECA and EMOCA) is licensed for non-commercial use only, so System 1 takes the free route: the morph
+solve, then a per-vertex refinement toward the scan (`face-refine.ts`, flag `face-refine`):
+
+- **Offsets.** For each of MediaPipe's 468 landmarks, one weighted least squares across all frames finds its offset.
+  x and y are sharp, camera depth counts 0.08, and the far side of a turn counts 0.1.
+- **Clean-up.** A soft 0.3 mm noise threshold, 5 mm neighbour smoothing, a 7 mm cap, and nothing at all within 7–15 mm
+  of the eye openings.
+- **Spread.** The offsets reach the skin as a smooth Gaussian field that fades to zero away from the face, so the
+  scalp, ears, neck and every jewellery anchor stay where the rig puts them.
+
+The result is saved with the twin as about 13 KB. The twin lab has a "refine" toggle for it.
+
+**Measured.**
+- **Simulated landmarks** (`npm run test:face-refine`): on a person with a bent nose, a wider jaw and a hollow cheek,
+  the refinement is 40–60 % closer than the morph solve at the nose, jaw and cheek. The front silhouette is 45 %
+  tighter, and a face the morphs already explain is not made worse.
+- **Real detector:** subject `c` (the same quirks) was rendered and read by the real MediaPipe. The harness overlay
+  (`entry-refine.tsx`) then measured the face silhouette:
+  - front: 16.5 → 15.1 px;
+  - 42° turn: 19.9 → 24.6 px (worse);
+  - nose edge: no change.
+
+The reason is that MediaPipe's landmark model has a strong prior of its own. It did not register the 3 mm nose bend at
+all. Its per-landmark offsets on our head also differ between people, so a fixed calibration made one subject worse
+(`scripts/calibrate-landmarks.mjs`, leave-one-out). The landmarks alone cannot carry this detail, so the flag stays
+off. The next step is a silhouette fit against a face-skin segmentation (MediaPipe's selfie multiclass model). That
+needs the model file in `public/`, and this build environment cannot download it.
+
+## Room light
+
+Flag `room-light`, on by default (`room-blend.ts`). Only while the camera is on, a 32×24 mirrored camera frame is
+read a few times a second. Its mean gives the light's brightness and colour, and its weighted centroid gives its
+direction. Together these are a first-order spherical-harmonic read of the room.
+
+That read moves the studio key at most halfway toward the room's light, never from below or behind. It tints the key
+without changing its brightness and keeps the exposure within ±25 %, easing over about a second. With the camera off,
+the studio rig comes back exactly. `npm run test:room-blend` covers this.
+
 ## The look (`src/lib/portrait-materials.ts`, `portrait-grooming.ts`)
 
 Lit by the same HDR studio as the jewellery, ACES Filmic. Roughness by zone: T-zone ~0.42, cheeks ~0.55, lips
