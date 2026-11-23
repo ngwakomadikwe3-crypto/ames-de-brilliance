@@ -30,6 +30,9 @@ export async function renderPoster(glb: Uint8Array, category: Category, size = 9
     const volumeMeshes: Mesh[] = [];
     root.traverse(o => {
       const mesh = o as Mesh; if (!mesh.isMesh) return; const data = mesh.userData as { ames_cut?: string; ames_pave_layout?: string; ames_optical_mode?: string; ames_gemstone_id?: string; ames_rough?: boolean };
+      // Watch glass: in a still there is nothing behind it to refract, and opaque it hides the dial; show the dial
+      // through a faint clear sheen instead.
+      if (/watch glass|crystal glass/i.test(String((mesh.material as MeshPhysicalMaterial).name))) { mesh.material = new MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.06, roughness: 0, metalness: 0, depthWrite: false }); return; }
       // Rough crystals: frosted, light passing through the skin.
       if (data.ames_rough) { const m = mesh.material as MeshPhysicalMaterial; mesh.geometry.computeVertexNormals(); mesh.material = new MeshPhysicalMaterial({ color: m.color.clone().multiplyScalar(0.16), roughness: 0.2, metalness: 0, ior: m.ior || 2.4, specularIntensity: 1, clearcoat: 0.7, clearcoatRoughness: 0.28, envMapIntensity: 1.1 }); return; }
       const id = String(data.ames_gemstone_id || 'stone-diamond');

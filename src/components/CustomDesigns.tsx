@@ -123,9 +123,9 @@ export function DesignTile({ design, onOpen }: { design: CustomDesign; onOpen: (
   const { t } = useAtelierLanguage();
   return (
     <button type="button" onClick={onOpen} data-design-tile={design.code} aria-label={`Open ${design.name}`} className="ames-piece-tile flex min-h-0 flex-col text-center" style={{ width: '100%', alignSelf: 'start' }}>
-      {/* like every boutique tile: the piece itself, cut out on the silk (a still of its own 3D model), no photo frame */}
+      {/* like every boutique tile: the piece itself, cut out on the silk (a still of its own 3D model, from the app's poster renderer: the live viewer's gem optics), no photo frame */}
       <div className="ames-piece-image flex w-full items-center justify-center overflow-hidden" style={{ aspectRatio: '4 / 5' }}>
-        {design.glb ? <img src={`/atelier/designs/${design.code}/tile-v1.webp`} alt={design.alt.front} width={720} height={900} loading="lazy" decoding="async" draggable={false} className="h-full w-full object-contain" />
+        {design.glb ? <img src={`/atelier/designs/${design.code}/tile-v2.webp`} alt={design.alt.front} width={900} height={900} loading="lazy" decoding="async" draggable={false} className="h-full w-full object-contain" />
           : design.images.front ? <DesignPicture image={design.images.front} alt={design.alt.front} /> : <ImageToCome label="Front view on its way" />}
       </div>
       <div className="flex flex-col items-center gap-1 px-0.5 pt-1">
