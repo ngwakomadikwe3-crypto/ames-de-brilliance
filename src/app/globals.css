@@ -1102,8 +1102,10 @@ body:has(.ames-account-shell) > footer { display: none; }
 /* Colourways share the original satin fold map and its motion. */
 .ames-app-shell[data-silk=burgundy] { --ames-fabric-photo:url('/satin-burgundy.webp'); --silk-surface:#30131d; }
 .ames-app-shell[data-silk=dark] { --ames-fabric-photo:url('/satin-dark.webp'); --silk-surface:#212225; }
+.ames-app-shell[data-silk=sapphire] { --ames-fabric-photo:url('/satin-sapphire.webp'); --silk-surface:#0a2547; }
+.ames-app-shell[data-silk=amethyst] { --ames-fabric-photo:url('/satin-amethyst.webp'); --silk-surface:#2a0c40; }
 .ames-app-shell[data-silk=white] { --ames-fabric-photo:url('/satin-white.webp'); --silk-surface:#faf9f7; --silk-ink:#141414; color-scheme:light; }
-.ames-app-shell:is([data-silk=dark],[data-silk=burgundy]) { --silk-ink:#f5f5f5; color-scheme:dark; }
+.ames-app-shell:is([data-silk=dark],[data-silk=burgundy],[data-silk=sapphire],[data-silk=amethyst]) { --silk-ink:#f5f5f5; color-scheme:dark; }
 .ames-app-shell[data-silk]:not([data-silk=emerald]) :is([data-app-bar],[data-app-menu],.ames-page-index,[data-chat-surface],[data-chat-message=assistant],dialog) {
   background:var(--silk-surface) !important; color:var(--silk-ink) !important;
 }
@@ -1125,7 +1127,9 @@ body:has(.ames-account-shell) > footer { display: none; }
 html[data-silk=white]{--site-silk:url('/satin-white.webp');--site-ink:#141414;--site-surface:#faf9f7}
 html[data-silk=dark]{--site-silk:url('/satin-dark.webp');--site-ink:#f5f5f5;--site-surface:#212225}
 html[data-silk=burgundy]{--site-silk:url('/satin-burgundy.webp');--site-ink:#f5f5f5;--site-surface:#30131d}
-html:is([data-silk=white],[data-silk=dark],[data-silk=burgundy]) body:not(:has(.ames-app-shell)){
+html[data-silk=sapphire]{--site-silk:url('/satin-sapphire.webp');--site-ink:#f5f5f5;--site-surface:#0a2547}
+html[data-silk=amethyst]{--site-silk:url('/satin-amethyst.webp');--site-ink:#f5f5f5;--site-surface:#2a0c40}
+html:is([data-silk=white],[data-silk=dark],[data-silk=burgundy],[data-silk=sapphire],[data-silk=amethyst]) body:not(:has(.ames-app-shell)){
  background:var(--site-surface) var(--site-silk) center/cover fixed; color:var(--site-ink);
  --color-background:transparent;--color-foreground:var(--site-ink);--color-surface:var(--site-surface);--color-muted:var(--site-ink)
 }
