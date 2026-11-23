@@ -44,7 +44,8 @@
     "test:face-refine": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-refine.mjs",
     "test:room-blend": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-room-blend.mjs",
     "test:face-outline": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-face-outline.mjs",
-    "test:texture-capture": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-texture-capture.mjs"
+    "test:texture-capture": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-texture-capture.mjs",
+    "test:uv-flow": "node --experimental-strip-types --import ./scripts/ts-resolve.mjs scripts/test-uv-flow.mjs"
   },
   "dependencies": {
     "@gltf-transform/core": "^4.3.0",

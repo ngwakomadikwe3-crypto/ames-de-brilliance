@@ -7,15 +7,15 @@
 //     spherical harmonics (9 terms), i.e. the irradiance of ANY distant lighting, times one average skin colour. Two
 //     robust passes drop freckles, moles, brows and cast shadows from the fit. Dividing the photo by its fitted
 //     shading leaves the skin's colour relative to its average: the room's light, its direction and its colour are gone.
-//  2. Merge robustly. Each frame is projected into the face's UV region (only where it sees the skin within 60 degrees
-//     of its axis, unhidden, inside the face outline, away from the eyes, skin-coloured, not clipped), weighted by how
-//     squarely and how sharply it sees it. A first pass takes the weighted mean; a second pass takes it again with
-//     every sample down-weighted by how far it is from that mean. Cast shadows and specular highlights MOVE across the
-//     face as the head turns in a fixed room, so in most frames a given spot is neither: the outliers lose.
-//  3. Accumulate at 2048 texels across the face's UV region (the single-photo map was 1024): 10-15 frames at slightly
-//     different poses each land on the texel grid at a different sub-pixel offset, so the merged map resolves finer
-//     detail than any one photo projected alone.
-//  4. Maps from the merged albedo: the colour ratio to its own ~6 mm average (colour detail at half strength) (the twin's LAB tone and zones keep the
+//  2. Align densely. Every frame's de-lit projection is registered to the front frame IN UV SPACE by pyramidal optical
+//     flow on the fine detail (log luminance minus its own blur, so leftover shading cannot pull it). The landmark
+//     pose only seeds the projection; the flow does the fine alignment (uvFlow, test:uv-flow: under one texel).
+//  3. Fuse with a 25 % trimmed mean by luminance per texel (a median for three or fewer frames), weighted by how
+//     squarely and how sharply each frame sees it. Cast shadows and highlights move across the face as the head turns
+//     in a fixed room, so at any texel they are the outliers, and are dropped rather than averaged into mottling.
+//     The map is 2048 texels across the face's UV region (the single-photo map is 1024).
+//  4. Maps from the merged albedo: the colour ratio to its own ~2 mm average (fine detail at full strength) times the
+//     2-6 mm band at MID_BAND (where leftover de-light shading lives), colour detail at half strength (the twin's LAB tone and zones keep the
 //     broad colour, exactly as before), a normal map from the ratio's luminance as a height field (pores, fine lines),
 //     a roughness map (finer and darker detail slightly rougher), and the SSS weight (the ratio's redness, read in the
 //     shader).
@@ -29,7 +29,7 @@
 //  - Motion blur below the capture gate still softens the merge; the sharpness weight limits it.
 import {
   BufferAttribute, BufferGeometry, Camera, DataTexture, DoubleSide, FloatType, GLSL3, HalfFloatType, LinearFilter, LinearMipmapLinearFilter,
-  Matrix3, Mesh, NearestFilter, OneFactor, AddEquation, CustomBlending, PlaneGeometry, RGBAFormat, Scene, ShaderMaterial, UnsignedByteType, Vector2, Vector3, Vector4,
+  Matrix3, Mesh, NearestFilter, OneFactor, AddEquation, CustomBlending, NoBlending, RGBAFormat, Scene, ShaderMaterial, UnsignedByteType, Vector2, Vector3, Vector4,
   WebGLRenderer, WebGLRenderTarget,
 } from 'three';
 import type { P3 } from './face-morph';
@@ -40,9 +40,12 @@ export type V2View = { img: { data: Uint8ClampedArray; width: number; height: nu
 export type V2Input = { points: P3[]; normals: P3[]; uv: ArrayLike<number>; index: ArrayLike<number>; views: V2View[]; tone: number[]; eyes: P3[][];
   rect: [number, number, number, number]; size?: number };
 export type SkinV2 = { map: string; conf: string; maps: string; rect: [number, number, number, number]; coverage: number;
-  stats: { ms: number; frames: number; shFitRms: number[] } };
+  stats: { ms: number; frames: number; shFitRms: number[]; flowTexels: number[]; ncc: number[][] } };
+let flowStats: number[] = [], nccStats: number[][] = [];
 
 const OVAL = 36;
+/** Strength of the 2-6 mm band in the final map (the de-light residual lives there; 0 = fine detail only). */
+export const MID_BAND = 0;
 const lin = (v: number) => (v / 255) ** 2.2;
 const sh9 = (n: number[]) => [1, n[1], n[2], n[0], n[0] * n[1], n[1] * n[2], 3 * n[2] * n[2] - 1, n[0] * n[2], n[0] * n[0] - n[1] * n[1]];
 const rows = (p: Pose) => new Matrix3().set(p.R[0][0], p.R[0][1], p.R[0][2], p.R[1][0], p.R[1][1], p.R[1][2], p.R[2][0], p.R[2][1], p.R[2][2]);
@@ -109,7 +112,7 @@ export function bakeSkinV2(input: V2Input, renderer?: WebGLRenderer): SkinV2 {
   geo.setIndex(new BufferAttribute(Uint32Array.from(input.index), 1));
   const cam = new Camera(), disposables: { dispose(): void }[] = [geo];
   const floatOk = r.extensions.has('EXT_color_buffer_float');
-  const acc = [0, 1].map(() => new WebGLRenderTarget(size, size, { type: HalfFloatType, minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: false }));
+  const acc = [new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false })];   // (the per-frame pass never reads it)
   disposables.push(...acc);
   const depthRT = new WebGLRenderTarget(512, 512, { type: floatOk ? FloatType : HalfFloatType, minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: true });
   disposables.push(depthRT);
@@ -124,11 +127,11 @@ export function bakeSkinV2(input: V2Input, renderer?: WebGLRenderer): SkinV2 {
     blending: CustomBlending, blendEquation: AddEquation, blendSrc: OneFactor, blendDst: OneFactor,
     uniforms: { uPhoto: { value: null }, uDepth: { value: null }, uMean: { value: null }, uPass: { value: 0 }, uR: { value: new Matrix3() }, uS: { value: 1 }, uT: { value: new Vector3() },
       uWH: { value: new Vector2() }, uSH: { value: [] as Vector3[] }, uOval: { value: [] as Vector2[] }, uFeather: { value: 1 }, uSharp: { value: 1 },
-      uTone: { value: new Vector3(...input.tone) }, uEye: { value: eyePts }, uRect: { value: new Vector4(...input.rect) } },
+      uOne: { value: 0 }, uTone: { value: new Vector3(...input.tone) }, uEye: { value: eyePts }, uRect: { value: new Vector4(...input.rect) } },
     vertexShader: `in vec3 aP; in vec3 aN; out vec3 vP; out vec3 vN; uniform vec4 uRect;
       void main() { vP = aP; vN = aN; gl_Position = vec4((position.xy - uRect.xy) / uRect.zw * 2.0 - 1.0, 0.0, 1.0); }`,
     fragmentShader: `precision highp float; in vec3 vP; in vec3 vN; out vec4 o;
-      uniform sampler2D uPhoto, uDepth, uMean; uniform float uPass, uS, uFeather, uSharp; uniform mat3 uR; uniform vec3 uT; uniform vec2 uWH;
+      uniform sampler2D uPhoto, uDepth, uMean; uniform float uPass, uS, uFeather, uSharp, uOne; uniform mat3 uR; uniform vec3 uT; uniform vec2 uWH;
       uniform vec3 uSH[9]; uniform vec2 uOval[${OVAL}]; uniform vec3 uTone; uniform vec3 uEye[32];
       vec3 lin(vec3 c) { return pow(c, vec3(2.2)); }
       float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
@@ -159,7 +162,7 @@ export function bakeSkinV2(input: V2Input, renderer?: WebGLRenderer): SkinV2 {
           float dev = lum(d) / max(1e-3, lum(mu)) - 1.0; w *= exp(-dev * dev / 0.012);
         }
         if (w <= 1e-4) discard;
-        o = vec4(d * w, w);
+        o = uOne > 0.5 ? vec4(clamp(d * 0.5, 0.0, 1.0), clamp(w, 0.0, 1.0)) : vec4(d * w, w);
       }` });
   disposables.push(depthMat, bakeMat);
   const dScene = new Scene(); dScene.add(new Mesh(geo, depthMat));
@@ -167,42 +170,63 @@ export function bakeSkinV2(input: V2Input, renderer?: WebGLRenderer): SkinV2 {
   const photos = views.map(v => { const t = new DataTexture(new Uint8Array(v.img.data.buffer.slice(0)), v.img.width, v.img.height, RGBAFormat, UnsignedByteType);
     t.flipY = false; t.generateMipmaps = true; t.minFilter = LinearMipmapLinearFilter; t.magFilter = LinearFilter; t.needsUpdate = true; disposables.push(t); return t; });
   const maxSharp = Math.max(...views.map(v => v.sharpness), 1);
-  for (let pass = 0; pass < 2; pass++) {
-    r.setRenderTarget(acc[pass]); r.setClearColor(0x000000, 0); r.clear();
-    views.forEach((v, k) => {
-      const zs = input.points.map(p => v.pose.s * (v.pose.R[2][0] * p[0] + v.pose.R[2][1] * p[1] + v.pose.R[2][2] * p[2]) + v.pose.t[2]);
-      Object.assign(depthMat.uniforms.uR, { value: rows(v.pose) }); depthMat.uniforms.uS.value = v.pose.s; depthMat.uniforms.uT.value.set(...v.pose.t);
-      depthMat.uniforms.uWH.value.set(v.img.width, v.img.height); depthMat.uniforms.uZ.value.set(Math.min(...zs) - 10, Math.max(...zs) + 10);
-      depthRT.setSize(512, Math.round(512 * v.img.height / v.img.width));
-      r.setRenderTarget(depthRT); r.setClearColor(0x000000, 0); r.clear(); r.render(dScene, cam);
-      const U = bakeMat.uniforms;
-      U.uPhoto.value = photos[k]; U.uDepth.value = depthRT.texture; U.uMean.value = acc[pass ? 0 : 1].texture; U.uPass.value = pass;
-      U.uR.value = rows(v.pose); U.uS.value = v.pose.s; U.uT.value.set(...v.pose.t); U.uWH.value.set(v.img.width, v.img.height);
-      U.uSH.value = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => new Vector3(fits[k].coef[0][j], fits[k].coef[1][j], fits[k].coef[2][j]));
-      U.uOval.value = v.oval.slice(0, OVAL).map(([x, y]) => new Vector2(x, y));
-      U.uFeather.value = 0.05 * Math.hypot(v.oval[8][0] - v.oval[28][0], v.oval[8][1] - v.oval[28][1]); U.uSharp.value = v.sharpness / maxSharp;
-      r.setRenderTarget(acc[pass]); r.autoClear = false; r.render(bScene, cam); r.autoClear = true;
-    });
+  // the region of the map any frame can see (texels): every frame is read back only there
+  const [rx, ry, rw, rh] = input.rect; let u0 = size, v0 = size, u1 = 0, v1 = 0;
+  for (let i = 0; i < n; i++) {
+    const nn = input.normals[i]; if (!views.some(v => v.pose.R[2][0] * nn[0] + v.pose.R[2][1] * nn[1] + v.pose.R[2][2] * nn[2] > 0.45)) continue;
+    const x = (input.uv[i * 2] - rx) / rw * size, y = (input.uv[i * 2 + 1] - ry) / rh * size;
+    if (x < 0 || y < 0 || x >= size || y >= size) continue; u0 = Math.min(u0, x); v0 = Math.min(v0, y); u1 = Math.max(u1, x); v1 = Math.max(v1, y);
   }
-  // normalise into bytes: rgb = de-lit colour / 2, a = confidence
-  const norm = new ShaderMaterial({ glslVersion: GLSL3, uniforms: { uAcc: { value: acc[1].texture } }, depthTest: false,
-    vertexShader: `void main() { gl_Position = vec4(position.xy * 2.0, 0.0, 1.0); }`,
-    fragmentShader: `precision highp float; uniform sampler2D uAcc; out vec4 o;
-      void main() { vec4 a = texelFetch(uAcc, ivec2(gl_FragCoord.xy), 0); o = a.a > 1e-4 ? vec4(clamp(a.rgb / a.a * 0.5, 0.0, 1.0), clamp(a.a * 3.0, 0.0, 1.0)) : vec4(0.0); }` });
-  const out = new WebGLRenderTarget(size, size, { type: UnsignedByteType, depthBuffer: false });
-  disposables.push(norm, out);
-  const qScene = new Scene(); qScene.add(new Mesh(new PlaneGeometry(1, 1), norm));
-  r.setRenderTarget(out); r.clear(); r.render(qScene, cam); r.setRenderTarget(null);
-  const px = new Uint8Array(size * size * 4); r.readRenderTargetPixels(out, 0, 0, size, size, px);
+  const X0 = Math.max(0, Math.floor(u0) - 8), Y0 = Math.max(0, Math.floor(v0) - 8), RW = Math.min(size, Math.ceil(u1) + 8) - X0, RH = Math.min(size, Math.ceil(v1) + 8) - Y0;
+  // 1-2. every frame de-lit and projected on its own (no blending), read back over that region
+  const one = new WebGLRenderTarget(size, size, { type: UnsignedByteType, minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: false });
+  disposables.push(one);
+  bakeMat.blending = NoBlending; bakeMat.transparent = false;
+  const frames: Uint8Array[] = views.map((v, k) => {
+    const zs = input.points.map(p => v.pose.s * (v.pose.R[2][0] * p[0] + v.pose.R[2][1] * p[1] + v.pose.R[2][2] * p[2]) + v.pose.t[2]);
+    depthMat.uniforms.uR.value = rows(v.pose); depthMat.uniforms.uS.value = v.pose.s; depthMat.uniforms.uT.value.set(...v.pose.t);
+    depthMat.uniforms.uWH.value.set(v.img.width, v.img.height); depthMat.uniforms.uZ.value.set(Math.min(...zs) - 10, Math.max(...zs) + 10);
+    depthRT.setSize(512, Math.round(512 * v.img.height / v.img.width));
+    r.setRenderTarget(depthRT); r.setClearColor(0x000000, 0); r.clear(); r.render(dScene, cam);
+    const U = bakeMat.uniforms;
+    U.uPhoto.value = photos[k]; U.uDepth.value = depthRT.texture; U.uMean.value = acc[0].texture; U.uPass.value = 0;
+    U.uR.value = rows(v.pose); U.uS.value = v.pose.s; U.uT.value.set(...v.pose.t); U.uWH.value.set(v.img.width, v.img.height);
+    U.uSH.value = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => new Vector3(fits[k].coef[0][j], fits[k].coef[1][j], fits[k].coef[2][j]));
+    U.uOval.value = v.oval.slice(0, OVAL).map(([x, y]) => new Vector2(x, y));
+    U.uFeather.value = 0.05 * Math.hypot(v.oval[8][0] - v.oval[28][0], v.oval[8][1] - v.oval[28][1]); U.uSharp.value = v.sharpness / maxSharp;
+    U.uOne.value = 1;
+    r.setRenderTarget(one); r.setClearColor(0x000000, 0); r.clear(); r.render(bScene, cam);
+    const buf = new Uint8Array(RW * RH * 4); r.readRenderTargetPixels(one, X0, Y0, RW, RH, buf); return buf;
+  });
+  r.setRenderTarget(null);
+  // 3. dense alignment in UV space: every frame registered to the front frame (index 0) by pyramidal optical flow
+  nccStats = []; const ref = 0, flows: (Float32Array | null)[] = frames.map((f, k) => (k === ref ? null : uvFlow(frames[ref], f, RW, RH)));
+  // safety net: a frame's alignment is kept only if it raises its fine-detail correlation with the front frame
+  const refD = detailBand(frames[ref], RW, RH);
+  const aligned = frames.map((f, k) => { if (!flows[k]) return f; const a = warp(f, flows[k]!, RW, RH), before = ncc(refD, detailBand(f, RW, RH)), after = ncc(refD, detailBand(a, RW, RH));
+    nccStats.push([+before.toFixed(2), +after.toFixed(2)]); if (after > before + 0.02) return a; flows[k] = null; return f; });
+  flowStats = flows.filter(Boolean).map(fl => { let m = 0, c = 0; for (let i = 0; i < fl!.length; i += 2) { const l = Math.hypot(fl![i], fl![i + 1]); if (l > 0) { m += l; c++; } } return c ? +(m / c).toFixed(2) : 0; });
+  // 4. fusion: per texel, a 25 % trimmed mean by luminance across the aligned frames (a median for 3 or fewer)
+  const px = new Uint8Array(size * size * 4), sv: { l: number; r: number; g: number; b: number; w: number }[] = [];
+  for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
+    const o = (y * RW + x) * 4; sv.length = 0;
+    for (const f of aligned) { const w = f[o + 3] / 255; if (w > 0.04) sv.push({ l: 0.2126 * f[o] + 0.7152 * f[o + 1] + 0.0722 * f[o + 2], r: f[o], g: f[o + 1], b: f[o + 2], w }); }
+    if (!sv.length) continue;
+    sv.sort((a, b) => a.l - b.l);
+    const cut = sv.length >= 4 ? Math.floor(sv.length * 0.25) : 0, keep = sv.length === 3 ? [sv[1]] : sv.slice(cut, sv.length - cut);
+    let R = 0, G = 0, B = 0, W = 0; for (const q of keep) { R += q.r * q.w; G += q.g * q.w; B += q.b * q.w; W += q.w; }
+    const t = ((Y0 + y) * size + X0 + x) * 4; px[t] = R / W; px[t + 1] = G / W; px[t + 2] = B / W;
+    px[t + 3] = Math.min(255, Math.round(255 * Math.min(1, sv.reduce((a, q) => a + q.w, 0) * 3)));
+  }
   disposables.forEach(d => d.dispose()); if (own) r.dispose();
-  // 4. maps: the ratio to its own ~6 mm average (colour detail at half strength), the normal and roughness from it
+  // 5. maps: the ratio to its own ~6 mm average (colour detail at half strength), the normal and roughness from it
   const mmPerTexel = texelMm(input, size), rad = Math.max(2, Math.round(6 / mmPerTexel));
-  const ratio = highPass(px, size, rad);
+  const ratio = highPass(px, size, rad, Math.max(1, Math.round(2 / mmPerTexel)));
   feather(ratio, size, 2); dilate(ratio, size, 14);
   const maps = detailMaps(ratio, size);
   let covered = 0; for (let i = 3; i < ratio.length; i += 4) if (ratio[i] > 128) covered++;
   const enc = encode(ratio, maps, size);
-  return { ...enc, rect: input.rect, coverage: covered / (size * size), stats: { ms: Math.round(performance.now() - t0), frames: views.length, shFitRms: fits.map(f => +f.rms.toFixed(3)) } };
+  return { ...enc, rect: input.rect, coverage: covered / (size * size), stats: { ms: Math.round(performance.now() - t0), frames: views.length, shFitRms: fits.map(f => +f.rms.toFixed(3)), flowTexels: flowStats, ncc: nccStats } };
 }
 
 /** Average size of one texel on the face, mm (from the mesh's 3D vs UV areas). */
@@ -217,13 +241,15 @@ function texelMm(input: V2Input, size: number) {
   return a2 > 0 ? Math.sqrt(a3 / a2) : 0.2;
 }
 /** rgb/2 + conf -> the colour ratio to the ~radius average (x0.5), soft-limited like the single-photo map. */
-function highPass(px: Uint8Array, size: number, rad: number) {
-  const ch = [0, 1, 2].map(c => { const a = new Float32Array(size * size), w = new Float32Array(size * size);
-    for (let i = 0; i < size * size; i++) { const cf = px[i * 4 + 3] / 255; a[i] = px[i * 4 + c] * cf; w[i] = cf; } return [boxBlur(a, size, rad), c === 0 ? boxBlur(w, size, rad) : null] as const; });
-  const W = ch[0][1]!, out = new Uint8Array(size * size * 4);
+function highPass(px: Uint8Array, size: number, rad: number, fine: number) {
+  // two bands: the fine detail (freckles, pores, moles: the ratio to a ~2 mm average) at full strength, and the
+  // mid band (2 to 6 mm, where leftover de-light shading lives) at 30 %
+  const blur = (r: number) => { const wv = new Float32Array(size * size); for (let i = 0; i < size * size; i++) wv[i] = px[i * 4 + 3] / 255;
+    const W = boxBlur(wv, size, r); return [0, 1, 2].map(c => { const a = new Float32Array(size * size); for (let i = 0; i < size * size; i++) a[i] = px[i * 4 + c] * wv[i]; const b = boxBlur(a, size, r); return b.map((v, i) => v / Math.max(1e-3, W[i])); }); };
+  const b2 = blur(fine), b6 = blur(rad), out = new Uint8Array(size * size * 4);
   for (let i = 0; i < size * size; i++) {
     if (!px[i * 4 + 3]) continue;
-    const rel = [0, 1, 2].map(c => px[i * 4 + c] / Math.max(1, ch[c][0][i] / Math.max(1e-3, W[i])));
+    const rel = [0, 1, 2].map(c => (px[i * 4 + c] / Math.max(1, b2[c][i])) * Math.pow(Math.max(1, b2[c][i]) / Math.max(1, b6[c][i]), MID_BAND));
     const rl = 0.2126 * rel[0] + 0.7152 * rel[1] + 0.0722 * rel[2];
     for (let c = 0; c < 3; c++) { let r = rl * (1 + 0.5 * (rel[c] / Math.max(1e-3, rl) - 1));    // colour detail at half strength: no chroma mottling
       r = 1 + 0.45 * Math.tanh((r - 1) / 0.45); out[i * 4 + c] = Math.max(1, Math.min(255, Math.round(r * 0.5 * 255))); }
@@ -261,4 +287,103 @@ function encode(ratio: Uint8Array, maps: Uint8Array, size: number) {
   const conf = jpeg(img => { for (let y = 0; y < s; y++) for (let x = 0; x < s; x++) { let a = 0; for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) a += ratio[((y * k + dy) * size + x * k + dx) * 4 + 3];
     const o = (y * s + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = a / (k * k); img.data[o + 3] = 255; } }, s, 0.92);
   return { map, conf, maps: mp };
+}
+
+// ---- dense alignment in UV space ----------------------------------------------------------------------------------
+// Both images are reduced to their fine detail (log luminance minus its own ~6 texel blur), so the residual shading
+// left by the de-lighting cannot pull the flow; only texels both frames see take part. Pyramidal Lucas-Kanade
+// (4 levels, 4 iterations each, 7-texel Gaussian windows), the flow smoothed by confidence between iterations and
+// capped at 24 texels. The landmark pose already placed every frame within a few texels: the flow does the rest.
+function detail(f: Uint8Array, W: number, H: number) {
+  const L = new Float32Array(W * H), M = new Float32Array(W * H);
+  for (let i = 0; i < W * H; i++) { M[i] = f[i * 4 + 3] > 20 ? 1 : 0; L[i] = M[i] ? Math.log(1 + 0.2126 * f[i * 4] + 0.7152 * f[i * 4 + 1] + 0.0722 * f[i * 4 + 2]) : 0; }
+  return { D: L, M };
+}
+/** Band-pass at a pyramid level: log luminance minus its own ~3 texel masked blur. */
+function band(L: Float32Array, M: Float32Array, W: number, H: number) {
+  const bl = gblur(L.map((v, i) => v * M[i]), W, H, 3), bm = gblur(M, W, H, 3);
+  return L.map((v, i) => (M[i] && bm[i] > 0.2 ? v - bl[i] / bm[i] : 0));
+}
+function gblur(a: Float32Array, W: number, H: number, sigma: number) {   // three box passes ~ Gaussian
+  let x = a; const r = Math.max(1, Math.round(sigma * 0.87));
+  for (let k = 0; k < 3; k++) x = box2(x, W, H, r);
+  return x;
+}
+function box2(a: Float32Array, W: number, H: number, r: number) {
+  const t = new Float32Array(a.length), o = new Float32Array(a.length), n = 2 * r + 1;
+  for (let y = 0; y < H; y++) { let s = 0; const row = y * W; for (let x = -r; x <= r; x++) s += a[row + Math.min(W - 1, Math.max(0, x))];
+    for (let x = 0; x < W; x++) { t[row + x] = s / n; s += a[row + Math.min(W - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
+  for (let x = 0; x < W; x++) { let s = 0; for (let y = -r; y <= r; y++) s += t[Math.min(H - 1, Math.max(0, y)) * W + x];
+    for (let y = 0; y < H; y++) { o[y * W + x] = s / n; s += t[Math.min(H - 1, y + r + 1) * W + x] - t[Math.max(0, y - r) * W + x]; } }
+  return o;
+}
+function down(a: Float32Array, W: number, H: number) {
+  const w = W >> 1, h = H >> 1, o = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = 2 * y * W + 2 * x; o[y * w + x] = (a[i] + a[i + 1] + a[i + W] + a[i + W + 1]) / 4; }
+  return { a: o, w, h };
+}
+const sample = (a: Float32Array, W: number, H: number, x: number, y: number) => {
+  if (x < 0 || y < 0 || x > W - 1 || y > H - 1) return 0;
+  const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1), fx = x - x0, fy = y - y0;
+  return (a[y0 * W + x0] * (1 - fx) + a[y0 * W + x1] * fx) * (1 - fy) + (a[y1 * W + x0] * (1 - fx) + a[y1 * W + x1] * fx) * fy;
+};
+/** Flow (u, v per texel of the reference grid): reference texel x corresponds to frame texel x + flow. */
+export function uvFlow(refF: Uint8Array, frmF: Uint8Array, W: number, H: number, levels = 4, iters = 6, cap = 16) {
+  const A = detail(refF, W, H), B = detail(frmF, W, H);
+  const raw: { R: Float32Array; F: Float32Array; MR: Float32Array; MF: Float32Array; w: number; h: number }[] = [{ R: A.D, F: B.D, MR: A.M, MF: B.M, w: W, h: H }];
+  for (let l = 1; l < levels; l++) { const p = raw[l - 1], r = down(p.R.map((v, i) => v * p.MR[i]), p.w, p.h), f = down(p.F.map((v, i) => v * p.MF[i]), p.w, p.h), mr = down(p.MR, p.w, p.h), mf = down(p.MF, p.w, p.h);
+    raw.push({ R: r.a.map((v, i) => (mr.a[i] > 0 ? v / mr.a[i] : 0)), F: f.a.map((v, i) => (mf.a[i] > 0 ? v / mf.a[i] : 0)), MR: mr.a.map(v => (v > 0.99 ? 1 : 0)), MF: mf.a.map(v => (v > 0.99 ? 1 : 0)), w: r.w, h: r.h }); }
+  const pyr = raw.map(p => ({ R: band(p.R, p.MR, p.w, p.h), F: band(p.F, p.MF, p.w, p.h), M: p.MR.map((m, i) => m * p.MF[i]), w: p.w, h: p.h }));
+  let U = new Float32Array(pyr[levels - 1].w * pyr[levels - 1].h), V = new Float32Array(U.length);
+  for (let l = levels - 1; l >= 0; l--) {
+    const { R, F, M, w, h } = pyr[l];
+    if (l < levels - 1) { // upsample the coarser flow
+      const pw = pyr[l + 1].w, ph = pyr[l + 1].h, U2 = new Float32Array(w * h), V2 = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { U2[y * w + x] = 2 * sample(U, pw, ph, x / 2, y / 2); V2[y * w + x] = 2 * sample(V, pw, ph, x / 2, y / 2); }
+      U = U2; V = V2;
+    }
+    // reference gradients (inverse compositional: fixed per level)
+    const Ix = new Float32Array(w * h), Iy = new Float32Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; Ix[i] = (R[i + 1] - R[i - 1]) / 2; Iy[i] = (R[i + w] - R[i - w]) / 2; }
+    const sg = 1.8, gxx = gblur(Ix.map((v, i) => v * v * M[i]), w, h, sg), gxy = gblur(Ix.map((v, i) => v * Iy[i] * M[i]), w, h, sg), gyy = gblur(Iy.map((v, i) => v * v * M[i]), w, h, sg);
+    for (let it = 0; it < iters; it++) {
+      const Et = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = y * w + x; if (M[i]) Et[i] = sample(F, w, h, x + U[i], y + V[i]) - R[i]; }
+      const bx = gblur(Ix.map((v, i) => v * Et[i] * M[i]), w, h, sg), by = gblur(Iy.map((v, i) => v * Et[i] * M[i]), w, h, sg);
+      const conf = new Float32Array(w * h), dU = new Float32Array(w * h), dV = new Float32Array(w * h);
+      const trs = Array.from(gxx, (v, i) => v + gyy[i]).filter(v => v > 0).sort((a2, b2) => a2 - b2), trRef = trs[Math.floor(trs.length * 0.75)] || 1;
+      for (let i = 0; i < w * h; i++) {
+        const a = gxx[i], b = gxy[i], c = gyy[i], det = a * c - b * b, tr = a + c;
+        if (det <= 1e-16 || tr < 1e-9 || det / (tr * tr) < 0.02) continue;     // no texture or an edge only: no update
+        dU[i] = -(c * bx[i] - b * by[i]) / det; dV[i] = -(-b * bx[i] + a * by[i]) / det; conf[i] = (det / (tr * tr)) * Math.min(1, tr / trRef);   // corner-ness x texture energy
+      }
+      // smooth the update by confidence (textureless texels take their neighbours' flow)
+      const cs = gblur(conf, w, h, 5), us = gblur(dU.map((v, i) => v * conf[i]), w, h, 5), vs = gblur(dV.map((v, i) => v * conf[i]), w, h, 5);
+      const capL = cap / 2 ** l;
+      for (let i = 0; i < w * h; i++) if (cs[i] > 1e-4) {
+        U[i] = Math.max(-capL, Math.min(capL, U[i] + Math.max(-0.5, Math.min(0.5, us[i] / cs[i]))));
+        V[i] = Math.max(-capL, Math.min(capL, V[i] + Math.max(-0.5, Math.min(0.5, vs[i] / cs[i]))));
+      }
+    }
+  }
+  const Us = gblur(U, W, H, 4), Vs = gblur(V, W, H, 4);                    // a smooth warp: no swirls
+  const out = new Float32Array(W * H * 2); for (let i = 0; i < W * H; i++) { out[i * 2] = Us[i]; out[i * 2 + 1] = Vs[i]; }
+  return out;
+}
+/** The frame resampled onto the reference grid along the flow (weight kept; outside the frame: none). */
+export function warp(f: Uint8Array, flow: Float32Array, W: number, H: number) {
+  const o = new Uint8Array(f.length), ch = [0, 1, 2, 3].map(c => Float32Array.from({ length: W * H }, (_, i) => f[i * 4 + c]));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x, sx = x + flow[i * 2], sy = y + flow[i * 2 + 1];
+    // nearest weight check: never borrow colour from texels the frame did not see
+    const ni = Math.round(sy) * W + Math.round(sx); if (sx < 0 || sy < 0 || sx > W - 1 || sy > H - 1 || f[ni * 4 + 3] < 20) continue;
+    for (let c = 0; c < 4; c++) o[i * 4 + c] = Math.round(sample(ch[c], W, H, sx, sy));
+  }
+  return o;
+}
+
+function detailBand(f: Uint8Array, W: number, H: number) { const d = detail(f, W, H); return { D: band(d.D, d.M, W, H), M: d.M }; }
+function ncc(a: { D: Float32Array; M: Float32Array }, b: { D: Float32Array; M: Float32Array }) {
+  let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.D.length; i++) if (a.M[i] && b.M[i]) { ab += a.D[i] * b.D[i]; aa += a.D[i] ** 2; bb += b.D[i] ** 2; }
+  return aa && bb ? ab / Math.sqrt(aa * bb) : 0;
 }

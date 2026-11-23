@@ -195,6 +195,45 @@ de-lit projections) before merging, then re-run these four gates unchanged.
 
 The single-photo path is NOT deleted. It remains the shipped default until System 2 passes.
 
+### System 2, final round (dense alignment, trimmed-mean fusion, protection core)
+
+**Changes:**
+1. **Dense alignment.** Every frame's de-lit projection is registered to the front frame in UV space before merging
+   (`uvFlow`): pyramidal Lucas–Kanade on a band-passed log luminance, smoothed by confidence, capped at 16 texels.
+   A frame's alignment is kept only if it raises its fine-detail correlation with the front frame.
+   - Synthetic test (`test:uv-flow`): mean flow error 0.24 texels for shifts up to 10.8 texels.
+   - Subject a: the frames were misregistered by 4–16 texels (≈ 1–2.5 mm). Fine-detail correlation with the front
+     frame rose from −0.05…0.12 to 0.35…0.76 (one frame 0.50 → 0.93). One frame had no overlap with the front frame
+     and was left unaligned.
+2. **Fusion.** A 25 % trimmed mean by luminance per texel replaces the weighted mean (a median for three frames or
+   fewer). The final map keeps the fine band (ratio to a ~2 mm average) at full strength. The 2–6 mm band, where the
+   de-light residual lives, is set to 0 (`MID_BAND`).
+   - Tuning disclosure: `MID_BAND` (0.3 → 0.15 → 0) was chosen on the studio-v3 HDR and the 0°/45° turntable views
+     only. Tent-v3, tent-v1 and the other six angles were not used to tune it.
+3. **Protection core.** The protection cores are widened by ~2.5 mm: eyes 19.5 mm, brows 8.5 mm, lips the box + 4.5 mm,
+   each fading to zero over 3–4 mm. The normal-map step is skipped entirely where protected, since even a re-normalise
+   changed pixels. Brows are now protected by their centrelines everywhere, the twin lab included.
+
+**Gates** (same harness, same subject, the same saved twin rendered with the flag off, "current", and on, "System 2"):
+
+| Gate | Measure | Current | System 2 | Result |
+|---|---|---|---|---|
+| Step 1: detail survives | Laplacian variance of the texture ÷ Layer A, freckle band, front | 1.43 | 7.67 (5.4×) | pass |
+| a) Relight, image light only | left/right asymmetry, tent-v3 / studio-v3 / tent-v1 | 0.38 / 0.56 / 0.38 % | 0.35 / 0.50 / 0.34 % | pass (System 2 lower in all three) |
+| b) Turntable, 8 angles | share of skin pixels with a low-pass deviation over 4 %; target < 0.5 % at every angle | 0.16, 0.04, 0, 0, 0, 0, 0, 0 % | 0.09, 0.19, 0, 0, 0, 0, 0, 0.03 % | pass (< 0.5 % everywhere; 0 % at 90° and 270°, as current; 45° above current) |
+| c) Silhouette, front and 3/4 | differing pixels | | 0 and 0 | pass |
+| c) Eyes, brows, lips (full-protection pixels, 1-pixel rim excluded) | differing pixels | | 0 of 30,975 and 0 of 22,541 | pass |
+| c) The same, rim included (last round's measure) | differing pixels | | 79 of 34,094 and 55 of 24,917, all on the outermost pixel, max 1/255 | see note |
+| d) Performance | `?perf=1` frame times on a mid-range phone | | | **pending: your phone** |
+
+**Notes:**
+- **Gate c rim.** The rim pixels lie 2.5 mm outside the features, on the protection's outer edge, where a pixel
+  straddles full and partial protection. They are 0 one pixel in.
+- **Pipeline time:** 160–165 s in the software-GPU harness (16 frames; the flow adds ~65 s). Stored maps: 250 KB.
+
+**Status:** the flag stays off until gate d is measured on a phone. If gate d passes, `skin-v2` becomes the default
+and the single-photo path is kept for one release behind the flag, then deleted.
+
 ## Room light
 
 Flag `room-light`, on by default (`room-blend.ts`). Only while the camera is on, a 32×24 mirrored camera frame is

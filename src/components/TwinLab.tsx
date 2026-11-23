@@ -105,6 +105,9 @@ export default function TwinLab() {
           // the locked features: regrown for the new shape, shown in skin views at every layer (portrait-features.ts)
           disposeFeatures(features); features = growFeatures(H.skin, frame, p2, lm2, e2, hairCol);
           skin.uniforms.uLipBox.value.copy(lipBoxFrom(lm2));
+          // brow centrelines (as the try-on sets them): System 2's brow protection is measured here too; the tint stays off
+          [[[107, 55], [66, 65], [105, 52], [63, 53], [70, 46]], [[336, 285], [296, 295], [334, 282], [293, 283], [300, 276]]].flat()
+            .forEach(([u, l], i) => (skin.uniforms.uBrow.value as Vector3[])[i].set((lm2[u][0] + lm2[l][0]) / 2, (lm2[u][1] + lm2[l][1]) / 2, (lm2[u][2] + lm2[l][2]) / 2));
           (skin.uniforms.uEyeC.value as Vector3[]).forEach((v, i) => v.set(...(i ? e2.right : e2.left)));   // System 2's protected eyes, in the same frame as the lips
           target.y = (e2.left[1] + e2.right[1]) / 2 - 30;
           skin.uniforms.uY.value.set((e2.left[1] + e2.right[1]) / 2, lm2[1][1], lm2[13][1], lm2[152][1]);   // the zones follow the face's shape

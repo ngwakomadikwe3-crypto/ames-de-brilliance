@@ -132,8 +132,10 @@ export function portraitSkinV2(o: {
         if (uV2On > 0.5) {
           float ex = min(length(vP - uEyeC[0]), length(vP - uEyeC[1]));
           float bd = 1e9; for (int b = 0; b < 2; b++) for (int k = 0; k < 4; k++) { vec3 A = uBrow[b * 5 + k], B = uBrow[b * 5 + k + 1], AB = B - A; bd = min(bd, length(vP - A - AB * clamp(dot(vP - A, AB) / dot(AB, AB), 0.0, 1.0))); }
-          float lbx = (1.0 - smoothstep(uLipBox.x + 2.0, uLipBox.x + 5.0, abs(vP.x))) * smoothstep(uLipBox.y - 5.0, uLipBox.y - 2.0, vP.y) * (1.0 - smoothstep(uLipBox.z + 2.0, uLipBox.z + 5.0, vP.y));
-          v2Keep = max(max(1.0 - smoothstep(17.0, 21.0, ex), (1.0 - smoothstep(6.0, 9.0, bd)) * uBrowOn), lbx);
+          // hard cores widened by ~2.5 mm past the measured feature (the feather sits wholly outside); brows by their
+          // centrelines alone (protected wherever they are set, the lab included, whether or not the brow tint is on)
+          float lbx = (1.0 - smoothstep(uLipBox.x + 4.5, uLipBox.x + 7.5, abs(vP.x))) * smoothstep(uLipBox.y - 7.5, uLipBox.y - 4.5, vP.y) * (1.0 - smoothstep(uLipBox.z + 4.5, uLipBox.z + 7.5, vP.y));
+          v2Keep = max(max(1.0 - smoothstep(19.5, 23.5, ex), 1.0 - smoothstep(8.5, 11.5, bd)), lbx);
         }
         float scalp = 0.0;
         // scalp under the hair takes the hair's colour, so no bald skin shows between strands
@@ -209,7 +211,8 @@ export function portraitSkinV2(o: {
         #endif`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         // System 2's normal map (from the de-lit albedo's fine detail), in a frame from the UV's screen derivatives
-        if (v2Su.x > 0.0) { float kN = v2Conf * (1.0 - v2Keep) * (1.0 - scalp) * 0.6;
+        float kN = v2Su.x > 0.0 ? v2Conf * (1.0 - v2Keep) * (1.0 - scalp) * 0.6 : 0.0;
+        if (kN > 0.0) {   // (skipped entirely where protected: even a re-normalise would change a protected pixel)
           vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 st0 = dFdx(v2Su), st1 = dFdy(v2Su);
           vec3 q1p = cross(q1, normal), q0p = cross(normal, q0), T = q1p * st0.x + q0p * st1.x, Bt = q1p * st0.y + q0p * st1.y;
           float dt = max(dot(T, T), dot(Bt, Bt)), sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
