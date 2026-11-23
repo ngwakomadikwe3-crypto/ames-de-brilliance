@@ -63,7 +63,15 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
     const necklace=kind==='necklace',rx=necklace?1.45:1.15,ry=necklace?1.65:.84;
     const count=style==='Delicate'?12:style==='Cluster'?22:necklace?60:style==='Prong Set'?36:46;
     const step=2*Math.PI/count;
-    const point=(angle:number,offset=0)=>new T.Vector3((rx+offset)*Math.cos(angle),(ry+offset)*Math.sin(angle),0);
+    // necklaces fall as worn: round the back of the neck and dipping to a soft V at the front (the pear-fringe
+    // necklace's line); bracelets stay an ellipse. angle = 3pi/2 is the front, pi/2 the clasp.
+    const H=3.1,rz=1.35;
+    const point=(angle:number,offset=0)=>{
+      if(!necklace)return new T.Vector3((rx+offset)*Math.cos(angle),(ry+offset)*Math.sin(angle),0);
+      const phi=angle-1.5*Math.PI,dip=((1+Math.cos(phi))/2)**3;
+      return new T.Vector3((rx+offset)*Math.sin(phi),H/2-H*dip,(rz+offset)*Math.cos(phi));
+    };
+    const bottom=point(1.5*Math.PI).y;
     const nodes:T.Group[]=[];
     let total=0;
     for(let i=0;i<count;i++){
@@ -72,7 +80,7 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
       total+=start.distanceTo(end);
       const link=new T.Group();
       link.position.copy(point(angle));
-      const tangent=end.clone().sub(start).normalize(),normal=new T.Vector3(0,0,1);
+      const tangent=end.clone().sub(start).normalize(),out=point(angle,.1).sub(point(angle)).normalize(),normal=necklace?tangent.clone().cross(out).normalize():new T.Vector3(0,0,1);
       link.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(tangent,normal,tangent.clone().cross(normal)));
       link.userData.ames_link=i;
       scene.add(link);nodes.push(link);
@@ -87,26 +95,28 @@ export async function makeStyleModel(kind:string,style:string,metal:string,width
     const length=total*mm;
     scene.userData.ames_bracelet={kind,lay:'hang',links:count,pitch:length/count,length_mm:length,width_mm:Math.round(mm*.14),clasp:'Box clasp'};
     for(let i=0;i<count;i++){
-      const a=Math.PI/2+(i+.5)*step,x=rx*Math.cos(a),y=ry*Math.sin(a);
-      if(style==='Cluster'&&i%2===0){nodes[i].attach(circle(.1,.019,main,x,y));continue}
+      const a=Math.PI/2+(i+.5)*step,P=point(a),x=P.x,y=P.y,z0=necklace?P.z:0;
+      if(style==='Cluster'&&i%2===0){nodes[i].attach(circle(.1,.019,main,x,y,z0));continue}
       const first=scene.children.length;
       const size=style==='Delicate'?.068:style==='Pavé Set'?.042:necklace?.055+.038*(1-Math.sin(a))/2:.063;
-      jewel(x,y,.032,style==='Prong Set'?size*1.12:size);
-      if(style==='Pavé Set')jewel(x*.945,y*.945,.032,size*.78);
-      if(style==='Fancy Bangles'&&i%2===0)jewel(x*1.08,y*1.08,.03,.035);
+      jewel(x,y,z0+.032,style==='Prong Set'?size*1.12:size);
+      if(style==='Pavé Set'){const q=necklace?point(a,-.08):new T.Vector3(x*.945,y*.945,0);jewel(q.x,q.y,q.z+.032,size*.78)}
+      if(style==='Fancy Bangles'&&i%2===0){const q=necklace?point(a,.12):new T.Vector3(x*1.08,y*1.08,0);jewel(q.x,q.y,q.z+.03,.035)}
       for(const part of scene.children.slice(first))nodes[i].attach(part);
     }
-    if(style==='Bow Tie')for(const side of [-1,1])for(let i=1;i<=(side===1?6:9);i++)jewel(side*.044+i*side*.012,-ry-i*.071,.03,.041);
-    if(style==='Cluster'){for(const r of [.13,.22,.31]){circle(r,.017,main,0,-ry-.32);for(let i=0;i<24;i++){const a=i*Math.PI/12;jewel(r*Math.cos(a),-ry-.32+r*Math.sin(a),.02,.018)}}}
+    const by=necklace?bottom:-ry,bz=necklace?rz:0;
+    if(style==='Bow Tie')for(const side of [-1,1])for(let i=1;i<=(side===1?6:9);i++)jewel(side*.044+i*side*.012,by-i*.071,bz+.03,.041);
+    if(style==='Cluster'){for(const r of [.13,.22,.31]){circle(r,.017,main,0,by-.32,bz);for(let i=0;i<24;i++){const a=i*Math.PI/12;jewel(r*Math.cos(a),by-.32+r*Math.sin(a),bz+.02,.018)}}}
     // Keep each stone, setting and pendant on its own section while the clasp opens.
     for(const part of [...scene.children]){
       if(part instanceof T.Group)continue;
-      const angle=(Math.atan2(part.position.y/ry,part.position.x/rx)-Math.PI/2+2*Math.PI)%(2*Math.PI);
-      const index=Math.min(count-1,Math.floor(angle/step));
+      // (a necklace's drape is no ellipse: the section is the nearest link)
+      const index=necklace?nodes.reduce((best,n,k)=>n.position.distanceToSquared(part.position)<nodes[best].position.distanceToSquared(part.position)?k:best,0)
+        :Math.min(count-1,Math.floor(((Math.atan2(part.position.y/ry,part.position.x/rx)-Math.PI/2+2*Math.PI)%(2*Math.PI))/step));
       nodes[index].attach(part);
     }
     for(const [index,span] of [[0,.10],[count-1,.065]]){
-      const clasp=mesh(new T.BoxGeometry(span,.075,.045),main,0,ry,.025);
+      const top=necklace?point(Math.PI/2):new T.Vector3(0,ry,0),clasp=mesh(new T.BoxGeometry(span,.075,.045),main,0,top.y,top.z+.025);   // at the back of the neck
       clasp.position.x=index===0?-span/2:span/2;
       nodes[index].attach(clasp);
     }
