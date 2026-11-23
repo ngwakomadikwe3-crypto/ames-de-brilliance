@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { applyShared, bundlePrice, isActive, packageRequest, resolveSet, setOverride, sharedOptions } from '../src/lib/collection-logic.ts';
 const METAL = { key: 'metal', label: 'Metal', choices: ['925 silver, rhodium plated', '18k white gold', '18k yellow gold', '18k rose gold', 'Platinum'] };
-const STONES = { key: 'stones', label: 'Stones', choices: ['Moissanite', 'Lab-grown diamond', 'Natural diamond'] };
+const STONES = { key: 'stones', label: 'Stones', choices: ['Moissanite', 'Natural diamond'] };
 const ACCENT = { key: 'accent', label: 'Accent stones', choices: ['None', 'Sapphire', 'Ruby', 'Emerald'] };
 const D = (code, category, extra) => ({ code, name: code, category, options: [METAL, extra, STONES, ACCENT] });
 const set = [D('W1', 'watch', { key: 'case', label: 'Case', choices: ['40 mm', '42 mm'] }), D('B2', 'bracelet', { key: 'size', label: 'Inner size', choices: ['S', 'M'] }),

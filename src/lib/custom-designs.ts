@@ -38,7 +38,7 @@ export interface CustomDesign {
 
 const img = (code: DesignCode, view: string) => ((manifest as Record<string, Record<string, DesignImage | null>>)[code]?.[view] ?? null);
 const METAL: DesignOption = { key: 'metal', label: 'Metal', choices: ['925 silver, rhodium plated', '18k white gold', '18k yellow gold', '18k rose gold', 'Platinum'] };
-const STONES: DesignOption = { key: 'stones', label: 'Stones', choices: ['Moissanite', 'Lab-grown diamond', 'Natural diamond'] };
+const STONES: DesignOption = { key: 'stones', label: 'Stones', choices: ['Moissanite', 'Natural diamond'] };
 const ACCENT: DesignOption = { key: 'accent', label: 'Accent stones', choices: ['None', 'Sapphire', 'Ruby', 'Emerald'] };
 
 export const CUSTOM_DESIGNS: CustomDesign[] = [

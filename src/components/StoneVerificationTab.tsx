@@ -63,7 +63,7 @@ function ReviewEditor({id}:{id:string}){
 
    {field('title','Public stone title')}{select('species','Species',['unknown','diamond','ruby','sapphire','emerald','other-precious-stone'])}{field('otherSpecies','Other gemstone species (for example quartz or tourmaline)')}
 
-   {select('form','Form',['unknown','rough','polished'])}{select('origin','Origin',['unknown','natural','laboratory-grown','simulant'])}
+   {select('form','Form',['unknown','rough','polished'])}{select('origin','Origin',['unknown','natural','simulant'])}
 
    {select('treatments','Treatment disclosure',['unknown','none-reported','treated'])}{field('treatmentDetails','Treatment details (public)')}
 

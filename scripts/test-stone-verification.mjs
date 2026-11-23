@@ -11,7 +11,7 @@ test('unknown defaults and unchecked evidence cannot publish',()=>{
 });
 test('disclosures distinguish natural, laboratory grown, treated and simulants',()=>{
  assert.deepEqual(publicationBlockers(complete(),true,true),[]);
- const r=complete();r.origin='laboratory-grown';assert.deepEqual(publicationBlockers(r,true,true),[]);
+ const r=complete();r.origin='laboratory-grown';assert.ok(publicationBlockers(r,true,true).some(e=>/not offered/.test(e)),'lab-grown stones are not published (AMES offers natural stones only)');
  r.origin='simulant';assert.ok(publicationBlockers(r,true,true).length);
  r.origin='natural';r.treatments='treated';assert.ok(publicationBlockers(r,true,true).length);r.treatmentDetails='Heat treatment, per report';assert.deepEqual(publicationBlockers(r,true,true),[]);
  assert.equal(stoneReviewSchema.safeParse({...complete(),species:'ring'}).success,false);

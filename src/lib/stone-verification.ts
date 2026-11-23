@@ -77,7 +77,8 @@ export function publicationBlockers(review: StoneReview, available: boolean, sel
   if (!review.title) errors.push('Enter the public stone title.');
   if (review.species === 'unknown' || (review.species === 'other-precious-stone' && !review.otherSpecies)) errors.push('Identify the stone species.');
   if (review.form === 'unknown') errors.push('Identify rough or polished form.');
-  if (review.origin === 'unknown' || review.origin === 'simulant') errors.push('Declare natural or laboratory-grown origin; simulants cannot enter this stone catalogue.');
+  if (review.origin === 'unknown' || review.origin === 'simulant') errors.push('Declare natural origin; simulants cannot enter this stone catalogue.');
+  if (review.origin === 'laboratory-grown') errors.push('Lab-grown stones are not offered by AMES; only natural stones enter this catalogue.');
   if (review.treatments === 'unknown' || (review.treatments === 'treated' && !review.treatmentDetails)) errors.push('Complete treatment disclosure.');
   if (!(review.carats > 0) || !review.measurements) errors.push('Record measured carat weight and dimensions.');
   if (review.reportStatus === 'unknown') errors.push('Record report status.');

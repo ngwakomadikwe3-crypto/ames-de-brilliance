@@ -1,6 +1,6 @@
 'use client';
 import {useSyncExternalStore,useEffect} from 'react';
-export const backgrounds=['Emerald','Burgundy','Sapphire','Amethyst','White','Dark'] as const;
+export const backgrounds=['Emerald','Burgundy','Sapphire','White','Dark'] as const;
 export type Background=typeof backgrounds[number];
 const key='ames-silk-colour';
 let fallback:Background='Emerald';
