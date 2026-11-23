@@ -31,8 +31,8 @@ import { fittingFor, handAnchor, fitScale } from '../lib/atelier/fitting-registr
 import { FRAMING_PRESETS, fitPoints, presetFor, zoomRange } from '../lib/try-on-framing';
 import { dress } from '../lib/ar/jewel-dress';
 import { createMetalStudioEnvironment } from '../lib/metal-studio-env';
-import { GestureController, gestureDebugEnabled, type GestureOutput } from '../lib/gesture-controller';
-import GestureDebug from './GestureDebug';
+import { gestureDebugEnabled } from '../lib/gesture-controller';
+import { WandController, Lift, hapticTick, type WandOutput } from '../lib/wand-gestures';
 import HandScan, { type ScanResult } from './HandScan';
 
 const FINGERS = ['Thumb', 'Index', 'Middle', 'Ring', 'Little'];
@@ -50,7 +50,8 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
   const [twinFace, setTwinFace] = useState(false);
   const [scanning, setScanning] = useState(false), [confirmDelete, setConfirmDelete] = useState(false);
   const [tracking, setTracking] = useState(false), [status, setStatus] = useState(''), [gesture, setGesture] = useState('');
-  const [debugReadout, setDebugReadout] = useState<GestureOutput | null>(null);       // TEMPORARY gesture debug
+  const [debugReadout, setDebugReadout] = useState<WandOutput | null>(null);         // TEMPORARY gesture debug
+  const glintRef = useRef<HTMLDivElement>(null);
   const [finger, setFinger] = useState(3), [paused, setPaused] = useState(false), [photo, setPhoto] = useState('');
   const [notice, setNotice] = useState('');
   const [sheet, setSheet] = useState(false), [menu, setMenu] = useState(false), [privacyOpen, setPrivacyOpen] = useState(false), [coach, setCoach] = useState(false);
@@ -121,9 +122,11 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
       if (skinMat) { skinMat.envMap = env.texture; skinMat.envMapIntensity = 0.38; skinMat.needsUpdate = true; }   // skin: same tent light, softer
     });
     const key = new DirectionalLight('#fff6ee', 2.4); key.position.set(-120, 260, 420); key.castShadow = true;
+    // the wand's rim glow: a warm back light that brightens while a gesture lifts the piece
+    const rimGlow = new DirectionalLight('#ffd89a', 0); rimGlow.position.set(160, 120, -380);
     key.shadow.mapSize.set(1024, 1024); key.shadow.camera.left = key.shadow.camera.bottom = -170; key.shadow.camera.right = key.shadow.camera.top = 170;
     key.shadow.camera.near = 50; key.shadow.camera.far = 1200; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 4;
-    scene.add(key, new AmbientLight('#ffffff', 0.25));
+    scene.add(key, new AmbientLight('#ffffff', 0.25), rimGlow);
     const metalStudio = createMetalStudioEnvironment(renderer); disposables.push(metalStudio);
     let skinMat: import('three').MeshPhysicalMaterial | null = null;
 
@@ -225,9 +228,11 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     let stream: MediaStream | undefined, tracker: HandLandmarker | undefined, frameHandle = 0;
     const video = document.createElement('video'); video.muted = true; video.playsInline = true;
     const worldFilter = new OneEuro(1.1, 4), imageFilter = new OneEuro(1.1, 18);
-    const gate = new TrackingGate(), dorsalSide = new DorsalSide(), controls = new GestureController(gestureDebugEnabled());
+    const gate = new TrackingGate(), dorsalSide = new DorsalSide(), controls = new WandController(), lift = new Lift(), showDebug = gestureDebugEnabled();
+    // the live wand output, read by the render loop every frame (a mutable ref, never React state per frame)
+    const wand = { yaw: 0, pitch: 0, active: false, glint: null as WandOutput['glint'] };
     let debugAt = 0;
-    const setDebug = (g: GestureOutput) => { const t = performance.now(); if (t - debugAt > 100) { debugAt = t; setDebugReadout(g); } };   // TEMPORARY
+    const setDebug = (g: WandOutput) => { const t = performance.now(); if (t - debugAt > 100) { debugAt = t; setDebugReadout(g); } };   // TEMPORARY
     let previous: { x: number; y: number; size: number } | null = null, lastTime = 0, flipped = false, lastGesture = '';
     const resetFrom = new Quaternion(); let resetDistance = DEFAULT_DISTANCE;
 
@@ -259,25 +264,24 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
           local.forEach((q, i) => targets[i].copy(q));
           // Follow the hand across the frame, gently (the view stays centred on the piece).
           handTarget.set((pts[0].x + pts[9].x) / 2 * 0.35, (pts[0].y + pts[9].y) / 2 * 0.35, 0);
-          // Gestures: fingertips, mirrored image coordinates.
+          // Gestures (wand-gestures.ts): orientation-invariant, confidence-gated; motion is a velocity the render loop
+          // integrates, so the spin is smooth at display rate whatever the camera rate.
           const world = lifted.points.map(p => ({ x: p[0], y: p[1], z: p[2] }));
-          const two = controls.pose === 'two', tipIndex = img[8], tipMiddle = img[12];
-          const x = 1 - (two ? (tipIndex.x + tipMiddle.x) / 2 : tipIndex.x), y = two ? (tipIndex.y + tipMiddle.y) / 2 : tipIndex.y;
-          const g = controls.step(world, x, y, now);
-          frozen = g.state === 'FROZEN';
-          if (g.dx) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), g.dx * Math.PI));
-          if (g.dy) viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), g.dy * Math.PI));
+          const g = controls.step(world, label?.score ?? 1, now);
+          frozen = g.frozen;
+          wand.yaw = g.velocity.yaw; wand.pitch = g.velocity.pitch; wand.active = g.active; wand.glint = g.glint;
+          if (g.lockedIn) hapticTick();
           if (g.zoom !== 1) { const z = zoomRange(fit); targetDistance = Math.max(z.min, Math.min(z.max, targetDistance / g.zoom)); }
           if (g.reset) { resetting = now; resetFrom.copy(viewTurn); resetDistance = distance; }
-          if (controls.debug) setDebug(g);
-          const label2 = g.pose === 'point' ? 'Turning' : g.pose === 'two' ? 'Tilting' : g.pose === 'pinch' ? 'Zoom' : g.pose === 'palm' ? 'Frozen' : g.pose === 'fist' ? 'Resetting…' : '';
+          if (showDebug) setDebug(g);
+          const label2 = g.pose === 'wand' ? 'Levitate' : g.pose === 'double' ? 'Sweep' : g.pose === 'pinch' ? 'Zoom' : g.pose === 'palm' ? (g.frozen ? 'Frozen' : 'Unfrozen') : g.pose === 'fist' ? 'Reset' : g.frozen ? 'Frozen' : '';
           if (label2 !== lastGesture) { lastGesture = label2; setGesture(label2); }
         }
         handSeen = true; quietUntil = now + 5000;
       } else if (state === 'hidden') {
         imageFilter.reset(); worldFilter.reset(); dorsalSide.reset();
         targets.forEach((q, i) => q.copy(restQuats[i]));                  // hand gone: settle back to the relaxed pose
-        if (controls.state !== 'SHOWCASE') { const g = controls.lost(now); frozen = false; if (controls.debug) setDebug(g); }
+        { const g = controls.lost(now); frozen = g.frozen; wand.yaw = wand.pitch = 0; wand.active = false; wand.glint = null; if (showDebug) setDebug(g); }
         if (handSeen) { handSeen = false; quietUntil = now + 5000; if (lastGesture) { lastGesture = ''; setGesture(''); } }
       }
     }
@@ -353,6 +357,28 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
         viewTarget.slerpQuaternions(resetFrom, new Quaternion(), s); viewTurn.copy(viewTarget);
         targetDistance = distance = resetDistance + (fit.distance - resetDistance) * s;
         if (t >= 1) resetting = 0;
+      }
+      // the wand: integrate the gesture's angular velocity (already eased to stops) at display rate
+      if (!resetting && (wand.yaw || wand.pitch)) {
+        viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), wand.yaw * dt));
+        viewTarget.premultiply(new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), wand.pitch * dt));
+        viewTurn.copy(viewTarget);                                             // velocity is already smooth: no extra lag
+      }
+      // the lift: 1.00 -> 1.03 and a warm rim glow while a motion gesture holds the piece; a glint at the fingertip
+      const lv = lift.update(wand.active && !reduced.matches, now);
+      view.scale.setScalar(1 + 0.03 * lv); rimGlow.intensity = 1.6 * lv;
+      const gl = glintRef.current;
+      if (gl) {
+        if (wand.glint && handSeen) {
+          // on the twin's own fingertip (index, or between index and middle), projected to the screen
+          view.updateMatrixWorld(true);
+          const t = built.bones[8].getWorldPosition(new Vector3());
+          if (wand.glint === 'pair') t.lerp(built.bones[12].getWorldPosition(new Vector3()), 0.5);
+          t.project(camera);
+          const r = gl.parentElement!.getBoundingClientRect();
+          gl.style.opacity = '0.4'; gl.style.transform = `translate(${(t.x + 1) / 2 * r.width - 6}px, ${(1 - t.y) / 2 * r.height - 6}px)`;
+        }
+        else gl.style.opacity = '0';
       }
       viewTurn.slerp(viewTarget, 1 - Math.pow(0.85, dt * 60));
       // Showcase: only with no hand in view, no hand on the piece, after 5 quiet seconds, blending in over 1 s.
@@ -447,7 +473,9 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     <div ref={box} className="absolute inset-0">
       <canvas ref={canvasRef} className="block h-full w-full touch-none" aria-label={profile ? 'Your 3D hand wearing the piece' : 'A 3D hand wearing the piece'} />
     </div>
-    {debugReadout && <GestureDebug g={debugReadout} />}
+      {/* the wand's glint: warm gold, ~6 px, additive, at the active fingertip (moved by the render loop) */}
+      <div ref={glintRef} aria-hidden className="pointer-events-none absolute left-0 top-0 h-3 w-3 rounded-full opacity-0 transition-opacity duration-150" style={{ background: 'radial-gradient(circle, rgba(255,232,170,1) 0%, rgba(240,196,110,0.6) 40%, rgba(240,196,110,0) 70%)', mixBlendMode: 'plus-lighter', filter: 'blur(0.5px)' }} />
+      {debugReadout && <pre className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 p-2 text-[10px] leading-tight text-white">{`${debugReadout.state} ${debugReadout.pose} (${debugReadout.candidate})\next ${debugReadout.extended.map(e => (e ? 1 : 0)).join('')} pinch ${debugReadout.pinchRatio.toFixed(2)} aim ${debugReadout.aimDeg.toFixed(0)}°\n${debugReadout.effect}${debugReadout.frozen ? ' · frozen' : ''}`}</pre>}
 
     {/* top: close, (first visit) the name, one status line, settings and more */}
     <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
