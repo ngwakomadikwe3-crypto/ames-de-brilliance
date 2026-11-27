@@ -6,6 +6,7 @@ import {HouseChoices,diamondCuts} from './HouseChoices';
 import {useAtelierLanguage} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
 import {SizeChoices,useSizes} from './SizeChoices';
+import MakeItYours from './MakeItYours';
 import {WatchStrap} from './WatchStrap';
 import ConfigurationPrice from './ConfigurationPrice';
 import SampleQuote from './SampleQuote';
@@ -252,24 +253,30 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
       <div className="flex items-baseline justify-between gap-3">
         <h2 style={{ fontFamily:'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(stone.name)}</h2>
       </div>
-      {<button type="button" aria-label={'Ask SAME about '+stone.name} className="ames-pill my-2 min-h-11 rounded-full px-4 text-sm" onClick={()=>{
-        const detail = setting==='watch'?caseShape+' case':setting==='necklace'?dropCut+' drop cut':setting==='ring'&&ringCut?ringCut+' cut':'';
-        onAskSame(stone.id, setting==='loose' ? 'Tell me about '+stone.name+' as a loose gemstone with the '+(cut||stone.cut)+' cut.' : 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
-      }}>Ask SAME</button>}
       {setting==='watch' && <WatchMovement/>}
-      <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
+      {/* The piece to see this stone in: one visible row, not a hidden list. */}
+      <div role="group" aria-label="View in 3D" className="-mx-6 mt-3 flex gap-2 overflow-x-auto px-6 pb-1" data-setting-row>
+        {Object.entries({ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose stone'}).map(([id,name])=>
+          <button key={id} type="button" aria-pressed={setting===id} onClick={()=>setSetting(id)} className={'min-h-10 shrink-0 rounded-full px-4 text-sm '+(setting===id?'font-medium shadow-lg':'border border-white/25')} style={setting===id?{background:'#ffffff',color:'#0c3b2e'}:undefined}>{t(name)}</button>)}
+      </div>
+      {setting !== 'loose' && <p className="mt-3 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
+      <MakeItYours summary={[setting!=='loose'&&(mixed?stone.name+' with diamonds':'All '+stone.name.toLowerCase()),setting!=='loose'&&({silver:'Silver',gold:'Gold','rose-gold':'Rose gold'} as Record<string,string>)[metal],setting==='ring'&&ringCut&&ringCut+' centre',setting==='necklace'&&dropCut+' drops',setting==='watch'&&caseShape!=='Original'&&caseShape+' case',setting==='watch'&&strap==='leather'&&'Leather strap',setting==='loose'&&(cut||stone.cut)+' cut',sizes.configuration].filter(Boolean).join(' · ')}>
       {setting !== 'loose' && <HouseChoices label="Stones" value={mixed} onChange={setMixed} choices={{'':'All '+stone.name.toLowerCase(),mixed:stone.name+' with diamonds'}}/>}
       {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'watch' && <WatchStrap strap={strap} setStrap={setStrap} colour={leather} setColour={setLeather}/>}
       {setting === 'watch' && <HouseChoices label="Case shape" value={caseShape} onChange={setCaseShape} choices={{Original:'Classic rectangle',Square:'Square',Slim:'Slim rectangle',Round:'Round'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
+      {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
       <SizeChoices sizes={sizes}/>
       {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={sampleModel} key={setting} wrist={setting!=='ring'}/>}
-      {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
+      </MakeItYours>
       {/* One price row per selection; for jewellery the price line is the quote request's own heading (as in the Boutique). */}
       <ConfigurationPrice key={'price:'+stone.id+setting+configuration} piece={stone.id} setting={setting} options={configuration}>{setting === 'loose' ? undefined : line => <SampleQuote heading={line} configuration={configuration} key={'quote:'+stone.id+setting+configuration} stone={stone.name} caseShape={setting==='watch'?caseShape+(strap==='leather'?' · '+leather+' leather strap':' · metal bracelet'):undefined} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}</ConfigurationPrice>
-      {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
+      {<button type="button" aria-label={'Ask SAME about '+stone.name} className="ames-pill mt-5 min-h-11 rounded-full px-5 text-[12px]" onClick={()=>{
+        const detail = setting==='watch'?caseShape+' case':setting==='necklace'?dropCut+' drop cut':setting==='ring'&&ringCut?ringCut+' cut':'';
+        onAskSame(stone.id, setting==='loose' ? 'Tell me about '+stone.name+' as a loose gemstone with the '+(cut||stone.cut)+' cut.' : 'Tell me about this '+stone.name+' '+setting+' in '+metal.replace('-', ' ')+(detail?', '+detail:'')+'.');
+      }}>Ask SAME</button>}
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>
   </div>;

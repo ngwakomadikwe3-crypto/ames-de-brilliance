@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from 'react';
 import {useCollectionStyles} from './CollectionStyles';
 import ConfigurationPrice from './ConfigurationPrice';
 import SampleQuote from './SampleQuote';
-import {DiamondControls,useDiamondDesign} from './DiamondDesign';
+import {DiamondControls,designSummary,useDiamondDesign} from './DiamondDesign';
 import {useAtelierLanguage} from './AtelierLanguage';
 import FittingHand from './FittingHand';
 import SizeGuide from './SizeGuide';
 import {SizeChoices,useSizes} from './SizeChoices';
+import MakeItYours from './MakeItYours';
 import ModelViewer from './ModelViewer';
 
 import housePieces from '../lib/boutique-house-pieces.json';
@@ -34,7 +35,6 @@ import { boutiqueCategories, boutiqueByCategory, boutiqueGroups, boutiquePrice, 
 function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: boolean; onOpen: () => void }) {
   const {t}=useAtelierLanguage();
   const price = boutiquePrice(piece.price);
-  const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
   return (
     <button type="button" onClick={onOpen} data-boutique-tile={piece.assetId} aria-label={`Open ${piece.name}`}
       className="ames-piece-tile text-center flex flex-col min-h-0" style={{ width: '100%', maxWidth: single ? 480 : undefined, justifySelf: single ? 'center' : undefined, alignSelf: 'start', gridColumn: single ? '1 / -1' : undefined, gridRow: single ? '1 / -1' : undefined }}>
@@ -47,7 +47,6 @@ function PieceTile({ piece, single, onOpen }: { piece: BoutiquePiece; single: bo
       <div className="pt-1 px-0.5 flex flex-col items-center gap-1">
         <div className="min-w-0">
           <p className="ames-piece-name" style={{ fontFamily: 'var(--font-satoshi)', fontSize: 22, color: '#ffffff' }}>{t(piece.name)}</p>
-        {review && <p style={{ fontSize: 10, color: '#ffffff' }}>Preview · approval pending</p>}
           {piece.assetId === 'dev-test-earring-001' && <p className="text-[10px] text-white">Yellow-gold material preview</p>}
         </div>
         {piece.listing && <span className="text-[10px] text-white">Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</span>}
@@ -69,7 +68,6 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   const options=collection.active?collection.configuration:[design.metal,design.colour||'Original stones',(ring||piece.category==='necklace')&&design.cut,piece.category==='watch'&&design.shape,piece.category==='watch'&&design.strap,piece.category==='watch'&&design.strap==='leather'&&design.leather,!collection.active&&design.colour&&design.mixed&&'Colour on feature stones, with diamonds',sizes.configuration].filter(Boolean).join(' · ');
   const hasOptions=!piece.listing&&(customizable||collection.active);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
-  const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overscroll-contain pt-20" data-boutique-detail={piece.assetId}>
       <div className="ames-jewelry-stage relative shrink-0 mx-auto w-full" style={{ maxWidth: 1040, height: 'clamp(320px, 70dvh, 980px)' }}>
@@ -85,16 +83,19 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         <h2  style={{ fontFamily: 'var(--font-satoshi)', fontSize: 27, color: '#ffffff', lineHeight: 1.1 }}>{t(piece.name)}</h2>
         {piece.category==='watch' && <WatchMovement/>}
         {!piece.listing && <p className="mt-2 text-xs">{t('Part of the HOUSEofAMES collection. Our manufacturing partners make each commissioned piece for HOUSEofAMES.')}</p>}
-        {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide category={piece.category} model={collection.active?collection.src:design.src} wrist={piece.category !== "ring"}/>}
-        {collection.controls}
-        {customizable && !collection.active && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
+        {/* The piece's choices live in one "Make it yours" sheet; the page keeps a one-line summary and the
+            price/quote row. Staff review notes (approval pending, unverified scale) are not shown to customers. */}
+        {hasOptions ? <MakeItYours summary={[collection.active?collection.configuration:designSummary(design,{ring,watch:piece.assetId==='ames-iced-watch',necklace:piece.assetId==='ames-pear-fringe-necklace'}),sizes.configuration].filter(Boolean).join(' · ')}>
+          {collection.controls}
+          {customizable && !collection.active && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
+          <SizeChoices sizes={sizes}/>
+          {["ring","bracelet","watch"].includes(piece.category) && <SizeGuide category={piece.category} model={collection.active?collection.src:design.src} wrist={piece.category !== "ring"}/>}
+        </MakeItYours> : ["ring","bracelet","watch"].includes(piece.category) && <SizeGuide category={piece.category} model={collection.active?collection.src:design.src} wrist={piece.category !== "ring"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
-        {hasOptions && <SizeChoices sizes={sizes}/>}
           {hasOptions && <ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}>{line => <SampleQuote key={options} heading={line} configuration={options} stone={piece.name} setting={piece.category} cut={collection.active?'':design.cut} metal={collection.active?collection.metal:design.metal}/>}</ConfigurationPrice>}
-        {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>
-          {knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
-          {piece.essentialSpecs.physicalScaleConfirmed === false && <span>Physical scale unverified</span>}
+          {/* Measurements only once the physical scale is confirmed. */}
+          {piece.essentialSpecs.physicalScaleConfirmed !== false && knownSpecs.map(([key, value]) => <span key={key}>{key.replace(/([A-Z])/g, ' $1')}: {String(value)}</span>)}
         </div>
         {piece.listing && <div className="mt-3 space-y-2 text-xs text-white"><p>By {piece.listing.storefrontUrl ? <a href={piece.listing.storefrontUrl} className="underline">{piece.listing.businessName}</a> : piece.listing.businessName}</p><p>{piece.listing.description}</p><p>Made in: {originLabel(piece.listing.madeIn.country, piece.listing.madeIn.verified)}</p>{piece.listing.gemstones.map((g, i) => <p key={i}>{g.name} origin: {originLabel(g.origin, g.verified)}</p>)}<a href={`/jewellery/${piece.listing.id}`} className="underline">Full listing</a></div>}
         {!hasOptions && price && <p style={{ marginTop: 12, fontSize: 14, color: '#ffffff' }}>{price}</p>}

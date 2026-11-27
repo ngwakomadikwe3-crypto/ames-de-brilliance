@@ -63,6 +63,15 @@ function SelectedViewer({
   const host = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
   const [showcasePaused,setShowcasePaused]=useState(false);
+  const [menu,setMenu]=useState(false);
+  // The ••• menu closes on Escape or a tap anywhere outside it.
+  useEffect(()=>{
+    if(!menu)return;
+    const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setMenu(false)};
+    const away=(e:PointerEvent)=>{const t=e.target as HTMLElement;if(!t.closest('[data-viewer-menu],[data-viewer-more]'))setMenu(false)};
+    addEventListener('keydown',key);addEventListener('pointerdown',away);
+    return ()=>{removeEventListener('keydown',key);removeEventListener('pointerdown',away)};
+  },[menu]);
   const [held,setHeld]=useState(false);
   useEffect(()=>{const release=()=>setHeld(false);window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);window.addEventListener('blur',release);return ()=>{window.removeEventListener('pointerup',release);window.removeEventListener('pointercancel',release);window.removeEventListener('blur',release)}},[]);
   const effectiveTurntable = held || paused || reducedMotion || showcasePaused ? false : (turntableEnabled??true);
@@ -147,7 +156,7 @@ function SelectedViewer({
   const showPoster = poster && !posterFailed && state !== 'ready';
   return (
     <div ref={host} onPointerDownCapture={e=>{if((e.target as HTMLElement).tagName==="CANVAS"){setHeld(true);hapticTap();}}} className="ames-object-display" data-ames-engine-host data-viewer-state={state} data-model-source={src} data-optics-profile={opticsProfile} data-camera-preset={cameraPreset} data-zoom={zoom} data-turntable-enabled={effectiveTurntable} aria-label={alt ?? 'Jewelry preview'} style={{ position: "relative", width: "100%", height: "100%", overflow: 'hidden', ...style }}>
-      <div style={{position:'absolute',inset:0,right:state==='ready'&&(bracelet||openable)?'min(30%, 112px)':0,overflow:'hidden'}}>
+      <div style={{position:'absolute',inset:0,overflow:'hidden'}}>
       <span aria-hidden="true" className="ames-presentation-frame" />
       {showPoster && <img src={poster} alt={alt ?? "Jewelry preview"} onError={() => setPosterFailed(true)} loading="eager" decoding="async" style={{ position: "absolute", inset: 0, width: '100%', height: "100%", objectFit: 'contain', zIndex: 1, pointerEvents: "none" }} />}
       {(state === 'loading' || state === 'ready') && <ViewerBoundary key={attempt} onFailure={handleFailure}><div className="ames-floating-piece" style={{animationPlayState: "paused"}}><JewelryViewer
@@ -161,21 +170,23 @@ function SelectedViewer({
         style={{ width: "100%", height: "100%", borderRadius: 14, overflow: "hidden" }}
       /></div></ViewerBoundary>}
       </div>
-      {state==='ready' && !reducedMotion && turntableEnabled!==false && <button type="button" className="absolute left-2 bottom-2 z-20 ames-pill px-3 py-2 text-xs" aria-pressed={showcasePaused} onClick={()=>setShowcasePaused(v=>!v)}>{showcasePaused?'Play showcase':'Pause showcase'}</button>}
-      {chatGestures && !paused && state==='ready' && !bracelet && !openable && <div className="absolute right-1 bottom-1 z-20 max-w-32 text-xs"><HandClasp onReset={resetJewellery} onZoom={zoomJewellery} onMove={moveJewellery}/></div>}
-      {state === 'ready' && bracelet && <div data-side-controls className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:'min(30%, 112px)', justifyContent:'safe center'}}>
-        {/* Kept to one short line: length and wrist or neck size. The how-to hint shows briefly after unclasping. */}
-        {flat && measured && <span role="status" className="rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
-          {(bracelet.length_mm / 10).toFixed(1)} cm · {bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `fits a wrist up to ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}
-        </span>}
-        {hint && <span className="rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md transition-opacity">{bracelet.kind==='watch'?'Drag to rotate · pinch to zoom':'Drag a link to fold · pinch to zoom'}</span>}
-        <button type="button" onClick={toggleClasp} aria-pressed={flat} className="ames-pill min-h-10 rounded-full px-2 text-[11px] backdrop-blur-md">{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>
-        {!paused && <HandClasp onReset={resetJewellery} onZoom={zoomJewellery} onMove={moveJewellery} onPose={open=>{if(open!==flat)toggleClasp()}} />}
-      </div>}
-      {state === 'ready' && openable && !bracelet && <div className="absolute right-0 top-0 bottom-0 z-20 flex flex-col items-center gap-2 overflow-y-auto p-1" style={{width:"min(30%, 112px)",justifyContent:"safe center"}}>
-        <button type="button" onClick={toggleOpen} aria-pressed={opened} className="ames-pill min-h-10 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>
-        {!paused && <HandClasp onReset={resetJewellery} onZoom={zoomJewellery} onMove={moveJewellery} onPose={open=>{if(open!==opened)toggleOpen()}} />}
-      </div>}
+      {/* The jewellery fills the stage. Its utilities (showcase pause, unclasp & measure, open the box, hand
+          gestures) sit behind one white ••• bubble, so nothing floats over the piece. The menu stays mounted
+          while closed so a running hand-gesture camera keeps going. */}
+      {state==='ready' && bracelet && flat && measured && <span role="status" className="absolute left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/70 px-3 py-1 text-center text-[11px] text-white backdrop-blur-md">
+        {(bracelet.length_mm / 10).toFixed(1)} cm · {bracelet.kind === 'necklace' ? necklaceLength(bracelet.length_mm) : `fits a wrist up to ${Math.floor(bracelet.length_mm / 10 - 1.5)} cm`}
+      </span>}
+      {state==='ready' && hint && bracelet && <span className="absolute left-1/2 top-12 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/60 px-3 py-1 text-[10px] text-white backdrop-blur-md">{bracelet.kind==='watch'?'Drag to rotate · pinch to zoom':'Drag a link to fold · pinch to zoom'}</span>}
+      {state==='ready' && (!reducedMotion&&turntableEnabled!==false || bracelet || openable || (chatGestures&&!paused)) && <>
+        <button type="button" aria-label="More" aria-expanded={menu} onClick={()=>setMenu(m=>!m)} data-viewer-more className="absolute right-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={{background:'#ffffff',color:'#0c3b2e'}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+        <div role="menu" hidden={!menu} data-viewer-menu className="absolute right-3 top-16 z-30 min-w-52 overflow-hidden rounded-2xl bg-black/85 py-1 text-sm text-white shadow-xl backdrop-blur">
+          {!reducedMotion && turntableEnabled!==false && <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" aria-pressed={showcasePaused} onClick={()=>{setShowcasePaused(v=>!v);setMenu(false)}}>{showcasePaused?'Play showcase':'Pause showcase'}</button>}
+          {bracelet && <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" aria-pressed={flat} onClick={()=>{toggleClasp();setMenu(false)}}>{flat ? 'Close the clasp' : 'Unclasp & measure'}</button>}
+          {openable && !bracelet && <button role="menuitem" type="button" className="block w-full px-4 py-3 text-left" aria-pressed={opened} onClick={()=>{toggleOpen();setMenu(false)}}>{opened ? `Close the ${openable}` : `Open the ${openable}`}</button>}
+          {!paused && (bracelet || openable || chatGestures) && <div className="px-4 py-3 text-left" data-viewer-gestures><style>{'[data-viewer-gestures]>div{text-align:left}[data-viewer-gestures] button{all:unset;cursor:pointer;display:block;width:100%;font-size:14px;font-weight:400}'}</style><HandClasp onReset={resetJewellery} onZoom={zoomJewellery} onMove={moveJewellery} onPose={bracelet?open=>{if(open!==flat)toggleClasp()}:openable?open=>{if(open!==opened)toggleOpen()}:undefined}/></div>}
+        </div>
+      </>}
       {state === 'idle' && <button type="button" onClick={load3D} data-load-3d className="ames-pill absolute bottom-4 left-1/2 z-20 min-h-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 text-[11px] backdrop-blur-md">View interactive 3D</button>}
       {state === 'loading' && <span role="status" className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#031815]/90 px-4 py-2 text-[11px] text-white">Loading interactive 3D…</span>}
       {state === 'fallback' && <div role="status" style={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 20, color: '#ffffff', fontSize: 12, textAlign: 'center' }}>
