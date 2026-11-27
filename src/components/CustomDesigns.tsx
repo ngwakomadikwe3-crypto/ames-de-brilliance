@@ -2,12 +2,13 @@
 // The eight custom-order designs in the Boutique: grid cards, the detail view (Front / Back gallery, 3D when the
 // design's model exists, configuration beside the front view, "One pair, two looks" for the convertible earrings),
 // the try-on entry and the made-to-order quote. The renders are shown exactly as delivered: no crop, filter or text.
+import MakeItYours from './MakeItYours';
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import EngineJewelryViewer from './EngineJewelryViewer';
 import FittingHand from './FittingHand';
 import SampleQuote from './SampleQuote';
 import { useAtelierLanguage } from './AtelierLanguage';
-import { designConfiguration, missingImages, type CustomDesign, type DesignImage, type WearState } from '../lib/custom-designs';
+import { designConfiguration, type CustomDesign, type DesignImage, type WearState } from '../lib/custom-designs';
 
 /** AVIF, then WebP, then the PNG master. Lazy unless it is the first thing on screen. */
 export function DesignPicture({ image, alt, eager, sizes = '(min-width: 760px) 360px, 50vw', style }: { image: DesignImage; alt: string; eager?: boolean; sizes?: string; style?: React.CSSProperties }) {
@@ -113,7 +114,7 @@ export function DesignStage({ design, wear, eager }: { design: CustomDesign; wea
     <div ref={host} className="relative h-full w-full">
       <EngineJewelryViewer src={design.glb} poster={design.images.front?.src} alt={design.alt.front} cameraPreset="front" zoom={zoom} autoLoad turntableEnabled={false}
         opticsProfile="mounted-gem-studio" style={{ width: '100%', height: '100%' }} />
-      <button type="button" className="ames-pill absolute bottom-2 left-3 min-h-9 rounded-full px-4 text-[12px]" onClick={() => setMode('photos')}>{t('Photos')}</button>
+      <button type="button" className="ames-pill absolute bottom-3 right-3 z-10 min-h-11 rounded-full px-4 text-[12px]" onClick={() => setMode('photos')}>{t('Photos')}</button>
     </div>
   );
 }
@@ -144,9 +145,7 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
   const [wear, setWear] = useState<WearState>('full');
   const [choice, setChoice] = useState<Record<string, string>>(() => Object.fromEntries(design.options.map(o => [o.key, o.choices[0]])));
   const configuration = useMemo(() => designConfiguration(design, choice), [design, choice]);
-  const missing = missingImages(design);
   const canTryOn = !!design.glb && TRY_ON_CATEGORIES.has(design.category);
-  const front = design.convertible && wear === 'stud' ? design.convertible.studFront : design.images.front;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pt-20" data-design-detail={design.code}>
       <div className="relative mx-auto w-full shrink-0 px-4" style={{ maxWidth: 1040, height: 'clamp(320px, 70dvh, 980px)' }}>
@@ -177,13 +176,8 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
         )}
 
         {/* Configuration: the front view beside the choices */}
-        <section className="mt-5 grid items-start gap-4 sm:grid-cols-[150px_1fr]" aria-label={t('Configure this design')}>
-          <div className="hidden overflow-hidden rounded-xl sm:sticky sm:top-24 sm:block" style={{ aspectRatio: front ? `${front.width} / ${front.height}` : '4 / 5' }}>
-            {front ? <DesignPicture image={front} alt={design.convertible && wear === 'stud' ? design.convertible.studAlt : design.alt.front} sizes="150px" />
-              : <ImageToCome label="Front view on its way" />}
-          </div>
-          <div className="space-y-4">
-            {design.convertible && (
+        {/* "Wear as" stays on the page (it is the design's idea); every other choice is in the Make it yours sheet. */}
+        {design.convertible && <div className="mt-5">
               <fieldset>
                 <legend className="text-xs" style={{ color: '#ffffff' }}>{t('Wear as')}</legend>
                 <div className="mt-1 flex flex-wrap gap-2">
@@ -194,7 +188,9 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
                   ))}
                 </div>
               </fieldset>
-            )}
+            </div>}
+        <MakeItYours summary={design.options.map(o => choice[o.key] ?? o.choices[0]).filter(v => v !== 'None' && v !== 'Not sure yet').map(v => t(v)).join(' · ')}>
+          <div className="space-y-4 pt-2">
             {design.options.map(o => (
               <fieldset key={o.key}>
                 <legend className="text-xs" style={{ color: '#ffffff' }}>{t(o.label)}</legend>
@@ -206,7 +202,7 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
               </fieldset>
             ))}
           </div>
-        </section>
+        </MakeItYours>
 
         {/* Try on: the floating button on the stage when the design's model exists; otherwise say when it will */}
         {!canTryOn && <section className="mt-5" data-try-on-entry={design.code}>
@@ -218,7 +214,6 @@ export function DesignDetail({ design, onClose, onAskSame }: { design: CustomDes
         </section>}
 
         <SampleQuote key={configuration} configuration={configuration} stone={design.name} setting={design.category} cut="" metal={choice.metal ?? ''} />
-        {missing.length > 0 && <p className="mt-3 text-[10px]" style={{ color: '#ffffff' }} data-missing-images>{t('Still to come for this design')}: {missing.join(', ')}.</p>}
         {onAskSame && <button type="button" onClick={onAskSame} className="ames-pill mt-5 inline-flex min-h-11 items-center rounded-full px-5 text-[12px]">Ask SAME</button>}
       </div>
     </div>

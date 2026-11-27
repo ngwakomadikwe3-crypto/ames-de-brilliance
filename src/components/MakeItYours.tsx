@@ -1,7 +1,7 @@
 'use client';
 // "Make it yours": a piece's choices (stone, metal, size…) in one bottom sheet instead of a long list under
 // the jewellery. The page shows the piece, a one-line summary of the choices and the price/quote row; the
-// sheet opens over the lower part of the screen so the live 3D above it updates as each choice is made.
+// sheet (inside the app shell, so the house pill styles apply) opens over the lower part of the screen so the live 3D above it updates as each choice is made.
 import {useEffect, useState, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 import {useAtelierLanguage} from './AtelierLanguage';
@@ -32,6 +32,6 @@ export default function MakeItYours({summary, children, onOpen}: {summary: strin
           </div>
           {children}
         </div>
-      </div>, document.body)}
+      </div>, document.querySelector('.ames-app-shell') ?? document.body)}
   </>;
 }
