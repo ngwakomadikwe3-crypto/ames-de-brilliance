@@ -16,6 +16,16 @@ function unpack(bytes) {
   const size = bytes.readUInt32LE(12);
   return { doc: JSON.parse(bytes.subarray(20, 20 + size)), binary: bytes.subarray(28 + size) };
 }
+/** Which stones carry the colour in a mixed piece; the rest stay diamond. */
+function featureStone(setting, node, tennis) {
+  const name = node.name || '';
+  if (setting === 'ring') return name === 'Solitaire diamond';
+  if (setting === 'bracelet') return tennis.indexOf(node) % 2 === 1;
+  if (setting === 'earrings') return name.startsWith('Pear drop');
+  if (setting.startsWith('necklace')) return name.startsWith('Pear drop diamond');
+  if (setting === 'watch') return name.startsWith('Dial diamond') || name === 'Crown diamond';
+  return false;
+}
 const templates = { ring: 'demo-pave-solitaire', bracelet: 'ames-tennis-bracelet', earrings: 'ames-pear-drop-earrings', watch: 'ames-iced-watch' };
 for (const cut of ['pear','round','oval','cushion']) templates['necklace-'+cut]='ames-pear-fringe-necklace';
 for (const [setting, asset] of Object.entries(templates)) {
@@ -87,6 +97,28 @@ for (const [setting, asset] of Object.entries(templates)) {
       for (const key of ['images','textures','samplers']) if (!doc[key].length) delete doc[key];
     }
     const index = doc.materials.push(material) - 1;
+    // Mixed stones: the same piece with the coloured stone in the feature positions and diamonds kept
+    // everywhere else (sapphire centre with a diamond pavé band, alternating tennis line, coloured drops
+    // under diamond tops). Written before the all-stone version, from the same geometry.
+    if (!blue) {
+      const mixed = structuredClone(doc);
+      const gems = mixed.nodes.filter(n => n.extras?.ames_gemstone_id);
+      const tennis = gems.filter(n => n.name?.startsWith('Tennis diamond'));
+      for (const node of gems.filter(n => featureStone(setting, n, tennis))) {
+        Object.assign(node.extras, {ames_gemstone_id:id, ames_optical_mode:mode});
+        const mesh = structuredClone(mixed.meshes[node.mesh]);
+        node.mesh = mixed.meshes.push(mesh) - 1;
+        for (const primitive of mesh.primitives) primitive.material = index;
+      }
+      await writeFile(output + '/' + stone.id + '-mixed-' + setting + '.gltf', JSON.stringify(mixed));
+      if (setting === 'watch') {
+        const head = mixed.nodes.find(node => node.name === 'Watch head');
+        for (const [shape, width] of [['square', 1.19], ['slim', .81]]) {
+          head.scale = [width, 1, 1];
+          await writeFile(output + '/' + stone.id + '-mixed-watch-' + shape + '.gltf', JSON.stringify(mixed));
+        }
+      }
+    }
     for (const node of doc.nodes.filter(n => n.extras?.ames_gemstone_id)) {
       Object.assign(node.extras, {ames_gemstone_id:id, ames_optical_mode:mode});
       for (const primitive of doc.meshes[node.mesh].primitives) primitive.material = index;

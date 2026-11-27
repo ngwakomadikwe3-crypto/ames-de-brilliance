@@ -5,7 +5,7 @@ import {colourDiamondModel} from '../lib/diamond-colour';
 import {useAtelierLanguage} from './AtelierLanguage';
 import {diamondCuts,HouseChoices} from './HouseChoices';
 export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) {
-  const [cut,setCut]=useState('Original'),[colour,setColour]=useState('');
+  const [cut,setCut]=useState('Original'),[colour,setColour]=useState(''),[mixed,setMixed]=useState('');
   const [shape,setShape]=useState(source.includes('/ames-iced-watch/')?'Square':'Original');
   const model=shape!=='Original' ? source.replace(/[^/]+\.glb.*$/,'watch-'+shape.toLowerCase()+'.glb') : necklace && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'fringe-'+cut.toLowerCase()+'.glb') : ring && cut!=='Original' ? source.replace(/[^/]+\.glb.*$/,'solitaire-'+cut.toLowerCase()+'.glb') : source;
   const [variant,setVariant]=useState({key:'',url:''}),[error,setError]=useState('');
@@ -14,17 +14,17 @@ export function useDiamondDesign(source:string, ring:boolean, necklace:boolean) 
   const strapQuery=strap==='leather'?'leather='+leather:'';
   const modelUrl=model+([metal!=='silver'?'metal='+metal:'',strapQuery].filter(Boolean).length?(model.includes('?')?'&':'?')+[metal!=='silver'?'metal='+metal:'',strapQuery].filter(Boolean).join('&'):'');
   const customised=!!colour;
-  const key=model+colour+metal+strapQuery;
+  const key=model+colour+metal+strapQuery+mixed;
   useEffect(()=>{
     if(!customised)return;
     const abort=new AbortController();let url='';
     fetch(model,{signal:abort.signal}).then(r=>{if(!r.ok)throw Error();return r.arrayBuffer();}).then(b=>{
       if(abort.signal.aborted)return;
-      url=URL.createObjectURL(colourDiamondModel(b,colour,metal,strap==='leather'?leather:''));setVariant({key,url});setError('');
+      url=URL.createObjectURL(colourDiamondModel(b,colour,metal,strap==='leather'?leather:'',!!mixed));setVariant({key,url});setError('');
     }).catch(()=>{if(!abort.signal.aborted)setError(key);});
     return ()=>{abort.abort();if(url)URL.revokeObjectURL(url);};
-  },[model,colour,metal,customised,key,strap,leather]);
-  return {strap,setStrap,leather,setLeather,metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):modelUrl,error:customised && error===key};
+  },[model,colour,metal,customised,key,strap,leather,mixed]);
+  return {mixed,setMixed,strap,setStrap,leather,setLeather,metal,setMetal,shape,setShape,cut,setCut,colour,setColour,src:customised?(variant.key===key?variant.url:''):modelUrl,error:customised && error===key};
 }
 export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<typeof useDiamondDesign>;ring:boolean;watch:boolean;necklace:boolean}) {
   const {t}=useAtelierLanguage();
@@ -36,5 +36,7 @@ export function DiamondControls({design,ring,watch,necklace}:{design:ReturnType<
     {watch && <HouseChoices label="Case shape" value={design.shape} choices={{Original:'Original',Square:'Square',Slim:'Slim rectangle',Round:'Round'}} onChange={design.setShape}/>}
     <HouseChoices label="Metal" value={design.metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={design.setMetal}/>
     <HouseChoices label="Diamonds" value={design.colour} choices={colours} onChange={design.setColour}/>
+    {/* Mixed stones: the colour on the feature stones only, diamonds kept around them. */}
+    {design.colour && design.colour!=='#ffffff' && <HouseChoices label="Colour on" value={design.mixed} choices={{'':'Every stone',mixed:ring?'Centre stone, diamond band':watch?'Markers and crown, diamond pavé':necklace?'Drops, diamond chain':'Feature stones, with diamonds'}} onChange={design.setMixed}/>}
   </details>;
 }

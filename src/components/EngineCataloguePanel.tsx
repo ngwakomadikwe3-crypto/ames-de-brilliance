@@ -5,6 +5,7 @@ import { studioCameraPreset } from '../lib/customer-jewelry-display';
 import {HouseChoices,diamondCuts} from './HouseChoices';
 import {useAtelierLanguage} from './AtelierLanguage';
 import SizeGuide from './SizeGuide';
+import {SizeChoices,useSizes} from './SizeChoices';
 import {WatchStrap} from './WatchStrap';
 import ConfigurationPrice from './ConfigurationPrice';
 import SampleQuote from './SampleQuote';
@@ -21,7 +22,7 @@ import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
-const GALLERY_VERSION = '10';
+const GALLERY_VERSION = '11';
 const looseLibraryEntries: GalleryStone[] = [
   { id: 'stone-malachite', name: "Malachite", defaultColors: ["banded green"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
   { id: 'stone-onyx', name: "Onyx", defaultColors: ["black"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
@@ -202,16 +203,21 @@ function GemFacts({ id }: { id: string }) {
 function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:string,question:string)=>void; stone: GalleryStone; list: GalleryStone[]; onGo: (stone: GalleryStone) => void; onClose: () => void }) {
   const {t}=useAtelierLanguage();
   const facts = GEMSTONE_FACTS[stone.id];
-  const [setting, setSetting] = useState('ring');
+  const [setting, chooseSetting] = useState('ring');
+  // Mixed stones: the coloured stone in the feature positions (centre, drops, every other tennis stone, the
+  // watch markers) with diamonds everywhere else. '' is the piece set all in this stone.
+  const [mixed, setMixed] = useState('');
+  const sizes = useSizes(setting, true);
+  const setSetting = (next: string) => { chooseSetting(next); sizes.reset(); };
   const [dropCut,setDropCut]=useState('Pear');
   const [ringCut,setRingCut] = useState('');
   const [cut, setCut] = useState('');
   const [metal,setMetal] = useState('silver');
   const [caseShape,setCaseShape] = useState('Original');
   const [strap,setStrap]=useState('metal'),[leather,setLeather]=useState('cognac');
-  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
+  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}${mixed&&setting!=='loose'?'-mixed':''}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
   const sampleModel=setting==='watch' && strap==='leather'?baseModel+(baseModel.includes('?')?'&':'?')+'leather='+leather:baseModel;
-  const configuration=[setting==='loose'?cut||stone.cut:metal,setting==='ring'&&(ringCut||'Original'),setting==='necklace'&&dropCut,setting==='watch'&&caseShape,setting==='watch'&&strap,setting==='watch'&&strap==='leather'&&leather].filter(Boolean).join(' · ');
+  const configuration=[setting==='loose'?cut||stone.cut:metal,setting==='ring'&&(ringCut||'Original'),setting==='necklace'&&dropCut,setting==='watch'&&caseShape,setting==='watch'&&strap,setting==='watch'&&strap==='leather'&&leather,setting!=='loose'&&mixed&&stone.name+' with diamonds',sizes.configuration].filter(Boolean).join(' · ');
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
   const src = modelCut
     ? `/ames-engine/gallery-cuts/${modelCut}/${stone.id}.glb?v=11`
@@ -252,15 +258,17 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
       }}>Ask SAME</button>}
       {setting==='watch' && <WatchMovement/>}
       <HouseChoices label="View in 3D" value={setting} onChange={setSetting} choices={{ring:'Ring',bracelet:'Bracelet',earrings:'Earrings',necklace:'Necklace',watch:'Watch',loose:'Loose gemstone'}}/>
+      {setting !== 'loose' && <HouseChoices label="Stones" value={mixed} onChange={setMixed} choices={{'':'All '+stone.name.toLowerCase(),mixed:stone.name+' with diamonds'}}/>}
       {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'watch' && <WatchStrap strap={strap} setStrap={setStrap} colour={leather} setColour={setLeather}/>}
       {setting === 'watch' && <HouseChoices label="Case shape" value={caseShape} onChange={setCaseShape} choices={{Original:'Classic rectangle',Square:'Square',Slim:'Slim rectangle',Round:'Round'}}/>}
       {setting === 'ring' && <HouseChoices label="Centre cut" value={ringCut} onChange={setRingCut} choices={{'':'Original',...Object.fromEntries(diamondCuts.map(c=>[c,c]))}}/>}
+      <SizeChoices sizes={sizes}/>
       {['ring','bracelet','watch'].includes(setting) && <SizeGuide category={setting} model={sampleModel} key={setting} wrist={setting!=='ring'}/>}
       {setting !== 'loose' && <p className="my-2 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
-      <ConfigurationPrice key={stone.id+setting+configuration} piece={stone.id} setting={setting} options={configuration}/>
-      {setting !== 'loose' && <SampleQuote configuration={configuration} key={stone.id+setting+configuration} stone={stone.name} caseShape={setting==='watch'?caseShape+(strap==='leather'?' · '+leather+' leather strap':' · metal bracelet'):undefined} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}
+      {/* One price row per selection; for jewellery the price line is the quote request's own heading (as in the Boutique). */}
+      <ConfigurationPrice key={'price:'+stone.id+setting+configuration} piece={stone.id} setting={setting} options={configuration}>{setting === 'loose' ? undefined : line => <SampleQuote heading={line} configuration={configuration} key={'quote:'+stone.id+setting+configuration} stone={stone.name} caseShape={setting==='watch'?caseShape+(strap==='leather'?' · '+leather+' leather strap':' · metal bracelet'):undefined} metal={metal} setting={setting} cut={setting === "ring" ? ringCut : setting === "necklace" ? dropCut : ""} />}</ConfigurationPrice>
       {setting === 'loose' && <HouseChoices label="Cut" value={cut} onChange={setCut} choices={{'':'Original · '+stone.cut,...Object.fromEntries(diamondCuts.filter(c=>c.toLowerCase()!==stone.cut.toLowerCase()).map(c=>[c,c]))}}/>}
       {facts && <details className="mt-3 text-sm"><summary className="cursor-pointer py-3">About this stone</summary><GemFacts id={stone.id} /></details>}
     </div>

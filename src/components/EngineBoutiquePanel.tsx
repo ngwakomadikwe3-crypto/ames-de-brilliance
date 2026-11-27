@@ -9,6 +9,7 @@ import {DiamondControls,useDiamondDesign} from './DiamondDesign';
 import {useAtelierLanguage} from './AtelierLanguage';
 import FittingHand from './FittingHand';
 import SizeGuide from './SizeGuide';
+import {SizeChoices,useSizes} from './SizeChoices';
 import ModelViewer from './ModelViewer';
 
 import housePieces from '../lib/boutique-house-pieces.json';
@@ -63,8 +64,9 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
   const customizable = ring || ['ames-iced-watch','ames-pear-drop-earrings','ames-pear-fringe-necklace','ames-tennis-bracelet'].includes(piece.assetId);
   const design = useDiamondDesign(piece.interactiveGlb, ring, piece.assetId === "ames-pear-fringe-necklace");
   const {t}=useAtelierLanguage();
+  const sizes = useSizes(piece.category ?? '', ring);
   const price = boutiquePrice(piece.price);
-  const options=collection.active?collection.configuration:[design.metal,design.colour||'Original stones',(ring||piece.category==='necklace')&&design.cut,piece.category==='watch'&&design.shape,piece.category==='watch'&&design.strap,piece.category==='watch'&&design.strap==='leather'&&design.leather].filter(Boolean).join(' · ');
+  const options=collection.active?collection.configuration:[design.metal,design.colour||'Original stones',(ring||piece.category==='necklace')&&design.cut,piece.category==='watch'&&design.shape,piece.category==='watch'&&design.strap,piece.category==='watch'&&design.strap==='leather'&&design.leather,!collection.active&&design.colour&&design.mixed&&'Colour on feature stones, with diamonds',sizes.configuration].filter(Boolean).join(' · ');
   const hasOptions=!piece.listing&&(customizable||collection.active);
   const knownSpecs = Object.entries(piece.essentialSpecs).filter(([key, value]) => !['physicalScaleConfirmed', 'unitMeaning', 'manufacturingReady'].includes(key) && value !== null && value !== undefined && value !== 'unknown');
   const review = piece.publicationStatus !== 'published' || piece.visualApproval !== 'approved';
@@ -87,6 +89,7 @@ function PieceDetail({ piece, onClose, onAskSame }: { piece: BoutiquePiece; onCl
         {collection.controls}
         {customizable && !collection.active && <DiamondControls design={design} necklace={piece.assetId === "ames-pear-fringe-necklace"} ring={ring} watch={piece.assetId === "ames-iced-watch"}/>}
         {piece.assetId === 'dev-test-earring-001' && <p className="mt-2 text-xs text-white">Yellow-gold material preview · finish unverified</p>}
+        {hasOptions && <SizeChoices sizes={sizes}/>}
           {hasOptions && <ConfigurationPrice key={piece.assetId+options} piece={piece.assetId} setting={piece.category} options={options}>{line => <SampleQuote key={options} heading={line} configuration={options} stone={piece.name} setting={piece.category} cut={collection.active?'':design.cut} metal={collection.active?collection.metal:design.metal}/>}</ConfigurationPrice>}
         {review && <p style={{ fontSize: 10, color: '#ffffff', marginTop: 5 }}>Preview · visual approval pending</p>}
         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3" style={{ fontSize: 11, color: '#ffffff' }}>

@@ -112,6 +112,39 @@
     ]
   },
   {
+    "id": "stone-emerald",
+    "name": "Emerald",
+    "aliases": [
+      "green beryl"
+    ],
+    "category": "beryl",
+    "form": "faceted",
+    "cut": "emerald",
+    "defaultColors": [
+      "green"
+    ],
+    "limitations": [
+      "Representative educational visualization, not a stock item or an identification report.",
+      "Natural fissures, inclusions, and clarity treatments are not reproduced or graded.",
+      "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-imperial-topaz",
+    "name": "Imperial topaz",
+    "sourceId": "stone-topaz",
+    "tint": "#f29346",
+    "aliases": [
+      "imperial topaz"
+    ],
+    "category": "Imperial topaz",
+    "form": "faceted",
+    "cut": "pear",
+    "defaultColors": [
+      "golden orange"
+    ]
+  },
+  {
     "id": "stone-iolite",
     "name": "Iolite",
     "aliases": [
@@ -131,21 +164,6 @@
       "Representative educational visualization, not a stock item or an identification report.",
       "Pleochroic colour changes with viewing direction are simplified.",
       "Exact dimensions, carat, origin, treatment, and certification are not claimed."
-    ]
-  },
-  {
-    "id": "stone-imperial-topaz",
-    "name": "Imperial topaz",
-    "sourceId": "stone-topaz",
-    "tint": "#f29346",
-    "aliases": [
-      "imperial topaz"
-    ],
-    "category": "Imperial topaz",
-    "form": "faceted",
-    "cut": "pear",
-    "defaultColors": [
-      "golden orange"
     ]
   },
   {
@@ -238,6 +256,27 @@
     "cut": "cushion",
     "defaultColors": [
       "raspberry red"
+    ]
+  },
+  {
+    "id": "stone-sapphire",
+    "name": "Sapphire",
+    "aliases": [
+      "blue sapphire",
+      "blue corundum"
+    ],
+    "category": "corundum",
+    "form": "faceted",
+    "cut": "oval",
+    "defaultColors": [
+      "blue",
+      "royal blue",
+      "cornflower blue"
+    ],
+    "limitations": [
+      "The representative default is blue; unsupported requested colours are not substituted.",
+      "Colour is illustrative and does not assert a trade colour grade, origin, or treatment.",
+      "Exact dimensions, carat, clarity, and certification are not claimed."
     ]
   },
   {
