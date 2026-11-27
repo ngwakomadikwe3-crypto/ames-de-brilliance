@@ -176,7 +176,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       }
       const w = wristFrame(points, dorsal, fit?.outline?.wrist ?? 0.74);
       const raw = wrist
-        ? [...w.origin, ...w.axis, ...w.up, w.halfWidth, w.halfDepth]
+        ? [...w.origin, ...w.axis, ...w.up, w.halfWidth * 1.14, w.halfDepth * 1.06]   // the wrist bones measure narrower than the skin a bracelet rests on
         : (() => { const r = fingerFrame(points, dorsal, fingerRef.current, fit?.outline?.digits?.[fingerRef.current]); // Depth from one camera is the weakest part of the pose, and a small error rolls the ring's head off the
           // finger. With the back of the hand toward the camera the head is seen facing it, so trust the picture.
           const toCamera = normalize(scale(r.origin, -1)), facing = dot(dorsal, toCamera);
