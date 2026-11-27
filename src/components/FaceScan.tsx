@@ -106,8 +106,8 @@ export default function FaceScan({ onDone, onCancel }: { onDone: (face: FaceIden
           {!turn && <line x1="30" x2="70" y1="56" y2="56" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="0.4" />}
         </g>
       </svg>
-      <button type="button" onClick={onCancel} aria-label="Close the scan" className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0c3b2e] shadow-lg">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+      <button type="button" onClick={onCancel} aria-label="Back" className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0c3b2e] shadow-lg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 18l-6-6 6-6" /></svg></button>
       <p className="absolute inset-x-0 top-4 text-center text-xs">{phase === 'capture' ? (stepIx < REQUIRED_STEPS ? `${stepIx + 1} of ${REQUIRED_STEPS}` : `Optional ${stepIx - REQUIRED_STEPS + 1} of ${STEPS.length - REQUIRED_STEPS}`) : ''}</p>
     </div>
     <div className="space-y-3 p-5 pb-7">

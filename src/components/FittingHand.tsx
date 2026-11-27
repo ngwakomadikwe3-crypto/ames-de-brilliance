@@ -5,6 +5,7 @@
 // alternative in its ••• menu. Off, the piece's own viewer shows with one floating "Try on" button.
 import dynamic from 'next/dynamic';
 import { Component, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 const CloneTryOn = dynamic(() => import('./CloneTryOn'), { ssr: false });
 const ArTryOn = dynamic(() => import('./ArTryOn'), { ssr: false });
 const PortraitTryOn = dynamic(() => import('./PortraitTryOn'), { ssr: false });
@@ -34,7 +35,9 @@ export default function FittingHand({ category, model, title, children, detachab
     {children}
     {!failed && <button type="button" onClick={() => setOn(true)} className="absolute bottom-3 left-1/2 z-10 min-h-11 -translate-x-1/2 rounded-full px-6 text-sm font-medium shadow-lg" style={bubble} data-try-on-button>Try on</button>}
     {failed && <p role="status" className="absolute inset-x-0 bottom-3 text-center text-xs text-white">Try-on is not available on this device.</p>}
-    {on && <div className="fixed inset-0 z-[80]" style={{ background: 'radial-gradient(120% 90% at 50% 35%, #0f4a3a 0%, #062a21 70%)', height: '100dvh' }} data-try-on role="dialog" aria-modal="true" aria-label={`Try on ${title ?? 'this piece'}`}>
+    {/* Full screen above the app bar: rendered at the app shell, not inside the (transformed) magazine page,
+        so the header can never cover the try-on's Back button. */}
+    {on && createPortal(<div className="fixed inset-0 z-[80]" style={{ background: 'radial-gradient(120% 90% at 50% 35%, #0f4a3a 0%, #062a21 70%)', height: '100dvh' }} data-try-on role="dialog" aria-modal="true" aria-label={`Try on ${title ?? 'this piece'}`}>
       <SceneBoundary key={(ar ? 'ar' : 'clone') + model} onFail={() => { setFailed(true); close(); }}>
         {portrait
           ? <PortraitTryOn model={model} category={category} title={title} onClose={close} detachable={detachable} wearLabels={wearLabels} />
@@ -46,6 +49,6 @@ export default function FittingHand({ category, model, title, children, detachab
             </div>
           : <CloneTryOn model={model} category={category} title={title} onClose={close} onLiveCamera={() => setAr(true)} />}
       </SceneBoundary>
-    </div>}
+    </div>, document.querySelector('.ames-app-shell') ?? document.body)}
   </div>;
 }

@@ -89,7 +89,10 @@ export default function HandScan({ onDone, onCancel }: { onDone: (scan: ScanResu
   }
 
   const good = shot && !shot.issues.length;
-  return <section aria-label="Scan your hand" className="space-y-2 text-center text-sm text-white">
+  return <section aria-label="Scan your hand" className="relative space-y-2 px-3 pt-16 text-center text-sm text-white">
+    {/* Back to the try-on, the same white bubble as every try-on screen */}
+    <button type="button" onClick={onCancel} aria-label="Back" className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#0c3b2e] shadow-lg">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg></button>
     <p className="text-xs">Your hand photo stays on this device and is only used to build your try-on hand.</p>
     {live && <div className="relative mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden rounded-2xl bg-black">
       <video ref={video} playsInline muted autoPlay className="h-full w-full object-cover" style={{ transform: facing === 'user' ? 'scaleX(-1)' : undefined }} />

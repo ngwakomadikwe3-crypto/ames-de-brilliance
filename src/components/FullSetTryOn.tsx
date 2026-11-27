@@ -4,6 +4,7 @@
 // keeps its own controls (Customize, camera); the portrait wears every neck and ear piece together.
 import dynamic from 'next/dynamic';
 import { Component, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 const PortraitTryOn = dynamic(() => import('./PortraitTryOn'), { ssr: false });
 const CloneTryOn = dynamic(() => import('./CloneTryOn'), { ssr: false });
 
@@ -26,7 +27,8 @@ export default function FullSetTryOn({ title, pieces, onClose }: { title: string
   // the portrait's main piece: the earrings when there are any (their "Wear as" stays available), the rest worn with them
   const main = face.find(p => p.category === 'earrings') ?? face[0], others = face.filter(p => p !== main);
   const bubble = { background: '#ffffff', color: '#0c3b2e' };
-  return <div className="fixed inset-0 z-[80] flex flex-col landscape:flex-row" style={{ background: 'radial-gradient(120% 90% at 50% 35%, #0f4a3a 0%, #062a21 70%)', height: '100dvh' }}
+  // At the app shell, above the app bar, so its Back button is always visible.
+  return createPortal(<div className="fixed inset-0 z-[80] flex flex-col landscape:flex-row" style={{ background: 'radial-gradient(120% 90% at 50% 35%, #0f4a3a 0%, #062a21 70%)', height: '100dvh' }}
     role="dialog" aria-modal="true" aria-label={`Try on ${title}`} data-full-set-stage>
     {main && <div className="relative min-h-0 flex-[1.25] landscape:flex-1" data-set-portrait>
       <Boundary label="The portrait try-on">
@@ -38,11 +40,11 @@ export default function FullSetTryOn({ title, pieces, onClose }: { title: string
       <Boundary label="The hand try-on">
         <CloneTryOn key={wrist[onWrist].code} model={wrist[onWrist].glb} category={wrist[onWrist].category} />
       </Boundary>
-      {wrist.length > 1 && <div className="absolute left-3 top-3 z-20 flex max-w-[55%] flex-wrap gap-2">
+      {wrist.length > 1 && <div className="absolute left-16 top-3 z-20 flex max-w-[55%] flex-wrap gap-2">
         {wrist.map((p, i) => <button key={p.code} type="button" aria-pressed={onWrist === i} onClick={() => setOnWrist(i)} className="ames-pill min-h-9 rounded-full px-3 text-[11px]">{p.name}</button>)}
       </div>}
     </div>}
-    <button type="button" onClick={onClose} aria-label="Close the set try-on" className="absolute left-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
-  </div>;
+    <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 z-30 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 18l-6-6 6-6" /></svg></button>
+  </div>, document.querySelector('.ames-app-shell') ?? document.body);
 }

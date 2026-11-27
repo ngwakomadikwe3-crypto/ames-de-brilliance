@@ -359,8 +359,8 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
   const bubble = { background: '#ffffff', color: '#0c3b2e' };
   return <div ref={box} className="relative h-full w-full overflow-hidden" data-portrait-try-on>
     <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" aria-label={`${title ?? 'The piece'} on your 3D portrait twin`} />
-    {onClose && <button type="button" onClick={onClose} aria-label="Close try-on" className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
+    {onClose && <button type="button" onClick={onClose} aria-label="Back" className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 18l-6-6 6-6" /></svg></button>}
     <button type="button" onClick={() => setPanel(v => !v)} aria-expanded={panel} aria-label="Customize" className="absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg></button>
     {title && !preview && <p className="pointer-events-none absolute inset-x-16 top-5 text-center text-sm text-white">{title}</p>}
