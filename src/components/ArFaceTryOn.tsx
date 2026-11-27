@@ -9,13 +9,13 @@
 // damped pendulum under real gravity; a depth-only head and neck hide the far earring and the back of the chain.
 import { useEffect, useRef, useState } from 'react';
 import {
-  AmbientLight, CylinderGeometry, DirectionalLight, Group, Material, Matrix4, Mesh, MeshBasicMaterial, Object3D,
+  AmbientLight, CylinderGeometry, DataTexture, LinearFilter, RedFormat, DirectionalLight, Group, Material, Matrix4, Mesh, MeshBasicMaterial, Object3D,
   PerspectiveCamera, PlaneGeometry, Quaternion, Scene, ShaderMaterial, SphereGeometry, SRGBColorSpace, Texture, Vector3,
   VideoTexture, WebGLRenderer, Euler,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import type { FaceLandmarker } from '@mediapipe/tasks-vision';
+import type { FaceLandmarker, ImageSegmenter } from '@mediapipe/tasks-vision';
 import { faceTrackingAssets } from '../lib/hand-tracking-assets';
 import { OneEuro } from '../lib/ar/one-euro';
 import { dress } from '../lib/ar/jewel-dress';
@@ -97,6 +97,60 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
     const body = new Group(); body.visible = false; scene.add(body);
     const bodyMm = new Group(); bodyMm.scale.setScalar(0.1); body.add(bodyMm);
     const occluder = depthOnly(); disposables.push(occluder);
+
+    // Hair in front of the ears: MediaPipe's selfie segmenter (hair = 1) on the live frame. Hair only hides an
+    // earring when it also covers that ear's lobe (hair falling over the ear), never hair hanging behind it.
+    let segmenter: ImageSegmenter | undefined, segFrame = 0;
+    const coverSize = 256, coverData = new Uint8Array(coverSize * coverSize);
+    const cover = new DataTexture(coverData, coverSize, coverSize, RedFormat); cover.magFilter = cover.minFilter = LinearFilter; disposables.push(cover);
+    const lobeScreen = new Vector3();
+    async function loadSegmenter() {
+      try {
+        let r = await fetch('/hand-tracking/segment-v1.tflite');
+        if (!r.ok || r.headers.get('content-type')?.includes('text/html')) r = await fetch('/api/segment-model');
+        if (!r.ok) return;
+        const bytes = new Uint8Array(await r.arrayBuffer());
+        const { ImageSegmenter, FilesetResolver } = await import('@mediapipe/tasks-vision');
+        const files = await FilesetResolver.forVisionTasks('/hand-tracking/wasm');
+        if (stopped) return;
+        segmenter = await ImageSegmenter.createFromOptions(files, { baseOptions: { modelAssetBuffer: bytes, delegate: 'GPU' }, runningMode: 'VIDEO', outputCategoryMask: true, outputConfidenceMasks: false });
+        if (stopped) segmenter.close();
+      } catch { /* no hair occlusion on this device; everything else works */ }
+    }
+    function updateCover(now: number) {
+      if (!segmenter || !swings.length || (segFrame++ % (lowQuality ? 4 : 2))) return;
+      segmenter.segmentForVideo(video, now, result => {
+        const m = result.categoryMask; if (!m) return;
+        const labels = m.getAsUint8Array(), mw = m.width, mh = m.height;
+        coverData.fill(0);
+        let any = false;
+        for (const s of swings) {
+          // the lobe on the (unmirrored) camera picture
+          s.holder.getWorldPosition(lobeScreen).project(camera);
+          const lx = (lobeScreen.x + 1) / 2, ly = (1 - lobeScreen.y) / 2;
+          const at = (x: number, y: number) => labels[Math.min(mh - 1, Math.max(0, Math.round(y * mh))) * mw + Math.min(mw - 1, Math.max(0, Math.round(x * mw)))] === 1;
+          let hair = 0; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) hair += at(lx + dx * 0.006, ly + dy * 0.006) ? 1 : 0;
+          if (hair < 13) continue;                                     // the lobe shows: the earring is in front of any hair
+          any = true;
+          // copy the hair around this earring (it hangs ~5 cm: a generous box below the lobe)
+          const x0 = Math.max(0, Math.floor((lx - 0.08) * coverSize)), x1 = Math.min(coverSize - 1, Math.ceil((lx + 0.08) * coverSize));
+          const y0 = Math.max(0, Math.floor((ly - 0.04) * coverSize)), y1 = Math.min(coverSize - 1, Math.ceil((ly + 0.22) * coverSize));
+          for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (at(x / coverSize, y / coverSize)) coverData[y * coverSize + x] = 255;
+        }
+        m.close();
+        cover.needsUpdate = true;
+        reality.setCover(any ? cover : null);
+      });
+    }
+
+    // Slower phones: measured, not guessed. A sustained frame time over ~45 ms drops multisampling and halves
+    // the hair-mask rate; the look and the lighting stay.
+    let lowQuality = false, frameMs = 33, lastFrameAt = 0;
+    function adapt(now: number) {
+      if (lastFrameAt) frameMs += ((now - lastFrameAt) - frameMs) * 0.05;
+      lastFrameAt = now;
+      if (!lowQuality && frameMs > 45) { lowQuality = true; reality.setLowQuality(true); renderer.setPixelRatio(1); resize(); }
+    }
     const calibration = new FaceCalibration();
     const swings: { holder: Object3D; pivot: Group; pendulum: Pendulum }[] = [];
     let piece: Object3D | null = null, placed = false, neckPoint = new Vector3();
@@ -184,6 +238,8 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
           s.pivot.rotation.set(ax, 0, az);
         }
       }
+      updateCover(now);
+      adapt(now);
       reality.render(scene, camera, [backdrop]);
     }
 
@@ -232,6 +288,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       tracker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetBuffer: bytes.slice(), delegate: 'GPU' }, runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true });
       if (stopped) { tracker.close(); return; }
       setStatus(''); setTip('Face the camera, in good light.');
+      void loadSegmenter();
     }
     void start().catch(fail);
     const visibility = () => { if (document.hidden) video.pause(); else void video.play().catch(() => {}); };
@@ -244,7 +301,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       const v = video as HTMLVideoElement & { cancelVideoFrameCallback?: (h: number) => void };
       if (frameHandle) v.cancelVideoFrameCallback?.(frameHandle);
       stream?.getTracks().forEach(t => t.stop()); video.srcObject = null;
-      tracker?.close();
+      tracker?.close(); segmenter?.close();
       piece?.traverse(o => { const m = o as Mesh; if (m.isMesh) { m.geometry?.dispose(); [m.material].flat().forEach(x => (x as Material)?.dispose()); } });
       disposables.forEach(d => d.dispose());
     };

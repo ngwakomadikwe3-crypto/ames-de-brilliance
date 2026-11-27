@@ -88,6 +88,18 @@ export class CameraEnvironment {
       const back = Math.abs(x / (w - 1) - 0.5) > 0.25 ? 0.55 : 1;
       data[i] = r * boost * back; data[i + 1] = g * boost * back; data[i + 2] = b * boost * back; data[i + 3] = 1;
     }
+    // Every lived-in room has small, hard lights overhead (ceiling lamps, a window's sky) that a front camera
+    // never sees but that make real stones sparkle. Two small overhead sources, as bright as the room allows.
+    let mean = 0; for (let i = 0; i < w * h; i++) mean += data[4 * i] * 0.2126 + data[4 * i + 1] * 0.7152 + data[4 * i + 2] * 0.0722;
+    mean /= w * h;
+    const lamp = 6 + 60 * Math.sqrt(mean);
+    for (const [lx, ly] of [[0.36, 0.1], [0.62, 0.14]]) {
+      const cx = Math.round(lx * (w - 1)), cy = Math.round(ly * (h - 1));
+      for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 2; x <= cx + 2; x++) {
+        const i = 4 * (y * w + x), f = (x === cx && y === cy) ? 1 : 0.45;
+        data[i] += lamp * f; data[i + 1] += lamp * f * 0.97; data[i + 2] += lamp * f * 0.92;
+      }
+    }
     this.texture.needsUpdate = true;
     const next = this.pmrem.fromEquirectangular(this.texture);
     this.target?.dispose(); this.target = next;
@@ -116,6 +128,8 @@ const COMPOSITE_FRAGMENT = /* glsl */`
   varying vec2 vUv;
   uniform sampler2D frame;      // the whole picture (camera + jewellery), linear HDR
   uniform sampler2D mask;       // the jewellery's coverage (alpha)
+  uniform sampler2D cover;      // what is really in front of the jewellery (hair over an ear), camera space, top row first
+  uniform float hasCover;
   uniform vec2 texel;
   uniform float exposure, black, white, grain, soft, saturation, time, mirror;
   vec3 aces(vec3 x){ x *= 0.6; return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
@@ -125,6 +139,7 @@ const COMPOSITE_FRAGMENT = /* glsl */`
     vec2 uv = vec2(mirror > 0.5 ? 1.0 - vUv.x : vUv.x, vUv.y);
     vec3 c = texture2D(frame, uv).rgb;
     float m = texture2D(mask, uv).a;
+    if (hasCover > 0.5) m *= 1.0 - texture2D(cover, vec2(uv.x, 1.0 - uv.y)).r;
     // the camera picture stays exactly as filmed
     vec3 film = toSRGB(clamp(c, 0.0, 1.0));
     if (m < 0.002) { gl_FragColor = vec4(film, 1.0); return; }
@@ -170,16 +185,29 @@ export class RealityCompositor {
       uniforms: {
         frame: { value: this.frame.texture }, mask: { value: this.mask.texture }, texel: { value: new Vector2() },
         exposure: { value: 1 }, black: { value: 0 }, white: { value: 1 }, grain: { value: 0 }, soft: { value: 0 },
-        saturation: { value: 1 }, time: { value: 0 }, mirror: { value: 0 },
+        saturation: { value: 1 }, time: { value: 0 }, mirror: { value: 0 }, cover: { value: null }, hasCover: { value: 0 },
       },
       vertexShader: COMPOSITE_VERTEX, fragmentShader: COMPOSITE_FRAGMENT, depthTest: false, depthWrite: false,
     });
     this.quad = new Mesh(new PlaneGeometry(2, 2), this.material); this.quad.frustumCulled = false;
     this.screen.add(this.quad);
   }
+  /** What is really in front of the jewellery (e.g. hair over the ear), as a red-channel texture; null for none. */
+  setCover(texture: Texture | null) { this.material.uniforms.cover.value = texture; this.material.uniforms.hasCover.value = texture ? 1 : 0; }
+  /** Slower phones: no multisampling and a smaller coverage mask (the grade and lighting stay). */
+  setLowQuality(low: boolean) {
+    const samples = low ? 0 : 4;
+    if (this.frame.samples === samples) return;
+    const [w, h] = [this.frame.width, this.frame.height];
+    this.frame.dispose(); this.mask.dispose();
+    this.frame = new WebGLRenderTarget(w, h, { type: HalfFloatType, samples }); this.frame.texture.colorSpace = LinearSRGBColorSpace;
+    this.mask = new WebGLRenderTarget(Math.max(1, w >> (low ? 2 : 1)), Math.max(1, h >> (low ? 2 : 1)), { samples: low ? 0 : 2 });
+    this.material.uniforms.frame.value = this.frame.texture; this.material.uniforms.mask.value = this.mask.texture;
+  }
   private fit(width: number, height: number) {
     if (this.frame.width !== width || this.frame.height !== height) {
-      this.frame.setSize(width, height); this.mask.setSize(Math.max(1, width >> 1), Math.max(1, height >> 1));
+      const shift = this.frame.samples ? 1 : 2;
+      this.frame.setSize(width, height); this.mask.setSize(Math.max(1, width >> shift), Math.max(1, height >> shift));
       (this.material.uniforms.texel.value as Vector2).set(1 / width, 1 / height);
     }
   }

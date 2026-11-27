@@ -92,7 +92,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
     const environment = new CameraEnvironment(renderer); disposables.push(environment);
     const roomCanvas = document.createElement('canvas'); roomCanvas.width = 128; roomCanvas.height = 64;
     const sampleCanvas = document.createElement('canvas'); sampleCanvas.width = 64; sampleCanvas.height = 48;
-    let lastRoom = -Infinity, luminance = 0.2, looked = false;
+    let lastRoom = -Infinity, luminance = 0.2, looked = false, lowQuality = false, frameMs = 33, lastFrameAt = 0;
     function readRoom(now: number) {
       if (now - lastRoom < 1000 || !video.videoWidth) return;
       lastRoom = now;
@@ -231,6 +231,10 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       worn.visible = occluders.visible = shadow.visible = visible;
       if (visible !== shown) { shown = visible; setTip(visible ? 'Pinch to zoom. Take a photo when it looks right.' : wrist ? 'Show the back of your hand and your wrist.' : 'Show the back of your hand, fingers slightly apart.'); }
       readRoom(now);
+      // slower phones: measured frame time over ~45 ms drops multisampling (the look and the light stay)
+      if (lastFrameAt) frameMs += ((now - lastFrameAt) - frameMs) * 0.05;
+      lastFrameAt = now;
+      if (!lowQuality && frameMs > 45) { lowQuality = true; reality.setLowQuality(true); renderer.setPixelRatio(1); resize(); }
       reality.render(scene, camera, [backdrop], [shadow]);
     }
 

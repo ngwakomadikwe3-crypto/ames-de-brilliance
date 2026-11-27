@@ -1,24 +1,12 @@
 // Live face try-on geometry. MediaPipe's FaceLandmarker gives, per frame, a facial transformation matrix: the
-// pose of its canonical face (centimetres) in a perspective camera with a 63° vertical field of view. We learn
-// this customer's own ear lobes, chin and neck in that canonical frame from the first frames (each landmark
-// un-projected at its estimated depth and taken back through the matrix, then averaged), so the jewellery
-// follows *their* face, not an average one. The anchors are returned in millimetres for the portrait's
+// pose of its canonical face (centimetres) in a perspective camera with a 63° vertical field of view. The
+// jewellery's anchors come from that canonical face and the ear's anatomy, in millimetres for the portrait's
 // hangEarrings / setNecklace, which already know how a pair of earrings or a necklace is worn.
 import type { BustAnchors } from '../../components/PortraitTryOn';
 
 export const FACE_FOV = 63;   // MediaPipe face geometry's default perspective camera (vertical degrees)
 type V3 = [number, number, number];
 export type Landmark = { x: number; y: number; z: number };
-
-/** Column-major 4x4 (as MediaPipe gives it) inverse of a rigid (+ uniform scale) transform, applied to a point. */
-function inverseApply(m: ArrayLike<number>, p: V3): V3 {
-  const t: V3 = [p[0] - m[12], p[1] - m[13], p[2] - m[14]];
-  // columns of the rotation*scale part
-  const c0: V3 = [m[0], m[1], m[2]], c1: V3 = [m[4], m[5], m[6]], c2: V3 = [m[8], m[9], m[10]];
-  const s2 = c0[0] ** 2 + c0[1] ** 2 + c0[2] ** 2 || 1;
-  const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-  return [dot(c0, t) / s2, dot(c1, t) / s2, dot(c2, t) / s2];
-}
 
 /** A landmark in camera centimetres: its pixel ray, at the head's depth plus its own relative depth. */
 export function unproject(l: Landmark, matrix: ArrayLike<number>, aspect: number): V3 {
@@ -29,51 +17,56 @@ export function unproject(l: Landmark, matrix: ArrayLike<number>, aspect: number
   return [(2 * l.x - 1) * tx * depth, (1 - 2 * l.y) * ty * depth, -depth];
 }
 
-const IDS = { forehead: 10, nose: 1, chin: 152, tragusL: 234, tragusR: 454, jawL: 132, jawR: 361 } as const;
-type Key = keyof typeof IDS;
+// MediaPipe's canonical face (centimetres), the exact frame its transformation matrix maps into the camera,
+// read from the face landmarker's geometry_pipeline_metadata (canonical mesh): the face contour at the ears
+// (234/454), the jaw angle (132/361), the chin (152), the forehead (10) and the nose tip (1).
+export const CANONICAL = {
+  nose: [0, -1.127, 7.476], forehead: [0, 8.262, 4.482], chin: [0, -9.403, 4.264],
+  earContour: [7.664, 0.673, -2.436], jawAngle: [7.271, -2.891, -2.252],
+} as const;
 
-/** Averages this customer's landmarks in the canonical frame over the first frames, then holds them. */
+/**
+ * Where this face's jewellery goes, in the canonical frame (mm). MediaPipe already fits its canonical face to the
+ * customer every frame (the matrix carries their pose and scale), so the anchors come from that face plus the
+ * ear's anatomy: the lobe's piercing ~2 cm below the ear-level contour point, ~0.4 cm outside it and ~1.2 cm
+ * behind it. The first frames only wait for a steady, frontal pose before the piece goes on.
+ */
 export class FaceCalibration {
-  private sum = new Map<Key, V3>(); private n = 0;
+  private n = 0;
   readonly frames: number;
-  constructor(frames = 24) { this.frames = frames; }
+  constructor(frames = 8) { this.frames = frames; }
   get ready() { return this.n >= this.frames; }
   get progress() { return Math.min(1, this.n / this.frames); }
-  add(landmarks: Landmark[], matrix: ArrayLike<number>, aspect: number) {
-    if (this.ready || landmarks.length < 468) return;
-    // only near-frontal frames: both sides of the face at a similar depth
-    const l = landmarks[IDS.tragusL], r = landmarks[IDS.tragusR];
-    if (Math.abs(l.z - r.z) > 0.06) return;
-    for (const k of Object.keys(IDS) as Key[]) {
-      const c = inverseApply(matrix, unproject(landmarks[IDS[k]], matrix, aspect));
-      const s = this.sum.get(k) ?? [0, 0, 0];
-      this.sum.set(k, [s[0] + c[0], s[1] + c[1], s[2] + c[2]]);
-    }
-    this.n++;
+  private widthSum = 0;
+  /** How much wider (or narrower) this face is at the ears than MediaPipe's canonical face. */
+  get width() { return this.n ? Math.min(1.3, Math.max(0.85, this.widthSum / this.n)) : 1; }
+  add(landmarks: Landmark[], matrix: ArrayLike<number>, aspect = 4 / 3) {
+    if (this.ready || landmarks.length < 468 || !matrix) return;
+    // near-frontal only: both ear contour points at a similar depth
+    if (Math.abs(landmarks[234].z - landmarks[454].z) >= 0.08) return;
+    // the canonical ear-to-ear width projected through this frame's pose, against the width the camera sees
+    const project = (p: readonly number[]) => {
+      const x = matrix[0] * p[0] + matrix[4] * p[1] + matrix[8] * p[2] + matrix[12];
+      const z = matrix[2] * p[0] + matrix[6] * p[1] + matrix[10] * p[2] + matrix[14];
+      return x / (-z * Math.tan((FACE_FOV * Math.PI) / 360) * aspect);   // NDC x
+    };
+    const e = CANONICAL.earContour, model = Math.abs(project(e) - project([-e[0], e[1], e[2]]));
+    const seen = Math.abs(landmarks[454].x - landmarks[234].x) * 2;
+    if (model > 1e-3) { this.widthSum += seen / model; this.n++; }
   }
-  /** cm, canonical frame */
-  point(k: Key): V3 { const s = this.sum.get(k) ?? [0, 0, 0], n = Math.max(1, this.n); return [s[0] / n, s[1] / n, s[2] / n]; }
-
-  /** Ear lobes, neck and the head's size, in millimetres in the canonical frame (x to the face's left). */
   anchors(): { bust: BustAnchors; head: { centre: V3; radii: V3 } } {
-    const mm = (p: V3): V3 => [p[0] * 10, p[1] * 10, p[2] * 10];
-    const tl = mm(this.point('tragusL')), tr = mm(this.point('tragusR')), jl = mm(this.point('jawL')), jr = mm(this.point('jawR'));
-    const chin = mm(this.point('chin')), nose = mm(this.point('nose')), brow = mm(this.point('forehead'));
-    // The face contour points (234/454) sit just in front of the ear; the lobe hangs ~a third of the way down to
-    // the jaw angle, a little outside and ~12 mm behind them.
-    // A face is symmetric; single-camera depth is not. Use one half-width and one height for both lobes.
-    const faceHalf = (Math.abs(tl[0]) + Math.abs(tr[0])) / 2;
-    const lobeY = ((tl[1] + (jl[1] - tl[1]) * 0.38) + (tr[1] + (jr[1] - tr[1]) * 0.38)) / 2, lobeZ = (tl[2] + tr[2]) / 2 - 16;
-    // the portrait's convention: earlobe_l on +x. The lobe sits ~1 cm outside the face contour point.
-    const earlobe_l: V3 = [faceHalf + 10, lobeY, lobeZ], earlobe_r: V3 = [-(faceHalf + 10), lobeY, lobeZ];
-    const ringY = chin[1] - 45, neckCentre: V3 = [(tl[0] + tr[0]) / 2, ringY, chin[2] - 62];
-    const neck = { centre: neckCentre, half_width: Math.max(45, faceHalf * 0.72), half_depth: 52 };
-    const eye: V3 = [0, (brow[1] + nose[1]) / 2, nose[2] - 20];
+    const mm = (p: readonly number[]): V3 => [p[0] * 10, p[1] * 10, p[2] * 10];
+    const ear = mm(CANONICAL.earContour), chin = mm(CANONICAL.chin), nose = mm(CANONICAL.nose), brow = mm(CANONICAL.forehead);
+    const k = this.width;
+    const lobe = (side: number): V3 => [side * (ear[0] * k + 4), ear[1] - 21, ear[2] - 12];
+    const ringY = chin[1] - 45;
+    const neckCentre: V3 = [0, ringY, chin[2] - 67];
+    const neck = { centre: neckCentre, half_width: 55 * k, half_depth: 52 };
+    const eyeY = (brow[1] + nose[1]) / 2;
     return {
-      bust: { earlobe_l, earlobe_r, eye_l: [faceHalf * 0.45, eye[1], eye[2]], eye_r: [-faceHalf * 0.45, eye[1], eye[2]], neck, neck_front: [neckCentre[0], ringY - 12, neckCentre[2] + 50] },
-      // the head as an ellipsoid (for hiding the far earring when the head turns): well inside the face
-      // contour at the sides so a lobe's earring is never clipped by it
-      head: { centre: [0, (brow[1] + chin[1]) / 2 + 8, nose[2] - 100], radii: [faceHalf - 12, (brow[1] - chin[1]) / 2 + 22, 98] },
+      bust: { earlobe_l: lobe(1), earlobe_r: lobe(-1), eye_l: [32, eyeY, nose[2] - 25], eye_r: [-32, eyeY, nose[2] - 25], neck, neck_front: [0, ringY - 12, neckCentre[2] + 50] },
+      // the head as an ellipsoid for hiding the far earring: inside the ear-level contour, ~19.6 cm deep
+      head: { centre: [0, (brow[1] + chin[1]) / 2, nose[2] - 100], radii: [ear[0] * k - 10, (brow[1] - chin[1]) / 2 + 20, 98] },
     };
   }
 }

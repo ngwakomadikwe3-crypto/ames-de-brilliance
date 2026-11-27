@@ -22,21 +22,21 @@ test('black level and white clip follow the picture', () => {
   assert.ok(Math.abs(half.black - look.black / 2) < 1e-9);
 });
 
-test('the face anchors are symmetric and the lobes sit outside the head stand-in', () => {
-  // a face at 40 cm, facing the camera: identity rotation, translation (0, 0, -40)
+test('the face anchors sit at the ear lobes, outside the head stand-in, above the neck', () => {
   const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -40, 1];
   const lm = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  const at = (i, x, y, z) => { lm[i] = { x, y, z }; };
-  at(234, 0.38, 0.48, 0.02); at(454, 0.62, 0.48, 0.02); at(132, 0.40, 0.58, 0.01); at(361, 0.60, 0.58, 0.01);
-  at(152, 0.5, 0.66, -0.01); at(10, 0.5, 0.30, -0.02); at(1, 0.5, 0.50, -0.06);
+  // the camera sees exactly the canonical ear-to-ear width (scale 1)
+  const t = Math.tan(63 * Math.PI / 360) * (4 / 3), xs = 7.664 / ((40 + 2.436) * t);
+  lm[234] = { x: 0.5 - xs / 2, y: 0.5, z: 0 }; lm[454] = { x: 0.5 + xs / 2, y: 0.5, z: 0 };
   const cal = new FaceCalibration(3);
   for (let i = 0; i < 3; i++) cal.add(lm, m, 4 / 3);
+  assert.ok(Math.abs(cal.width - 1) < 1e-6, `width ${cal.width}`);
   assert.ok(cal.ready);
   const { bust, head } = cal.anchors();
   assert.equal(bust.earlobe_l[0], -bust.earlobe_r[0]);
+  assert.ok(Math.abs(bust.earlobe_l[0] - 80.64) < 0.01, 'just outside the ear contour (76.6 mm)');
   assert.ok(bust.earlobe_l[0] > head.radii[0] + 10, 'lobe outside the head ellipsoid');
-  assert.ok(bust.earlobe_l[1] < 0 && bust.neck.centre[1] < bust.earlobe_l[1], 'lobes above the neck');
-  // un-projecting the image centre at zero depth offset lands on the optical axis at the head's depth
+  assert.ok(bust.earlobe_l[1] < 0 && bust.neck.centre[1] < bust.earlobe_l[1] - 100, 'lobes well above the neck');
   const c = unproject({ x: 0.5, y: 0.5, z: 0 }, m, 4 / 3);
   assert.deepEqual(c.map(v => Math.round(v * 1000) / 1000), [0, 0, -40]);
 });
