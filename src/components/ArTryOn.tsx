@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ACESFilmicToneMapping, AmbientLight, BufferGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, Material, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, ShaderMaterial, SRGBColorSpace, Texture, Vector3, VideoTexture, WebGLRenderer,
+  Box3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -18,7 +19,7 @@ import { trackingAssets } from '../lib/hand-tracking-assets';
 import { OneEuro } from '../lib/ar/one-euro';
 import { TrackingGate, plausibleStep } from '../lib/ar/tracking-gate';
 import { PinchZoom } from '../lib/ar/pinch-zoom';
-import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, normalize, orthogonal, cross, lerp, type V3 } from '../lib/ar/hand-pose';
+import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, normalize, orthogonal, cross, lerp, scale, dot, type V3 } from '../lib/ar/hand-pose';
 import { fitLoop, type LoopFit } from '../lib/ar/model-fit';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
 import { realGems, stoneLight, type RealGems } from '../lib/ar/real-gems';
@@ -145,7 +146,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       let crown: Object3D | undefined, crownSize = 0;
       if (!wrist) piece.traverse(o => { const m = o as Mesh; if (!m.isMesh || !m.userData?.ames_gemstone_id || (m as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
         m.geometry.computeBoundingBox(); const s = m.geometry.boundingBox!.getSize(new Vector3()).length() * m.getWorldScale(new Vector3()).length(); if (s > crownSize) { crownSize = s; crown = m; } });
-      loop = fitLoop(piece, head ? { up: at(head) } : crown ? { up: at(crown) } : clasp && !wrist ? undefined : clasp ? { down: at(clasp) } : undefined);
+      loop = fitLoop(piece, head ? { up: at(head) } : crown ? { up: new Box3().setFromObject(crown).getCenter(new Vector3()) } : clasp && !wrist ? undefined : clasp ? { down: at(clasp) } : undefined);
       holder.add(piece);
       piece.traverse(o => { if ((o as Mesh).isMesh) { o.renderOrder = 1; o.frustumCulled = false; } });
     }, undefined, () => { if (!stopped) setStatus('This piece could not be loaded for try-on.'); });
@@ -171,12 +172,17 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       const ratios = fit?.outline?.digits ?? [0.25, 0.21, 0.22, 0.21, 0.18];
       for (let d = 0; d < 5; d++) for (let k = 0; k < 3; k++) {
         const i = 1 + 4 * d + k;
-        placeCylinder(digits[d * 3 + k], points[i], points[i + 1], ratios[d] * palm * 0.47 * (1 - 0.08 * k));
+        placeCylinder(digits[d * 3 + k], points[i], points[i + 1], ratios[d] * palm * 0.52 * (1 - 0.08 * k));
       }
       const w = wristFrame(points, dorsal, fit?.outline?.wrist ?? 0.74);
       const raw = wrist
         ? [...w.origin, ...w.axis, ...w.up, w.halfWidth, w.halfDepth]
-        : (() => { const r = fingerFrame(points, dorsal, fingerRef.current, fit?.outline?.digits?.[fingerRef.current]); return [...r.origin, ...r.axis, ...r.up, r.radius, r.radius]; })();
+        : (() => { const r = fingerFrame(points, dorsal, fingerRef.current, fit?.outline?.digits?.[fingerRef.current]); // Depth from one camera is the weakest part of the pose, and a small error rolls the ring's head off the
+          // finger. With the back of the hand toward the camera the head is seen facing it, so trust the picture.
+          const toCamera = normalize(scale(r.origin, -1)), facing = dot(dorsal, toCamera);
+          const w = Math.min(1, Math.max(0, (facing - 0.25) / 0.35));
+          const seen = orthogonal(toCamera, r.axis), up = normalize(lerp(r.up, dot(seen, r.up) >= 0 ? seen : scale(seen, -1), w));
+          return [...r.origin, ...r.axis, ...up, r.radius, r.radius]; })();
       const f = poseFilter.filter(raw, now);
       const origin = f.slice(0, 3) as V3, axis = normalize(f.slice(3, 6) as V3), up = orthogonal(f.slice(6, 9) as V3, axis), side = normalize(cross(axis, up));
       const [ra, rb] = [f[9], f[10]];

@@ -86,9 +86,15 @@ export function wristFrame(points: V3[], dorsal: V3, wristRatio = 0.74) {
 export function fingerFrame(points: V3[], dorsal: V3, finger = 3, widthRatio?: number) {
   const base = 1 + 4 * finger;
   const axis = normalize(sub(points[base + 1], points[base]));
-  const up = orthogonal(dorsal, axis);
+  // A finger bends about the line across the knuckles, so its back is that line crossed with its own bone; the
+  // hand's normal alone fails when the finger curls toward the camera (it lies along the bone, leaving the ring's
+  // head pointing sideways).
+  const across = sub(points[5], points[17]);
+  const handSign = Math.sign(dot(dorsal, cross(across, sub(points[9], points[0])))) || 1;
+  const bent = scale(cross(across, axis), handSign);
+  const up = length(bent) > 1e-9 ? orthogonal(bent, axis) : orthogonal(dorsal, axis);
   const side = normalize(cross(axis, up));
   const palm = length(sub(points[5], points[17]));
   const ratio = widthRatio ?? [0.25, 0.21, 0.22, 0.21, 0.18][finger];
-  return { origin: lerp(points[base], points[base + 1], 0.38), axis, up, side, palm, radius: ratio * palm / 2, segment: length(sub(points[base + 1], points[base])) };
+  return { origin: lerp(points[base], points[base + 1], 0.5), axis, up, side, palm, radius: ratio * palm / 2, segment: length(sub(points[base + 1], points[base])) };
 }

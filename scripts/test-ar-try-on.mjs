@@ -116,3 +116,12 @@ test('room light: brightness and the side the light comes from', () => {
   assert.ok(light.direction[0] > 0.3, `direction ${light.direction}`);
   assert.ok(light.luminance > 0.1 && light.luminance < 0.5);
 });
+
+test('a curled ring finger keeps its back facing up, not sideways', () => {
+  const pts = Array.from({ length: 21 }, () => [0, 0, -0.3]);
+  pts[0] = [0, -0.09, -0.3]; pts[5] = [0.03, 0, -0.3]; pts[9] = [0.01, 0, -0.3]; pts[17] = [-0.03, 0, -0.3];
+  pts[13] = [-0.01, 0, -0.3]; pts[14] = [-0.01, 0.01, -0.32];   // proximal bone curled away, toward the palm
+  const r = fingerFrame(pts, [0, 0, 1], 3);
+  assert.ok(Math.abs(r.up[0]) < 0.05, `ring head rolled sideways: ${r.up}`);
+  assert.ok(r.up[1] > 0.5, `ring head should face the back of the finger: ${r.up}`);
+});

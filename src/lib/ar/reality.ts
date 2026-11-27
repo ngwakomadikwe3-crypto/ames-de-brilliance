@@ -142,7 +142,7 @@ const COMPOSITE_FRAGMENT = /* glsl */`
   uniform sampler2D cover;      // what is really in front of the jewellery (hair over an ear), camera space, top row first
   uniform float hasCover;
   uniform vec2 texel;
-  uniform float exposure, black, white, grain, soft, saturation, time, mirror;
+  uniform float exposure, black, white, grain, soft, saturation, time, mirror, shadow;
   vec3 aces(vec3 x){ x *= 0.6; return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }
   vec3 toSRGB(vec3 c){ c = max(c, 0.0); return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4))-0.055, step(0.0031308, c)); }
   float hash(vec2 p){ p = fract(p*vec2(443.897, 441.423)); p += dot(p, p.yx+19.19); return fract((p.x+p.y)*p.x); }
@@ -151,7 +151,17 @@ const COMPOSITE_FRAGMENT = /* glsl */`
     vec3 c = texture2D(frame, uv).rgb;
     float m = texture2D(mask, uv).a;
     if (hasCover > 0.5) m *= 1.0 - texture2D(cover, vec2(uv.x, 1.0 - uv.y)).r;
-    // the camera picture stays exactly as filmed
+    // contact shadow: where metal touches skin it blocks the room's light, a soft dark halo just below it
+    float s = 0.0;
+    vec2 lift = vec2(0.0, texel.y * 5.0);
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * 0.7853982;
+      s += texture2D(mask, uv + lift + vec2(cos(a), sin(a)) * texel * 7.0).a;
+      s += texture2D(mask, uv + lift * 0.4 + vec2(cos(a), sin(a)) * texel * 3.0).a;
+    }
+    s = clamp(s / 16.0 * 1.6, 0.0, 1.0) * (1.0 - m);
+    c *= 1.0 - shadow * s;
+    // the camera picture stays exactly as filmed (apart from the jewellery's shadow)
     vec3 film = toSRGB(clamp(c, 0.0, 1.0));
     if (m < 0.002) { gl_FragColor = vec4(film, 1.0); return; }
     // lens softness: blend toward a small blur of the jewellery as soft as the camera's own detail
@@ -196,7 +206,7 @@ export class RealityCompositor {
       uniforms: {
         frame: { value: this.frame.texture }, mask: { value: this.mask.texture }, texel: { value: new Vector2() },
         exposure: { value: 1 }, black: { value: 0 }, white: { value: 1 }, grain: { value: 0 }, soft: { value: 0 },
-        saturation: { value: 1 }, time: { value: 0 }, mirror: { value: 0 }, cover: { value: null }, hasCover: { value: 0 },
+        saturation: { value: 1 }, time: { value: 0 }, mirror: { value: 0 }, shadow: { value: 0.45 }, cover: { value: null }, hasCover: { value: 0 },
       },
       vertexShader: COMPOSITE_VERTEX, fragmentShader: COMPOSITE_FRAGMENT, depthTest: false, depthWrite: false,
     });

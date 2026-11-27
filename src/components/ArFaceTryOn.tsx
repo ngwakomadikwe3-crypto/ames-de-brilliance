@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AmbientLight, CylinderGeometry, DataTexture, LinearFilter, RedFormat, DirectionalLight, Group, Material, Matrix4, Mesh, MeshBasicMaterial, Object3D,
   PerspectiveCamera, PlaneGeometry, Quaternion, Scene, ShaderMaterial, SphereGeometry, SRGBColorSpace, Texture, Vector3,
-  VideoTexture, WebGLRenderer, Euler,
+  VideoTexture, WebGLRenderer, Euler, BoxGeometry, Box3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -175,18 +175,24 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       piece.traverse(o => { if (/^ear[ _]post|butterfly|ear[ _]back/i.test(o.name)) o.visible = false; });
       piece.updateMatrixWorld(true);
       if (necklace) {
-        // The body frame sits at the base of the neck. The worn loop is laid on the slope of the shoulders and
-        // chest (back high behind the neck, front low on the breastbone) rather than the bust's gentler tilt,
-        // and the neck stand-in rises from there so the chain's back passes behind it.
+        // The body frame sits at the base of the neck. The necklace is authored as worn (back high at the nape,
+        // front dropping onto the chest), so it is only sized to the neck, laid a touch onto the chest's slope,
+        // and its back half is hidden by the neck and the shoulders/upper back it passes behind.
         neckPoint = new Vector3(...neckBase);
-        // sized to the base of the neck (wider than its middle: the chain rests on the shoulders' slope)
-        const holder = setNecklace(piece, { ...bust, neck: { ...bust.neck, centre: [0, 0, 0], half_width: bust.neck.half_width * 0.98 } });
-        holder.position.set(0, 4, 0); holder.rotation.x = -0.5;
-        // the neck widens into the shoulders at its base: a flared stand-in, just inside the chain, hides the
-        // chain where it curves round behind the neck
-        neck.geometry.dispose(); neck.geometry = new CylinderGeometry(1, 1.22, 1, 36); disposables.push(neck.geometry);
+        const holder = setNecklace(piece, { ...bust, neck: { ...bust.neck, centre: [0, 0, 0] } });
+        holder.position.set(0, 12, 0); holder.rotation.x = -0.15;
+        // a worn chain rests on the slope where the neck meets the shoulders (wider than the neck), and its
+        // drop is the piece's own length, not stretched with that width
+        piece.updateMatrixWorld(true);
+        const size = new Box3().setFromObject(piece).getSize(new Vector3());
+        holder.scale.set(bust.neck.half_width * 1.32 / Math.max(1, size.x / 2), 0.92, bust.neck.half_depth * 1.3 / Math.max(1, size.z / 2));
+        neck.geometry.dispose(); neck.geometry = new CylinderGeometry(1, 1.2, 1, 36); disposables.push(neck.geometry);
         bodyMm.add(holder); bodyMm.add(neck);
-        neck.position.set(0, 75, 0); neck.scale.set(bust.neck.half_width * 0.95, 150, bust.neck.half_depth * 1.05);
+        neck.position.set(0, 85, 0); neck.scale.set(bust.neck.half_width * 0.97, 150, bust.neck.half_depth * 1.0);
+        // shoulders and upper back: everything of the chain behind the neck's middle plane goes behind the body
+        const back = new Mesh(new BoxGeometry(1, 1, 1), occluder); disposables.push(back.geometry);
+        back.position.set(0, -110, -80); back.scale.set(bust.neck.half_width * 8, 260, 150); back.renderOrder = -1;
+        bodyMm.add(back);
       } else {
         headMm.add(neck);
         for (const holder of hangEarrings(piece, bust)) {
