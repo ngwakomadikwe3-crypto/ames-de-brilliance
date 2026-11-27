@@ -21,6 +21,7 @@ import { PinchZoom } from '../lib/ar/pinch-zoom';
 import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, normalize, orthogonal, cross, lerp, type V3 } from '../lib/ar/hand-pose';
 import { fitLoop, type LoopFit } from '../lib/ar/model-fit';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
+import { realGems, stoneLight, type RealGems } from '../lib/ar/real-gems';
 import { CameraEnvironment, RealityCompositor, drawRoom, easeLook, measureLook, supersampledPhoto } from '../lib/ar/reality';
 import { dress } from '../lib/ar/jewel-dress';
 import { classifyPose } from '../lib/gesture-controller';
@@ -128,7 +129,8 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
     const shadowMaterial = contactShadow(); shadowMaterials.push(shadowMaterial); disposables.push(shadowMaterial);
     const shadow = new Mesh(shadowGeometry, shadowMaterial); shadow.renderOrder = 0; shadow.matrixAutoUpdate = false; scene.add(shadow); shadow.visible = false;
 
-    let loop: LoopFit | null = null;
+    let loop: LoopFit | null = null, gems: RealGems | undefined, stones: Awaited<ReturnType<typeof stoneLight>> | undefined;
+    void stoneLight(renderer).then(light => { if (stopped) light.dispose(); else stones = light; }).catch(() => {});
     let piece: Object3D | null = null;
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(model, gltf => {
@@ -139,7 +141,11 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       const find = (test: (o: Object3D) => boolean) => { let hit: Object3D | undefined; piece!.traverse(o => { if (!hit && test(o)) hit = o; }); return hit; };
       const head = find(o => o.name.replace(/_/g, ' ') === 'Watch head'), clasp = find(o => o.userData?.ames_link === 0);
       const at = (o?: Object3D) => o ? o.getWorldPosition(new Vector3()) : undefined;
-      loop = fitLoop(piece, head ? { up: at(head) } : clasp && !wrist ? undefined : clasp ? { down: at(clasp) } : undefined);
+      // a ring's head is its biggest stone: that side faces up, on the back of the finger
+      let crown: Object3D | undefined, crownSize = 0;
+      if (!wrist) piece.traverse(o => { const m = o as Mesh; if (!m.isMesh || !m.userData?.ames_gemstone_id || (m as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh) return;
+        m.geometry.computeBoundingBox(); const s = m.geometry.boundingBox!.getSize(new Vector3()).length() * m.getWorldScale(new Vector3()).length(); if (s > crownSize) { crownSize = s; crown = m; } });
+      loop = fitLoop(piece, head ? { up: at(head) } : crown ? { up: at(crown) } : clasp && !wrist ? undefined : clasp ? { down: at(clasp) } : undefined);
       holder.add(piece);
       piece.traverse(o => { if ((o as Mesh).isMesh) { o.renderOrder = 1; o.frustumCulled = false; } });
     }, undefined, () => { if (!stopped) setStatus('This piece could not be loaded for try-on.'); });
@@ -228,6 +234,8 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
         pinch.step(false, 0, now);
       }
       const visible = state !== 'hidden' && !!loop;
+      // the stones: ray-traced like the Boutique's, once the piece sits at its worn size
+      if (visible && !gems && piece && stones) { worn.updateMatrixWorld(true); gems = realGems(piece, stones.environment, stones.radiance, navigator.hardwareConcurrency <= 4 ? 8 : 24, stones.metal); }
       worn.visible = occluders.visible = shadow.visible = visible;
       if (visible !== shown) { shown = visible; setTip(visible ? 'Pinch to zoom. Take a photo when it looks right.' : wrist ? 'Show the back of your hand and your wrist.' : 'Show the back of your hand, fingers slightly apart.'); }
       readRoom(now);
@@ -302,7 +310,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       const v = video as HTMLVideoElement & { cancelVideoFrameCallback?: (h: number) => void };
       if (frameHandle) v.cancelVideoFrameCallback?.(frameHandle);
       stream?.getTracks().forEach(t => t.stop()); video.srcObject = null;
-      tracker?.close();
+      tracker?.close(); gems?.dispose(); stones?.dispose();
       piece?.traverse(o => { const m = o as Mesh; if (m.isMesh) { (m.geometry as BufferGeometry)?.dispose(); [m.material].flat().forEach(x => (x as Material)?.dispose()); } });
       disposables.forEach(d => d.dispose());
     };

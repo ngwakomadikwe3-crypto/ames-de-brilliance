@@ -22,6 +22,7 @@ import { dress } from '../lib/ar/jewel-dress';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
 import { CameraEnvironment, RealityCompositor, drawRoom, easeLook, measureLook, supersampledPhoto } from '../lib/ar/reality';
 import { FACE_FOV, FaceCalibration, Pendulum } from '../lib/ar/face-anchor';
+import { realGems, stoneLight, type RealGems } from '../lib/ar/real-gems';
 import { hangEarrings, setNecklace } from './PortraitTryOn';
 
 type Props = { model: string; category: string; onUnavailable?: () => void };
@@ -87,7 +88,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       reality.look = easeLook(reality.look, measureLook(pixels, sample.width, sample.height), lastRoom > 0 ? 0.35 : 1);
       key.position.set(light.direction[0] * 80, 30 + light.direction[1] * 80, 70);
       key.color.setRGB(...light.colour); key.intensity = 1 + 2.2 * Math.sqrt(light.luminance); fill.color.copy(key.color);
-      drawRoom(rc, video, room.width, room.height, true);
+      drawRoom(rc, video, room.width, room.height, false);   // the face scene is the unmirrored camera picture
       scene.environment = environment.update(rc.getImageData(0, 0, room.width, room.height).data);
     }
 
@@ -153,7 +154,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
     }
     const calibration = new FaceCalibration();
     const swings: { holder: Object3D; pivot: Group; pendulum: Pendulum }[] = [];
-    let piece: Object3D | null = null, placed = false, neckPoint = new Vector3();
+    let piece: Object3D | null = null, placed = false, neckPoint = new Vector3(), gems: RealGems | undefined, stones: { dispose(): void } | undefined;
 
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     loader.load(model, gltf => { if (stopped) return; piece = gltf.scene; piece.scale.setScalar(1000); dress(piece); }, undefined,
@@ -162,7 +163,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
     function place() {
       if (!piece || placed || !calibration.ready) return;
       placed = true;
-      const { bust, head: h } = calibration.anchors();
+      const { bust, head: h, neckBase } = calibration.anchors();
       // depth-only stand-ins: the head (hides the far earring when you turn) and the neck (the back of the chain)
       const skull = new Mesh(new SphereGeometry(1, 40, 28), occluder); skull.position.set(...h.centre); skull.scale.set(...h.radii);
       skull.renderOrder = -1; headMm.add(skull); disposables.push(skull.geometry);
@@ -171,12 +172,21 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       neck.scale.set(bust.neck.half_width * 0.95, 190, bust.neck.half_depth * 0.95); neck.renderOrder = -1; disposables.push(neck.geometry);
       neckPoint = new Vector3(...bust.neck.centre);
       // the ear post goes through the lobe: on a real ear it is never seen from the front
-      piece.traverse(o => { if (/^ear post|butterfly|ear back/i.test(o.name)) o.visible = false; });
+      piece.traverse(o => { if (/^ear[ _]post|butterfly|ear[ _]back/i.test(o.name)) o.visible = false; });
       piece.updateMatrixWorld(true);
       if (necklace) {
-        // the body frame sits at the neck; the chain rests on it
-        const holder = setNecklace(piece, { ...bust, neck: { ...bust.neck, centre: [0, 0, 0] } });
-        bodyMm.add(holder); bodyMm.add(neck); neck.position.set(0, -40, 0);
+        // The body frame sits at the base of the neck. The worn loop is laid on the slope of the shoulders and
+        // chest (back high behind the neck, front low on the breastbone) rather than the bust's gentler tilt,
+        // and the neck stand-in rises from there so the chain's back passes behind it.
+        neckPoint = new Vector3(...neckBase);
+        // sized to the base of the neck (wider than its middle: the chain rests on the shoulders' slope)
+        const holder = setNecklace(piece, { ...bust, neck: { ...bust.neck, centre: [0, 0, 0], half_width: bust.neck.half_width * 0.98 } });
+        holder.position.set(0, 4, 0); holder.rotation.x = -0.5;
+        // the neck widens into the shoulders at its base: a flared stand-in, just inside the chain, hides the
+        // chain where it curves round behind the neck
+        neck.geometry.dispose(); neck.geometry = new CylinderGeometry(1, 1.22, 1, 36); disposables.push(neck.geometry);
+        bodyMm.add(holder); bodyMm.add(neck);
+        neck.position.set(0, 75, 0); neck.scale.set(bust.neck.half_width * 0.95, 150, bust.neck.half_depth * 1.05);
       } else {
         headMm.add(neck);
         for (const holder of hangEarrings(piece, bust)) {
@@ -188,6 +198,8 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
         }
       }
       scene.traverse(o => { if ((o as Mesh).isMesh && o !== backdrop && (o as Mesh).material !== occluder) { o.renderOrder = 1; o.frustumCulled = false; } });
+      // the stones: ray-traced like the Boutique's, lit by this room
+      void stoneLight(renderer).then(light => { if (stopped || !piece) { light.dispose(); return; } stones = light; scene.updateMatrixWorld(true); gems = realGems(necklace ? bodyMm : headMm, light.environment, light.radiance, navigator.hardwareConcurrency <= 4 ? 16 : 40, light.metal); }).catch(() => {});
       setTip('Turn your head slowly. Take a photo when it looks right.');
     }
 
@@ -301,7 +313,7 @@ export default function ArFaceTryOn({ model, category, onUnavailable }: Props) {
       const v = video as HTMLVideoElement & { cancelVideoFrameCallback?: (h: number) => void };
       if (frameHandle) v.cancelVideoFrameCallback?.(frameHandle);
       stream?.getTracks().forEach(t => t.stop()); video.srcObject = null;
-      tracker?.close(); segmenter?.close();
+      tracker?.close(); segmenter?.close(); gems?.dispose(); stones?.dispose();
       piece?.traverse(o => { const m = o as Mesh; if (m.isMesh) { m.geometry?.dispose(); [m.material].flat().forEach(x => (x as Material)?.dispose()); } });
       disposables.forEach(d => d.dispose());
     };

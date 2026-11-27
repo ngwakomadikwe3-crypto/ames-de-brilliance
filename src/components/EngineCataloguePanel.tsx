@@ -23,7 +23,7 @@ import { GEMSTONE_FACTS, mohsLabel } from '../lib/gemstone-facts';
 type GalleryStone = { id: string; name: string; form: string; cut: string; category: string; defaultColors: string[]; aliases: string[] };
 // Bumped whenever the gallery stones are rebuilt: phones keep /ames-engine files for days, so a new version
 // must have a new address to be fetched at once.
-const GALLERY_VERSION = '11';
+const GALLERY_VERSION = '12';
 const looseLibraryEntries: GalleryStone[] = [
   { id: 'stone-malachite', name: "Malachite", defaultColors: ["banded green"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
   { id: 'stone-onyx', name: "Onyx", defaultColors: ["black"], aliases: [], category: 'loose gem', form: 'loose', cut: '' },
@@ -42,7 +42,10 @@ const existingLooseIds = new Set(['stone-paraiba-tourmaline', 'stone-tsavorite-g
 const loosePosters: Record<string, string> = illustratedPosters;
 const libraryOnlyIds = new Set(looseLibraryEntries.map(stone => stone.id));
 const looseOnly = (stone: GalleryStone) => existingLooseIds.has(stone.id) || libraryOnlyIds.has(stone.id);
-const GALLERY = [...registry, ...looseLibraryEntries].sort((a, b) => a.name.localeCompare(b.name));
+// Diamonds lead the gallery (white first, then the natural fancy colours); every other stone follows A–Z.
+const DIAMOND_ORDER = ['stone-diamond', 'stone-fancy-color-diamond', 'stone-pink-diamond', 'stone-blue-diamond', 'stone-green-diamond', 'stone-champagne-diamond', 'stone-cognac-diamond', 'stone-orange-diamond', 'stone-purple-diamond', 'stone-red-diamond', 'stone-black-diamond'];
+const diamondRank = (id: string) => { const i = DIAMOND_ORDER.indexOf(id); return i < 0 ? DIAMOND_ORDER.length : i; };
+const GALLERY = [...registry, ...looseLibraryEntries].sort((a, b) => diamondRank(a.id) - diamondRank(b.id) || a.name.localeCompare(b.name));
 const galleryText = (stone: GalleryStone) => `${stone.name} ${stone.aliases.join(' ')} ${stone.category} ${stone.defaultColors.join(' ')}`.toLocaleLowerCase();
 
 /** A published catalogue stone with its dealer photo and, once the Owner approves it, its 3D. */
@@ -216,7 +219,7 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
   const [metal,setMetal] = useState('silver');
   const [caseShape,setCaseShape] = useState('Original');
   const [strap,setStrap]=useState('metal'),[leather,setLeather]=useState('cognac');
-  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}${mixed&&setting!=='loose'?'-mixed':''}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
+  const baseModel = `/ames-engine/jewellery-samples/${setting==='ring' && ringCut ? ringCut+'/' : ''}${stone.id}${mixed&&setting!=='loose'&&stone.id!=='stone-diamond'?'-mixed':''}-${setting==='necklace'?'necklace-'+dropCut.toLowerCase():setting==='watch' && caseShape!=='Original'?'watch-'+caseShape.toLowerCase():setting}.gltf${metal==='silver'?'':'?metal='+metal}`;
   const sampleModel=setting==='watch' && strap==='leather'?baseModel+(baseModel.includes('?')?'&':'?')+'leather='+leather:baseModel;
   const configuration=[setting==='loose'?cut||stone.cut:metal,setting==='ring'&&(ringCut||'Original'),setting==='necklace'&&dropCut,setting==='watch'&&caseShape,setting==='watch'&&strap,setting==='watch'&&strap==='leather'&&leather,setting!=='loose'&&mixed&&stone.name+' with diamonds',sizes.configuration].filter(Boolean).join(' · ');
   const modelCut = cut || (stone.id === 'stone-amethyst' ? 'Emerald' : '');
@@ -260,8 +263,8 @@ function GemDetail({ stone, list, onGo, onClose, onAskSame }: { onAskSame:(id:st
           <button key={id} type="button" aria-pressed={setting===id} onClick={()=>setSetting(id)} className={'min-h-10 shrink-0 rounded-full px-4 text-sm '+(setting===id?'font-medium shadow-lg':'border border-white/25')} style={setting===id?{background:'#ffffff',color:'#0c3b2e'}:undefined}>{t(name)}</button>)}
       </div>
       {setting !== 'loose' && <p className="mt-3 text-xs">HOUSEofAMES design, made to order by our manufacturing partners.</p>}
-      <MakeItYours summary={[setting!=='loose'&&(mixed?stone.name+' with diamonds':'All '+stone.name.toLowerCase()),setting!=='loose'&&({silver:'Silver',gold:'Gold','rose-gold':'Rose gold'} as Record<string,string>)[metal],setting==='ring'&&ringCut&&ringCut+' centre',setting==='necklace'&&dropCut+' drops',setting==='watch'&&caseShape!=='Original'&&caseShape+' case',setting==='watch'&&strap==='leather'&&'Leather strap',setting==='loose'&&(cut||stone.cut)+' cut',sizes.configuration].filter(Boolean).join(' · ')}>
-      {setting !== 'loose' && <HouseChoices label="Stones" value={mixed} onChange={setMixed} choices={{'':'All '+stone.name.toLowerCase(),mixed:stone.name+' with diamonds'}}/>}
+      <MakeItYours summary={[setting!=='loose'&&stone.id!=='stone-diamond'&&(mixed?stone.name+' with diamonds':'All '+stone.name.toLowerCase()),setting!=='loose'&&({silver:'Silver',gold:'Gold','rose-gold':'Rose gold'} as Record<string,string>)[metal],setting==='ring'&&ringCut&&ringCut+' centre',setting==='necklace'&&dropCut+' drops',setting==='watch'&&caseShape!=='Original'&&caseShape+' case',setting==='watch'&&strap==='leather'&&'Leather strap',setting==='loose'&&(cut||stone.cut)+' cut',sizes.configuration].filter(Boolean).join(' · ')}>
+      {setting !== 'loose' && stone.id !== 'stone-diamond' && <HouseChoices label="Stones" value={mixed} onChange={setMixed} choices={{'':'All '+stone.name.toLowerCase(),mixed:stone.name+' with diamonds'}}/>}
       {setting !== 'loose' && <HouseChoices label="Metal" value={metal} choices={{silver:'Silver',gold:'Gold','rose-gold':'Rose gold'}} onChange={setMetal}/>}
       {setting === 'necklace' && <HouseChoices label="Drop cut" value={dropCut} onChange={setDropCut} choices={{Pear:'Pear',Round:'Round',Oval:'Oval',Cushion:'Cushion'}}/>}
       {setting === 'watch' && <WatchStrap strap={strap} setStrap={setStrap} colour={leather} setColour={setLeather}/>}

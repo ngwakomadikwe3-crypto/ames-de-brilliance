@@ -82,6 +82,74 @@
     ]
   },
   {
+    "id": "stone-black-diamond",
+    "name": "Black diamond",
+    "aliases": [
+      "fancy black diamond",
+      "black diamond",
+      "natural black diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "black"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#2b2a2f",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-blue-diamond",
+    "name": "Blue diamond",
+    "aliases": [
+      "fancy blue diamond",
+      "blue diamond",
+      "natural blue diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "blue",
+      "steel blue"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#8db6ee",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-champagne-diamond",
+    "name": "Champagne diamond",
+    "aliases": [
+      "fancy champagne diamond",
+      "champagne diamond",
+      "natural champagne diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "champagne",
+      "light brown"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#e6cb9c",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
     "id": "stone-chrysoberyl",
     "name": "Chrysoberyl",
     "sourceId": "stone-alexandrite",
@@ -94,6 +162,30 @@
     "cut": "oval",
     "defaultColors": [
       "yellow green"
+    ]
+  },
+  {
+    "id": "stone-cognac-diamond",
+    "name": "Cognac diamond",
+    "aliases": [
+      "fancy cognac diamond",
+      "cognac diamond",
+      "natural cognac diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "cognac",
+      "brown",
+      "chocolate"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#c4844a",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
     ]
   },
   {
@@ -112,6 +204,32 @@
     ]
   },
   {
+    "id": "stone-diamond",
+    "name": "Diamond",
+    "aliases": [
+      "loose diamond",
+      "white diamond",
+      "colorless diamond",
+      "colourless diamond",
+      "round diamond",
+      "round brilliant diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "white",
+      "colorless",
+      "colourless",
+      "clear"
+    ],
+    "limitations": [
+      "Representative loose round-brilliant visualization, distinct from mounted jewellery.",
+      "Optical performance is illustrative and is not a cut-grade or light-performance assessment.",
+      "Exact dimensions, carat, colour, clarity, origin, and certification are not claimed."
+    ]
+  },
+  {
     "id": "stone-emerald",
     "name": "Emerald",
     "aliases": [
@@ -127,6 +245,29 @@
       "Representative educational visualization, not a stock item or an identification report.",
       "Natural fissures, inclusions, and clarity treatments are not reproduced or graded.",
       "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-green-diamond",
+    "name": "Green diamond",
+    "aliases": [
+      "fancy green diamond",
+      "green diamond",
+      "natural green diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "green",
+      "mint green"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#9fd49a",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
     ]
   },
   {
@@ -208,6 +349,28 @@
     ]
   },
   {
+    "id": "stone-orange-diamond",
+    "name": "Orange diamond",
+    "aliases": [
+      "fancy orange diamond",
+      "orange diamond",
+      "natural orange diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "orange"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#f39a45",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
     "id": "stone-paraiba-tourmaline",
     "name": "Paraíba tourmaline",
     "sourceId": "stone-tourmaline",
@@ -241,6 +404,74 @@
       "Representative educational visualization, not a stock item or an identification report.",
       "Natural inclusions and colour variations are simplified.",
       "Exact dimensions, carat, origin, treatment, and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-pink-diamond",
+    "name": "Pink diamond",
+    "aliases": [
+      "fancy pink diamond",
+      "pink diamond",
+      "natural pink diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "pink",
+      "rose"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#f2a3bf",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-purple-diamond",
+    "name": "Purple diamond",
+    "aliases": [
+      "fancy purple diamond",
+      "purple diamond",
+      "natural purple diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "purple",
+      "violet"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#b393d6",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
+    ]
+  },
+  {
+    "id": "stone-red-diamond",
+    "name": "Red diamond",
+    "aliases": [
+      "fancy red diamond",
+      "red diamond",
+      "natural red diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "round brilliant",
+    "defaultColors": [
+      "red"
+    ],
+    "sourceId": "stone-diamond",
+    "tint": "#c6303c",
+    "limitations": [
+      "A natural fancy-colour diamond shown in its representative colour; not a fancy-colour grade or origin determination.",
+      "Colour, saturation and tone vary from stone to stone; the house confirms the actual stone with you.",
+      "Exact dimensions, carat, clarity, treatment and certification are not claimed."
     ]
   },
   {
@@ -368,6 +599,32 @@
     "cut": "cushion",
     "defaultColors": [
       "green"
+    ]
+  },
+  {
+    "id": "stone-fancy-color-diamond",
+    "name": "Yellow diamond",
+    "aliases": [
+      "fancy colour diamond",
+      "fancy diamond",
+      "yellow diamond",
+      "fancy yellow diamond",
+      "fancy yellow",
+      "canary diamond",
+      "fancy color diamond"
+    ],
+    "category": "diamond",
+    "form": "faceted",
+    "cut": "radiant",
+    "defaultColors": [
+      "yellow",
+      "fancy yellow",
+      "canary yellow"
+    ],
+    "limitations": [
+      "The representative default is yellow; other fancy colours are not substituted.",
+      "Colour appearance is illustrative and is not a fancy-colour grade or origin determination.",
+      "Exact dimensions, carat, clarity, treatment, and certification are not claimed."
     ]
   }
 ]

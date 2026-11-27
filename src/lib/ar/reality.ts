@@ -13,7 +13,7 @@
 //
 // Everything is automatic: nothing for the customer to set.
 import {
-  DataTexture, EquirectangularReflectionMapping, FloatType, HalfFloatType, LinearFilter, LinearSRGBColorSpace, Mesh,
+  DataTexture, DataUtils, EquirectangularReflectionMapping, HalfFloatType, LinearFilter, LinearSRGBColorSpace, Mesh,
   OrthographicCamera, PlaneGeometry, PMREMGenerator, RGBAFormat, Scene, ShaderMaterial, Vector2,
   WebGLRenderTarget, type Camera, type Object3D, type Texture, type WebGLRenderer,
 } from 'three';
@@ -67,14 +67,17 @@ export function easeLook(from: CameraLook, to: CameraLook, k: number): CameraLoo
  */
 export class CameraEnvironment {
   private pmrem: PMREMGenerator; private target?: WebGLRenderTarget; private texture: DataTexture;
-  private data: Float32Array; private w: number; private h: number;
+  private data: Float32Array; private half: Uint16Array; private w: number; private h: number;
   constructor(renderer: WebGLRenderer, width = 128, height = 64) {
     this.pmrem = new PMREMGenerator(renderer); this.w = width; this.h = height;
-    this.data = new Float32Array(width * height * 4);
-    this.texture = new DataTexture(this.data, width, height, RGBAFormat, FloatType);
+    // half float: filterable on every WebGL2 phone (32-bit float textures often are not)
+    this.data = new Float32Array(width * height * 4); this.half = new Uint16Array(width * height * 4);
+    this.texture = new DataTexture(this.half, width, height, RGBAFormat, HalfFloatType);
     this.texture.mapping = EquirectangularReflectionMapping; this.texture.colorSpace = LinearSRGBColorSpace;
     this.texture.magFilter = this.texture.minFilter = LinearFilter;
   }
+  /** The room itself (equirectangular, linear HDR) for ray-traced stones; updated in place. */
+  get equirect(): Texture { return this.texture; }
   /** pixels: the room picture already drawn (mirrored, blurred a little) at width x height. Returns the PMREM env. */
   update(pixels: Uint8ClampedArray): Texture {
     const { w, h, data } = this;
@@ -85,7 +88,7 @@ export class CameraEnvironment {
       // inverse tone map: values near the clip were brighter than the camera could record
       const t = Math.max(0, Math.min(1, (l - 0.55) / 0.4)), boost = 1 + 15 * t * t * t;
       // the back of the sphere (behind the camera) sees the room less directly: darker, as in a real room
-      const back = Math.abs(x / (w - 1) - 0.5) > 0.25 ? 0.55 : 1;
+      const back = x / (w - 1) > 0.5 ? 0.6 : 1;
       data[i] = r * boost * back; data[i + 1] = g * boost * back; data[i + 2] = b * boost * back; data[i + 3] = 1;
     }
     // Every lived-in room has small, hard lights overhead (ceiling lamps, a window's sky) that a front camera
@@ -93,13 +96,15 @@ export class CameraEnvironment {
     let mean = 0; for (let i = 0; i < w * h; i++) mean += data[4 * i] * 0.2126 + data[4 * i + 1] * 0.7152 + data[4 * i + 2] * 0.0722;
     mean /= w * h;
     const lamp = 6 + 60 * Math.sqrt(mean);
-    for (const [lx, ly] of [[0.36, 0.1], [0.62, 0.14]]) {
+    // overhead and a little behind the phone (u ~0.7-0.8): where a room's lights sit when someone takes a selfie
+    for (const [lx, ly] of [[0.7, 0.12], [0.8, 0.18]]) {
       const cx = Math.round(lx * (w - 1)), cy = Math.round(ly * (h - 1));
       for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 2; x <= cx + 2; x++) {
         const i = 4 * (y * w + x), f = (x === cx && y === cy) ? 1 : 0.45;
         data[i] += lamp * f; data[i + 1] += lamp * f * 0.97; data[i + 2] += lamp * f * 0.92;
       }
     }
+    for (let i = 0; i < data.length; i++) this.half[i] = DataUtils.toHalfFloat(Math.min(65000, data[i]));
     this.texture.needsUpdate = true;
     const next = this.pmrem.fromEquirectangular(this.texture);
     this.target?.dispose(); this.target = next;
@@ -108,17 +113,23 @@ export class CameraEnvironment {
   dispose() { this.target?.dispose(); this.texture.dispose(); this.pmrem.dispose(); }
 }
 
-/** Draw the camera frame into a 2:1 equirect room picture: the frame centred, its blurred mirror wrapping behind. */
+/**
+ * Draw the camera frame into a 2:1 equirectangular room picture in three.js's layout: the direction away from
+ * the viewer (-z, what the camera sees behind the jewellery) is u = 0.25, the viewer's side (+z, behind the phone,
+ * which no camera sees) is u = 0.75. The camera picture covers the far half; a blurred, flipped copy stands in
+ * for the near half (the same room, seen the other way). mirrored: draw the picture as the scene shows it.
+ */
 export function drawRoom(ctx: CanvasRenderingContext2D, video: CanvasImageSource, width: number, height: number, mirrored = true) {
+  const half = width / 2;
   ctx.save();
+  // the viewer's half (u 0.5..1): the room behind the phone, unknown, so the picture flipped and softened
   ctx.filter = 'blur(10px)';
-  // the back half: the same picture, flipped, spread wide (light from around and behind the customer)
-  ctx.setTransform(mirrored ? 1 : -1, 0, 0, 1, mirrored ? 0 : width, 0);
-  ctx.drawImage(video, 0, 0, width, height);
-  ctx.filter = 'blur(3px)';
-  // the front: the camera's own view over the middle half, as the jewellery facing the camera sees it
-  ctx.setTransform(mirrored ? -1 : 1, 0, 0, 1, mirrored ? width : 0, 0);
-  ctx.drawImage(video, width * 0.25, 0, width * 0.5, height);
+  ctx.setTransform(mirrored ? 1 : -1, 0, 0, 1, mirrored ? half : width, 0);
+  ctx.drawImage(video, 0, 0, half, height);
+  // the far half (u 0..0.5): exactly what the camera sees behind the piece, left to right as in the scene
+  ctx.filter = 'blur(2px)';
+  ctx.setTransform(mirrored ? -1 : 1, 0, 0, 1, mirrored ? half : 0, 0);
+  ctx.drawImage(video, 0, 0, half, height);
   ctx.restore();
 }
 

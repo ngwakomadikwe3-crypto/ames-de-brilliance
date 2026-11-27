@@ -54,7 +54,7 @@ export class FaceCalibration {
     const seen = Math.abs(landmarks[454].x - landmarks[234].x) * 2;
     if (model > 1e-3) { this.widthSum += seen / model; this.n++; }
   }
-  anchors(): { bust: BustAnchors; head: { centre: V3; radii: V3 } } {
+  anchors(): { bust: BustAnchors; head: { centre: V3; radii: V3 }; neckBase: V3 } {
     const mm = (p: readonly number[]): V3 => [p[0] * 10, p[1] * 10, p[2] * 10];
     const ear = mm(CANONICAL.earContour), chin = mm(CANONICAL.chin), nose = mm(CANONICAL.nose), brow = mm(CANONICAL.forehead);
     const k = this.width;
@@ -67,6 +67,9 @@ export class FaceCalibration {
       bust: { earlobe_l: lobe(1), earlobe_r: lobe(-1), eye_l: [32, eyeY, nose[2] - 25], eye_r: [-32, eyeY, nose[2] - 25], neck, neck_front: [0, ringY - 12, neckCentre[2] + 50] },
       // the head as an ellipsoid for hiding the far earring: inside the ear-level contour, ~19.6 cm deep
       head: { centre: [0, (brow[1] + chin[1]) / 2, nose[2] - 100], radii: [ear[0] * k - 10, (brow[1] - chin[1]) / 2 + 20, 98] },
+      // where a necklace rests: the base of the neck where it meets the shoulders (~5 cm below the chin), in
+      // the middle of the neck's depth
+      neckBase: [0, chin[1] - 42, chin[2] - 60],
     };
   }
 }
