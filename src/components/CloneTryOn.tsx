@@ -501,7 +501,11 @@ export default function CloneTryOn({ model, category, onLiveCamera, title, onClo
     </div>}
 
     {/* one primary action, only until a hand is saved */}
-    {firstVisit && !sheet && !draft && <button type="button" onClick={() => setScanning(true)} className="absolute bottom-6 left-1/2 min-h-12 -translate-x-1/2 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-primary>Scan your hand</button>}
+    {/* the real hand: the live camera with the piece composited like film (ArTryOn + reality.ts) */}
+    {!sheet && !draft && <div className="absolute inset-x-0 bottom-6 flex justify-center gap-3">
+      {onLiveCamera && <button type="button" onClick={onLiveCamera} className="min-h-12 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-live-camera>On my real hand</button>}
+      {firstVisit && <button type="button" onClick={() => setScanning(true)} className="min-h-12 rounded-full px-6 text-sm font-medium shadow-lg" style={bubbleStyle} data-primary>Scan your hand</button>}
+    </div>}
 
     {/* gesture tips, once */}
     {coach && <button type="button" onClick={() => { setCoach(false); store.set(TIPS_KEY, '1'); }} className="absolute inset-x-6 bottom-6 z-20 rounded-2xl bg-black/80 p-4 text-left text-xs leading-5 shadow-xl" data-coach-marks>

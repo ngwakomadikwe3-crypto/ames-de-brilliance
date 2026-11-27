@@ -9,10 +9,7 @@
 // No React state changes while tracking; React only renders the controls around the canvas.
 import { useEffect, useRef, useState } from 'react';
 import {
-  ACESFilmicToneMapping, AmbientLight, BufferGeometry, CanvasTexture, Color, CylinderGeometry, DirectionalLight, DoubleSide,
-  EquirectangularReflectionMapping, Group, InstancedMesh, Material, Matrix4, Mesh, MeshBasicMaterial, MeshPhysicalMaterial,
-  MeshStandardMaterial, Object3D, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Quaternion, Scene, ShaderMaterial, SRGBColorSpace,
-  Texture, Vector2, Vector3, VideoTexture, WebGLRenderer,
+  ACESFilmicToneMapping, AmbientLight, BufferGeometry, CylinderGeometry, DirectionalLight, DoubleSide, Group, Material, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, PlaneGeometry, Quaternion, Scene, ShaderMaterial, SRGBColorSpace, Texture, Vector3, VideoTexture, WebGLRenderer,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -24,6 +21,7 @@ import { PinchZoom } from '../lib/ar/pinch-zoom';
 import { cameraFor, liftHand, DorsalSide, wristFrame, fingerFrame, length, sub, normalize, orthogonal, cross, lerp, type V3 } from '../lib/ar/hand-pose';
 import { fitLoop, type LoopFit } from '../lib/ar/model-fit';
 import { estimateRoomLight, exposureFor } from '../lib/ar/room-light';
+import { CameraEnvironment, RealityCompositor, drawRoom, easeLook, measureLook, supersampledPhoto } from '../lib/ar/reality';
 import { dress } from '../lib/ar/jewel-dress';
 import { classifyPose } from '../lib/gesture-controller';
 import { SENSITIVITY } from '../lib/view-gesture';
@@ -38,7 +36,7 @@ const depthOnly = () => { const m = new MeshBasicMaterial(); m.colorWrite = fals
 const videoMaterial = (map: Texture) => new ShaderMaterial({
   uniforms: { map: { value: map }, zoom: { value: 1 } },
   vertexShader: 'varying vec2 vUv; uniform float zoom; void main(){ vUv=vec2(1.0-uv.x,uv.y); gl_Position=vec4(position.xy*2.0*zoom,0.0,1.0); }',
-  fragmentShader: 'varying vec2 vUv; uniform sampler2D map;\nvoid main(){ gl_FragColor=texture2D(map,vUv);\n#include <colorspace_fragment>\n}',
+  fragmentShader: 'varying vec2 vUv; uniform sampler2D map;\nvec3 lin(vec3 c){ return mix(c/12.92, pow((c+0.055)/1.055, vec3(2.4)), step(0.04045, c)); }\nvoid main(){ gl_FragColor=vec4(lin(texture2D(map,vUv).rgb),1.0); }',
   depthTest: false, depthWrite: false, toneMapped: false,
 });
 
@@ -78,9 +76,12 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     disposables.push(renderer);
+    // Camera-accurate compositing (reality.ts): the jewellery graded to this camera's look, lit by the room in HDR.
+    const reality = new RealityCompositor(renderer); disposables.push(reality);
     const scene = new Scene();
     const camera = new PerspectiveCamera(50, 3 / 4, 0.01, 10);
-    const texture = new VideoTexture(video); texture.colorSpace = SRGBColorSpace; disposables.push(texture);
+    const texture = new VideoTexture(video);   // raw camera values; the backdrop shader decodes them to linear
+    disposables.push(texture);
     const backdrop = new Mesh(new PlaneGeometry(1, 1), videoMaterial(texture));
     backdrop.frustumCulled = false; backdrop.renderOrder = -10; scene.add(backdrop);
     disposables.push(backdrop.geometry, backdrop.material as Material);
@@ -88,35 +89,28 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
     // Light: a key from the bright side of the room, soft fill, and reflections made from the camera picture.
     const key = new DirectionalLight('#ffffff', 2.2); key.position.set(0.4, 0.8, 0.6); scene.add(key);
     const fill = new AmbientLight('#ffffff', 0.35); scene.add(fill);
-    const pmrem = new PMREMGenerator(renderer); disposables.push(pmrem);
-    const roomCanvas = document.createElement('canvas'); roomCanvas.width = 256; roomCanvas.height = 128;
-    const sampleCanvas = document.createElement('canvas'); sampleCanvas.width = 48; sampleCanvas.height = 36;
-    const roomTexture = new CanvasTexture(roomCanvas); roomTexture.mapping = EquirectangularReflectionMapping; roomTexture.colorSpace = SRGBColorSpace;
-    disposables.push(roomTexture);
-    let envTarget: ReturnType<PMREMGenerator['fromEquirectangular']> | undefined, lastRoom = -Infinity, luminance = 0.2;
+    const environment = new CameraEnvironment(renderer); disposables.push(environment);
+    const roomCanvas = document.createElement('canvas'); roomCanvas.width = 128; roomCanvas.height = 64;
+    const sampleCanvas = document.createElement('canvas'); sampleCanvas.width = 64; sampleCanvas.height = 48;
+    let lastRoom = -Infinity, luminance = 0.2, looked = false;
     function readRoom(now: number) {
       if (now - lastRoom < 1000 || !video.videoWidth) return;
       lastRoom = now;
-      const sc = sampleCanvas.getContext('2d', { willReadFrequently: true }), rc = roomCanvas.getContext('2d');
+      const sc = sampleCanvas.getContext('2d', { willReadFrequently: true }), rc = roomCanvas.getContext('2d', { willReadFrequently: true });
       if (!sc || !rc) return;
       sc.save(); sc.scale(-1, 1); sc.drawImage(video, -sampleCanvas.width, 0, sampleCanvas.width, sampleCanvas.height); sc.restore();
-      const light = estimateRoomLight(sc.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data, sampleCanvas.width, sampleCanvas.height);
+      const pixels = sc.getImageData(0, 0, sampleCanvas.width, sampleCanvas.height).data;
+      const light = estimateRoomLight(pixels, sampleCanvas.width, sampleCanvas.height);
       luminance = light.luminance;
-      renderer.toneMappingExposure = exposureFor(luminance);
+      reality.exposure = exposureFor(luminance);
+      reality.look = easeLook(reality.look, measureLook(pixels, sampleCanvas.width, sampleCanvas.height), looked ? 0.35 : 1); looked = true;
       key.position.set(light.direction[0] * 1.2, 0.4 + light.direction[1] * 1.2, 0.8);
       key.color.setRGB(light.colour[0], light.colour[1], light.colour[2]);
       key.intensity = 1.2 + 2.4 * Math.sqrt(luminance);
       fill.color.copy(key.color);
-      // The room as the jewellery sees it: the camera picture all round, blurred, with the bright side as a lamp.
-      rc.filter = 'blur(6px)'; rc.save(); rc.scale(-1, 1);
-      rc.drawImage(video, -roomCanvas.width, 0, roomCanvas.width, roomCanvas.height); rc.restore(); rc.filter = 'none';
-      const lx = (0.5 + light.direction[0] * 0.25) * roomCanvas.width, ly = (0.5 - light.direction[1] * 0.4) * roomCanvas.height;
-      const glow = rc.createRadialGradient(lx, ly, 0, lx, ly, 26);
-      glow.addColorStop(0, 'rgba(255,255,255,0.95)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
-      rc.fillStyle = glow; rc.fillRect(0, 0, roomCanvas.width, roomCanvas.height);
-      roomTexture.needsUpdate = true;
-      const next = pmrem.fromEquirectangular(roomTexture);
-      scene.environment = next.texture; envTarget?.dispose(); envTarget = next;
+      // The room as the jewellery sees it, in HDR: the camera picture all round, its highlights restored.
+      drawRoom(rc, video, roomCanvas.width, roomCanvas.height, true);
+      scene.environment = environment.update(rc.getImageData(0, 0, roomCanvas.width, roomCanvas.height).data);
       shadowMaterials.forEach(m => (m.uniforms.strength.value = 0.18 + 0.22 * Math.min(1, luminance * 3)));
     }
 
@@ -203,7 +197,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
 
     function frame(now: number) {
       if (stopped || !video.videoWidth) return;
-      if (!tracker) { readRoom(now); renderer.render(scene, camera); return; }   // the customer sees themselves while tracking loads
+      if (!tracker) { readRoom(now); reality.render(scene, camera, [backdrop], [shadow]); return; }   // the customer sees themselves while tracking loads
       const result = tracker.detectForVideo(video, now);                  // once per decoded video frame
       const image = result.landmarks?.[0], world = result.worldLandmarks?.[0];
       const label = result.handedness?.[0]?.[0];
@@ -237,7 +231,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       worn.visible = occluders.visible = shadow.visible = visible;
       if (visible !== shown) { shown = visible; setTip(visible ? 'Pinch to zoom. Take a photo when it looks right.' : wrist ? 'Show the back of your hand and your wrist.' : 'Show the back of your hand, fingers slightly apart.'); }
       readRoom(now);
-      renderer.render(scene, camera);
+      reality.render(scene, camera, [backdrop], [shadow]);
     }
 
     function schedule() {
@@ -269,11 +263,11 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
 
     snap.current = async () => {
       if (!video.videoWidth) return null;
-      const w = video.videoWidth, h = video.videoHeight, ratio = renderer.getPixelRatio(), size = renderer.getSize(new Vector2());
-      renderer.setPixelRatio(1); renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
-      renderer.render(scene, camera);
-      const blob = await new Promise<Blob | null>(done => canvas.toBlob(done, 'image/jpeg', 0.94));
-      renderer.setPixelRatio(ratio); renderer.setSize(size.x, size.y, false); resize(); renderer.render(scene, camera);
+      // the camera's full resolution, supersampled (reality.ts)
+      const w = video.videoWidth, h = video.videoHeight;
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      const blob = await supersampledPhoto(renderer, camera, w, h, target => reality.render(scene, camera, [backdrop], [shadow], target), 8);
+      resize();
       return blob;
     };
 
@@ -305,7 +299,6 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
       if (frameHandle) v.cancelVideoFrameCallback?.(frameHandle);
       stream?.getTracks().forEach(t => t.stop()); video.srcObject = null;
       tracker?.close();
-      envTarget?.dispose();
       piece?.traverse(o => { const m = o as Mesh; if (m.isMesh) { (m.geometry as BufferGeometry)?.dispose(); [m.material].flat().forEach(x => (x as Material)?.dispose()); } });
       disposables.forEach(d => d.dispose());
     };
@@ -317,7 +310,7 @@ export default function ArTryOn({ model, category, fit, onUnavailable }: Props) 
     setPhoto(old => { if (old) URL.revokeObjectURL(old); return URL.createObjectURL(blob); });
   }
 
-  return <div className="flex h-full flex-col">
+  return <div className="flex h-full flex-col" data-ar-hand>
     <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{ containerType: 'size', minHeight: 'clamp(260px,46svh,620px)' }}>
       <div ref={host} className="relative overflow-hidden rounded-2xl bg-black" style={{ width: `min(100cqw, ${aspect * 100}cqh)`, aspectRatio: aspect }}>
         <canvas ref={canvasRef} className="block h-full w-full" aria-label="Live try-on: your hand with the selected piece" />

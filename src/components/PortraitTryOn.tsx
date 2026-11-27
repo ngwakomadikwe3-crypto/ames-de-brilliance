@@ -83,8 +83,8 @@ function anchorsFrom(skin: P3[], lm: P3[], eyes: { left: P3; right: P3 }): BustA
     neck: { centre, half_width: (Math.max(...xs) - Math.min(...xs)) / 2, half_depth: (Math.max(...zs) - Math.min(...zs)) / 2 }, neck_front: front as V3 };
 }
 
-export default function PortraitTryOn({ model, category, title, onClose, detachable, wearLabels, more }: {
-  model: string; category: string; title?: string; onClose?: () => void; detachable?: string; wearLabels?: { stud: string; full: string };
+export default function PortraitTryOn({ model, category, title, onClose, detachable, wearLabels, more, onLiveCamera }: {
+  model: string; category: string; title?: string; onClose?: () => void; detachable?: string; wearLabels?: { stud: string; full: string }; onLiveCamera?: () => void;
   more?: { model: string; category: string }[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null), box = useRef<HTMLDivElement>(null);
@@ -380,7 +380,9 @@ export default function PortraitTryOn({ model, category, title, onClose, detacha
             </div>
           </div>
         </div>
-      : <div className="absolute inset-x-0 bottom-5 z-10 flex justify-center">
+      : <div className="absolute inset-x-0 bottom-5 z-10 flex justify-center gap-3">
+          {/* the real face: the live camera, the piece composited like film (ArFaceTryOn + reality.ts) */}
+          {onLiveCamera && <button type="button" onClick={onLiveCamera} className="min-h-11 rounded-full px-6 text-sm font-medium shadow-lg" style={bubble} data-live-camera>On my real face</button>}
           {face
             ? <button type="button" onClick={() => api.current?.camera(!tracking)} className="min-h-11 rounded-full px-6 text-sm font-medium shadow-lg" style={bubble} data-portrait-camera>{tracking ? 'Stop the camera' : 'Move with me'}</button>
             : <button type="button" onClick={() => setScanning(true)} className="min-h-11 rounded-full px-6 text-sm font-medium shadow-lg" style={bubble} data-scan-face>Create your twin</button>}

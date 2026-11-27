@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 const CloneTryOn = dynamic(() => import('./CloneTryOn'), { ssr: false });
 const ArTryOn = dynamic(() => import('./ArTryOn'), { ssr: false });
 const PortraitTryOn = dynamic(() => import('./PortraitTryOn'), { ssr: false });
+const ArFaceTryOn = dynamic(() => import('./ArFaceTryOn'), { ssr: false });
 const HAND = ['ring', 'bracelet', 'watch'], PORTRAIT = ['earrings', 'earring', 'necklace', 'pendant'];
 class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void }, { failed: boolean }> {
   state = { failed: false }; static getDerivedStateFromError() { return { failed: true }; }
@@ -39,12 +40,18 @@ export default function FittingHand({ category, model, title, children, detachab
         so the header can never cover the try-on's Back button. */}
     {on && createPortal(<div className="fixed inset-0 z-[80]" style={{ background: 'radial-gradient(120% 90% at 50% 35%, #0f4a3a 0%, #062a21 70%)', height: '100dvh' }} data-try-on role="dialog" aria-modal="true" aria-label={`Try on ${title ?? 'this piece'}`}>
       <SceneBoundary key={(ar ? 'ar' : 'clone') + model} onFail={() => { setFailed(true); close(); }}>
-        {portrait
-          ? <PortraitTryOn model={model} category={category} title={title} onClose={close} detachable={detachable} wearLabels={wearLabels} />
+        {portrait && ar
+          ? <div className="relative h-full w-full overflow-y-auto">
+              <ArFaceTryOn model={model} category={category} onUnavailable={() => setAr(false)} />
+              <button type="button" aria-label="Back" onClick={() => setAr(false)} className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 18l-6-6 6-6" /></svg></button>
+            </div>
+          : portrait
+          ? <PortraitTryOn model={model} category={category} title={title} onClose={close} detachable={detachable} wearLabels={wearLabels} onLiveCamera={() => setAr(true)} />
           : ar
           ? <div className="relative h-full w-full overflow-y-auto">
               <ArTryOn model={model} category={category} onUnavailable={() => setAr(false)} />
-              <button type="button" aria-label="Back to my 3D hand" onClick={() => setAr(false)} className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
+              <button type="button" aria-label="Back" onClick={() => setAr(false)} className="absolute left-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg" style={bubble}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M15 18l-6-6 6-6" /></svg></button>
             </div>
           : <CloneTryOn model={model} category={category} title={title} onClose={close} onLiveCamera={() => setAr(true)} />}
